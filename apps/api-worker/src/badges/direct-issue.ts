@@ -516,6 +516,11 @@ export const createIssueBadgeForTenant = <
       ...(request.lmsLearnerIdentity === undefined
         ? {}
         : { lmsLearnerIdentity: request.lmsLearnerIdentity }),
+      ...(request.learnerPathwayCompletionHandoffId === undefined
+        ? {}
+        : {
+            learnerPathwayCompletionHandoffId: request.learnerPathwayCompletionHandoffId,
+          }),
     });
 
     if (finalizeResult.status === "lms_identity_conflict") {
@@ -524,6 +529,12 @@ export const createIssueBadgeForTenant = <
           finalizeResult.reason === "lms_learner_id_in_use"
             ? "This LMS learner ID is already linked to another learner record."
             : "This learner record is already linked to a different learner ID for this LMS connection.",
+      });
+    }
+
+    if (finalizeResult.status === "learner_pathway_handoff_conflict") {
+      throw new input.HttpErrorResponseClass(409, {
+        error: "This pathway completion is no longer eligible for issuance.",
       });
     }
 

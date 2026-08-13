@@ -98,11 +98,10 @@ describe("createLearnerRecordPage", () => {
               ],
             },
             evaluationHistory: [],
-            completionHandoff: {
-              id: "pthh_123",
-              status: "review_pending",
+            state: {
+              _tag: "needs_review",
+              handoffId: "pthh_123",
               badgeTemplateId: "badge_final",
-              assertionPublicId: null,
             },
             nextRequirement: null,
             completedAt: null,

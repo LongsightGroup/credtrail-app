@@ -2,9 +2,11 @@ import { logError, logInfo, type ObservabilityContext } from "@credtrail/core-do
 import {
   completeJobQueueMessage,
   createAuditLog,
+  enqueueJobQueueMessageOnce,
   failJobQueueMessage,
   leaseJobQueueMessages,
   recordAssertionRevocation,
+  reevaluateLearnerPathwaysForLearner,
   type SqlDatabase,
 } from "@credtrail/db";
 import {
@@ -125,6 +127,7 @@ interface ProcessQueuedJobsDependencies<TBindings, TContext extends { env: TBind
 const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
   c: TContext,
   job: QueueJob,
+  sourceMessageId: string,
   dependencies: ProcessQueuedJobsDependencies<TBindings, TContext>,
 ): Promise<void> => {
   switch (job.jobType) {
@@ -227,6 +230,35 @@ const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
     case "send_badge_rule_approval_notification":
       await dependencies.processBadgeRuleApprovalNotificationJob(c, job.tenantId, job.payload);
       return;
+    case "process_learner_evidence_change": {
+      const db = dependencies.resolveDatabase(c.env);
+      const result = await reevaluateLearnerPathwaysForLearner(db, {
+        tenantId: job.tenantId,
+        learnerProfileId: job.payload.learnerProfileId,
+        trigger: job.payload.trigger,
+        ...(job.payload.afterEnrollmentId === undefined
+          ? {}
+          : { afterEnrollmentId: job.payload.afterEnrollmentId }),
+        limit: 25,
+      });
+
+      if (result.nextEnrollmentId !== null) {
+        const now = new Date().toISOString();
+        await enqueueJobQueueMessageOnce(db, {
+          tenantId: job.tenantId,
+          jobType: "process_learner_evidence_change",
+          payload: {
+            learnerProfileId: job.payload.learnerProfileId,
+            trigger: job.payload.trigger,
+            requestedAt: job.payload.requestedAt,
+            afterEnrollmentId: result.nextEnrollmentId,
+          },
+          idempotencyKey: `pathway-evidence-page:${sourceMessageId}:${result.nextEnrollmentId}`,
+          nowIso: now,
+        });
+      }
+      return;
+    }
   }
 };
 
@@ -259,7 +291,7 @@ export const createProcessQueuedJobs = <TBindings, TContext extends { env: TBind
 
       try {
         const job = queueJobFromMessage(leasedMessage);
-        await processQueuedJob(c, job, dependencies);
+        await processQueuedJob(c, job, leasedMessage.id, dependencies);
         await completeJobQueueMessage(dependencies.resolveDatabase(c.env), {
           id: leasedMessage.id,
           leaseToken,

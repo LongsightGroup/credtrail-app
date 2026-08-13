@@ -202,6 +202,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
               listError: input.manualIssueWorkspace?.listError ?? null,
               listNotice: input.manualIssueWorkspace?.listNotice ?? null,
               successLinks: input.manualIssueWorkspace?.successLinks ?? null,
+              pathwayHandoffId: input.manualIssueWorkspace?.pathwayIssuance?.handoffId ?? null,
             })}
           </section>
         </>

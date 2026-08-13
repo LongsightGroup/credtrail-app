@@ -20,6 +20,7 @@ interface RenderManualIssueSectionInput {
   listError?: string | null;
   listNotice?: string | null;
   successLinks?: AdminManualIssueSuccessLinks | null;
+  pathwayHandoffId?: string | null;
 }
 
 export const renderManualIssueSection = (input: RenderManualIssueSectionInput): HonoElement => {
@@ -70,6 +71,18 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
         action={tenantOperationsManualIssuePath(input.tenantId)}
         className="ct-admin__form ct-admin__setup-form ct-stack"
       >
+        {input.pathwayHandoffId === null || input.pathwayHandoffId === undefined ? null : (
+          <>
+            <CtInput
+              name="learnerPathwayCompletionHandoffId"
+              type="hidden"
+              value={input.pathwayHandoffId}
+            />
+            <AdminStatus data-tone="info">
+              This issuance will complete the selected governed learner pathway.
+            </AdminStatus>
+          </>
+        )}
         <AdminField label="Badge template">
           <CtSelect name="badgeTemplateId" required>
             {input.templateSelectOptions}

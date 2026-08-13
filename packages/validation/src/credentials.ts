@@ -125,10 +125,15 @@ export const issueBadgeRequestSchema = z.strictObject({
   idempotencyKey: idempotencyKeySchema.optional(),
 });
 
-export const manualIssueBadgeRequestSchema = issueBadgeRequestSchema.omit({
-  tenantId: true,
-  requestedByUserId: true,
-});
+export const manualIssueBadgeRequestSchema = issueBadgeRequestSchema
+  .omit({
+    tenantId: true,
+    requestedByUserId: true,
+  })
+  .extend({
+    learnerPathwayCompletionHandoffId: resourceIdSchema.optional(),
+  })
+  .strict();
 
 export const programmaticIssueBadgeRequestSchema = issueBadgeRequestSchema
   .omit({

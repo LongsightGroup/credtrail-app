@@ -4,7 +4,10 @@ import {
   type ListBadgeIssuanceRuleRegistryPageInput,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import { parseTenantLmsConnectionPathParams } from "@credtrail/validation";
+import {
+  parseTenantLmsConnectionPathParams,
+  safeParseLearnerPathwayIssuanceQuery,
+} from "@credtrail/validation";
 import type { AppContext } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
 import { loadBadgeRuleReviewQueueEntries } from "../badge-rule-review-queue-workspace";
@@ -629,23 +632,36 @@ export const renderInstitutionAdminManualIssueWorkspace = async <
     tenantId,
     userId: session.userId,
   });
+  const pathwayIssuanceQuery = safeParseLearnerPathwayIssuanceQuery({
+    pathwayHandoffId: c.req.query("pathwayHandoffId"),
+    badgeTemplateId: c.req.query("badgeTemplateId"),
+  });
+  const pathwayIssuance = pathwayIssuanceQuery.ok
+    ? {
+        handoffId: pathwayIssuanceQuery.value.pathwayHandoffId,
+        badgeTemplateId: pathwayIssuanceQuery.value.badgeTemplateId,
+      }
+    : null;
   const manualIssueWorkspace =
     flash === null
       ? {
           listNotice: null,
           listError: null,
           successLinks: null,
+          pathwayIssuance,
         }
       : flash.tone === "error"
         ? {
             listNotice: null,
             listError: flash.message,
             successLinks: null,
+            pathwayIssuance,
           }
         : {
             listNotice: flash.message,
             listError: null,
             successLinks: flash.successLinks ?? null,
+            pathwayIssuance,
           };
 
   return await renderInstitutionAdminWorkspacePage(

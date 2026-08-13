@@ -85,6 +85,11 @@ export const learnerPathwayCompletionReviewRequestSchema = z.object({
   decision: z.literal("approve_for_issuance"),
 });
 
+export const learnerPathwayIssuanceQuerySchema = z.strictObject({
+  pathwayHandoffId: resourceIdSchema,
+  badgeTemplateId: resourceIdSchema,
+});
+
 export const learnerPathwayPathParamsSchema = z.object({
   tenantId: resourceIdSchema,
   pathwayId: resourceIdSchema,
@@ -135,6 +140,19 @@ export const parseLearnerPathwayCompletionReviewRequest = (
   input: unknown,
 ): z.infer<typeof learnerPathwayCompletionReviewRequestSchema> => {
   return learnerPathwayCompletionReviewRequestSchema.parse(input);
+};
+
+/** Safely parses optional governed-pathway issuance context from a page query. */
+export const safeParseLearnerPathwayIssuanceQuery = (
+  input: unknown,
+):
+  | {
+      readonly ok: true;
+      readonly value: z.infer<typeof learnerPathwayIssuanceQuerySchema>;
+    }
+  | { readonly ok: false } => {
+  const result = learnerPathwayIssuanceQuerySchema.safeParse(input);
+  return result.success ? { ok: true, value: result.data } : { ok: false };
 };
 
 export const parseLearnerPathwayPathParams = (

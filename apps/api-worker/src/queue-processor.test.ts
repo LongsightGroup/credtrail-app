@@ -13,6 +13,7 @@ vi.mock("@credtrail/db", async () => {
     createLearnerRecordEntry: vi.fn(),
     createLearnerRecordImportContext: vi.fn(),
     createAuditLog: vi.fn(),
+    enqueueJobQueueMessageOnce: vi.fn(),
     failJobQueueMessage: vi.fn(),
     findBadgeIssuanceRuleVersionById: vi.fn(),
     findTenantById: vi.fn(),
@@ -20,6 +21,7 @@ vi.mock("@credtrail/db", async () => {
     leaseJobQueueMessages: vi.fn(),
     listBadgeIssuanceRuleVersionApprovalSteps: vi.fn(),
     recordAssertionRevocation: vi.fn(),
+    reevaluateLearnerPathwaysForLearner: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
   };
 });
@@ -35,6 +37,7 @@ import {
   createLearnerRecordEntry,
   createLearnerRecordImportContext,
   createAuditLog,
+  enqueueJobQueueMessageOnce,
   failJobQueueMessage,
   findBadgeIssuanceRuleVersionById,
   findTenantById,
@@ -42,6 +45,7 @@ import {
   leaseJobQueueMessages,
   listBadgeIssuanceRuleVersionApprovalSteps,
   recordAssertionRevocation,
+  reevaluateLearnerPathwaysForLearner,
   resolveLearnerProfileForIdentity,
   type AuditLogRecord,
   type BadgeIssuanceRuleVersionRecord,
@@ -61,6 +65,7 @@ const mockedCompleteJobQueueMessage = vi.mocked(completeJobQueueMessage);
 const mockedCreateLearnerRecordEntry = vi.mocked(createLearnerRecordEntry);
 const mockedCreateLearnerRecordImportContext = vi.mocked(createLearnerRecordImportContext);
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
+const mockedEnqueueJobQueueMessageOnce = vi.mocked(enqueueJobQueueMessageOnce);
 const mockedFailJobQueueMessage = vi.mocked(failJobQueueMessage);
 const mockedFindBadgeIssuanceRuleVersionById = vi.mocked(findBadgeIssuanceRuleVersionById);
 const mockedFindTenantById = vi.mocked(findTenantById);
@@ -70,6 +75,7 @@ const mockedListBadgeIssuanceRuleVersionApprovalSteps = vi.mocked(
   listBadgeIssuanceRuleVersionApprovalSteps,
 );
 const mockedRecordAssertionRevocation = vi.mocked(recordAssertionRevocation);
+const mockedReevaluateLearnerPathwaysForLearner = vi.mocked(reevaluateLearnerPathwaysForLearner);
 const mockedResolveLearnerProfileForIdentity = vi.mocked(resolveLearnerProfileForIdentity);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const fakeDb = {
@@ -196,7 +202,14 @@ describe("POST /v1/jobs/process", () => {
     mockedRecordAssertionRevocation.mockReset();
     mockedResolveLearnerProfileForIdentity.mockReset();
     mockedCreateAuditLog.mockReset();
+    mockedEnqueueJobQueueMessageOnce.mockReset();
+    mockedReevaluateLearnerPathwaysForLearner.mockReset();
     mockedCreateAuditLog.mockResolvedValue(sampleAuditLogRecord());
+    mockedEnqueueJobQueueMessageOnce.mockResolvedValue(true);
+    mockedReevaluateLearnerPathwaysForLearner.mockResolvedValue({
+      evaluations: [],
+      nextEnrollmentId: null,
+    });
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
     mockedFindBadgeIssuanceRuleVersionById.mockResolvedValue(sampleBadgeIssuanceRuleVersion());
     mockedFindTenantById.mockResolvedValue({
@@ -286,6 +299,49 @@ describe("POST /v1/jobs/process", () => {
     expect(body.succeeded).toBe(1);
     expect(mockedCompleteJobQueueMessage).toHaveBeenCalledTimes(1);
     expect(mockedFailJobQueueMessage).not.toHaveBeenCalled();
+  });
+
+  it("processes learner evidence changes in bounded continuation pages", async () => {
+    mockedReevaluateLearnerPathwaysForLearner.mockResolvedValueOnce({
+      evaluations: [],
+      nextEnrollmentId: "pthe_025",
+    });
+    mockedLeaseJobQueueMessages.mockResolvedValue([
+      sampleLeasedQueueMessage({
+        jobType: "process_learner_evidence_change",
+        payloadJson: JSON.stringify({
+          learnerProfileId: "lpr_123",
+          trigger: "assertion_issued",
+          requestedAt: "2026-02-10T22:00:00.000Z",
+        }),
+      }),
+    ]);
+
+    const response = await app.request(
+      "/v1/jobs/process",
+      {
+        method: "POST",
+        headers: processorHeaders(),
+        body: JSON.stringify({}),
+      },
+      createProcessorEnv(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockedReevaluateLearnerPathwaysForLearner).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      learnerProfileId: "lpr_123",
+      trigger: "assertion_issued",
+      limit: 25,
+    });
+    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledWith(
+      fakeDb,
+      expect.objectContaining({
+        jobType: "process_learner_evidence_change",
+        payload: expect.objectContaining({ afterEnrollmentId: "pthe_025" }),
+      }),
+    );
+    expect(mockedCompleteJobQueueMessage).toHaveBeenCalledTimes(1);
   });
 
   it("processes badge rule approval notification jobs", async () => {

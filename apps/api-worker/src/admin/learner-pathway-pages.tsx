@@ -1,6 +1,7 @@
 import type {
   BadgeTemplateRecord,
   LearnerPathwayAdminProgressRecord,
+  LearnerPathwayProgressState,
   LearnerPathwayRecord,
   LearnerPathwayRequirementRecord,
   LearnerPathwayVersionSummaryRecord,
@@ -66,34 +67,32 @@ const pathwayDisplayStatus = (pathway: LearnerPathwayRecord): { label: string; t
     ? { label: `Draft v${String(pathway.version.number)}`, tone: "draft" }
     : { label: pathwayStatusLabel(pathway.status), tone: pathway.status };
 
+type LearnerPathwayProgressStateTag = LearnerPathwayProgressState["_tag"];
+
+const evaluationPresentation = {
+  complete: { label: "Complete", tone: "active" },
+  eligible: { label: "Approved for issuance", tone: "active" },
+  issued: { label: "Credential issued", tone: "active" },
+  needs_review: { label: "Needs review", tone: "pending_review" },
+  invalidated: { label: "Invalidated", tone: "revoked" },
+  in_progress: { label: "In progress", tone: "draft" },
+} satisfies Record<LearnerPathwayProgressStateTag, { label: string; tone: string }>;
+
+const progressStateMessages = {
+  eligible: "Final credential eligible — issuance is awaiting an administrator decision.",
+  issued: "The final credential was issued through the governed handoff.",
+  needs_review: "Final credential review is pending in this governed handoff.",
+  invalidated: "Prior completion was invalidated after its qualifying evidence changed.",
+  complete: "Completion recorded; no credential was issued automatically.",
+  in_progress: "The learner is still working toward the pathway requirements.",
+} satisfies Record<LearnerPathwayProgressStateTag, string>;
+
 const evaluationLabel = (
   progress: LearnerPathwayAdminProgressRecord,
-): { label: string; tone: string } => {
-  if (
-    progress.evaluation.result === "needs_review" &&
-    progress.completionHandoff?.status === "eligible"
-  ) {
-    return { label: "Approved for issuance", tone: "active" };
-  }
+): { label: string; tone: string } => evaluationPresentation[progress.state._tag];
 
-  if (
-    progress.evaluation.result === "needs_review" &&
-    progress.completionHandoff?.status === "issued"
-  ) {
-    return { label: "Credential issued", tone: "active" };
-  }
-
-  switch (progress.evaluation.result) {
-    case "complete":
-      return { label: "Complete", tone: "active" };
-    case "needs_review":
-      return { label: "Needs review", tone: "pending_review" };
-    case "invalidated":
-      return { label: "Invalidated", tone: "revoked" };
-    case "in_progress":
-      return { label: "In progress", tone: "draft" };
-  }
-};
+const progressStateMessage = (progress: LearnerPathwayAdminProgressRecord): string =>
+  progressStateMessages[progress.state._tag];
 
 const pathwayShellPage = (
   input: LearnerPathwayShellInput,
@@ -608,49 +607,39 @@ export const learnerPathwayDetailPage = (
                     </th>
                     <td>
                       <AdminStatusPill tone={status.tone}>{status.label}</AdminStatusPill>
-                      {entry.completionHandoff === null ? null : (
-                        <>
-                          <p class="ct-admin__meta">
-                            {entry.completionHandoff.status === "eligible"
-                              ? "Final credential eligible — issuance is awaiting an administrator decision."
-                              : entry.completionHandoff.status === "issued"
-                                ? "The final credential was issued through the governed handoff."
-                                : entry.completionHandoff.status === "review_pending"
-                                  ? "Final credential review is pending in this governed handoff."
-                                  : entry.completionHandoff.status === "cancelled"
-                                    ? "A prior completion handoff was cancelled after evidence changed."
-                                    : "Completion recorded; no credential was issued automatically."}
-                          </p>
-                          {entry.completionHandoff.status === "review_pending" ? (
-                            <AdminForm
-                              method="post"
-                              action={`${detailPath}/enrollments/${encodeURIComponent(entry.enrollmentId)}/completion-review`}
-                              className="ct-admin__inline-action-form"
-                            >
-                              <CtInput name="decision" type="hidden" value="approve_for_issuance" />
-                              <AdminButton type="submit" size="tiny" variant="secondary">
-                                Approve for issuance
-                              </AdminButton>
-                            </AdminForm>
-                          ) : entry.completionHandoff.status === "eligible" ? (
-                            <AdminButtonLink
-                              href={`/tenants/${encodeURIComponent(input.tenant.id)}/admin/operations/issue`}
-                              size="tiny"
-                            >
-                              Review issuance
-                            </AdminButtonLink>
-                          ) : entry.completionHandoff.status === "issued" &&
-                            entry.completionHandoff.assertionPublicId !== null ? (
-                            <AdminButtonLink
-                              href={`/badges/${encodeURIComponent(entry.completionHandoff.assertionPublicId)}`}
-                              size="tiny"
-                              variant="secondary"
-                            >
-                              View final credential
-                            </AdminButtonLink>
-                          ) : null}
-                        </>
-                      )}
+                      <p class="ct-admin__meta">{progressStateMessage(entry)}</p>
+                      {entry.state._tag === "needs_review" ? (
+                        <AdminForm
+                          method="post"
+                          action={`${detailPath}/enrollments/${encodeURIComponent(entry.enrollmentId)}/completion-review`}
+                          className="ct-admin__inline-action-form"
+                        >
+                          <CtInput name="decision" type="hidden" value="approve_for_issuance" />
+                          <AdminButton type="submit" size="tiny" variant="secondary">
+                            Approve for issuance
+                          </AdminButton>
+                        </AdminForm>
+                      ) : entry.state._tag === "eligible" ? (
+                        <AdminButtonLink
+                          href={`/tenants/${encodeURIComponent(input.tenant.id)}/admin/operations/issue?${new URLSearchParams(
+                            {
+                              pathwayHandoffId: entry.state.handoffId,
+                              badgeTemplateId: entry.state.badgeTemplateId,
+                            },
+                          ).toString()}`}
+                          size="tiny"
+                        >
+                          Review issuance
+                        </AdminButtonLink>
+                      ) : entry.state._tag === "issued" ? (
+                        <AdminButtonLink
+                          href={`/badges/${encodeURIComponent(entry.state.assertionPublicId)}`}
+                          size="tiny"
+                          variant="secondary"
+                        >
+                          View final credential
+                        </AdminButtonLink>
+                      ) : null}
                     </td>
                     <td>
                       <ol>
@@ -706,7 +695,7 @@ export const learnerPathwayDetailPage = (
                       {formatIsoTimestamp(entry.evaluation.evaluatedAt)} UTC
                       <details>
                         <summary>
-                          Evaluation history ({String(entry.evaluationHistory.length)})
+                          Recent evaluation history ({String(entry.evaluationHistory.length)})
                         </summary>
                         <ol>
                           {entry.evaluationHistory.map((evaluation) => (

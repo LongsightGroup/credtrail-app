@@ -336,6 +336,7 @@ const badgeRuleRegistryStringCursorSchema = z.object({
   direction: badgeRuleRegistrySortDirectionSchema,
   value: z.string().max(2048),
   ruleId: resourceIdSchema,
+  totalCount: z.number().int().nonnegative(),
 });
 
 const badgeRuleRegistryNumberCursorSchema = z.object({
@@ -343,6 +344,7 @@ const badgeRuleRegistryNumberCursorSchema = z.object({
   direction: badgeRuleRegistrySortDirectionSchema,
   value: z.number().int().nonnegative(),
   ruleId: resourceIdSchema,
+  totalCount: z.number().int().nonnegative(),
 });
 
 export const badgeRuleRegistryCursorPayloadSchema = z.union([

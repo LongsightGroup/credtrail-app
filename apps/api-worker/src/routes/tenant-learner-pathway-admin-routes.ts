@@ -11,11 +11,13 @@ import {
   listLearnerPathways,
   listLearnerPathwayVersions,
   listTenantOrgUnits,
+  LearnerPathwayCommandError,
   publishLearnerPathway,
   resolveLearnerProfileForIdentity,
   retireLearnerPathway,
   revokeLearnerPathwayRequirementWaiver,
   enrollLearnerInPathway,
+  isLearnerPathwayCommandError,
   updateLearnerPathwayDraft,
   waiveLearnerPathwayRequirement,
   type BadgeTemplateRecord,
@@ -152,11 +154,27 @@ const redirectWith = (
   return c.redirect(`${url.pathname}${url.search}`, 303);
 };
 
+const pathwayFailureCode = (cause: unknown): "invalid" | "not_found" | "conflict" | "not_ready" => {
+  if (isLearnerPathwayCommandError(cause)) {
+    return cause.code;
+  }
+
+  if (cause instanceof z.ZodError) {
+    return "invalid";
+  }
+
+  throw cause;
+};
+
+const invalidPathwayForm = (message: string): never => {
+  throw new LearnerPathwayCommandError("invalid", message);
+};
+
 const readUrlEncodedForm = async (c: AppContext): Promise<URLSearchParams> => {
   const contentType = c.req.header("content-type")?.toLowerCase() ?? "";
 
   if (!contentType.includes("application/x-www-form-urlencoded")) {
-    throw new Error("Expected a form submission");
+    invalidPathwayForm("Expected a form submission");
   }
 
   return new URLSearchParams(await c.req.text());
@@ -182,14 +200,14 @@ const requirementFromSelection = (
   const target = separatorIndex < 0 ? undefined : selection.slice(separatorIndex + 1);
 
   if (target === undefined || target.length === 0) {
-    throw new Error("Invalid requirement selection");
+    return invalidPathwayForm("Invalid requirement selection");
   }
 
   if (kind === "badge") {
     const template = badgeTemplates.find((entry) => entry.id === target && !entry.isArchived);
 
     if (template === undefined) {
-      throw new Error("Badge template is not available");
+      return invalidPathwayForm("Badge template is not available");
     }
 
     return {
@@ -204,13 +222,13 @@ const requirementFromSelection = (
     const label = recordTypeLabels.get(target);
 
     if (label === undefined) {
-      throw new Error("Learner record type is not available");
+      return invalidPathwayForm("Learner record type is not available");
     }
 
     return { requirementKind: "learner_record", learnerRecordType: target, title: label };
   }
 
-  throw new Error("Invalid requirement selection");
+  return invalidPathwayForm("Invalid requirement selection");
 };
 
 const parsePathwayForm = (
@@ -334,8 +352,8 @@ export const registerTenantLearnerPathwayAdminRoutes = (
         ...request,
       });
       return redirectWith(c, pathwayPath(tenantId, pathway.id), "notice", "created");
-    } catch {
-      return redirectWith(c, `${basePath}/new`, "error", "invalid");
+    } catch (cause: unknown) {
+      return redirectWith(c, `${basePath}/new`, "error", pathwayFailureCode(cause));
     }
   });
 
@@ -394,8 +412,8 @@ export const registerTenantLearnerPathwayAdminRoutes = (
         ...request,
       });
       return redirectWith(c, pathwayPath(tenantId, pathwayId), "notice", "updated");
-    } catch {
-      return redirectWith(c, editPath, "error", "invalid");
+    } catch (cause: unknown) {
+      return redirectWith(c, editPath, "error", pathwayFailureCode(cause));
     }
   });
 
@@ -497,8 +515,8 @@ export const registerTenantLearnerPathwayAdminRoutes = (
         actorUserId: authorized.actorUserId,
       });
       return redirectWith(c, detailPath, "notice", "published");
-    } catch {
-      return redirectWith(c, detailPath, "error", "not_ready");
+    } catch (cause: unknown) {
+      return redirectWith(c, detailPath, "error", pathwayFailureCode(cause));
     }
   });
 
@@ -518,8 +536,8 @@ export const registerTenantLearnerPathwayAdminRoutes = (
         actorUserId: authorized.actorUserId,
       });
       return redirectWith(c, `${detailPath}/edit`, "notice", "versioned");
-    } catch {
-      return redirectWith(c, detailPath, "error", "conflict");
+    } catch (cause: unknown) {
+      return redirectWith(c, detailPath, "error", pathwayFailureCode(cause));
     }
   });
 
@@ -540,8 +558,8 @@ export const registerTenantLearnerPathwayAdminRoutes = (
         actorUserId: authorized.actorUserId,
       });
       return redirectWith(c, pathwaysPath(tenantId), "notice", "retired");
-    } catch {
-      return redirectWith(c, pathwayPath(tenantId, pathwayId), "error", "conflict");
+    } catch (cause: unknown) {
+      return redirectWith(c, pathwayPath(tenantId, pathwayId), "error", pathwayFailureCode(cause));
     }
   });
 
@@ -569,8 +587,8 @@ export const registerTenantLearnerPathwayAdminRoutes = (
         actorUserId: authorized.actorUserId,
       });
       return redirectWith(c, detailPath, "notice", "enrolled");
-    } catch {
-      return redirectWith(c, detailPath, "error", "conflict");
+    } catch (cause: unknown) {
+      return redirectWith(c, detailPath, "error", pathwayFailureCode(cause));
     }
   });
 
@@ -600,8 +618,8 @@ export const registerTenantLearnerPathwayAdminRoutes = (
           ...request,
         });
         return redirectWith(c, detailPath, "notice", "waived");
-      } catch {
-        return redirectWith(c, detailPath, "error", "invalid");
+      } catch (cause: unknown) {
+        return redirectWith(c, detailPath, "error", pathwayFailureCode(cause));
       }
     },
   );
@@ -632,8 +650,8 @@ export const registerTenantLearnerPathwayAdminRoutes = (
           requirementId: request.requirementId,
         });
         return redirectWith(c, detailPath, "notice", "waiver_revoked");
-      } catch {
-        return redirectWith(c, detailPath, "error", "conflict");
+      } catch (cause: unknown) {
+        return redirectWith(c, detailPath, "error", pathwayFailureCode(cause));
       }
     },
   );
@@ -660,8 +678,8 @@ export const registerTenantLearnerPathwayAdminRoutes = (
           actorUserId: authorized.actorUserId,
         });
         return redirectWith(c, detailPath, "notice", "reviewed");
-      } catch {
-        return redirectWith(c, detailPath, "error", "conflict");
+      } catch (cause: unknown) {
+        return redirectWith(c, detailPath, "error", pathwayFailureCode(cause));
       }
     },
   );

@@ -587,8 +587,17 @@ export const buildInstitutionAdminViewResources = (
     : [];
   const templateOptions = dataNeeds.templateSelectOptions
     ? input.badgeTemplates.map((template, index) => {
+        const selectedPathwayTemplateId =
+          input.manualIssueWorkspace?.pathwayIssuance?.badgeTemplateId;
         return (
-          <option value={template.id} selected={index === 0}>
+          <option
+            value={template.id}
+            selected={
+              selectedPathwayTemplateId === undefined
+                ? index === 0
+                : template.id === selectedPathwayTemplateId
+            }
+          >
             {`${template.title} (${template.id})`}
           </option>
         );

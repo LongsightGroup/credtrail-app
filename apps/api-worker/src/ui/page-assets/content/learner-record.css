@@ -284,7 +284,9 @@
   color: var(--ct-theme-text-title);
   font-size: clamp(1.15rem, 2vw, 1.4rem);
 }
-.learner-record__pill--pathway-complete {
+.learner-record__pill--pathway-complete,
+.learner-record__pill--pathway-eligible,
+.learner-record__pill--pathway-issued {
   color: #17633a;
   background: #e8f7ef;
 }

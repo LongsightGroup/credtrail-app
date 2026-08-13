@@ -1,6 +1,6 @@
 import { assertValidIsoTimestamp, createPrefixedId } from "./shared-helpers";
-import { reevaluateLearnerPathwaysForLearner } from "./learner-pathways";
-import type { SqlDatabase } from "./tenant-scope";
+import { enqueueLearnerEvidenceChange } from "./learner-evidence-change-jobs.js";
+import { runSqlTransaction, type SqlDatabase } from "./tenant-scope";
 
 export type LearnerRecordTrustLevel = "issuer_verified" | "learner_supplemental";
 
@@ -240,7 +240,7 @@ const findLearnerRecordEntryById = async (
   return row === null ? null : mapLearnerRecordEntryRow(row);
 };
 
-export const createLearnerRecordEntry = async (
+const createLearnerRecordEntryInTransaction = async (
   db: SqlDatabase,
   input: CreateLearnerRecordEntryInput,
 ): Promise<LearnerRecordEntryRecord> => {
@@ -330,13 +330,25 @@ export const createLearnerRecordEntry = async (
     throw new Error(`Failed to create learner-record entry "${id}"`);
   }
 
-  await reevaluateLearnerPathwaysForLearner(db, {
+  await enqueueLearnerEvidenceChange(db, {
     tenantId: input.tenantId,
     learnerProfileId: input.learnerProfileId,
     trigger: "learner_record_created",
+    evidenceEventId: id,
+    requestedAt: nowIso,
   });
 
   return entry;
+};
+
+/** Creates a learner-record entry and atomically schedules derived evidence evaluation. */
+export const createLearnerRecordEntry = async (
+  db: SqlDatabase,
+  input: CreateLearnerRecordEntryInput,
+): Promise<LearnerRecordEntryRecord> => {
+  return runSqlTransaction(db, (transaction) =>
+    createLearnerRecordEntryInTransaction(transaction, input),
+  );
 };
 
 export const listLearnerRecordEntries = async (
@@ -390,14 +402,28 @@ export const listLearnerRecordEntries = async (
   return result.results.map((row) => mapLearnerRecordEntryRow(row));
 };
 
-export const patchLearnerRecordEntry = async (
+const patchLearnerRecordEntryInTransaction = async (
   db: SqlDatabase,
   input: PatchLearnerRecordEntryInput,
 ): Promise<LearnerRecordEntryRecord | null> => {
+  const lockedEntry = await db
+    .prepare(
+      `SELECT id FROM learner_record_entries
+       WHERE tenant_id = ? AND id = ?
+       LIMIT 1
+       FOR UPDATE`,
+    )
+    .bind(input.tenantId, input.entryId)
+    .first<{ id: string }>();
+
+  if (lockedEntry === null) {
+    return null;
+  }
+
   const existing = await findLearnerRecordEntryById(db, input.tenantId, input.entryId);
 
   if (existing === null) {
-    return null;
+    throw new Error(`Locked learner-record entry "${input.entryId}" could not be loaded`);
   }
 
   const nowIso = new Date().toISOString();
@@ -502,12 +528,24 @@ export const patchLearnerRecordEntry = async (
   const updated = await findLearnerRecordEntryById(db, input.tenantId, input.entryId);
 
   if (updated !== null) {
-    await reevaluateLearnerPathwaysForLearner(db, {
+    await enqueueLearnerEvidenceChange(db, {
       tenantId: input.tenantId,
       learnerProfileId: updated.learnerProfileId,
       trigger: "learner_record_revised",
+      evidenceEventId: `${updated.id}:${updated.updatedAt}`,
+      requestedAt: nowIso,
     });
   }
 
   return updated;
+};
+
+/** Updates a learner-record entry and atomically schedules derived evidence evaluation. */
+export const patchLearnerRecordEntry = async (
+  db: SqlDatabase,
+  input: PatchLearnerRecordEntryInput,
+): Promise<LearnerRecordEntryRecord | null> => {
+  return runSqlTransaction(db, (transaction) =>
+    patchLearnerRecordEntryInTransaction(transaction, input),
+  );
 };

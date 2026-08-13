@@ -28,7 +28,7 @@ const registryScopeSql = (input: ListBadgeIssuanceRuleRegistryPageInput): Regist
   if (input.scope?.type === "org_unit") {
     return {
       cte: "",
-      where: "AND rules.org_unit_id = ?",
+      where: "AND registry.org_unit_id = ?",
       beforeTenantParams: [],
       afterTenantParams: [input.scope.orgUnitId],
       empty: false,
@@ -49,7 +49,7 @@ const registryScopeSql = (input: ListBadgeIssuanceRuleRegistryPageInput): Regist
     const rootValues = input.scope.rootOrgUnitIds.map(() => "(?)").join(", ");
     return {
       cte: buildScopedDescendantsCte(rootValues),
-      where: `AND rules.org_unit_id IN (
+      where: `AND registry.org_unit_id IN (
         SELECT orgUnitId
         FROM scoped_descendants
       )`,
@@ -71,17 +71,17 @@ const registryScopeSql = (input: ListBadgeIssuanceRuleRegistryPageInput): Regist
 const registrySortExpression = (sort: BadgeIssuanceRuleRegistrySort): string => {
   switch (sort) {
     case "rule":
-      return "LOWER(COALESCE(active_version.snapshot_name, latest_version.snapshot_name, rules.name))";
+      return "LOWER(registry.display_name)";
     case "badge":
-      return "LOWER(COALESCE(active_version.snapshot_badge_template_title, latest_version.snapshot_badge_template_title, ''))";
+      return "LOWER(registry.badge_title)";
     case "lms":
-      return "COALESCE(active_version.snapshot_lms_provider_kind, latest_version.snapshot_lms_provider_kind, rules.lms_provider_kind)";
+      return "registry.lms_provider_kind";
     case "current_version":
-      return "COALESCE(active_version.version_number, 0)";
+      return "registry.current_version_number";
     case "latest_version":
-      return "COALESCE(latest_version.version_number, 0)";
+      return "registry.latest_version_number";
     case "updated":
-      return "COALESCE(active_version.updated_at, latest_version.updated_at, rules.updated_at)";
+      return "registry.registry_updated_at";
   }
 };
 
@@ -91,7 +91,10 @@ const registrySourceSql = (input: {
   readonly latestStatus: boolean;
 }): string => {
   return `
-    FROM badge_issuance_rules AS rules
+    FROM badge_issuance_rule_registry_projection AS registry
+    INNER JOIN badge_issuance_rules AS rules
+      ON rules.tenant_id = registry.tenant_id
+      AND rules.id = registry.rule_id
     LEFT JOIN LATERAL (
       SELECT
         versions.id,
@@ -111,20 +114,10 @@ const registrySourceSql = (input: {
       ON active_version.tenant_id = rules.tenant_id
       AND active_version.rule_id = rules.id
       AND active_version.id = rules.active_version_id
-    WHERE rules.tenant_id = ?
+    WHERE registry.tenant_id = ?
       ${input.scope.where}
-      ${
-        input.search
-          ? `AND POSITION(LOWER(?) IN LOWER(CONCAT_WS(
-              ' ',
-              COALESCE(active_version.snapshot_name, latest_version.snapshot_name, rules.name),
-              COALESCE(active_version.snapshot_badge_template_title, latest_version.snapshot_badge_template_title, ''),
-              COALESCE(active_version.snapshot_lms_provider_kind, latest_version.snapshot_lms_provider_kind, rules.lms_provider_kind),
-              rules.id
-            ))) > 0`
-          : ""
-      }
-      ${input.latestStatus ? "AND latest_version.status = ?" : ""}
+      ${input.search ? "AND registry.search_text ILIKE '%' || ? || '%'" : ""}
+      ${input.latestStatus ? "AND registry.latest_status = ?" : ""}
   `;
 };
 
@@ -164,10 +157,12 @@ const normalizeRegistryCursorValue = (
 const registryCursorFromRow = (
   row: BadgeIssuanceRuleRegistryRow,
   sort: BadgeIssuanceRuleRegistrySort,
+  totalCount: number,
 ): BadgeIssuanceRuleRegistryCursor => {
   return {
     value: normalizeRegistryCursorValue(sort, row.registrySortValue),
     ruleId: row.id,
+    totalCount,
   };
 };
 
@@ -191,22 +186,25 @@ export const listBadgeIssuanceRuleRegistryPage = async (
     latestStatus: input.latestStatus !== undefined,
   });
   const filterParams = registryFilterParams(input, scope);
-  const countNeedsVersionJoins = input.searchQuery.length > 0 || input.latestStatus !== undefined;
-  const countSourceSql = countNeedsVersionJoins
-    ? sourceSql
-    : `
-        FROM badge_issuance_rules AS rules
-        WHERE rules.tenant_id = ?
-          ${scope.where}
-      `;
-  const countParams = countNeedsVersionJoins
-    ? filterParams
-    : [...scope.beforeTenantParams, input.tenantId, ...scope.afterTenantParams];
-  const countRow = await db
-    .prepare(`${scope.cte} SELECT COUNT(*) AS totalCount ${countSourceSql}`)
-    .bind(...countParams)
-    .first<{ totalCount: number | string }>();
-  const totalCount = Number(countRow?.totalCount ?? 0);
+  const countSourceSql = `
+    FROM badge_issuance_rule_registry_projection AS registry
+    WHERE registry.tenant_id = ?
+      ${scope.where}
+      ${input.searchQuery.length > 0 ? "AND registry.search_text ILIKE '%' || ? || '%'" : ""}
+      ${input.latestStatus === undefined ? "" : "AND registry.latest_status = ?"}
+  `;
+  const countParams = filterParams;
+  const totalCount =
+    input.cursor === undefined
+      ? Number(
+          (
+            await db
+              .prepare(`${scope.cte} SELECT COUNT(*) AS totalCount ${countSourceSql}`)
+              .bind(...countParams)
+              .first<{ totalCount: number | string }>()
+          )?.totalCount ?? 0,
+        )
+      : input.cursor.boundary.totalCount;
   const sortExpression = registrySortExpression(input.sort);
   const isBefore = input.cursor?.position === "before";
   const queryDirection = isBefore
@@ -226,7 +224,7 @@ export const listBadgeIssuanceRuleRegistryPage = async (
       ? ""
       : `AND (
           ${sortExpression} ${normalizedOperator} ?
-          OR (${sortExpression} = ? AND rules.id ${normalizedOperator} ?)
+          OR (${sortExpression} = ? AND registry.rule_id ${normalizedOperator} ?)
         )`;
   const cursorValue =
     input.cursor === undefined
@@ -243,7 +241,7 @@ export const listBadgeIssuanceRuleRegistryPage = async (
           ${sortExpression} AS registrySortValue
         ${sourceSql}
         ${cursorSql}
-        ORDER BY ${sortExpression} ${queryDirection}, rules.id ${queryDirection}
+        ORDER BY ${sortExpression} ${queryDirection}, registry.rule_id ${queryDirection}
         LIMIT ?
       `,
     )
@@ -260,20 +258,24 @@ export const listBadgeIssuanceRuleRegistryPage = async (
 
   if (input.cursor?.position === "after") {
     previousCursor =
-      firstRow === undefined ? input.cursor.boundary : registryCursorFromRow(firstRow, input.sort);
+      firstRow === undefined
+        ? input.cursor.boundary
+        : registryCursorFromRow(firstRow, input.sort, totalCount);
     nextCursor =
       hasMoreInQueryDirection && lastRow !== undefined
-        ? registryCursorFromRow(lastRow, input.sort)
+        ? registryCursorFromRow(lastRow, input.sort, totalCount)
         : null;
   } else if (input.cursor?.position === "before") {
     previousCursor =
       hasMoreInQueryDirection && firstRow !== undefined
-        ? registryCursorFromRow(firstRow, input.sort)
+        ? registryCursorFromRow(firstRow, input.sort, totalCount)
         : null;
     nextCursor =
-      lastRow === undefined ? input.cursor.boundary : registryCursorFromRow(lastRow, input.sort);
+      lastRow === undefined
+        ? input.cursor.boundary
+        : registryCursorFromRow(lastRow, input.sort, totalCount);
   } else if (hasMoreInQueryDirection && lastRow !== undefined) {
-    nextCursor = registryCursorFromRow(lastRow, input.sort);
+    nextCursor = registryCursorFromRow(lastRow, input.sort, totalCount);
   }
 
   return {

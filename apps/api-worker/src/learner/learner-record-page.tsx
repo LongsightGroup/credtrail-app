@@ -6,7 +6,11 @@ import type {
   LearnerRecordPresentationModel,
   LearnerRecordPresentationSection,
 } from "../learner-record/learner-record-presentation";
-import type { LearnerPathwayProgressRecord, LearnerPathwayRequirementState } from "@credtrail/db";
+import type {
+  LearnerPathwayProgressRecord,
+  LearnerPathwayProgressState,
+  LearnerPathwayRequirementState,
+} from "@credtrail/db";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -45,32 +49,31 @@ const pathwayRequirementLabel = (state: LearnerPathwayRequirementState): string 
   }
 };
 
-const pathwayResultLabel = (pathway: LearnerPathwayProgressRecord): string => {
-  if (
-    pathway.evaluation.result === "needs_review" &&
-    pathway.completionHandoff?.status === "eligible"
-  ) {
-    return "Approved for issuance";
-  }
+type LearnerPathwayProgressStateTag = LearnerPathwayProgressState["_tag"];
 
-  if (
-    pathway.evaluation.result === "needs_review" &&
-    pathway.completionHandoff?.status === "issued"
-  ) {
-    return "Credential issued";
-  }
+const pathwayResultLabels = {
+  complete: "Complete",
+  eligible: "Approved for issuance",
+  issued: "Credential issued",
+  needs_review: "Needs review",
+  invalidated: "Invalidated",
+  in_progress: "In progress",
+} satisfies Record<LearnerPathwayProgressStateTag, string>;
 
-  switch (pathway.evaluation.result) {
-    case "complete":
-      return "Complete";
-    case "needs_review":
-      return "Needs review";
-    case "invalidated":
-      return "Invalidated";
-    case "in_progress":
-      return "In progress";
-  }
-};
+const completedPathwayMessages = {
+  issued: "Every requirement is satisfied and the final credential is issued.",
+  eligible: "Every requirement is satisfied and the issuance review is approved.",
+  needs_review: "Next: an administrator reviews the final credential decision.",
+  complete: "Every requirement is satisfied.",
+  invalidated: "One or more previously accepted evidence items are no longer current.",
+  in_progress: "Continue with the next pathway requirement.",
+} satisfies Record<LearnerPathwayProgressStateTag, string>;
+
+const pathwayResultLabel = (pathway: LearnerPathwayProgressRecord): string =>
+  pathwayResultLabels[pathway.state._tag];
+
+const completedPathwayMessage = (pathway: LearnerPathwayProgressRecord): string =>
+  completedPathwayMessages[pathway.state._tag];
 
 export const createLearnerRecordPage = (input: CreateLearnerRecordPageInput) => {
   const { formatIsoTimestamp } = input;
@@ -278,7 +281,7 @@ export const createLearnerRecordPage = (input: CreateLearnerRecordPageInput) => 
                       {pathway.ownerOrgUnitName} · Version {String(pathway.versionNumber)}
                     </p>
                     <span
-                      class={`learner-record__pill learner-record__pill--pathway-${pathway.evaluation.result}`}
+                      class={`learner-record__pill learner-record__pill--pathway-${pathway.state._tag}`}
                     >
                       {pathwayResultLabel(pathway)}
                     </span>
@@ -307,39 +310,24 @@ export const createLearnerRecordPage = (input: CreateLearnerRecordPageInput) => 
                     ))}
                   </ol>
                   {pathway.nextRequirement === null ? (
-                    <p class="learner-record__pathway-next">
-                      {pathway.completionHandoff?.status === "issued"
-                        ? "Every requirement is satisfied and the final credential is issued."
-                        : pathway.completionHandoff?.status === "eligible"
-                          ? "Every requirement is satisfied and the issuance review is approved."
-                          : pathway.evaluation.result === "needs_review"
-                            ? "Next: an administrator reviews the final credential decision."
-                            : "Every requirement is satisfied."}
-                    </p>
+                    <p class="learner-record__pathway-next">{completedPathwayMessage(pathway)}</p>
                   ) : (
                     <p class="learner-record__pathway-next">
                       Next requirement: <strong>{pathway.nextRequirement.title}</strong>
                     </p>
                   )}
-                  {pathway.completionHandoff?.status === "eligible" ? (
+                  {pathway.state._tag === "eligible" ? (
                     <p class="learner-record__pathway-next">
                       Your evidence is complete. The final credential is eligible for administrator
                       issuance; it has not been issued automatically.
                     </p>
                   ) : null}
-                  {pathway.completionHandoff?.status === "issued" ? (
+                  {pathway.state._tag === "issued" ? (
                     <p class="learner-record__pathway-next">
-                      Your final credential has been issued.
-                      {pathway.completionHandoff.assertionPublicId === null ? null : (
-                        <>
-                          {" "}
-                          <a
-                            href={`/badges/${encodeURIComponent(pathway.completionHandoff.assertionPublicId)}`}
-                          >
-                            View final credential
-                          </a>
-                        </>
-                      )}
+                      Your final credential has been issued.{" "}
+                      <a href={`/badges/${encodeURIComponent(pathway.state.assertionPublicId)}`}>
+                        View final credential
+                      </a>
                     </p>
                   ) : null}
                   {pathway.completedAt === null ? null : (

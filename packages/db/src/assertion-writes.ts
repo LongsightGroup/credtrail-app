@@ -4,7 +4,7 @@ import {
   insertAssertionRecipientIdentifiers,
   uniqueRecipientIdentifiers,
 } from "./assertion-recipient-identifiers";
-import type { SqlDatabase } from "./tenant-scope";
+import { runSqlTransaction, type SqlDatabase } from "./tenant-scope";
 import type {
   AssertionRecord,
   AssertionStatusListEntryRecord,
@@ -14,10 +14,7 @@ import type {
 } from "./assertion-types.js";
 import { upsertAssertionReportingAttribution } from "./assertion-reporting-attribution.js";
 import { findAssertionById } from "./assertion-reads.js";
-import {
-  recordLearnerPathwayFinalCredentialIssuance,
-  reevaluateLearnerPathwaysForLearner,
-} from "./learner-pathways.js";
+import { enqueueLearnerEvidenceChange } from "./learner-evidence-change-jobs.js";
 
 export const createAssertion = async (
   db: SqlDatabase,
@@ -85,23 +82,6 @@ export const createAssertion = async (
     attributionSource: "issuance_snapshot",
     attributedAt: input.issuedAt,
   });
-
-  if (input.learnerProfileId !== undefined && input.learnerProfileId !== null) {
-    await reevaluateLearnerPathwaysForLearner(db, {
-      tenantId: input.tenantId,
-      learnerProfileId: input.learnerProfileId,
-      trigger: "assertion_issued",
-      inTransaction: true,
-    });
-    await recordLearnerPathwayFinalCredentialIssuance(db, {
-      tenantId: input.tenantId,
-      learnerProfileId: input.learnerProfileId,
-      badgeTemplateId,
-      assertionId: input.id,
-      issuedAt: input.issuedAt,
-      ...(input.issuedByUserId === undefined ? {} : { actorUserId: input.issuedByUserId }),
-    });
-  }
 
   return {
     id: input.id,
@@ -172,69 +152,87 @@ export const recordAssertionRevocation = async (
   db: SqlDatabase,
   input: RecordAssertionRevocationInput,
 ): Promise<RecordAssertionRevocationResult> => {
-  const assertion = await findAssertionById(db, input.tenantId, input.assertionId);
+  return runSqlTransaction(db, async (transaction) => {
+    const lockedAssertion = await transaction
+      .prepare(
+        `SELECT id FROM assertions
+         WHERE tenant_id = ? AND id = ?
+         LIMIT 1
+         FOR UPDATE`,
+      )
+      .bind(input.tenantId, input.assertionId)
+      .first<{ id: string }>();
 
-  if (assertion === null) {
-    throw new Error(`Assertion "${input.assertionId}" not found for tenant "${input.tenantId}"`);
-  }
+    if (lockedAssertion === null) {
+      throw new Error(`Assertion "${input.assertionId}" not found for tenant "${input.tenantId}"`);
+    }
 
-  const effectiveRevokedAt = assertion.revokedAt ?? input.revokedAt;
+    const assertion = await findAssertionById(transaction, input.tenantId, input.assertionId);
 
-  if (assertion.revokedAt === null) {
-    await db
+    if (assertion === null) {
+      throw new Error(`Locked assertion "${input.assertionId}" could not be loaded`);
+    }
+
+    const effectiveRevokedAt = assertion.revokedAt ?? input.revokedAt;
+
+    if (assertion.revokedAt === null) {
+      await transaction
+        .prepare(
+          `
+          UPDATE assertions
+          SET revoked_at = ?,
+              updated_at = ?
+          WHERE tenant_id = ?
+            AND id = ?
+            AND revoked_at IS NULL
+        `,
+        )
+        .bind(effectiveRevokedAt, input.revokedAt, input.tenantId, input.assertionId)
+        .run();
+    }
+
+    await transaction
       .prepare(
         `
-        UPDATE assertions
-        SET revoked_at = ?,
-            updated_at = ?
-        WHERE tenant_id = ?
-          AND id = ?
-          AND revoked_at IS NULL
+        INSERT INTO revocations (
+          id,
+          tenant_id,
+          assertion_id,
+          reason,
+          idempotency_key,
+          revoked_by_user_id,
+          revoked_at,
+          created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT DO NOTHING
       `,
       )
-      .bind(effectiveRevokedAt, input.revokedAt, input.tenantId, input.assertionId)
-      .run();
-  }
-
-  await db
-    .prepare(
-      `
-      INSERT INTO revocations (
-        id,
-        tenant_id,
-        assertion_id,
-        reason,
-        idempotency_key,
-        revoked_by_user_id,
-        revoked_at,
-        created_at
+      .bind(
+        input.revocationId,
+        input.tenantId,
+        input.assertionId,
+        input.reason,
+        input.idempotencyKey,
+        input.revokedByUserId ?? null,
+        effectiveRevokedAt,
+        input.revokedAt,
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT DO NOTHING
-    `,
-    )
-    .bind(
-      input.revocationId,
-      input.tenantId,
-      input.assertionId,
-      input.reason,
-      input.idempotencyKey,
-      input.revokedByUserId ?? null,
-      effectiveRevokedAt,
-      input.revokedAt,
-    )
-    .run();
+      .run();
 
-  if (assertion.learnerProfileId !== null) {
-    await reevaluateLearnerPathwaysForLearner(db, {
-      tenantId: input.tenantId,
-      learnerProfileId: assertion.learnerProfileId,
-      trigger: "assertion_revoked",
-    });
-  }
+    if (assertion.learnerProfileId !== null && assertion.revokedAt === null) {
+      await enqueueLearnerEvidenceChange(transaction, {
+        tenantId: input.tenantId,
+        learnerProfileId: assertion.learnerProfileId,
+        trigger: "assertion_revoked",
+        evidenceEventId: input.revocationId,
+        requestedAt: input.revokedAt,
+      });
+    }
 
-  return {
-    status: assertion.revokedAt === null ? "revoked" : "already_revoked",
-    revokedAt: effectiveRevokedAt,
-  };
+    return {
+      status: assertion.revokedAt === null ? "revoked" : "already_revoked",
+      revokedAt: effectiveRevokedAt,
+    };
+  });
 };

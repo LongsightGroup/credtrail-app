@@ -350,6 +350,7 @@ export type BadgeIssuanceRuleRegistrySortDirection = "asc" | "desc";
 export interface BadgeIssuanceRuleRegistryCursor {
   readonly value: string | number;
   readonly ruleId: string;
+  readonly totalCount: number;
 }
 
 export interface ListBadgeIssuanceRuleRegistryPageInput extends ListBadgeIssuanceRulesInput {

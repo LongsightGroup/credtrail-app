@@ -7,6 +7,11 @@ import { findBadgeIssuanceRuleVersionById } from "./badge-issuance-rule-version-
 import { createAssertion } from "./assertion-writes.js";
 import type { AssertionRecord, CreateAssertionInput } from "./assertion-types.js";
 import { ensureLearnerLmsIdentity } from "./learner-lms-identities.js";
+import { enqueueLearnerEvidenceChange } from "./learner-evidence-change-jobs.js";
+import {
+  lockEligibleLearnerPathwayCompletionHandoff,
+  recordLearnerPathwayFinalCredentialIssuance,
+} from "./learner-pathways.js";
 import { runSqlTransaction, type SqlDatabase } from "./tenant-scope.js";
 
 export interface FinalizeAssertionIssuanceInput {
@@ -17,6 +22,7 @@ export interface FinalizeAssertionIssuanceInput {
     readonly connectionId: string;
     readonly learnerId: string;
   };
+  readonly learnerPathwayCompletionHandoffId?: string | undefined;
 }
 
 /** Atomic assertion-finalization outcome, including an expected LMS identity conflict. */
@@ -29,6 +35,9 @@ export type FinalizeAssertionIssuanceResult =
   | {
       readonly status: "lms_identity_conflict";
       readonly reason: "lms_learner_id_in_use" | "learner_profile_in_use";
+    }
+  | {
+      readonly status: "learner_pathway_handoff_conflict";
     };
 
 export const finalizeAssertionIssuance = async (
@@ -57,6 +66,23 @@ export const finalizeAssertionIssuance = async (
       achievementSnapshot = badgeAchievementSnapshotFromRuleVersion(ruleVersion.snapshot);
     }
 
+    if (input.learnerPathwayCompletionHandoffId !== undefined) {
+      if (input.assertion.learnerProfileId === undefined) {
+        return { status: "learner_pathway_handoff_conflict" };
+      }
+
+      const handoffEligible = await lockEligibleLearnerPathwayCompletionHandoff(transactionDb, {
+        tenantId: input.assertion.tenantId,
+        handoffId: input.learnerPathwayCompletionHandoffId,
+        learnerProfileId: input.assertion.learnerProfileId,
+        badgeTemplateId: achievementSnapshot.badgeTemplateId,
+      });
+
+      if (!handoffEligible) {
+        return { status: "learner_pathway_handoff_conflict" };
+      }
+    }
+
     if (input.lmsLearnerIdentity !== undefined) {
       if (input.assertion.learnerProfileId === undefined) {
         throw new Error("LMS learner identity requires an assertion learner profile");
@@ -79,6 +105,37 @@ export const finalizeAssertionIssuance = async (
       ...input.assertion,
       achievementSnapshot,
     });
+
+    if (input.learnerPathwayCompletionHandoffId !== undefined) {
+      if (assertion.learnerProfileId === null) {
+        throw new Error("Locked pathway handoff assertion is missing its learner profile");
+      }
+
+      const recorded = await recordLearnerPathwayFinalCredentialIssuance(transactionDb, {
+        tenantId: assertion.tenantId,
+        handoffId: input.learnerPathwayCompletionHandoffId,
+        learnerProfileId: assertion.learnerProfileId,
+        badgeTemplateId: assertion.badgeTemplateId,
+        assertionId: assertion.id,
+        issuedAt: assertion.issuedAt,
+        ...(assertion.issuedByUserId === null ? {} : { actorUserId: assertion.issuedByUserId }),
+      });
+
+      if (!recorded) {
+        throw new Error("Locked pathway completion handoff changed during issuance");
+      }
+    }
+
+    if (assertion.learnerProfileId !== null) {
+      await enqueueLearnerEvidenceChange(transactionDb, {
+        tenantId: assertion.tenantId,
+        learnerProfileId: assertion.learnerProfileId,
+        trigger: "assertion_issued",
+        evidenceEventId: assertion.id,
+        requestedAt: assertion.issuedAt,
+      });
+    }
+
     await createAuditLog(transactionDb, input.buildAuditLog(assertion));
     const provenance = await createAssertionIssuanceProvenance(transactionDb, {
       ...achievementSource.provenance,

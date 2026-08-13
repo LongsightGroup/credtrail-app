@@ -277,6 +277,25 @@ export const sendBadgeRuleApprovalNotificationQueueJobSchema = z.strictObject({
   idempotencyKey: idempotencyKeySchema,
 });
 
+export const processLearnerEvidenceChangeJobPayloadSchema = z.strictObject({
+  learnerProfileId: resourceIdSchema,
+  trigger: z.enum([
+    "assertion_issued",
+    "assertion_revoked",
+    "learner_record_created",
+    "learner_record_revised",
+  ]),
+  requestedAt: isoTimestampSchema,
+  afterEnrollmentId: resourceIdSchema.optional(),
+});
+
+export const processLearnerEvidenceChangeQueueJobSchema = z.strictObject({
+  jobType: z.literal("process_learner_evidence_change"),
+  tenantId: tenantIdSchema,
+  payload: processLearnerEvidenceChangeJobPayloadSchema,
+  idempotencyKey: idempotencyKeySchema,
+});
+
 export const queueJobSchema = z.discriminatedUnion("jobType", [
   issueBadgeQueueJobSchema,
   revokeBadgeQueueJobSchema,
@@ -287,6 +306,7 @@ export const queueJobSchema = z.discriminatedUnion("jobType", [
   processBadgeRuleLifecycleQueueJobSchema,
   processAutomatedBadgeRuleQueueJobSchema,
   sendBadgeRuleApprovalNotificationQueueJobSchema,
+  processLearnerEvidenceChangeQueueJobSchema,
 ]);
 
 // --- inferred types and parsers ---
@@ -332,6 +352,10 @@ export type ProcessAutomatedBadgeRuleQueueJob = z.infer<
 
 export type SendBadgeRuleApprovalNotificationQueueJob = z.infer<
   typeof sendBadgeRuleApprovalNotificationQueueJobSchema
+>;
+
+export type ProcessLearnerEvidenceChangeQueueJob = z.infer<
+  typeof processLearnerEvidenceChangeQueueJobSchema
 >;
 
 export const parseQueueJob = (input: unknown): QueueJob => {

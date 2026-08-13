@@ -153,6 +153,10 @@ export interface InstitutionAdminManualIssueWorkspace {
   listNotice: string | null;
   listError: string | null;
   successLinks: AdminManualIssueSuccessLinks | null;
+  pathwayIssuance: {
+    readonly handoffId: string;
+    readonly badgeTemplateId: string;
+  } | null;
 }
 
 export interface InstitutionAdminLearnerRecordImportWorkflow {

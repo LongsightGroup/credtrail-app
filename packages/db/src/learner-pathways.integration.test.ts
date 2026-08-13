@@ -153,7 +153,7 @@ describeDbIntegration("governed learner pathways", () => {
         tenantId: fixture.tenantId,
         learnerProfileId: learner.id,
       });
-      expect(progress[0]?.completionHandoff?.status).toBe("eligible");
+      expect(progress[0]?.state._tag).toBe("eligible");
       expect(progress[0]?.completedAt).not.toBeNull();
 
       await recordAssertionRevocation(fixture.db, {
@@ -176,7 +176,7 @@ describeDbIntegration("governed learner pathways", () => {
         tenantId: fixture.tenantId,
         learnerProfileId: learner.id,
       });
-      expect(progress[0]?.completionHandoff?.status).toBe("cancelled");
+      expect(progress[0]?.state._tag).toBe("invalidated");
       expect(progress[0]?.completedAt).not.toBeNull();
       expect(progress[0]?.evaluationHistory.map((entry) => entry.result)).toContain("complete");
 
@@ -216,7 +216,7 @@ describeDbIntegration("governed learner pathways", () => {
       });
       expect(revokedWaiverProgress[0]?.evaluation.result).toBe("invalidated");
       expect(revokedWaiverProgress[0]?.evaluation.requirements[0]?.state).toBe("invalidated");
-      expect(revokedWaiverProgress[0]?.completionHandoff?.status).toBe("cancelled");
+      expect(revokedWaiverProgress[0]?.state._tag).toBe("invalidated");
 
       await expect(
         fixture.db
@@ -289,10 +289,9 @@ describeDbIntegration("governed learner pathways", () => {
         tenantId: fixture.tenantId,
         learnerProfileId: learner.id,
       });
-      expect(
-        reviewProgress.find((entry) => entry.pathwayId === reviewPathway.id)?.completionHandoff
-          ?.status,
-      ).toBe("review_pending");
+      expect(reviewProgress.find((entry) => entry.pathwayId === reviewPathway.id)?.state._tag).toBe(
+        "needs_review",
+      );
       await approveLearnerPathwayCompletionReview(fixture.db, {
         tenantId: fixture.tenantId,
         pathwayId: reviewPathway.id,
@@ -303,10 +302,9 @@ describeDbIntegration("governed learner pathways", () => {
         tenantId: fixture.tenantId,
         learnerProfileId: learner.id,
       });
-      expect(
-        reviewProgress.find((entry) => entry.pathwayId === reviewPathway.id)?.completionHandoff
-          ?.status,
-      ).toBe("eligible");
+      expect(reviewProgress.find((entry) => entry.pathwayId === reviewPathway.id)?.state._tag).toBe(
+        "eligible",
+      );
       const finalCredentialAssertion = await fixture.db
         .prepare(
           `SELECT id FROM assertions
@@ -325,23 +323,71 @@ describeDbIntegration("governed learner pathways", () => {
         recipientIdentity: "ada.pathway@example.edu",
         issuedAt: "2026-08-06T10:00:00.000Z",
       });
-      await recordLearnerPathwayFinalCredentialIssuance(fixture.db, {
+      const eligibleState = reviewProgress.find(
+        (entry) => entry.pathwayId === reviewPathway.id,
+      )?.state;
+      expect(eligibleState?._tag).toBe("eligible");
+      if (eligibleState?._tag !== "eligible") {
+        throw new Error("Expected reviewed pathway to be eligible for issuance");
+      }
+      const unrelatedHandoffRecorded = await recordLearnerPathwayFinalCredentialIssuance(
+        fixture.db,
+        {
+          tenantId: fixture.tenantId,
+          handoffId: uniqueTestId("unrelated_handoff"),
+          learnerProfileId: learner.id,
+          badgeTemplateId: finalBadgeTemplateId,
+          assertionId: issuedFinalAssertionId,
+          actorUserId: actor.id,
+          issuedAt: "2026-08-06T10:00:00.000Z",
+        },
+      );
+      expect(unrelatedHandoffRecorded).toBe(false);
+      const exactHandoffRecorded = await recordLearnerPathwayFinalCredentialIssuance(fixture.db, {
         tenantId: fixture.tenantId,
+        handoffId: eligibleState.handoffId,
         learnerProfileId: learner.id,
         badgeTemplateId: finalBadgeTemplateId,
         assertionId: issuedFinalAssertionId,
         actorUserId: actor.id,
         issuedAt: "2026-08-06T10:00:00.000Z",
       });
+      expect(exactHandoffRecorded).toBe(true);
       reviewProgress = await listLearnerPathwayProgress(fixture.db, {
         tenantId: fixture.tenantId,
         learnerProfileId: learner.id,
       });
-      const issuedHandoff = reviewProgress.find(
+      const issuedState = reviewProgress.find(
         (entry) => entry.pathwayId === reviewPathway.id,
-      )?.completionHandoff;
-      expect(issuedHandoff?.status).toBe("issued");
-      expect(issuedHandoff?.assertionPublicId).toBe(finalAssertionPublicId);
+      )?.state;
+      expect(issuedState?._tag).toBe("issued");
+      expect(issuedState?._tag === "issued" ? issuedState.assertionPublicId : null).toBe(
+        finalAssertionPublicId,
+      );
+
+      await evaluateLearnerPathwayEnrollment(fixture.db, {
+        tenantId: fixture.tenantId,
+        enrollmentId: reviewEnrollmentId,
+        trigger: "evidence_changed_after_issuance",
+      });
+      const progressAfterReevaluation = await listLearnerPathwayProgress(fixture.db, {
+        tenantId: fixture.tenantId,
+        learnerProfileId: learner.id,
+      });
+      const issuedProgressAfterReevaluation = progressAfterReevaluation.find(
+        (entry) => entry.pathwayId === reviewPathway.id,
+      );
+      expect(issuedProgressAfterReevaluation?.state._tag).toBe("issued");
+      expect(issuedProgressAfterReevaluation?.enrollmentStatus).toBe("completed");
+      const handoffCount = await fixture.db
+        .prepare(
+          `SELECT COUNT(*) AS count
+           FROM learner_pathway_completion_handoffs
+           WHERE tenant_id = ? AND enrollment_id = ?`,
+        )
+        .bind(fixture.tenantId, reviewEnrollmentId)
+        .first<{ count: number | string }>();
+      expect(Number(handoffCount?.count ?? 0)).toBe(1);
 
       await retireLearnerPathway(fixture.db, {
         tenantId: fixture.tenantId,

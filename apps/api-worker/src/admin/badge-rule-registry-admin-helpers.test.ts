@@ -21,7 +21,7 @@ describe("badge rule registry admin helpers", () => {
     const query = queryFixture();
     const params = buildBadgeRuleRegistryPageQuery(query, {
       position: "after",
-      boundary: { value: "capstone completion", ruleId: "brl_123" },
+      boundary: { value: "capstone completion", ruleId: "brl_123", totalCount: 51 },
     });
     const parsed = safeParseBadgeRuleRegistryPageQuery(Object.fromEntries(params));
 
@@ -31,7 +31,7 @@ describe("badge rule registry admin helpers", () => {
         ...query,
         cursor: {
           position: "after",
-          boundary: { value: "capstone completion", ruleId: "brl_123" },
+          boundary: { value: "capstone completion", ruleId: "brl_123", totalCount: 51 },
         },
       },
     });
@@ -40,7 +40,7 @@ describe("badge rule registry admin helpers", () => {
   it("rejects a cursor reused under a different sort", () => {
     const params = buildBadgeRuleRegistryPageQuery(queryFixture(), {
       position: "after",
-      boundary: { value: "capstone completion", ruleId: "brl_123" },
+      boundary: { value: "capstone completion", ruleId: "brl_123", totalCount: 51 },
     });
     params.set("sort", "latest_version");
 
@@ -51,7 +51,7 @@ describe("badge rule registry admin helpers", () => {
     const query = queryFixture();
     const pageUrl = badgeRuleRegistryPageUrl("tenant_123", query, {
       position: "before",
-      boundary: { value: "capstone completion", ruleId: "brl_123" },
+      boundary: { value: "capstone completion", ruleId: "brl_123", totalCount: 51 },
     });
     const sortUrl = badgeRuleRegistrySortUrl("tenant_123", query, "rule");
 

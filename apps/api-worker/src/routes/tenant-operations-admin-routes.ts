@@ -74,6 +74,10 @@ export const registerTenantOperationsAdminRoutes = (
       readOptionalFormField(formData, "recipientIdentity") ?? ""
     ).toLowerCase();
     const badgeTemplateId = readOptionalFormField(formData, "badgeTemplateId") ?? "";
+    const learnerPathwayCompletionHandoffId = readOptionalFormField(
+      formData,
+      "learnerPathwayCompletionHandoffId",
+    );
 
     let request: ReturnType<typeof parseManualIssueBadgeRequest>;
 
@@ -88,6 +92,9 @@ export const registerTenantOperationsAdminRoutes = (
             identifier: recipientIdentity,
           },
         ],
+        ...(learnerPathwayCompletionHandoffId === null
+          ? {}
+          : { learnerPathwayCompletionHandoffId }),
       });
     } catch {
       await setAdminManualIssueFlash(c, {
@@ -141,6 +148,11 @@ export const registerTenantOperationsAdminRoutes = (
         ...(request.recipientIdentifiers === undefined
           ? {}
           : { recipientIdentifiers: request.recipientIdentifiers }),
+        ...(request.learnerPathwayCompletionHandoffId === undefined
+          ? {}
+          : {
+              learnerPathwayCompletionHandoffId: request.learnerPathwayCompletionHandoffId,
+            }),
       };
       const result = await issueBadgeForTenant(
         c,
@@ -176,15 +188,15 @@ export const registerTenantOperationsAdminRoutes = (
         successLinks: buildAdminManualIssueSuccessLinks(publicBadgePathForAssertion(assertion)),
       });
     } catch (error: unknown) {
-      const message = isIssueBadgeHttpError(error)
-        ? error.payload.error
-        : "Unable to issue the badge from this form.";
+      if (!isIssueBadgeHttpError(error)) {
+        throw error;
+      }
 
       await setAdminManualIssueFlash(c, {
         tenantId: pathParams.tenantId,
         userId: session.userId,
         tone: "error",
-        message,
+        message: error.payload.error,
       });
     }
 

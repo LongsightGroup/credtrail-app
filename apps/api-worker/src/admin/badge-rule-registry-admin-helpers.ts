@@ -63,6 +63,7 @@ const decodeBadgeRuleRegistryCursor = (
   return {
     value: payload.value,
     ruleId: payload.ruleId,
+    totalCount: payload.totalCount,
   };
 };
 
@@ -76,6 +77,7 @@ const encodeBadgeRuleRegistryCursor = (
       direction: query.direction,
       value: cursor.value,
       ruleId: cursor.ruleId,
+      totalCount: cursor.totalCount,
     }),
   );
 };

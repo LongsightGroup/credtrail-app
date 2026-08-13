@@ -81,7 +81,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   learnerRecordCss: {
     kind: "style",
-    path: "/assets/ui/learner-record.f7d73373f5.css",
+    path: "/assets/ui/learner-record.f8ea26110c.css",
   },
   learnerDashboardCss: {
     kind: "style",

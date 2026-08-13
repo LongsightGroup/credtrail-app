@@ -110,6 +110,60 @@ describeDbIntegration("assertion evidence DB helpers with Postgres", () => {
     }
   });
 
+  it("rolls back assertion issuance when the selected pathway handoff is not eligible", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      const createdRule = await createFixtureRule(fixture);
+      const learner = await dbModule.createLearnerProfile(fixture.db, {
+        tenantId: fixture.tenantId,
+        primaryIdentityType: "email",
+        primaryIdentityValue: "pathway-handoff@example.edu",
+      });
+      const assertionId = uniqueTestId("assertion_handoff_conflict");
+      const finalized = await dbModule.finalizeAssertionIssuance(fixture.db, {
+        assertion: {
+          id: assertionId,
+          tenantId: fixture.tenantId,
+          learnerProfileId: learner.id,
+          recipientIdentity: "pathway-handoff@example.edu",
+          recipientIdentityType: "email",
+          vcR2Key: `tenants/${fixture.tenantId}/assertions/${assertionId}.jsonld`,
+          statusListIndex: 17,
+          idempotencyKey: uniqueTestId("idem_handoff_conflict"),
+          issuedAt: "2026-03-24T16:30:00.000Z",
+          issuedByUserId: fixture.userId,
+        },
+        achievementSource: {
+          kind: "rule_version",
+          provenance: {
+            source: "lti_roster",
+            ruleId: createdRule.rule.id,
+            versionId: createdRule.version.id,
+            provenanceJson: "{}",
+          },
+        },
+        learnerPathwayCompletionHandoffId: uniqueTestId("missing_handoff"),
+        buildAuditLog: (assertion) => ({
+          tenantId: fixture.tenantId,
+          actorUserId: fixture.userId,
+          action: "assertion.issued",
+          targetType: "assertion",
+          targetId: assertion.id,
+        }),
+      });
+      const assertion = await dbModule.findAssertionById(fixture.db, fixture.tenantId, assertionId);
+
+      expect(finalized).toEqual({ status: "learner_pathway_handoff_conflict" });
+      expect(assertion).toBeNull();
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
   it("lists assertion-targeted audit logs and rule evaluation metadata", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 

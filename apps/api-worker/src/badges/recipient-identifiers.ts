@@ -9,6 +9,7 @@ export type DirectIssueBadgeRequestBase = Pick<
   | "recipientDisplayName"
   | "issuerImageUri"
   | "idempotencyKey"
+  | "learnerPathwayCompletionHandoffId"
 > & {
   lmsLearnerIdentity?: {
     readonly connectionId: string;

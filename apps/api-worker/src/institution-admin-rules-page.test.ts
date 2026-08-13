@@ -370,7 +370,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
       rules: [],
       totalCount: 51,
       previousCursor: null,
-      nextCursor: { value: "capstone completion", ruleId: "brl_051" },
+      nextCursor: { value: "capstone completion", ruleId: "brl_051", totalCount: 51 },
     });
 
     const response = await app.request(
