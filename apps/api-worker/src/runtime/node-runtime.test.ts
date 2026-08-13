@@ -46,7 +46,7 @@ describe("createNodeRuntimeBindings", () => {
       EMAIL_PROVIDER: "ses",
       AWS_SES_REGION: "us-west-2",
       TRANSACTIONAL_EMAIL_FROM_ADDRESS: "no-reply@badges.example.edu",
-      BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-4b",
+      BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-9b",
       S3_BUCKET: "credtrail-badges",
       S3_REGION: "us-east-1",
       S3_ENDPOINT: "http://minio:9000",
@@ -65,7 +65,7 @@ describe("createNodeRuntimeBindings", () => {
       "https://badges.example.edu,https://admin.example.edu",
     );
     expect(bindings.EMAIL).toBeDefined();
-    expect(bindings.BADGE_IMAGE_GENERATION_MODEL).toBe("@cf/black-forest-labs/flux-2-klein-4b");
+    expect(bindings.BADGE_IMAGE_GENERATION_MODEL).toBe("@cf/black-forest-labs/flux-2-klein-9b");
     expect(typeof bindings.BADGE_OBJECTS.head).toBe("function");
     expect(typeof bindings.BADGE_OBJECTS.get).toBe("function");
     expect(typeof bindings.BADGE_OBJECTS.put).toBe("function");

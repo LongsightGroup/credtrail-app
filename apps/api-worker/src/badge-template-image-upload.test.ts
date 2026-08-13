@@ -415,7 +415,7 @@ describe("badge template image routes", () => {
     const env = {
       ...createEnv(store),
       AI: ai,
-      BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-4b",
+      BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-9b",
     };
 
     const response = await app.request(
@@ -470,7 +470,7 @@ describe("badge template image routes", () => {
       }),
     );
     expect(aiRun).toHaveBeenCalledWith(
-      "@cf/black-forest-labs/flux-2-klein-4b",
+      "@cf/black-forest-labs/flux-2-klein-9b",
       expect.objectContaining({
         multipart: expect.objectContaining({
           contentType: expect.stringContaining("multipart/form-data"),

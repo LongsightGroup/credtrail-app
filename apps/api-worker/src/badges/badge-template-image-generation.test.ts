@@ -47,7 +47,7 @@ describe("badge template image generation Workers AI client", () => {
     });
 
     expect(config.provider).toBe("workers-ai");
-    expect(config.model).toBe("@cf/black-forest-labs/flux-2-klein-4b");
+    expect(config.model).toBe("@cf/black-forest-labs/flux-2-klein-9b");
     expect(
       isBadgeTemplateImageGenerationConfigured({
         AI: ai,
@@ -97,7 +97,7 @@ describe("badge template image generation Workers AI client", () => {
     const generated = await generateBadgeTemplateImageViaWorkersAi({
       env: {
         AI: ai,
-        BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-4b",
+        BADGE_IMAGE_GENERATION_MODEL: "@cf/black-forest-labs/flux-2-klein-9b",
         PLATFORM_DOMAIN: "credtrail.test",
         PUBLIC_APP_ORIGIN: "https://credtrail.test",
       },
@@ -124,7 +124,7 @@ describe("badge template image generation Workers AI client", () => {
 
     const contentType = typeof multipart.contentType === "string" ? multipart.contentType : "";
 
-    expect(model).toBe("@cf/black-forest-labs/flux-2-klein-4b");
+    expect(model).toBe("@cf/black-forest-labs/flux-2-klein-9b");
     expect(contentType).toContain("multipart/form-data");
 
     const submittedForm = await new Response(multipart.body, {
