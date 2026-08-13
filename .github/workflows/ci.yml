@@ -40,6 +40,9 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Production dependency audit
+        run: pnpm audit:prod
+
       - name: OpenAPI Snapshot Sync
         run: pnpm check:ob3-openapi
 

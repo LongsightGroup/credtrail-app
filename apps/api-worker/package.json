@@ -19,6 +19,7 @@
     "@credtrail/validation": "workspace:*",
     "@hono/node-server": "^2.0.4",
     "@longsightgroup/lti-tool": "0.1.6",
+    "better-auth": "1.6.26",
     "csv-stringify": "^6.7.0",
     "d3-scale": "^4.0.2",
     "d3-shape": "^3.2.0",

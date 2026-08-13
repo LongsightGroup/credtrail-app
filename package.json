@@ -26,6 +26,7 @@
     "dev:demo": "node scripts/run-local-demo.mjs",
     "preview": "pnpm build && CLOUDFLARE_ENV=local pnpm exec vite preview --host 127.0.0.1 --port 8787",
     "test:e2e": "pnpm exec playwright test --config playwright.config.mjs --project chromium",
+    "audit:prod": "pnpm audit --prod --audit-level high",
     "lint": "node scripts/run-oxlint.mjs --deny-warnings",
     "lint:fix": "node scripts/run-oxlint.mjs --fix --fix-suggestions --deny-warnings",
     "format": "pnpm exec oxfmt \"apps/**/*.ts\" \"apps/**/*.tsx\" \"packages/**/*.ts\" \"packages/**/*.tsx\" \"vite.config.mts\" \"vitest.config.ts\"",
@@ -53,15 +54,5 @@
     "vite": "8.1.3",
     "vitest": "^4.1.7",
     "wrangler": "^4.107.0"
-  },
-  "dependencies": {
-    "better-auth": "1.6.14"
-  },
-  "pnpm": {
-    "overrides": {
-      "@types/node": "24.13.2",
-      "jose": "6.2.3",
-      "zod": "4.4.3"
-    }
   }
 }
