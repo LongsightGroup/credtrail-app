@@ -1243,6 +1243,29 @@ describe("magic-link auth routes", () => {
     });
   });
 
+  it("revokes the current browser session and redirects to sign-in", async () => {
+    const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders({
+      betterAuthInitiallyAuthenticated: true,
+    });
+
+    const response = await isolatedApp.request(
+      "/auth/logout",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=better-session",
+        },
+      },
+      createEnv("production"),
+    );
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/login?reason=signed_out");
+    expect(response.headers.get("set-cookie")).toContain("better-auth.session_token=");
+    expect(betterAuthProvider.revokeCurrentSession).toHaveBeenCalledTimes(1);
+  });
+
   it("redirects single-tenant authenticated users from /auth/resolve into their preferred tenant path", async () => {
     const { app: isolatedApp } = await loadAppWithMockedHostedAuthProviders({
       betterAuthInitiallyAuthenticated: true,

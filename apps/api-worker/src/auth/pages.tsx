@@ -128,6 +128,10 @@ const LoginReasonNotice = (input: {
   reason?: string | undefined;
   hasExplicitNotice: boolean;
 }): HonoElement | null => {
+  if (input.reason === "signed_out") {
+    return <p class="ct-login__context">You are signed out.</p>;
+  }
+
   if (input.reason === "sso_failed") {
     return (
       <p class="ct-login__context">

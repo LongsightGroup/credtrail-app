@@ -1138,6 +1138,12 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     });
   });
 
+  app.post("/auth/logout", async (c) => {
+    await revokeCurrentSession(c);
+
+    return c.redirect("/login?reason=signed_out", 303);
+  });
+
   app.post("/v1/auth/logout", async (c) => {
     await revokeCurrentSession(c);
 

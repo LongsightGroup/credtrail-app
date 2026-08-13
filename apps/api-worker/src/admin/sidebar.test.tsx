@@ -23,6 +23,15 @@ const renderSidebarHtml = (
 };
 
 describe("AdminSidebar", () => {
+  it("renders sign out as a server-side POST action in the sidebar footer", () => {
+    const html = renderSidebarHtml("home");
+
+    expect(html).toContain('action="/auth/logout"');
+    expect(html).toContain('method="post"');
+    expect(html).toContain('class="ct-admin-sidebar__footer-action"');
+    expect(html).toContain("Sign out");
+  });
+
   it("renders nav icons on home and group triggers only", () => {
     const html = renderSidebarHtml("home");
 

@@ -245,6 +245,11 @@ export const AdminSidebar = (input: {
             </a>
           );
         })}
+        <form class="ct-admin-sidebar__footer-form" method="post" action="/auth/logout">
+          <button class="ct-admin-sidebar__footer-action" type="submit">
+            Sign out
+          </button>
+        </form>
       </div>
     </aside>
   );

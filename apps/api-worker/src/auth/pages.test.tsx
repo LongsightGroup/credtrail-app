@@ -3,6 +3,18 @@ import { renderAppPageToString } from "../ui/render-page";
 import { localBreakGlassLoginPage, magicLinkConfirmationPage, magicLinkLoginPage } from "./pages";
 
 describe("auth pages", () => {
+  it("confirms that the user signed out", () => {
+    const html = renderAppPageToString(
+      magicLinkLoginPage({
+        tenantId: "",
+        nextPath: "",
+        reason: "signed_out",
+      }),
+    );
+
+    expect(html).toContain("You are signed out.");
+  });
+
   it("renders magic-link login fields with form primitives", () => {
     const html = renderAppPageToString(
       magicLinkLoginPage({
