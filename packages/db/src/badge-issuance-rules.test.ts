@@ -31,21 +31,27 @@ describe("badge rule review queue schema", () => {
   });
 
   it("adds badge rule approval policy and rule org-unit scope through a forward migration", () => {
-    const sql = readFileSync(
+    const schemaSql = readFileSync(
       new URL("../migrations/0050_badge_rule_approval_policies.sql", import.meta.url),
       "utf8",
     );
+    const defaultsSql = readFileSync(
+      new URL("../migrations/0064_badge_rule_approval_policy_defaults.sql", import.meta.url),
+      "utf8",
+    );
 
-    expect(sql).toContain("ADD COLUMN IF NOT EXISTS owner_org_unit_id TEXT");
-    expect(sql).toContain("Snapshot of the selected badge template owner org unit");
-    expect(sql).toContain("CREATE TABLE IF NOT EXISTS badge_rule_approval_policies");
-    expect(sql).toContain("approval_requirement TEXT NOT NULL");
-    expect(sql).toContain("approval_steps_json TEXT NOT NULL");
-    expect(sql).toContain("idx_badge_rule_approval_policies_tenant_default");
-    expect(sql).toContain("idx_badge_rule_approval_policies_tenant_org_unit");
-    expect(sql).toContain("tenants.id || ':badge-rule-approval-policy:default'");
-    expect(sql).toContain('\'[{"requiredRole":"admin","label":"Administrative approval"}]\'');
-    expect(sql).toContain("ON CONFLICT DO NOTHING");
+    expect(schemaSql).toContain("ADD COLUMN IF NOT EXISTS owner_org_unit_id TEXT");
+    expect(schemaSql).toContain("CREATE TABLE IF NOT EXISTS badge_rule_approval_policies");
+    expect(schemaSql).toContain("approval_requirement TEXT NOT NULL");
+    expect(schemaSql).toContain("approval_steps_json TEXT NOT NULL");
+    expect(schemaSql).toContain("idx_badge_rule_approval_policies_tenant_default");
+    expect(schemaSql).toContain("idx_badge_rule_approval_policies_tenant_org_unit");
+    expect(defaultsSql).toContain("Snapshot of the selected badge template owner org unit");
+    expect(defaultsSql).toContain("tenants.id || ':badge-rule-approval-policy:default'");
+    expect(defaultsSql).toContain(
+      '\'[{"requiredRole":"admin","label":"Administrative approval"}]\'',
+    );
+    expect(defaultsSql).toContain("ON CONFLICT DO NOTHING");
   });
 
   it("adds separation-of-duties and named target approval schema through a forward migration", () => {
@@ -148,17 +154,23 @@ describe("badge rule review queue schema", () => {
   });
 
   it("requires truthful immutable badge-rule version snapshots", () => {
-    const sql = readFileSync(
+    const versionSnapshotSql = readFileSync(
       new URL("../migrations/0062_badge_rule_version_snapshots.sql", import.meta.url),
       "utf8",
     );
+    const achievementSnapshotSql = readFileSync(
+      new URL("../migrations/0063_badge_rule_achievement_snapshots.sql", import.meta.url),
+      "utf8",
+    );
 
-    expect(sql).toContain("requires an empty badge rule version table");
-    expect(sql).not.toContain("UPDATE badge_issuance_rule_versions");
-    expect(sql).not.toContain("JOIN badge_templates");
-    expect(sql).toContain("snapshot_name TEXT NOT NULL");
-    expect(sql).toContain("badge_rule_version_snapshot_lms_provider_kind_check");
-    expect(sql).not.toContain("DEFAULT ''");
+    expect(versionSnapshotSql).toContain("UPDATE badge_issuance_rule_versions");
+    expect(versionSnapshotSql).toContain("JOIN badge_templates");
+    expect(versionSnapshotSql).toContain("ALTER COLUMN snapshot_name SET NOT NULL");
+    expect(versionSnapshotSql).toContain("badge_rule_version_snapshot_lms_provider_kind_check");
+    expect(versionSnapshotSql).not.toContain("DEFAULT ''");
+    expect(achievementSnapshotSql).toContain(
+      "requires empty badge rule version and assertion tables",
+    );
   });
 
   it("snapshots every credential-bearing badge template field for governed versions", () => {

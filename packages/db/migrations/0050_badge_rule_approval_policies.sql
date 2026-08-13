@@ -17,9 +17,6 @@ WHERE owner_org_unit_id IS NULL;
 ALTER TABLE badge_issuance_rules
   ALTER COLUMN owner_org_unit_id SET NOT NULL;
 
-COMMENT ON COLUMN badge_issuance_rules.owner_org_unit_id IS
-  'Snapshot of the selected badge template owner org unit at rule create or draft edit time. Badge rule approval policy resolves against this captured scope.';
-
 ALTER TABLE badge_issuance_rules
   DROP CONSTRAINT IF EXISTS fk_badge_issuance_rules_owner_org_unit;
 
@@ -53,26 +50,3 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_badge_rule_approval_policies_tenant_defaul
 CREATE UNIQUE INDEX IF NOT EXISTS idx_badge_rule_approval_policies_tenant_org_unit
   ON badge_rule_approval_policies (tenant_id, org_unit_id)
   WHERE org_unit_id IS NOT NULL;
-
--- Store the tenant-wide governance default so normal resolution reads policy from DB.
-INSERT INTO badge_rule_approval_policies (
-  id,
-  tenant_id,
-  org_unit_id,
-  approval_requirement,
-  approval_steps_json,
-  created_by_user_id,
-  created_at,
-  updated_at
-)
-SELECT
-  tenants.id || ':badge-rule-approval-policy:default',
-  tenants.id,
-  NULL,
-  'always',
-  '[{"requiredRole":"admin","label":"Administrative approval"}]',
-  NULL,
-  CURRENT_TIMESTAMP,
-  CURRENT_TIMESTAMP
-FROM tenants
-ON CONFLICT DO NOTHING;
