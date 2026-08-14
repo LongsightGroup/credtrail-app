@@ -463,6 +463,8 @@ describe("badge issuance rule draft predicates", () => {
         }),
       ]),
     ).toBe(false);
+    expect(dbModule.canDeleteBadgeIssuanceRuleDraft(neverActiveRule, [])).toBe(true);
+    expect(dbModule.canDeleteBadgeIssuanceRuleDraft(historicalRule, [])).toBe(false);
   });
 
   it("indexes each rule's versions newest first without mutating the input", () => {

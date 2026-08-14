@@ -273,13 +273,13 @@ export const canEditBadgeIssuanceRuleDraft = (
   );
 };
 
+/** Returns whether a never-active rule has no governed history that must be retained. */
 export const canDeleteBadgeIssuanceRuleDraft = (
   rule: BadgeIssuanceRuleRecord,
   versions: readonly BadgeIssuanceRuleVersionRecord[],
 ): boolean => {
   return (
     rule.activeVersionId === null &&
-    versions.length > 0 &&
     versions.every((version) =>
       DRAFT_EDITABLE_BADGE_ISSUANCE_RULE_VERSION_STATUSES.has(version.status),
     )

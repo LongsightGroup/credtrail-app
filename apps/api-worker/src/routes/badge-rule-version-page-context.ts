@@ -76,8 +76,12 @@ export const loadBadgeRuleVersionsPageContext = async (
     }),
   ]);
 
-  if (rule === null || versions.length === 0) {
+  if (rule === null) {
     return c.json({ error: "Badge rule not found" }, 404);
+  }
+
+  if (versions.length === 0) {
+    return c.json({ error: "Badge rule setup is incomplete" }, 409);
   }
 
   return {

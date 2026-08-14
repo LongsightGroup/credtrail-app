@@ -27,6 +27,7 @@ import {
   type BadgeIssuanceRuleVersionNumberRow,
 } from "./badge-issuance-rule-version-reads.js";
 import { takeBadgeIssuanceRuleBuilderDraftForPromotion } from "./badge-issuance-rule-builder-drafts.js";
+import { lockBadgeIssuanceRuleForTransition } from "./badge-issuance-rule-approval-storage.js";
 
 const createBadgeIssuanceRuleWithIdentity = async (
   db: SqlDatabase,
@@ -705,6 +706,7 @@ export const updateBadgeIssuanceRuleDraft = async (
   });
 };
 
+/** Atomically deletes an incomplete or never-active draft/rejected rule. */
 export const deleteDraftBadgeIssuanceRule = async (
   db: SqlDatabase,
   input: {
@@ -712,39 +714,41 @@ export const deleteDraftBadgeIssuanceRule = async (
     ruleId: string;
   },
 ): Promise<DeleteDraftBadgeIssuanceRuleResult> => {
-  const existingRule = await findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId);
+  return runSqlTransaction(db, async (transactionDb) => {
+    const existingRule = await lockBadgeIssuanceRuleForTransition(transactionDb, input);
 
-  if (existingRule === null) {
-    return { status: "not_found" };
-  }
+    if (existingRule === null) {
+      return { status: "not_found" };
+    }
 
-  const versions = await listBadgeIssuanceRuleVersions(db, {
-    tenantId: input.tenantId,
-    ruleId: input.ruleId,
-  });
+    const versions = await listBadgeIssuanceRuleVersions(transactionDb, {
+      tenantId: input.tenantId,
+      ruleId: input.ruleId,
+    });
 
-  if (!canDeleteBadgeIssuanceRuleDraft(existingRule, versions)) {
+    if (!canDeleteBadgeIssuanceRuleDraft(existingRule, versions)) {
+      return {
+        status: "not_deletable",
+        rule: existingRule,
+        versions,
+      };
+    }
+
+    await transactionDb
+      .prepare(
+        `
+        DELETE FROM badge_issuance_rules
+        WHERE tenant_id = ?
+          AND id = ?
+      `,
+      )
+      .bind(input.tenantId, input.ruleId)
+      .run();
+
     return {
-      status: "not_deletable",
+      status: "deleted",
       rule: existingRule,
       versions,
     };
-  }
-
-  await db
-    .prepare(
-      `
-      DELETE FROM badge_issuance_rules
-      WHERE tenant_id = ?
-        AND id = ?
-    `,
-    )
-    .bind(input.tenantId, input.ruleId)
-    .run();
-
-  return {
-    status: "deleted",
-    rule: existingRule,
-    versions,
-  };
+  });
 };

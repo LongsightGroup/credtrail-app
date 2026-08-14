@@ -980,4 +980,73 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
       });
     }
   });
+
+  it("deletes incomplete rules that never received a first version", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+    const ruleId = `brl_incomplete_${crypto.randomUUID().replace(/-/g, "")}`;
+
+    try {
+      await fixture.db
+        .prepare(
+          `
+          INSERT INTO badge_issuance_rules (
+            id,
+            tenant_id,
+            name,
+            description,
+            badge_template_id,
+            org_unit_id,
+            owner_org_unit_id,
+            lms_provider_kind,
+            lms_connection_id,
+            active_version_id,
+            created_by_user_id,
+            created_at,
+            updated_at
+          )
+          SELECT
+            ?,
+            templates.tenant_id,
+            'Incomplete cleanup rule',
+            NULL,
+            templates.id,
+            templates.owner_org_unit_id,
+            templates.owner_org_unit_id,
+            'canvas',
+            NULL,
+            NULL,
+            ?,
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+          FROM badge_templates AS templates
+          WHERE templates.tenant_id = ?
+            AND templates.id = ?
+        `,
+        )
+        .bind(ruleId, fixture.userId, fixture.tenantId, fixture.badgeTemplateId)
+        .run();
+
+      const result = await dbModule.deleteDraftBadgeIssuanceRule(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId,
+      });
+      const ruleCount = await selectCount(
+        fixture.db,
+        "SELECT COUNT(*) AS totalCount FROM badge_issuance_rules WHERE tenant_id = ? AND id = ?",
+        [fixture.tenantId, ruleId],
+      );
+
+      expect(result).toMatchObject({
+        status: "deleted",
+        rule: { id: ruleId },
+        versions: [],
+      });
+      expect(ruleCount).toBe(0);
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
 });

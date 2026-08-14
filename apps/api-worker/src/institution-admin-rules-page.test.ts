@@ -472,6 +472,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
           makeVersion("brl_historical", "Historical protected rule", "active"),
         ],
       ],
+      ["brl_incomplete", []],
     ]);
 
     mockedListBadgeIssuanceRules.mockResolvedValue([
@@ -481,6 +482,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
       makeRule("brl_approved", "Approved protected rule", null),
       makeRule("brl_active", "Active protected rule", "brl_active_v1"),
       makeRule("brl_historical", "Historical protected rule", "brl_historical_v1"),
+      makeRule("brl_incomplete", "Incomplete cleanup rule", null),
     ]);
     mockedListBadgeIssuanceRuleVersions.mockImplementation(async (_db, input) => {
       return versionsByRuleId.get(input.ruleId) ?? [];
@@ -508,6 +510,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
         "brl_approved",
         "brl_active",
         "brl_historical",
+        "brl_incomplete",
       ],
     });
     expect(body).toContain(
@@ -549,6 +552,15 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_active/delete");
     expect(body).toContain("/tenants/tenant_123/admin/rules/brl_historical/edit");
     expect(body).not.toContain("/tenants/tenant_123/admin/rules/brl_historical/delete");
+    expect(body).toContain("<strong>Incomplete cleanup rule</strong>");
+    expect(body).toContain("Setup incomplete");
+    expect(body).toContain("No version was created");
+    expect(body).toContain("Needs cleanup");
+    expect(body).toContain('action="/tenants/tenant_123/admin/rules/brl_incomplete/delete"');
+    expect(body).toContain(
+      'data-confirm-message="Delete incomplete rule &quot;Incomplete cleanup rule&quot;? This rule has no saved versions and cannot be used for awarding."',
+    );
+    expect(body).not.toContain('href="/tenants/tenant_123/admin/rules/brl_incomplete"');
   });
 });
 
@@ -1233,7 +1245,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
     const flashBody = await flashResponse.text();
 
     expect(flashResponse.status).toBe(200);
-    expect(flashBody).toContain("Draft rule deleted.");
+    expect(flashBody).toContain("Rule deleted.");
   });
 
   it("blocks delete attempts for protected rules and shows an error flash", async () => {
@@ -1305,7 +1317,9 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
     const flashBody = await flashResponse.text();
 
     expect(flashResponse.status).toBe(200);
-    expect(flashBody).toContain("Only never-active draft or rejected rules can be deleted.");
+    expect(flashBody).toContain(
+      "Only incomplete or never-active draft or rejected rules can be deleted.",
+    );
   });
 });
 

@@ -88,6 +88,16 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId", () => {
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Badge rule version not found" });
   });
+
+  it("reports an incomplete setup when a rule has no versions", async () => {
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleDetailRule(null));
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([]);
+
+    const response = await requestRulePage("/tenants/tenant_123/admin/rules/brl_detail");
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: "Badge rule setup is incomplete" });
+  });
 });
 
 describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () => {

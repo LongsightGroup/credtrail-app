@@ -650,7 +650,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
         tenantId: pathParams.tenantId,
         userId: principal.userId,
         tone: "error",
-        message: "Only never-active draft or rejected rules can be deleted.",
+        message: "Only incomplete or never-active draft or rejected rules can be deleted.",
       });
     }
 
@@ -675,7 +675,7 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       tenantId: pathParams.tenantId,
       userId: principal.userId,
       tone: "success",
-      message: "Draft rule deleted.",
+      message: "Rule deleted.",
     });
   });
 

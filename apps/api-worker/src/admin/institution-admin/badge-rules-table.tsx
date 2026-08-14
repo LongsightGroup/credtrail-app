@@ -13,6 +13,7 @@ import {
   badgeRuleVersionDisplayFields,
   badgeRuleVersionStatusLabel,
 } from "../../badges/badge-rule-presentation";
+import { badgeRuleLmsProviderLabel } from "../../badges/badge-rule-lms-provider-label";
 import { formatIsoTimestamp } from "../../utils/display-format";
 import { buildBadgeRuleDetailPath, buildBadgeRuleVersionDetailPath } from "../access-admin-helpers";
 import {
@@ -93,38 +94,44 @@ const renderFormalRuleRows = (input: RenderBadgeRulesTableInput): HonoElement =>
         const displayVersion = versionSelection.defaultVersion;
         const displayFields =
           displayVersion === null ? null : badgeRuleVersionDisplayFields(displayVersion);
-        const displayName = displayFields?.displayName ?? "Rule version unavailable";
+        const displayName = displayFields?.displayName ?? rule.name;
         const isEditableRule = canEditBadgeIssuanceRuleDraft(rule, versions);
         const canDeleteRule = canDeleteBadgeIssuanceRuleDraft(rule, versions);
         const editRulePath = `${buildBadgeRuleDetailPath(input.tenantId, rule.id)}/edit`;
         const detailPath =
           versionSelection.defaultVersion === null
-            ? buildBadgeRuleDetailPath(input.tenantId, rule.id)
+            ? null
             : buildBadgeRuleVersionDetailPath(
                 input.tenantId,
                 rule.id,
                 versionSelection.defaultVersion.id,
               );
-        const menuActions =
-          latestVersion === null
-            ? []
-            : buildBadgeRuleWorkflowMenuActions({
-                tenantId: input.tenantId,
-                userId: input.userId,
-                rule,
-                latestVersion,
-                canDeleteRule,
-              });
+        const menuActions = buildBadgeRuleWorkflowMenuActions({
+          tenantId: input.tenantId,
+          userId: input.userId,
+          rule,
+          latestVersion,
+          canDeleteRule,
+        });
 
         return (
           <tr>
             <td>
-              <a class="ct-admin__rule-name-link" href={detailPath}>
-                <strong>{displayName}</strong>
-              </a>
+              {detailPath === null ? (
+                <>
+                  <strong>{displayName}</strong>
+                  <AdminMeta>Setup incomplete</AdminMeta>
+                </>
+              ) : (
+                <a class="ct-admin__rule-name-link" href={detailPath}>
+                  <strong>{displayName}</strong>
+                </a>
+              )}
             </td>
-            <td>{displayFields?.badgeTitle ?? "Unavailable"}</td>
-            <td>{displayFields?.lmsProviderLabel ?? "Unavailable"}</td>
+            <td>{displayFields?.badgeTitle ?? "Not recorded"}</td>
+            <td>
+              {displayFields?.lmsProviderLabel ?? badgeRuleLmsProviderLabel(rule.lmsProviderKind)}
+            </td>
             <td>
               {activeVersion === null ? (
                 "Not active"
@@ -139,7 +146,11 @@ const renderFormalRuleRows = (input: RenderBadgeRulesTableInput): HonoElement =>
             </td>
             <td>
               {latestVersion === null ? (
-                "No version"
+                <>
+                  <strong>Setup incomplete</strong>
+                  <AdminMeta>No version was created</AdminMeta>
+                  <AdminStatusPill tone="warning">Needs cleanup</AdminStatusPill>
+                </>
               ) : (
                 <>
                   <strong>Version {String(latestVersion.versionNumber)}</strong>
@@ -154,14 +165,14 @@ const renderFormalRuleRows = (input: RenderBadgeRulesTableInput): HonoElement =>
                 </>
               )}
             </td>
-            <td>
-              {displayFields === null ? "Unavailable" : formatIsoTimestamp(displayFields.updatedAt)}
-            </td>
+            <td>{formatIsoTimestamp(displayFields?.updatedAt ?? rule.updatedAt)}</td>
             <td>
               <AdminActions>
-                <AdminButtonLink href={detailPath} variant="secondary" size="tiny">
-                  View
-                </AdminButtonLink>
+                {detailPath === null ? null : (
+                  <AdminButtonLink href={detailPath} variant="secondary" size="tiny">
+                    View
+                  </AdminButtonLink>
+                )}
                 {isEditableRule ? (
                   <AdminButtonLink href={editRulePath} variant="ghost" size="tiny">
                     Edit
