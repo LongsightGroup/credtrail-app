@@ -43,8 +43,12 @@ class NoopSpan {
     return false;
   }
 
-  setAttribute(_key: string, _value?: boolean | number | string): void {
-    return undefined;
+  setAttribute(_key: string, _value: boolean | number | string): this {
+    return this;
+  }
+
+  setAttributes(_attributes: Record<string, boolean | number | string | undefined>): this {
+    return this;
   }
 
   end(): void {
@@ -55,14 +59,22 @@ class NoopSpan {
 const tracing: Tracing = {
   enterSpan: (_name, callback, ...args) => callback(new NoopSpan(), ...args),
   startActiveSpan: (_name, callback, ...args) => callback(new NoopSpan(), ...args),
+  startSpan: (_name) => new NoopSpan(),
   Span: NoopSpan,
 };
 
 const executionContext: ExecutionContext = {
   waitUntil: (_promise: Promise<unknown>) => undefined,
   passThroughOnException: () => undefined,
+  exports: {},
   props: undefined,
   tracing,
+  abort: (reason?: unknown) => {
+    if (reason instanceof Error) {
+      throw reason;
+    }
+    throw new Error("Execution aborted", { cause: reason });
+  },
 };
 
 describe("runtime parity smoke", () => {
