@@ -22,4 +22,4 @@ export {
 } from "./badge-issuance-rule-approval-corrections.js";
 export { submitBadgeIssuanceRuleVersionForApproval } from "./badge-issuance-rule-submission.js";
 export { activateBadgeIssuanceRuleVersion } from "./badge-issuance-rule-activation.js";
-export { deleteDraftBadgeIssuanceRule } from "./badge-issuance-rule-writes.js";
+export { deleteNeverActiveBadgeIssuanceRule } from "./badge-issuance-rule-writes.js";

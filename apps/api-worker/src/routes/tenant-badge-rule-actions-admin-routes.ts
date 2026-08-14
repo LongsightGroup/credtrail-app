@@ -3,7 +3,7 @@ import {
   createAuditLog,
   decideBadgeIssuanceRuleVersion,
   deleteBadgeIssuanceRuleBuilderDraftById,
-  deleteDraftBadgeIssuanceRule,
+  deleteNeverActiveBadgeIssuanceRule,
   parseOptionalDateTimeInputToIso,
   recertifyBadgeIssuanceRuleVersion,
   reopenApprovedBadgeIssuanceRuleVersion,
@@ -631,9 +631,11 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
 
     const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
-    const deleted = await deleteDraftBadgeIssuanceRule(db, {
+    const deleted = await deleteNeverActiveBadgeIssuanceRule(db, {
       tenantId: pathParams.tenantId,
       ruleId: pathParams.ruleId,
+      actorUserId: principal.userId,
+      actorRole: membershipRole,
     });
 
     if (deleted.status === "not_found") {
@@ -653,23 +655,6 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
         message: "Only incomplete or never-active draft or rejected rules can be deleted.",
       });
     }
-
-    await createAuditLog(db, {
-      tenantId: pathParams.tenantId,
-      actorUserId: principal.userId,
-      action: "badge_rule.deleted",
-      targetType: "badge_rule",
-      targetId: deleted.rule.id,
-      metadata: {
-        role: membershipRole,
-        ruleName: deleted.rule.name,
-        versions: deleted.versions.map((version) => ({
-          id: version.id,
-          versionNumber: version.versionNumber,
-          status: version.status,
-        })),
-      },
-    });
 
     return redirectToRules(c, {
       tenantId: pathParams.tenantId,

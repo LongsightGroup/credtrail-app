@@ -15,7 +15,7 @@ import {
   mockedCreateAuditLogDb,
   mockedCreateBadgeTemplate,
   mockedDecideBadgeIssuanceRuleVersionDb,
-  mockedDeleteDraftBadgeIssuanceRuleDb,
+  mockedDeleteNeverActiveBadgeIssuanceRuleDb,
   mockedDeleteBadgeIssuanceRuleBuilderDraftByIdDb,
   mockedFindBadgeIssuanceRuleVersionByIdDb,
   mockedFindBadgeTemplateById,
@@ -1189,7 +1189,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
       ruleId: "brl_draft",
     });
 
-    mockedDeleteDraftBadgeIssuanceRuleDb.mockResolvedValue({
+    mockedDeleteNeverActiveBadgeIssuanceRuleDb.mockResolvedValue({
       status: "deleted",
       rule: deletedRule,
       versions: [deletedVersion],
@@ -1209,27 +1209,11 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
 
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/rules");
-    expect(mockedDeleteDraftBadgeIssuanceRuleDb).toHaveBeenCalledWith(fakeDb, {
+    expect(mockedDeleteNeverActiveBadgeIssuanceRuleDb).toHaveBeenCalledWith(fakeDb, {
       tenantId: "tenant_123",
       ruleId: "brl_draft",
-    });
-    expect(mockedCreateAuditLogDb).toHaveBeenCalledWith(fakeDb, {
-      tenantId: "tenant_123",
       actorUserId: "usr_admin",
-      action: "badge_rule.deleted",
-      targetType: "badge_rule",
-      targetId: "brl_draft",
-      metadata: {
-        role: "admin",
-        ruleName: "Draft cleanup rule",
-        versions: [
-          {
-            id: "brv_draft",
-            versionNumber: 1,
-            status: "draft",
-          },
-        ],
-      },
+      actorRole: "admin",
     });
 
     const flashCookie = adminFlashCookieHeader(response);
@@ -1250,7 +1234,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
 
   it("blocks delete attempts for protected rules and shows an error flash", async () => {
     const env = createEnv();
-    mockedDeleteDraftBadgeIssuanceRuleDb.mockResolvedValue({
+    mockedDeleteNeverActiveBadgeIssuanceRuleDb.mockResolvedValue({
       status: "not_deletable",
       rule: {
         id: "brl_active",

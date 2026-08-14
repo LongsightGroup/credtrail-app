@@ -14,35 +14,11 @@ export const buildBadgeRuleWorkflowMenuActions = (input: {
   readonly tenantId: string;
   readonly userId: string;
   readonly rule: BadgeIssuanceRuleRecord;
-  readonly latestVersion: BadgeIssuanceRuleVersionRecord | null;
+  readonly latestVersion: BadgeIssuanceRuleVersionRecord;
   readonly canDeleteRule: boolean;
 }): Child[] => {
   const { tenantId, userId, rule, latestVersion } = input;
   const menuActions: Child[] = [];
-
-  if (latestVersion === null) {
-    if (input.canDeleteRule) {
-      menuActions.push(
-        <AdminForm
-          method="post"
-          action={tenantBadgeRuleDeleteAdminPath(tenantId, rule.id)}
-          className="ct-admin__action-menu-form"
-          dataAttributes={{
-            "data-confirm-message": `Delete incomplete rule "${rule.name}"? This rule has no saved versions and cannot be used for awarding.`,
-          }}
-        >
-          <button
-            type="submit"
-            class="ct-admin__action-menu-item ct-admin__action-menu-item--danger"
-          >
-            Delete
-          </button>
-        </AdminForm>,
-      );
-    }
-
-    return menuActions;
-  }
 
   if (latestVersion.status === "draft" || latestVersion.status === "rejected") {
     menuActions.push(

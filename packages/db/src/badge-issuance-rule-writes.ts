@@ -1,4 +1,5 @@
 import { createPrefixedId } from "./shared-helpers";
+import { createAuditLog } from "./audit-logs.js";
 import { runSqlTransaction, type SqlDatabase, type SqlRunResult } from "./tenant-scope";
 import { resolveActiveRuleOrgUnit } from "./badge-issuance-rule-org-units.js";
 import { findBadgeTemplateById, type BadgeTemplateRecord } from "./badge-templates.js";
@@ -11,7 +12,8 @@ import type {
   CreateBadgeIssuanceRuleInput,
   CreateBadgeIssuanceRuleResult,
   CreateBadgeIssuanceRuleVersionInput,
-  DeleteDraftBadgeIssuanceRuleResult,
+  DeleteNeverActiveBadgeIssuanceRuleInput,
+  DeleteNeverActiveBadgeIssuanceRuleResult,
   PromoteBadgeIssuanceRuleBuilderDraftResult,
   UpdateBadgeIssuanceRuleDraftInput,
   UpdateBadgeIssuanceRuleDraftResult,
@@ -20,7 +22,7 @@ import type {
 } from "./badge-issuance-rule-types.js";
 import { findBadgeIssuanceRuleById } from "./badge-issuance-rule-reads.js";
 import {
-  canDeleteBadgeIssuanceRuleDraft,
+  canDeleteNeverActiveBadgeIssuanceRule,
   canEditBadgeIssuanceRuleDraft,
   findBadgeIssuanceRuleVersionById,
   listBadgeIssuanceRuleVersions,
@@ -706,14 +708,11 @@ export const updateBadgeIssuanceRuleDraft = async (
   });
 };
 
-/** Atomically deletes an incomplete or never-active draft/rejected rule. */
-export const deleteDraftBadgeIssuanceRule = async (
+/** Atomically deletes and audits an incomplete or never-active draft/rejected rule. */
+export const deleteNeverActiveBadgeIssuanceRule = async (
   db: SqlDatabase,
-  input: {
-    tenantId: string;
-    ruleId: string;
-  },
-): Promise<DeleteDraftBadgeIssuanceRuleResult> => {
+  input: DeleteNeverActiveBadgeIssuanceRuleInput,
+): Promise<DeleteNeverActiveBadgeIssuanceRuleResult> => {
   return runSqlTransaction(db, async (transactionDb) => {
     const existingRule = await lockBadgeIssuanceRuleForTransition(transactionDb, input);
 
@@ -726,7 +725,7 @@ export const deleteDraftBadgeIssuanceRule = async (
       ruleId: input.ruleId,
     });
 
-    if (!canDeleteBadgeIssuanceRuleDraft(existingRule, versions)) {
+    if (!canDeleteNeverActiveBadgeIssuanceRule(existingRule, versions)) {
       return {
         status: "not_deletable",
         rule: existingRule,
@@ -744,6 +743,23 @@ export const deleteDraftBadgeIssuanceRule = async (
       )
       .bind(input.tenantId, input.ruleId)
       .run();
+
+    await createAuditLog(transactionDb, {
+      tenantId: input.tenantId,
+      actorUserId: input.actorUserId,
+      action: "badge_rule.deleted",
+      targetType: "badge_rule",
+      targetId: existingRule.id,
+      metadata: {
+        role: input.actorRole,
+        ruleName: existingRule.name,
+        versions: versions.map((version) => ({
+          id: version.id,
+          versionNumber: version.versionNumber,
+          status: version.status,
+        })),
+      },
+    });
 
     return {
       status: "deleted",

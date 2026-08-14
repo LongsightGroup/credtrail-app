@@ -64,7 +64,7 @@ import {
   listBadgeIssuanceRuleEvaluations,
   listBadgeIssuanceRuleValueLists,
   createBadgeIssuanceRuleValueList,
-  deleteDraftBadgeIssuanceRule,
+  deleteNeverActiveBadgeIssuanceRule,
   findBadgeIssuanceRuleEvaluationById,
   resolveBadgeIssuanceRuleEvaluationReview,
   findBadgeIssuanceRuleById,
@@ -201,7 +201,9 @@ export const mockedUpsertBadgeRuleApprovalPolicyDb = vi.mocked(upsertBadgeRuleAp
 export const mockedListBadgeIssuanceRuleEvaluations = vi.mocked(listBadgeIssuanceRuleEvaluations);
 export const mockedListBadgeIssuanceRuleValueLists = vi.mocked(listBadgeIssuanceRuleValueLists);
 export const mockedCreateBadgeIssuanceRuleValueList = vi.mocked(createBadgeIssuanceRuleValueList);
-export const mockedDeleteDraftBadgeIssuanceRuleDb = vi.mocked(deleteDraftBadgeIssuanceRule);
+export const mockedDeleteNeverActiveBadgeIssuanceRuleDb = vi.mocked(
+  deleteNeverActiveBadgeIssuanceRule,
+);
 export const mockedFindBadgeIssuanceRuleEvaluationById = vi.mocked(
   findBadgeIssuanceRuleEvaluationById,
 );
@@ -993,8 +995,8 @@ beforeEach(() => {
     createdAt: "2026-02-18T12:00:00.000Z",
     updatedAt: "2026-02-18T12:00:00.000Z",
   });
-  mockedDeleteDraftBadgeIssuanceRuleDb.mockReset();
-  mockedDeleteDraftBadgeIssuanceRuleDb.mockResolvedValue({ status: "not_found" });
+  mockedDeleteNeverActiveBadgeIssuanceRuleDb.mockReset();
+  mockedDeleteNeverActiveBadgeIssuanceRuleDb.mockResolvedValue({ status: "not_found" });
   mockedFindBadgeIssuanceRuleEvaluationById.mockReset();
   mockedFindBadgeIssuanceRuleEvaluationById.mockResolvedValue(null);
   mockedResolveBadgeIssuanceRuleEvaluationReview.mockReset();

@@ -1,10 +1,11 @@
 import {
-  canDeleteBadgeIssuanceRuleDraft,
+  canDeleteNeverActiveBadgeIssuanceRule,
   canEditBadgeIssuanceRuleDraft,
   indexBadgeIssuanceRuleVersionsByRuleId,
   resolveBadgeIssuanceRuleVersionSelection,
   type BadgeIssuanceRuleRecord,
   type BadgeIssuanceRuleRegistrySort,
+  type BadgeIssuanceRuleVersionSelection,
   type BadgeIssuanceRuleVersionRecord,
 } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
@@ -15,7 +16,11 @@ import {
 } from "../../badges/badge-rule-presentation";
 import { badgeRuleLmsProviderLabel } from "../../badges/badge-rule-lms-provider-label";
 import { formatIsoTimestamp } from "../../utils/display-format";
-import { buildBadgeRuleDetailPath, buildBadgeRuleVersionDetailPath } from "../access-admin-helpers";
+import {
+  buildBadgeRuleDetailPath,
+  buildBadgeRuleVersionDetailPath,
+  tenantBadgeRuleDeleteAdminPath,
+} from "../access-admin-helpers";
 import {
   AdminActionMenu,
   AdminActions,
@@ -62,6 +67,203 @@ interface RenderBadgeRulesTableInput {
   };
 }
 
+type ResolvedBadgeRuleVersionSelection = Extract<
+  BadgeIssuanceRuleVersionSelection,
+  { readonly _tag: "resolved" }
+>;
+
+type InvalidBadgeRuleVersionSelection = Extract<
+  BadgeIssuanceRuleVersionSelection,
+  { readonly _tag: "invalid_active_reference" }
+>;
+
+const renderIncompleteRuleRow = (
+  input: RenderBadgeRulesTableInput,
+  rule: BadgeIssuanceRuleRecord,
+): HonoElement => {
+  return (
+    <tr>
+      <td>
+        <strong>{rule.name}</strong>
+        <AdminMeta>Setup incomplete</AdminMeta>
+      </td>
+      <td>Not recorded</td>
+      <td>{badgeRuleLmsProviderLabel(rule.lmsProviderKind)}</td>
+      <td>Not active</td>
+      <td>
+        <strong>Setup incomplete</strong>
+        <AdminMeta>No version was created</AdminMeta>
+        <AdminStatusPill tone="warning">Needs cleanup</AdminStatusPill>
+      </td>
+      <td>{formatIsoTimestamp(rule.updatedAt)}</td>
+      <td>
+        <AdminActions>
+          <AdminActionMenu
+            menuId={`badge-rule-action-menu-${rule.id}`}
+            ariaLabel={`More actions for ${rule.name}`}
+          >
+            <AdminForm
+              method="post"
+              action={tenantBadgeRuleDeleteAdminPath(input.tenantId, rule.id)}
+              className="ct-admin__action-menu-form"
+              dataAttributes={{
+                "data-confirm-message": `Delete incomplete rule "${rule.name}"? This rule has no saved versions and cannot be used for awarding.`,
+              }}
+            >
+              <button
+                type="submit"
+                class="ct-admin__action-menu-item ct-admin__action-menu-item--danger"
+              >
+                Delete
+              </button>
+            </AdminForm>
+          </AdminActionMenu>
+        </AdminActions>
+      </td>
+    </tr>
+  );
+};
+
+const renderInvalidActiveVersionRuleRow = (
+  input: RenderBadgeRulesTableInput,
+  rule: BadgeIssuanceRuleRecord,
+  selection: InvalidBadgeRuleVersionSelection,
+): HonoElement => {
+  const detailPath = buildBadgeRuleDetailPath(input.tenantId, rule.id);
+  const latestVersion = selection.latestVersion;
+
+  return (
+    <tr>
+      <td>
+        <a class="ct-admin__rule-name-link" href={detailPath}>
+          <strong>{rule.name}</strong>
+        </a>
+        <AdminMeta>Version reference unavailable</AdminMeta>
+      </td>
+      <td>Unavailable</td>
+      <td>{badgeRuleLmsProviderLabel(rule.lmsProviderKind)}</td>
+      <td>
+        <strong>Reference unavailable</strong>
+        <AdminMeta>The saved active version was not found</AdminMeta>
+        <AdminStatusPill tone="warning">Needs attention</AdminStatusPill>
+      </td>
+      <td>
+        {latestVersion === null ? (
+          "No version found"
+        ) : (
+          <>
+            <strong>Version {String(latestVersion.versionNumber)}</strong>
+            <AdminStatusPill tone={latestVersion.status}>
+              {badgeRuleVersionStatusLabel(latestVersion.status)}
+            </AdminStatusPill>
+          </>
+        )}
+      </td>
+      <td>{formatIsoTimestamp(rule.updatedAt)}</td>
+      <td>
+        <AdminActions>
+          <AdminButtonLink href={detailPath} variant="secondary" size="tiny">
+            View
+          </AdminButtonLink>
+        </AdminActions>
+      </td>
+    </tr>
+  );
+};
+
+const renderResolvedRuleRow = (
+  input: RenderBadgeRulesTableInput,
+  rule: BadgeIssuanceRuleRecord,
+  versions: readonly BadgeIssuanceRuleVersionRecord[],
+  selection: ResolvedBadgeRuleVersionSelection,
+): HonoElement => {
+  const { activeVersion, defaultVersion, latestVersion } = selection;
+  const displayFields = badgeRuleVersionDisplayFields(defaultVersion);
+  const detailPath = buildBadgeRuleVersionDetailPath(input.tenantId, rule.id, defaultVersion.id);
+  const editRulePath = `${buildBadgeRuleDetailPath(input.tenantId, rule.id)}/edit`;
+  const menuActions = buildBadgeRuleWorkflowMenuActions({
+    tenantId: input.tenantId,
+    userId: input.userId,
+    rule,
+    latestVersion,
+    canDeleteRule: canDeleteNeverActiveBadgeIssuanceRule(rule, versions),
+  });
+
+  return (
+    <tr>
+      <td>
+        <a class="ct-admin__rule-name-link" href={detailPath}>
+          <strong>{displayFields.displayName}</strong>
+        </a>
+      </td>
+      <td>{displayFields.badgeTitle}</td>
+      <td>{displayFields.lmsProviderLabel}</td>
+      <td>
+        {activeVersion === null ? (
+          "Not active"
+        ) : (
+          <>
+            <strong>Version {String(activeVersion.versionNumber)}</strong>
+            <AdminStatusPill tone={activeVersion.status}>
+              {badgeRuleVersionStatusLabel(activeVersion.status)}
+            </AdminStatusPill>
+          </>
+        )}
+      </td>
+      <td>
+        <strong>Version {String(latestVersion.versionNumber)}</strong>
+        <AdminStatusPill tone={latestVersion.status}>
+          {badgeRuleVersionStatusLabel(latestVersion.status)}
+        </AdminStatusPill>
+        {latestVersion.recertificationDueAt === null ? null : (
+          <AdminMeta>
+            Recertification due {formatIsoTimestamp(latestVersion.recertificationDueAt)}
+          </AdminMeta>
+        )}
+      </td>
+      <td>{formatIsoTimestamp(displayFields.updatedAt)}</td>
+      <td>
+        <AdminActions>
+          <AdminButtonLink href={detailPath} variant="secondary" size="tiny">
+            View
+          </AdminButtonLink>
+          {canEditBadgeIssuanceRuleDraft(rule, versions) ? (
+            <AdminButtonLink href={editRulePath} variant="ghost" size="tiny">
+              Edit
+            </AdminButtonLink>
+          ) : null}
+          {menuActions.length > 0 ? (
+            <AdminActionMenu
+              menuId={`badge-rule-action-menu-${rule.id}`}
+              ariaLabel={`More actions for ${displayFields.displayName}`}
+            >
+              {menuActions}
+            </AdminActionMenu>
+          ) : null}
+        </AdminActions>
+      </td>
+    </tr>
+  );
+};
+
+const renderFormalRuleRow = (
+  input: RenderBadgeRulesTableInput,
+  rule: BadgeIssuanceRuleRecord,
+  versions: readonly BadgeIssuanceRuleVersionRecord[],
+): HonoElement => {
+  const selection = resolveBadgeIssuanceRuleVersionSelection({ rule, versions });
+
+  if (selection._tag === "incomplete") {
+    return renderIncompleteRuleRow(input, rule);
+  }
+
+  if (selection._tag === "invalid_active_reference") {
+    return renderInvalidActiveVersionRuleRow(input, rule, selection);
+  }
+
+  return renderResolvedRuleRow(input, rule, versions, selection);
+};
+
 const renderFormalRuleRows = (input: RenderBadgeRulesTableInput): HonoElement => {
   if (input.badgeRules.length === 0) {
     const hasFilters =
@@ -86,111 +288,9 @@ const renderFormalRuleRows = (input: RenderBadgeRulesTableInput): HonoElement =>
 
   return (
     <>
-      {input.badgeRules.map((rule) => {
-        const versions = versionsByRule.get(rule.id) ?? [];
-        const versionSelection = resolveBadgeIssuanceRuleVersionSelection({ rule, versions });
-        const latestVersion = versionSelection.latestVersion;
-        const activeVersion = versionSelection.activeVersion;
-        const displayVersion = versionSelection.defaultVersion;
-        const displayFields =
-          displayVersion === null ? null : badgeRuleVersionDisplayFields(displayVersion);
-        const displayName = displayFields?.displayName ?? rule.name;
-        const isEditableRule = canEditBadgeIssuanceRuleDraft(rule, versions);
-        const canDeleteRule = canDeleteBadgeIssuanceRuleDraft(rule, versions);
-        const editRulePath = `${buildBadgeRuleDetailPath(input.tenantId, rule.id)}/edit`;
-        const detailPath =
-          versionSelection.defaultVersion === null
-            ? null
-            : buildBadgeRuleVersionDetailPath(
-                input.tenantId,
-                rule.id,
-                versionSelection.defaultVersion.id,
-              );
-        const menuActions = buildBadgeRuleWorkflowMenuActions({
-          tenantId: input.tenantId,
-          userId: input.userId,
-          rule,
-          latestVersion,
-          canDeleteRule,
-        });
-
-        return (
-          <tr>
-            <td>
-              {detailPath === null ? (
-                <>
-                  <strong>{displayName}</strong>
-                  <AdminMeta>Setup incomplete</AdminMeta>
-                </>
-              ) : (
-                <a class="ct-admin__rule-name-link" href={detailPath}>
-                  <strong>{displayName}</strong>
-                </a>
-              )}
-            </td>
-            <td>{displayFields?.badgeTitle ?? "Not recorded"}</td>
-            <td>
-              {displayFields?.lmsProviderLabel ?? badgeRuleLmsProviderLabel(rule.lmsProviderKind)}
-            </td>
-            <td>
-              {activeVersion === null ? (
-                "Not active"
-              ) : (
-                <>
-                  <strong>Version {String(activeVersion.versionNumber)}</strong>
-                  <AdminStatusPill tone={activeVersion.status}>
-                    {badgeRuleVersionStatusLabel(activeVersion.status)}
-                  </AdminStatusPill>
-                </>
-              )}
-            </td>
-            <td>
-              {latestVersion === null ? (
-                <>
-                  <strong>Setup incomplete</strong>
-                  <AdminMeta>No version was created</AdminMeta>
-                  <AdminStatusPill tone="warning">Needs cleanup</AdminStatusPill>
-                </>
-              ) : (
-                <>
-                  <strong>Version {String(latestVersion.versionNumber)}</strong>
-                  <AdminStatusPill tone={latestVersion.status}>
-                    {badgeRuleVersionStatusLabel(latestVersion.status)}
-                  </AdminStatusPill>
-                  {latestVersion.recertificationDueAt === null ? null : (
-                    <AdminMeta>
-                      Recertification due {formatIsoTimestamp(latestVersion.recertificationDueAt)}
-                    </AdminMeta>
-                  )}
-                </>
-              )}
-            </td>
-            <td>{formatIsoTimestamp(displayFields?.updatedAt ?? rule.updatedAt)}</td>
-            <td>
-              <AdminActions>
-                {detailPath === null ? null : (
-                  <AdminButtonLink href={detailPath} variant="secondary" size="tiny">
-                    View
-                  </AdminButtonLink>
-                )}
-                {isEditableRule ? (
-                  <AdminButtonLink href={editRulePath} variant="ghost" size="tiny">
-                    Edit
-                  </AdminButtonLink>
-                ) : null}
-                {menuActions.length > 0 ? (
-                  <AdminActionMenu
-                    menuId={`badge-rule-action-menu-${rule.id}`}
-                    ariaLabel={`More actions for ${displayName}`}
-                  >
-                    {menuActions}
-                  </AdminActionMenu>
-                ) : null}
-              </AdminActions>
-            </td>
-          </tr>
-        );
-      })}
+      {input.badgeRules.map((rule) =>
+        renderFormalRuleRow(input, rule, versionsByRule.get(rule.id) ?? []),
+      )}
     </>
   );
 };

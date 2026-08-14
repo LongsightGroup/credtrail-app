@@ -232,13 +232,29 @@ export const previousBadgeIssuanceRuleVersion = (
   );
 };
 
-/** Canonical ordering and lifecycle selections for one badge rule's versions. */
-export interface BadgeIssuanceRuleVersionSelection {
-  readonly orderedVersions: readonly BadgeIssuanceRuleVersionRecord[];
-  readonly latestVersion: BadgeIssuanceRuleVersionRecord | null;
-  readonly activeVersion: BadgeIssuanceRuleVersionRecord | null;
-  readonly defaultVersion: BadgeIssuanceRuleVersionRecord | null;
-}
+/** Canonical ordering and lifecycle selection for one badge rule's versions. */
+export type BadgeIssuanceRuleVersionSelection =
+  | {
+      readonly _tag: "incomplete";
+      readonly orderedVersions: readonly BadgeIssuanceRuleVersionRecord[];
+      readonly latestVersion: null;
+      readonly activeVersion: null;
+      readonly defaultVersion: null;
+    }
+  | {
+      readonly _tag: "invalid_active_reference";
+      readonly orderedVersions: readonly BadgeIssuanceRuleVersionRecord[];
+      readonly latestVersion: BadgeIssuanceRuleVersionRecord | null;
+      readonly activeVersion: null;
+      readonly defaultVersion: null;
+    }
+  | {
+      readonly _tag: "resolved";
+      readonly orderedVersions: readonly BadgeIssuanceRuleVersionRecord[];
+      readonly latestVersion: BadgeIssuanceRuleVersionRecord;
+      readonly activeVersion: BadgeIssuanceRuleVersionRecord | null;
+      readonly defaultVersion: BadgeIssuanceRuleVersionRecord;
+    };
 
 /** Resolves the canonical latest, active, and default detail versions for one rule. */
 export const resolveBadgeIssuanceRuleVersionSelection = (input: {
@@ -247,16 +263,46 @@ export const resolveBadgeIssuanceRuleVersionSelection = (input: {
 }): BadgeIssuanceRuleVersionSelection => {
   const orderedVersions = orderBadgeIssuanceRuleVersionsNewestFirst(input.versions);
   const latestVersion = orderedVersions[0] ?? null;
+
+  if (input.rule.activeVersionId === null) {
+    if (latestVersion === null) {
+      return {
+        _tag: "incomplete",
+        orderedVersions,
+        latestVersion: null,
+        activeVersion: null,
+        defaultVersion: null,
+      };
+    }
+
+    return {
+      _tag: "resolved",
+      orderedVersions,
+      latestVersion,
+      activeVersion: null,
+      defaultVersion: latestVersion,
+    };
+  }
+
   const activeVersion =
-    input.rule.activeVersionId === null
-      ? null
-      : (orderedVersions.find((version) => version.id === input.rule.activeVersionId) ?? null);
+    orderedVersions.find((version) => version.id === input.rule.activeVersionId) ?? null;
+
+  if (activeVersion === null) {
+    return {
+      _tag: "invalid_active_reference",
+      orderedVersions,
+      latestVersion,
+      activeVersion: null,
+      defaultVersion: null,
+    };
+  }
 
   return {
+    _tag: "resolved",
     orderedVersions,
-    latestVersion,
+    latestVersion: latestVersion ?? activeVersion,
     activeVersion,
-    defaultVersion: input.rule.activeVersionId === null ? latestVersion : activeVersion,
+    defaultVersion: activeVersion,
   };
 };
 
@@ -274,14 +320,19 @@ export const canEditBadgeIssuanceRuleDraft = (
 };
 
 /** Returns whether a never-active rule has no governed history that must be retained. */
-export const canDeleteBadgeIssuanceRuleDraft = (
+export const canDeleteNeverActiveBadgeIssuanceRule = (
   rule: BadgeIssuanceRuleRecord,
   versions: readonly BadgeIssuanceRuleVersionRecord[],
 ): boolean => {
-  return (
-    rule.activeVersionId === null &&
-    versions.every((version) =>
-      DRAFT_EDITABLE_BADGE_ISSUANCE_RULE_VERSION_STATUSES.has(version.status),
-    )
+  if (rule.activeVersionId !== null) {
+    return false;
+  }
+
+  if (versions.length === 0) {
+    return true;
+  }
+
+  return versions.every((version) =>
+    DRAFT_EDITABLE_BADGE_ISSUANCE_RULE_VERSION_STATUSES.has(version.status),
   );
 };

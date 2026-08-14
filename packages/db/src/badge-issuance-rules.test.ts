@@ -450,7 +450,7 @@ describe("badge issuance rule draft predicates", () => {
       ]),
     ).toBe(false);
     expect(
-      dbModule.canDeleteBadgeIssuanceRuleDraft(historicalRule, [
+      dbModule.canDeleteNeverActiveBadgeIssuanceRule(historicalRule, [
         sampleVersion({
           id: "brv_rejected",
           versionNumber: 2,
@@ -463,8 +463,29 @@ describe("badge issuance rule draft predicates", () => {
         }),
       ]),
     ).toBe(false);
-    expect(dbModule.canDeleteBadgeIssuanceRuleDraft(neverActiveRule, [])).toBe(true);
-    expect(dbModule.canDeleteBadgeIssuanceRuleDraft(historicalRule, [])).toBe(false);
+    expect(dbModule.canDeleteNeverActiveBadgeIssuanceRule(neverActiveRule, [])).toBe(true);
+    expect(dbModule.canDeleteNeverActiveBadgeIssuanceRule(historicalRule, [])).toBe(false);
+  });
+
+  it("distinguishes incomplete rules from invalid active-version references", () => {
+    const incompleteSelection = dbModule.resolveBadgeIssuanceRuleVersionSelection({
+      rule: sampleRule(),
+      versions: [],
+    });
+    const invalidReferenceSelection = dbModule.resolveBadgeIssuanceRuleVersionSelection({
+      rule: sampleRule({ activeVersionId: "brv_missing" }),
+      versions: [sampleVersion({ id: "brv_latest", versionNumber: 2 })],
+    });
+    const resolvedSelection = dbModule.resolveBadgeIssuanceRuleVersionSelection({
+      rule: sampleRule(),
+      versions: [sampleVersion({ id: "brv_latest", versionNumber: 2 })],
+    });
+
+    expect(incompleteSelection._tag).toBe("incomplete");
+    expect(invalidReferenceSelection._tag).toBe("invalid_active_reference");
+    expect(invalidReferenceSelection.latestVersion?.id).toBe("brv_latest");
+    expect(resolvedSelection._tag).toBe("resolved");
+    expect(resolvedSelection.defaultVersion?.id).toBe("brv_latest");
   });
 
   it("indexes each rule's versions newest first without mutating the input", () => {

@@ -598,17 +598,26 @@ export type UpdateBadgeIssuanceRuleDraftResult =
       versions: BadgeIssuanceRuleVersionRecord[];
     };
 
-export type DeleteDraftBadgeIssuanceRuleResult =
+/** Actor and rule identity for deleting a rule that has never been active. */
+export interface DeleteNeverActiveBadgeIssuanceRuleInput {
+  readonly tenantId: string;
+  readonly ruleId: string;
+  readonly actorUserId: string;
+  readonly actorRole: TenantMembershipRole;
+}
+
+/** Outcome of atomically deleting and auditing a rule that has never been active. */
+export type DeleteNeverActiveBadgeIssuanceRuleResult =
   | {
-      status: "deleted";
-      rule: BadgeIssuanceRuleRecord;
-      versions: BadgeIssuanceRuleVersionRecord[];
+      readonly status: "deleted";
+      readonly rule: BadgeIssuanceRuleRecord;
+      readonly versions: readonly BadgeIssuanceRuleVersionRecord[];
     }
   | {
-      status: "not_found";
+      readonly status: "not_found";
     }
   | {
-      status: "not_deletable";
-      rule: BadgeIssuanceRuleRecord;
-      versions: BadgeIssuanceRuleVersionRecord[];
+      readonly status: "not_deletable";
+      readonly rule: BadgeIssuanceRuleRecord;
+      readonly versions: readonly BadgeIssuanceRuleVersionRecord[];
     };
