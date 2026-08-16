@@ -270,6 +270,7 @@ export const createGradebookProviderForConnection = async (input: {
       clientId: input.connection.clientId,
       clientSecret: input.connection.clientSecret,
       refreshToken: input.connection.refreshToken,
+      ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
     });
     const refreshed = await updateTenantLmsConnectionTokens(input.db, {
       tenantId: input.connection.tenantId,
