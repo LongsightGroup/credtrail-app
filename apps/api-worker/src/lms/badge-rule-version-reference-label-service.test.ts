@@ -29,8 +29,8 @@ const dependencies = (
   listApprovalSteps: () => Promise.resolve([]),
   actorCanView: () => Promise.resolve(true),
   resolveDefinitionValueLists: (_db, _tenantId, definition) => Promise.resolve(definition),
-  lmsReferenceLabels: {
-    resolve: () =>
+  lmsCourseAuthoring: {
+    resolveReferenceLabels: () =>
       Promise.resolve({
         status: "resolved",
         labels: {
@@ -57,10 +57,10 @@ describe("badge rule version reference label service", () => {
     const actorUserIds: string[] = [];
     const service = createBadgeRuleVersionReferenceLabelService(
       dependencies({
-        lmsReferenceLabels: {
-          resolve: (labelInput) => {
-            connectionIds.push(labelInput.lmsConnectionId ?? "none");
-            actorUserIds.push(labelInput.actorUserId);
+        lmsCourseAuthoring: {
+          resolveReferenceLabels: (labelInput) => {
+            connectionIds.push(labelInput.connectionId);
+            actorUserIds.push(labelInput.userId);
             return Promise.resolve({
               status: "resolved",
               labels: {
@@ -109,8 +109,8 @@ describe("badge rule version reference label service", () => {
             }),
           }),
         resolveDefinitionValueLists: () => Promise.resolve(expandedDefinition),
-        lmsReferenceLabels: {
-          resolve: (labelInput) => {
+        lmsCourseAuthoring: {
+          resolveReferenceLabels: (labelInput) => {
             labelDefinitions.push(labelInput.definition);
             return Promise.resolve({
               status: "resolved",
@@ -133,10 +133,10 @@ describe("badge rule version reference label service", () => {
   it("propagates actionable LMS lookup failures", async () => {
     const service = createBadgeRuleVersionReferenceLabelService(
       dependencies({
-        lmsReferenceLabels: {
-          resolve: () =>
+        lmsCourseAuthoring: {
+          resolveReferenceLabels: () =>
             Promise.resolve({
-              status: "bad_gateway",
+              status: "provider_unavailable",
               error:
                 "Sakai blocked CredTrail from reading this course gradebook (403). Confirm that the saved Sakai account can view the course and gradebook, then try again.",
             }),
@@ -156,8 +156,8 @@ describe("badge rule version reference label service", () => {
     const service = createBadgeRuleVersionReferenceLabelService(
       dependencies({
         actorCanView: () => Promise.resolve(false),
-        lmsReferenceLabels: {
-          resolve: () => {
+        lmsCourseAuthoring: {
+          resolveReferenceLabels: () => {
             lmsResolutionCount += 1;
             return Promise.resolve({
               status: "resolved",

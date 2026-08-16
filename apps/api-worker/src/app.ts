@@ -85,6 +85,8 @@ import { formatIsoTimestamp, linkedInAddToProfileUrl } from "./utils/display-for
 import { asJsonObject, asNonEmptyString, asString } from "./utils/value-parsers";
 import { createApiWorker } from "./worker/create-worker";
 import { createPostgresQueueIngressStore } from "./queue/ingress-store";
+import { createLmsCourseAuthoringService } from "./lms/lms-course-authoring-service";
+import { createProductionBadgeRuleVersionReferenceLabelService } from "./lms/badge-rule-version-reference-label-service";
 import {
   createProcessQueuedJobs,
   processQueueInputWithDefaults,
@@ -320,9 +322,17 @@ export const processScheduledQueue = async (env: AppBindings): Promise<ProcessQu
   return processQueuedJobs({ env } as AppContext, processQueueInputWithDefaults({}));
 };
 
+const lmsCourseAuthoring = createLmsCourseAuthoringService({
+  currentTimestamp: () => new Date().toISOString(),
+});
+const loadBadgeRuleVersionReferenceLabels =
+  createProductionBadgeRuleVersionReferenceLabelService(lmsCourseAuthoring);
+
 const appDeps: AppDeps = {
   observabilityContext,
   resolveDatabase,
+  lmsCourseAuthoring,
+  loadBadgeRuleVersionReferenceLabels,
   serviceName: API_SERVICE_NAME,
   storageReadinessProbeKey: STORAGE_READINESS_PROBE_KEY,
   createBetterAuthRequest,

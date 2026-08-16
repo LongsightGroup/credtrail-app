@@ -1,5 +1,9 @@
 import { findTenantLmsUserIdentity, type SqlDatabase } from "@credtrail/db";
-import type { GradebookCourseCatalog, GradebookCourseRecord } from "./gradebook-types";
+import type {
+  GradebookCourseAccessResult,
+  GradebookCourseCatalog,
+  GradebookCourseRecord,
+} from "./gradebook-types";
 import type { ResolvedGradebookProvider } from "./gradebook-provider-resolution";
 
 /** Result of binding course discovery to the current authoring user's LMS access. */
@@ -84,6 +88,18 @@ export const authorizeLmsUserCoursesWithRecords = async (input: {
   const access = await catalogResult.catalog.verifyCourseAccess({
     courseIds: input.courseIds,
   });
+  return lmsCourseAuthorizationFromAccess({
+    resolvedProvider: input.resolvedProvider,
+    access,
+  });
+};
+
+/** Converts a provider access check into the shared LMS course-authorization outcome. */
+export const lmsCourseAuthorizationFromAccess = (input: {
+  readonly resolvedProvider: ResolvedGradebookProvider;
+  readonly access: GradebookCourseAccessResult;
+}): LmsCourseAuthorizationWithRecordsResult => {
+  const { access } = input;
   const unauthorizedCourseId = access.unauthorizedCourseIds[0];
 
   if (unauthorizedCourseId === undefined) {

@@ -3,7 +3,6 @@ import {
   findTenantLmsConnectionById,
   listTenantLmsConnections,
   upsertTenantLmsConnection,
-  type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
@@ -18,23 +17,17 @@ import type { Hono } from "hono";
 import type { AppEnv } from "../app";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { jsonError } from "../http/json-responses";
-import {
-  listGradebookItemsForCourse,
-  listWorkflowStatesForAssignment,
-  lmsLookupErrorMessage,
-} from "../lms/gradebook-picker";
-import {
-  GradebookProviderResolutionError,
-  publicTenantLmsConnection,
-  resolveGradebookProviderWithConnection,
-  type ResolvedGradebookProvider,
-} from "../lms/gradebook-provider-resolution";
-import { authorizeLmsUserCourses, resolveLmsCourseCatalog } from "../lms/user-course-access";
+import { publicTenantLmsConnection } from "../lms/gradebook-provider-resolution";
+import type {
+  LmsCourseAuthoringFailure,
+  LmsCourseAuthoringService,
+} from "../lms/lms-course-authoring-service";
 
 interface RegisterTenantLmsConnectionRoutesInput {
   app: Hono<AppEnv>;
   resolveDatabase: ResolveDatabase;
   requireTenantRole: RequireTenantRole;
+  lmsCourseAuthoring: LmsCourseAuthoringService;
   ISSUER_ROLES: readonly TenantMembershipRole[];
   ADMIN_ROLES: readonly TenantMembershipRole[];
 }
@@ -43,68 +36,27 @@ interface RegisterTenantLmsConnectionRoutesInput {
 const LMS_PICKER_MAX_COURSES = 100;
 const LMS_PICKER_MAX_LEARNERS = 100;
 
-const resolvedProviderForTenantConnection = async (input: {
-  db: SqlDatabase;
-  tenantId: string;
-  connectionId: string;
-}): Promise<ResolvedGradebookProvider | Response> => {
-  try {
-    return await resolveGradebookProviderWithConnection({
-      db: input.db,
-      tenantId: input.tenantId,
-      lmsConnectionId: input.connectionId,
-      nowIso: new Date().toISOString(),
-    });
-  } catch (error) {
-    const status =
-      error instanceof GradebookProviderResolutionError && error.reason === "not_found" ? 404 : 409;
-
-    return Response.json(
-      {
-        error: error instanceof Error ? error.message : "Unable to use LMS connection",
-      },
-      { status },
-    );
-  }
-};
-
-const authorizeCourseForUser = async (input: {
-  db: SqlDatabase;
-  resolved: ResolvedGradebookProvider;
-  userId: string;
-  courseId: string;
-}): Promise<Response | null> => {
-  try {
-    const authorization = await authorizeLmsUserCourses({
-      db: input.db,
-      resolvedProvider: input.resolved,
-      userId: input.userId,
-      courseIds: [input.courseId],
-    });
-
-    if (authorization.status === "authorized") {
-      return null;
-    }
-
-    return Response.json({ error: authorization.error }, { status: 403 });
-  } catch (error) {
-    return Response.json(
-      {
-        error: lmsLookupErrorMessage(
-          input.resolved.connection,
-          error,
-          "Unable to verify LMS course access",
-        ),
-      },
-      { status: 502 },
-    );
+const lmsCourseAuthoringFailureResponse = (failure: LmsCourseAuthoringFailure): Response => {
+  switch (failure.status) {
+    case "connection_not_found":
+      return Response.json({ error: failure.error }, { status: 404 });
+    case "connection_unusable":
+      return Response.json({ error: failure.error }, { status: 409 });
+    case "dependency_unavailable":
+      return Response.json({ error: failure.error }, { status: 503 });
+    case "identity_unlinked":
+    case "course_unauthorized":
+      return Response.json({ error: failure.error }, { status: 403 });
+    case "provider_unavailable":
+      return Response.json({ error: failure.error }, { status: 502 });
   }
 };
 
 export const registerTenantLmsConnectionRoutes = (
   input: RegisterTenantLmsConnectionRoutesInput,
 ): void => {
-  const { app, resolveDatabase, requireTenantRole, ISSUER_ROLES, ADMIN_ROLES } = input;
+  const { app, resolveDatabase, requireTenantRole, lmsCourseAuthoring, ISSUER_ROLES, ADMIN_ROLES } =
+    input;
 
   app.get("/v1/tenants/:tenantId/lms/connections", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
@@ -228,46 +180,25 @@ export const registerTenantLmsConnectionRoutes = (
     }
 
     const db = resolveDatabase(c.env);
-    const resolved = await resolvedProviderForTenantConnection({
+    const result = await lmsCourseAuthoring.searchCourses({
       db,
       tenantId: pathParams.tenantId,
       connectionId: pathParams.connectionId,
-    });
-
-    if (resolved instanceof Response) {
-      return resolved;
-    }
-
-    const catalogResult = await resolveLmsCourseCatalog({
-      db,
-      resolvedProvider: resolved,
       userId: roleCheck.principal.userId,
+      limit: LMS_PICKER_MAX_COURSES,
+      ...(query.q === undefined ? {} : { searchTerm: query.q }),
     });
 
-    if (catalogResult.status === "identity_unlinked") {
-      return c.json({ error: catalogResult.error }, 403);
+    if (result.status !== "resolved") {
+      return lmsCourseAuthoringFailureResponse(result);
     }
 
-    try {
-      const result = await catalogResult.catalog.listCourses({
-        limit: LMS_PICKER_MAX_COURSES,
-        ...(query.q === undefined ? {} : { searchTerm: query.q }),
-      });
-
-      return c.json({
-        tenantId: pathParams.tenantId,
-        connectionId: pathParams.connectionId,
-        courses: result.courses,
-        hasMore: result.hasMore,
-      });
-    } catch (error) {
-      return c.json(
-        {
-          error: lmsLookupErrorMessage(resolved.connection, error, "Unable to search LMS courses"),
-        },
-        502,
-      );
-    }
+    return c.json({
+      tenantId: pathParams.tenantId,
+      connectionId: pathParams.connectionId,
+      courses: result.courses,
+      hasMore: result.hasMore,
+    });
   });
 
   app.get(
@@ -282,54 +213,28 @@ export const registerTenantLmsConnectionRoutes = (
       }
 
       const db = resolveDatabase(c.env);
-      const resolved = await resolvedProviderForTenantConnection({
+      const result = await lmsCourseAuthoring.searchLearners({
         db,
         tenantId: pathParams.tenantId,
         connectionId: pathParams.connectionId,
-      });
-
-      if (resolved instanceof Response) {
-        return resolved;
-      }
-
-      const courseAuthorization = await authorizeCourseForUser({
-        db,
-        resolved,
         userId: roleCheck.principal.userId,
         courseId: pathParams.courseId,
+        limit: LMS_PICKER_MAX_LEARNERS,
+        ...(query.q === undefined ? {} : { searchTerm: query.q }),
       });
 
-      if (courseAuthorization !== null) {
-        return courseAuthorization;
+      if (result.status !== "resolved") {
+        return lmsCourseAuthoringFailureResponse(result);
       }
 
-      try {
-        const matchingLearners = await resolved.provider.listLearners({
-          courseId: pathParams.courseId,
-          ...(query.q === undefined ? {} : { searchTerm: query.q }),
-        });
-        const learners = matchingLearners.slice(0, LMS_PICKER_MAX_LEARNERS);
-
-        c.header("Cache-Control", "no-store");
-        return c.json({
-          tenantId: pathParams.tenantId,
-          connectionId: pathParams.connectionId,
-          courseId: pathParams.courseId,
-          learners,
-          hasMore: matchingLearners.length > LMS_PICKER_MAX_LEARNERS,
-        });
-      } catch (error) {
-        return c.json(
-          {
-            error: lmsLookupErrorMessage(
-              resolved.connection,
-              error,
-              "Unable to search LMS learners",
-            ),
-          },
-          502,
-        );
-      }
+      c.header("Cache-Control", "no-store");
+      return c.json({
+        tenantId: pathParams.tenantId,
+        connectionId: pathParams.connectionId,
+        courseId: pathParams.courseId,
+        learners: result.learners,
+        hasMore: result.hasMore,
+      });
     },
   );
 
@@ -345,52 +250,25 @@ export const registerTenantLmsConnectionRoutes = (
       }
 
       const db = resolveDatabase(c.env);
-      const resolved = await resolvedProviderForTenantConnection({
+      const result = await lmsCourseAuthoring.listGradebookItems({
         db,
         tenantId: pathParams.tenantId,
         connectionId: pathParams.connectionId,
-      });
-
-      if (resolved instanceof Response) {
-        return resolved;
-      }
-
-      const courseAuthorization = await authorizeCourseForUser({
-        db,
-        resolved,
         userId: roleCheck.principal.userId,
         courseId: pathParams.courseId,
+        ...(query.q === undefined ? {} : { searchTerm: query.q }),
       });
 
-      if (courseAuthorization !== null) {
-        return courseAuthorization;
+      if (result.status !== "resolved") {
+        return lmsCourseAuthoringFailureResponse(result);
       }
 
-      try {
-        const items = await listGradebookItemsForCourse({
-          provider: resolved.provider,
-          courseId: pathParams.courseId,
-          query: query.q,
-        });
-
-        return c.json({
-          tenantId: pathParams.tenantId,
-          connectionId: pathParams.connectionId,
-          courseId: pathParams.courseId,
-          items,
-        });
-      } catch (error) {
-        return c.json(
-          {
-            error: lmsLookupErrorMessage(
-              resolved.connection,
-              error,
-              "Unable to list gradebook items",
-            ),
-          },
-          502,
-        );
-      }
+      return c.json({
+        tenantId: pathParams.tenantId,
+        connectionId: pathParams.connectionId,
+        courseId: pathParams.courseId,
+        items: result.items,
+      });
     },
   );
 
@@ -405,54 +283,26 @@ export const registerTenantLmsConnectionRoutes = (
       }
 
       const db = resolveDatabase(c.env);
-      const resolved = await resolvedProviderForTenantConnection({
+      const result = await lmsCourseAuthoring.listWorkflowStates({
         db,
         tenantId: pathParams.tenantId,
         connectionId: pathParams.connectionId,
-      });
-
-      if (resolved instanceof Response) {
-        return resolved;
-      }
-
-      const courseAuthorization = await authorizeCourseForUser({
-        db,
-        resolved,
         userId: roleCheck.principal.userId,
         courseId: pathParams.courseId,
+        assignmentId: pathParams.assignmentId,
       });
 
-      if (courseAuthorization !== null) {
-        return courseAuthorization;
+      if (result.status !== "resolved") {
+        return lmsCourseAuthoringFailureResponse(result);
       }
 
-      try {
-        const states = await listWorkflowStatesForAssignment({
-          provider: resolved.provider,
-          connection: resolved.connection,
-          courseId: pathParams.courseId,
-          assignmentId: pathParams.assignmentId,
-        });
-
-        return c.json({
-          tenantId: pathParams.tenantId,
-          connectionId: pathParams.connectionId,
-          courseId: pathParams.courseId,
-          assignmentId: pathParams.assignmentId,
-          states,
-        });
-      } catch (error) {
-        return c.json(
-          {
-            error: lmsLookupErrorMessage(
-              resolved.connection,
-              error,
-              "Unable to list workflow state options",
-            ),
-          },
-          502,
-        );
-      }
+      return c.json({
+        tenantId: pathParams.tenantId,
+        connectionId: pathParams.connectionId,
+        courseId: pathParams.courseId,
+        assignmentId: pathParams.assignmentId,
+        states: result.states,
+      });
     },
   );
 };
