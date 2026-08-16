@@ -6,7 +6,12 @@ import {
 } from "@credtrail/db";
 import { refreshCanvasAccessToken } from "./canvas-oauth";
 import { createGradebookProvider } from "./gradebook-provider";
-import type { GradebookProvider } from "./gradebook-types";
+import type {
+  CanvasGradebookProvider,
+  CourseAuthoringGradebookProvider,
+  GradebookProvider,
+  SakaiGradebookProvider,
+} from "./gradebook-types";
 import { createSakaiSession, type SakaiSessionLoginResult } from "./sakai-gradebook-provider";
 
 const SAKAI_SESSION_CACHE_TTL_SECONDS = 20 * 60;
@@ -150,17 +155,45 @@ export const publicTenantLmsConnection = (
   };
 };
 
-export interface ResolvedGradebookProvider {
-  connection: TenantLmsConnectionRecord;
-  provider: GradebookProvider;
-}
+type CanvasTenantLmsConnection = TenantLmsConnectionRecord & {
+  readonly providerKind: "canvas";
+};
+
+type SakaiTenantLmsConnection = TenantLmsConnectionRecord & {
+  readonly providerKind: "sakai";
+};
+
+/** Saved LMS connection paired with the matching concrete provider. */
+export type ResolvedGradebookProvider =
+  | {
+      readonly providerKind: "canvas";
+      readonly connection: CanvasTenantLmsConnection;
+      readonly provider: CanvasGradebookProvider;
+    }
+  | {
+      readonly providerKind: "sakai";
+      readonly connection: SakaiTenantLmsConnection;
+      readonly provider: SakaiGradebookProvider;
+    };
+
+const isCanvasTenantLmsConnection = (
+  connection: TenantLmsConnectionRecord,
+): connection is CanvasTenantLmsConnection => {
+  return connection.providerKind === "canvas";
+};
+
+const isSakaiTenantLmsConnection = (
+  connection: TenantLmsConnectionRecord,
+): connection is SakaiTenantLmsConnection => {
+  return connection.providerKind === "sakai";
+};
 
 export const createGradebookProviderForConnection = async (input: {
   db: SqlDatabase;
   connection: TenantLmsConnectionRecord;
   nowIso: string;
   fetchImpl?: typeof fetch;
-}): Promise<GradebookProvider> => {
+}): Promise<CourseAuthoringGradebookProvider> => {
   let accessToken = input.connection.accessToken;
 
   if (input.connection.providerKind === "sakai") {
@@ -275,6 +308,7 @@ export const resolveGradebookProviderWithConnection = async (input: {
   tenantId: string;
   lmsConnectionId?: string | null | undefined;
   nowIso: string;
+  fetchImpl?: typeof fetch;
 }): Promise<ResolvedGradebookProvider> => {
   if (
     input.lmsConnectionId === undefined ||
@@ -300,14 +334,30 @@ export const resolveGradebookProviderWithConnection = async (input: {
   }
 
   try {
-    return {
+    const provider = await createGradebookProviderForConnection({
+      db: input.db,
       connection,
-      provider: await createGradebookProviderForConnection({
-        db: input.db,
+      nowIso: input.nowIso,
+      ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
+    });
+
+    if (isCanvasTenantLmsConnection(connection) && provider.kind === "canvas") {
+      return {
+        providerKind: "canvas",
         connection,
-        nowIso: input.nowIso,
-      }),
-    };
+        provider,
+      };
+    }
+
+    if (isSakaiTenantLmsConnection(connection) && provider.kind === "sakai") {
+      return {
+        providerKind: "sakai",
+        connection,
+        provider,
+      };
+    }
+
+    throw new Error("Resolved LMS provider did not match its saved connection");
   } catch (error) {
     throw new GradebookProviderResolutionError(
       "unusable",

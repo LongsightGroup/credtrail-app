@@ -20,8 +20,6 @@ const sha256Hex = async (value: string): Promise<string> =>
 
 const pathwayProvider = (): GradebookProvider => ({
   kind: "canvas",
-  listCourses: () => Promise.resolve({ courses: [], hasMore: false }),
-  verifyCourseAccess: () => Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
   listAssignments: () => Promise.resolve([]),
   listEnrollments: () => Promise.resolve([]),
   listLearners: ({ courseId }) =>

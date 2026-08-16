@@ -194,7 +194,11 @@ describe("LTI deep linking gradebook lookup routes", () => {
     mockedCreateGradebookProvider.mockReset();
     mockedCreateGradebookProvider.mockReturnValue({
       kind: "sakai",
-      listCourses: () => Promise.resolve({ courses: [], hasMore: false }),
+      courseCatalogForConnection: () => ({
+        listCourses: () => Promise.resolve({ courses: [], hasMore: false }),
+        verifyCourseAccess: () =>
+          Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
+      }),
       listAssignments: () =>
         Promise.resolve([
           {
@@ -350,7 +354,11 @@ describe("LTI deep linking gradebook lookup routes", () => {
     ]);
     mockedCreateGradebookProvider.mockReturnValue({
       kind: "sakai",
-      listCourses: () => Promise.resolve({ courses: [], hasMore: false }),
+      courseCatalogForConnection: () => ({
+        listCourses: () => Promise.resolve({ courses: [], hasMore: false }),
+        verifyCourseAccess: () =>
+          Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
+      }),
       listAssignments: () =>
         Promise.reject(
           new GradebookProviderError({

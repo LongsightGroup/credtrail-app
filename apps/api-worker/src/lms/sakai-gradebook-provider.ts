@@ -10,13 +10,14 @@ import {
 import type {
   GradebookAssignmentRecord,
   GradebookCompletionRecord,
+  GradebookCourseCatalog,
   GradebookCourseRecord,
   GradebookCourseSearchResult,
   GradebookEnrollmentRecord,
   GradebookGradeRecord,
   GradebookLearnerRecord,
-  GradebookProvider,
   GradebookSubmissionRecord,
+  SakaiGradebookProvider,
   SakaiGradebookProviderConfig,
 } from "./gradebook-types";
 
@@ -572,7 +573,7 @@ const isRetryableSessionStatus = (status: number): boolean => {
 
 export const createSakaiGradebookProvider = (
   input: CreateSakaiGradebookProviderInput,
-): GradebookProvider => {
+): SakaiGradebookProvider => {
   const { config } = input;
   const fetchImpl = input.fetchImpl ?? fetch;
   const apiBaseUrl = ensureHttpBaseUrl(config.apiBaseUrl);
@@ -682,13 +683,8 @@ export const createSakaiGradebookProvider = (
     return request;
   };
 
-  return {
-    kind: "sakai",
+  const courseCatalog: GradebookCourseCatalog = {
     listCourses: async (listInput): Promise<GradebookCourseSearchResult> => {
-      if (listInput.accessScope.kind !== "connection") {
-        throw new Error("Sakai course access requires the saved connection account");
-      }
-
       // Sakai applies select=any to the authenticated administrator session. Intersecting these
       // results with an LTI launch user's memberships would hide institution-wide admin access.
       const requestedCourseCount = listInput.limit + 1;
@@ -767,10 +763,6 @@ export const createSakaiGradebookProvider = (
       };
     },
     verifyCourseAccess: async (accessInput) => {
-      if (accessInput.accessScope.kind !== "connection") {
-        throw new Error("Sakai course access requires the saved connection account");
-      }
-
       const uniqueCourseIds = [...new Set(accessInput.courseIds)];
       const accessChecks = await mapConcurrentBounded(
         uniqueCourseIds,
@@ -797,6 +789,11 @@ export const createSakaiGradebookProvider = (
         ),
       };
     },
+  };
+
+  return {
+    kind: "sakai",
+    courseCatalogForConnection: () => courseCatalog,
     listAssignments: async (input): Promise<readonly GradebookAssignmentRecord[]> => {
       const matrix = await fetchMatrix(input.courseId);
       return matrix.columns.map((column) => ({

@@ -32,8 +32,7 @@ const templateOption = (input: {
   option.value = input.value;
   option.textContent = input.title;
   option.dataset.templateTitle = input.title;
-  option.dataset.templateSearchText =
-    input.searchText ?? `${input.title} ${input.value}`;
+  option.dataset.templateSearchText = input.searchText ?? `${input.title} ${input.value}`;
   option.dataset.ruleUsageCount = String(input.ruleUsageCount ?? 0);
   option.dataset.ruleUsageNames = input.ruleUsageNames ?? "";
   return option;

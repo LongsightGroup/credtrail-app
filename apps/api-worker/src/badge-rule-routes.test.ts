@@ -523,23 +523,26 @@ beforeEach(() => {
   courseSearchInputs.length = 0;
   mockedCreateGradebookProvider.mockReturnValue({
     kind: "canvas",
-    verifyCourseAccess: () => Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
-    listCourses: (input: GradebookCourseSearchInput) => {
-      courseSearchInputs.push(input);
-      return Promise.resolve({
-        courses: [
-          {
-            courseId: "course_101",
-            title: "CS101",
-            courseCode: "CS101",
-            workflowState: "available",
-            startsAt: null,
-            endsAt: null,
-          },
-        ],
-        hasMore: false,
-      });
-    },
+    courseCatalogForUser: () => ({
+      verifyCourseAccess: () =>
+        Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
+      listCourses: (input: GradebookCourseSearchInput) => {
+        courseSearchInputs.push(input);
+        return Promise.resolve({
+          courses: [
+            {
+              courseId: "course_101",
+              title: "CS101",
+              courseCode: "CS101",
+              workflowState: "available",
+              startsAt: null,
+              endsAt: null,
+            },
+          ],
+          hasMore: false,
+        });
+      },
+    }),
     listAssignments: () =>
       Promise.resolve([
         {
@@ -1272,7 +1275,6 @@ describe("badge rule routes", () => {
     expect(coursesBody.hasMore).toBe(false);
     expect(courseSearchInputs).toEqual([
       {
-        accessScope: { kind: "provider_user", providerUserId: "instructor_123" },
         searchTerm: "cs",
         limit: 100,
       },
@@ -1384,22 +1386,24 @@ describe("badge rule routes", () => {
     const env = createEnv();
     mockedCreateGradebookProvider.mockReturnValue({
       kind: "canvas",
-      verifyCourseAccess: () =>
-        Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
-      listCourses: (input: GradebookCourseSearchInput) => {
-        courseSearchInputs.push(input);
-        return Promise.resolve({
-          courses: Array.from({ length: 100 }, (_, index) => ({
-            courseId: `course_${String(index).padStart(3, "0")}`,
-            title: `Course ${String(index).padStart(3, "0")}`,
-            courseCode: null,
-            workflowState: "available",
-            startsAt: null,
-            endsAt: null,
-          })),
-          hasMore: true,
-        });
-      },
+      courseCatalogForUser: () => ({
+        verifyCourseAccess: () =>
+          Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
+        listCourses: (input: GradebookCourseSearchInput) => {
+          courseSearchInputs.push(input);
+          return Promise.resolve({
+            courses: Array.from({ length: 100 }, (_, index) => ({
+              courseId: `course_${String(index).padStart(3, "0")}`,
+              title: `Course ${String(index).padStart(3, "0")}`,
+              courseCode: null,
+              workflowState: "available",
+              startsAt: null,
+              endsAt: null,
+            })),
+            hasMore: true,
+          });
+        },
+      }),
       listAssignments: () => Promise.resolve([]),
       listEnrollments: () => Promise.resolve([]),
       listLearners: () => Promise.resolve([]),
@@ -1429,7 +1433,6 @@ describe("badge rule routes", () => {
     expect(body.courses.at(-1)?.courseId).toBe("course_099");
     expect(courseSearchInputs).toEqual([
       {
-        accessScope: { kind: "provider_user", providerUserId: "instructor_123" },
         limit: 100,
       },
     ]);
@@ -1437,7 +1440,6 @@ describe("badge rule routes", () => {
 
   it("returns actionable Sakai 403 guidance for course lookup failures", async () => {
     const env = createEnv();
-    mockedFindTenantLmsUserIdentity.mockResolvedValue(null);
     mockedFindTenantLmsConnectionById.mockResolvedValue(
       sampleTenantLmsConnection({
         displayName: "TrySakai",
@@ -1449,20 +1451,22 @@ describe("badge rule routes", () => {
     );
     mockedCreateGradebookProvider.mockReturnValue({
       kind: "sakai",
-      verifyCourseAccess: () =>
-        Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
-      listCourses: (input: GradebookCourseSearchInput) => {
-        courseSearchInputs.push(input);
-        return Promise.reject(
-          new GradebookProviderError({
-            providerKind: "sakai",
-            operation: "course_search",
-            reason: "permission_denied",
-            statusCode: 403,
-            message: "sakai course_search request failed (403)",
-          }),
-        );
-      },
+      courseCatalogForConnection: () => ({
+        verifyCourseAccess: () =>
+          Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
+        listCourses: (input: GradebookCourseSearchInput) => {
+          courseSearchInputs.push(input);
+          return Promise.reject(
+            new GradebookProviderError({
+              providerKind: "sakai",
+              operation: "course_search",
+              reason: "permission_denied",
+              statusCode: 403,
+              message: "sakai course_search request failed (403)",
+            }),
+          );
+        },
+      }),
       listAssignments: () => Promise.resolve([]),
       listEnrollments: () => Promise.resolve([]),
       listLearners: () => Promise.resolve([]),
@@ -1488,10 +1492,8 @@ describe("badge rule routes", () => {
     expect(body.error).toContain("Save a Sakai administrator username and password");
     expect(body.error).toContain("then try again");
     expect(body.error).toContain("allow EntityBroker Sites and Gradebook access");
-    expect(mockedFindTenantLmsUserIdentity).not.toHaveBeenCalled();
     expect(courseSearchInputs).toEqual([
       {
-        accessScope: { kind: "connection" },
         searchTerm: "cs",
         limit: 100,
       },
@@ -2113,9 +2115,11 @@ describe("badge rule routes", () => {
     );
     mockedCreateGradebookProvider.mockReturnValue({
       kind: "sakai",
-      verifyCourseAccess: () =>
-        Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
-      listCourses: () => Promise.resolve({ courses: [], hasMore: false }),
+      courseCatalogForConnection: () => ({
+        verifyCourseAccess: () =>
+          Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
+        listCourses: () => Promise.resolve({ courses: [], hasMore: false }),
+      }),
       listAssignments: () => Promise.resolve([]),
       listEnrollments: () => Promise.resolve([]),
       listSubmissions: () => Promise.resolve([]),

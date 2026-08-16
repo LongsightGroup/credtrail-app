@@ -24,8 +24,8 @@ import {
   type BadgeRuleReferenceLabelResolution,
 } from "./badge-rule-reference-labels";
 import {
-  authorizeLmsUserCoursesWithScope,
-  type LmsScopedCourseAuthorizationResult,
+  authorizeLmsUserCoursesWithRecords,
+  type LmsCourseAuthorizationWithRecordsResult,
 } from "./user-course-access";
 
 export interface BadgeRuleVersionReferenceLabelServiceInput {
@@ -127,13 +127,12 @@ const lmsReferenceLabelContext: LmsReferenceLabelContext = {
       };
     }
 
-    let authorization: LmsScopedCourseAuthorizationResult;
+    let authorization: LmsCourseAuthorizationWithRecordsResult;
 
     try {
-      authorization = await authorizeLmsUserCoursesWithScope({
+      authorization = await authorizeLmsUserCoursesWithRecords({
         db: input.db,
-        connection: resolvedProvider.connection,
-        provider: resolvedProvider.provider,
+        resolvedProvider,
         userId: input.actorUserId,
         courseIds,
       });

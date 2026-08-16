@@ -5,8 +5,6 @@ import { resolveBadgeRuleReferenceLabels } from "./badge-rule-reference-labels";
 
 const createProvider = (overrides: Partial<GradebookProvider> = {}): GradebookProvider => ({
   kind: "canvas",
-  listCourses: () => Promise.resolve({ courses: [], hasMore: false }),
-  verifyCourseAccess: () => Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
   listAssignments: () => Promise.resolve([]),
   listEnrollments: () => Promise.resolve([]),
   listLearners: () => Promise.resolve([]),

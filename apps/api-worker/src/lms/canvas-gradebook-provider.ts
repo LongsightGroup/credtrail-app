@@ -6,15 +6,16 @@ import {
 } from "./canvas-link-pagination";
 import type { GradebookProviderOperation } from "./gradebook-provider-error";
 import type {
+  CanvasGradebookProvider,
   CanvasGradebookProviderConfig,
   GradebookAssignmentRecord,
   GradebookCompletionRecord,
+  GradebookCourseCatalog,
   GradebookCourseRecord,
   GradebookCourseSearchResult,
   GradebookEnrollmentRecord,
   GradebookGradeRecord,
   GradebookLearnerRecord,
-  GradebookProvider,
   GradebookSubmissionRecord,
 } from "./gradebook-types";
 
@@ -294,7 +295,7 @@ const parseCompletionRecord = (
 
 export const createCanvasGradebookProvider = (
   input: CreateCanvasGradebookProviderInput,
-): GradebookProvider => {
+): CanvasGradebookProvider => {
   const { config } = input;
   const fetchImpl = input.fetchImpl ?? fetch;
   const apiBaseUrl = ensureHttpBaseUrl(config.apiBaseUrl);
@@ -467,59 +468,54 @@ export const createCanvasGradebookProvider = (
     });
   };
 
+  const courseCatalogForUser = (providerUserId: string): GradebookCourseCatalog => {
+    return {
+      listCourses: async (input): Promise<GradebookCourseSearchResult> => {
+        const normalizedCourses = await listManageableCourses(providerUserId);
+        const searchTerm = input.searchTerm?.trim().toLocaleLowerCase() ?? "";
+
+        const matchingCourses = normalizedCourses
+          .filter((course) => {
+            if (searchTerm.length === 0) {
+              return true;
+            }
+
+            return [course.title, course.courseCode ?? "", course.courseId].some((value) =>
+              value.toLocaleLowerCase().includes(searchTerm),
+            );
+          })
+          .sort(
+            (left, right) =>
+              left.title.localeCompare(right.title) || left.courseId.localeCompare(right.courseId),
+          );
+
+        return {
+          courses: matchingCourses.slice(0, input.limit),
+          hasMore: matchingCourses.length > input.limit,
+        };
+      },
+      verifyCourseAccess: async (input) => {
+        const manageableCoursesById = new Map(
+          (await listManageableCourses(providerUserId)).map((course) => [course.courseId, course]),
+        );
+        const uniqueCourseIds = [...new Set(input.courseIds)];
+
+        return {
+          authorizedCourses: uniqueCourseIds.flatMap((courseId) => {
+            const course = manageableCoursesById.get(courseId);
+            return course === undefined ? [] : [course];
+          }),
+          unauthorizedCourseIds: input.courseIds.filter(
+            (courseId) => !manageableCoursesById.has(courseId),
+          ),
+        };
+      },
+    };
+  };
+
   return {
     kind: "canvas",
-    listCourses: async (input): Promise<GradebookCourseSearchResult> => {
-      if (input.accessScope.kind !== "provider_user") {
-        throw new Error("Canvas course access requires a linked provider user");
-      }
-
-      const normalizedCourses = await listManageableCourses(input.accessScope.providerUserId);
-      const searchTerm = input.searchTerm?.trim().toLocaleLowerCase() ?? "";
-
-      const matchingCourses = normalizedCourses
-        .filter((course) => {
-          if (searchTerm.length === 0) {
-            return true;
-          }
-
-          return [course.title, course.courseCode ?? "", course.courseId].some((value) =>
-            value.toLocaleLowerCase().includes(searchTerm),
-          );
-        })
-        .sort(
-          (left, right) =>
-            left.title.localeCompare(right.title) || left.courseId.localeCompare(right.courseId),
-        );
-
-      return {
-        courses: matchingCourses.slice(0, input.limit),
-        hasMore: matchingCourses.length > input.limit,
-      };
-    },
-    verifyCourseAccess: async (input) => {
-      if (input.accessScope.kind !== "provider_user") {
-        throw new Error("Canvas course access requires a linked provider user");
-      }
-
-      const manageableCoursesById = new Map(
-        (await listManageableCourses(input.accessScope.providerUserId)).map((course) => [
-          course.courseId,
-          course,
-        ]),
-      );
-      const uniqueCourseIds = [...new Set(input.courseIds)];
-
-      return {
-        authorizedCourses: uniqueCourseIds.flatMap((courseId) => {
-          const course = manageableCoursesById.get(courseId);
-          return course === undefined ? [] : [course];
-        }),
-        unauthorizedCourseIds: input.courseIds.filter(
-          (courseId) => !manageableCoursesById.has(courseId),
-        ),
-      };
-    },
+    courseCatalogForUser,
     listAssignments: async (input): Promise<readonly GradebookAssignmentRecord[]> => {
       return listAssignmentsForCourse(input.courseId);
     },

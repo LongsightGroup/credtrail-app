@@ -230,8 +230,7 @@ describe("createSakaiGradebookProvider", () => {
       fetchImpl,
     });
 
-    const courseSearch = await provider.listCourses({
-      accessScope: { kind: "connection" },
+    const courseSearch = await provider.courseCatalogForConnection().listCourses({
       limit: 100,
     });
     const assignments = await provider.listAssignments({ courseId: "site-1" });
@@ -374,8 +373,7 @@ describe("createSakaiGradebookProvider", () => {
     });
 
     await expect(
-      provider.listCourses({
-        accessScope: { kind: "connection" },
+      provider.courseCatalogForConnection().listCourses({
         searchTerm: "  capstone 2026  ",
         limit: 100,
       }),
@@ -439,9 +437,7 @@ describe("createSakaiGradebookProvider", () => {
       fetchImpl,
     });
 
-    await expect(
-      provider.listCourses({ accessScope: { kind: "connection" }, limit: 1 }),
-    ).resolves.toEqual({
+    await expect(provider.courseCatalogForConnection().listCourses({ limit: 1 })).resolves.toEqual({
       courses: [
         expect.objectContaining({
           courseId: "course-a",
@@ -491,8 +487,7 @@ describe("createSakaiGradebookProvider", () => {
     });
 
     await expect(
-      provider.verifyCourseAccess({
-        accessScope: { kind: "connection" },
+      provider.courseCatalogForConnection().verifyCourseAccess({
         courseIds: ["course-101", "course-202", "course-303"],
       }),
     ).resolves.toEqual({
@@ -529,7 +524,7 @@ describe("createSakaiGradebookProvider", () => {
     });
 
     await expect(
-      provider.listCourses({ accessScope: { kind: "connection" }, limit: 100 }),
+      provider.courseCatalogForConnection().listCourses({ limit: 100 }),
     ).rejects.toMatchObject({
       _tag: "GradebookProviderError",
       operation: "course_search",
@@ -558,7 +553,7 @@ describe("createSakaiGradebookProvider", () => {
     });
 
     await expect(
-      provider.listCourses({ accessScope: { kind: "connection" }, limit: 100 }),
+      provider.courseCatalogForConnection().listCourses({ limit: 100 }),
     ).rejects.toMatchObject({
       _tag: "GradebookProviderError",
       operation: "course_search",
@@ -603,7 +598,7 @@ describe("createSakaiGradebookProvider", () => {
     });
 
     await expect(
-      provider.listCourses({ accessScope: { kind: "connection" }, limit: 100 }),
+      provider.courseCatalogForConnection().listCourses({ limit: 100 }),
     ).resolves.toEqual({
       courses: [
         {
@@ -697,7 +692,7 @@ describe("createSakaiGradebookProvider", () => {
     });
 
     await expect(
-      provider.listCourses({ accessScope: { kind: "connection" }, limit: 100 }),
+      provider.courseCatalogForConnection().listCourses({ limit: 100 }),
     ).resolves.toEqual({
       courses: [
         {

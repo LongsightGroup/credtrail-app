@@ -22,8 +22,7 @@ export const authorizeBadgeRuleCourses = async (input: {
 
   return authorizeLmsUserCourses({
     db: input.db,
-    connection: input.resolvedProvider.connection,
-    provider: input.resolvedProvider.provider,
+    resolvedProvider: input.resolvedProvider,
     userId: input.userId,
     courseIds: requirements.courseIds,
   });

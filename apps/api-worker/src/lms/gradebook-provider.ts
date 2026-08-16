@@ -6,7 +6,7 @@ import {
 } from "./sakai-gradebook-provider";
 import {
   GRADEBOOK_PROVIDER_KINDS,
-  type GradebookProvider,
+  type CourseAuthoringGradebookProvider,
   type GradebookProviderConfig,
   type GradebookProviderKind,
 } from "./gradebook-types";
@@ -67,7 +67,9 @@ export interface CreateGradebookProviderInput {
   sakaiRefreshSession?: () => Promise<SakaiSessionLoginResult>;
 }
 
-export const createGradebookProvider = (input: CreateGradebookProviderInput): GradebookProvider => {
+export const createGradebookProvider = (
+  input: CreateGradebookProviderInput,
+): CourseAuthoringGradebookProvider => {
   switch (input.config.kind) {
     case "canvas":
       return createCanvasGradebookProvider({

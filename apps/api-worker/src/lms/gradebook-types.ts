@@ -17,15 +17,7 @@ export interface GradebookCourseRecord {
   endsAt: string | null;
 }
 
-export type GradebookCourseAccessScope =
-  | { readonly kind: "connection" }
-  | {
-      readonly kind: "provider_user";
-      readonly providerUserId: string;
-    };
-
 export interface GradebookCourseSearchInput {
-  readonly accessScope: GradebookCourseAccessScope;
   readonly searchTerm?: string;
   readonly limit: number;
 }
@@ -38,6 +30,14 @@ export interface GradebookCourseSearchResult {
 export interface GradebookCourseAccessResult {
   readonly authorizedCourses: readonly GradebookCourseRecord[];
   readonly unauthorizedCourseIds: readonly string[];
+}
+
+/** Course discovery and verification bound to one provider authorization boundary. */
+export interface GradebookCourseCatalog {
+  listCourses(input: GradebookCourseSearchInput): Promise<GradebookCourseSearchResult>;
+  verifyCourseAccess(input: {
+    readonly courseIds: readonly string[];
+  }): Promise<GradebookCourseAccessResult>;
 }
 
 export interface GradebookAssignmentRecord {
@@ -97,11 +97,6 @@ export interface GradebookCompletionRecord {
 
 export interface GradebookProvider {
   readonly kind: GradebookProviderKind;
-  listCourses(input: GradebookCourseSearchInput): Promise<GradebookCourseSearchResult>;
-  verifyCourseAccess(input: {
-    readonly accessScope: GradebookCourseAccessScope;
-    readonly courseIds: readonly string[];
-  }): Promise<GradebookCourseAccessResult>;
   listAssignments(input: { courseId: string }): Promise<readonly GradebookAssignmentRecord[]>;
   listEnrollments(input: {
     courseId: string;
@@ -125,6 +120,21 @@ export interface GradebookProvider {
     learnerId?: string;
   }): Promise<readonly GradebookCompletionRecord[]>;
 }
+
+/** Canvas provider whose course catalog is bound to a linked Canvas user. */
+export interface CanvasGradebookProvider extends GradebookProvider {
+  readonly kind: "canvas";
+  courseCatalogForUser(providerUserId: string): GradebookCourseCatalog;
+}
+
+/** Sakai provider whose course catalog is bound to the saved institutional connection. */
+export interface SakaiGradebookProvider extends GradebookProvider {
+  readonly kind: "sakai";
+  courseCatalogForConnection(): GradebookCourseCatalog;
+}
+
+/** Implemented LMS providers that expose a course-authoring catalog. */
+export type CourseAuthoringGradebookProvider = CanvasGradebookProvider | SakaiGradebookProvider;
 
 interface GradebookProviderConfigBase {
   kind: GradebookProviderKind;

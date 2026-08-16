@@ -29,7 +29,7 @@ import {
   resolveGradebookProviderWithConnection,
   type ResolvedGradebookProvider,
 } from "../lms/gradebook-provider-resolution";
-import { authorizeLmsUserCourses, resolveLmsCourseAccessScope } from "../lms/user-course-access";
+import { authorizeLmsUserCourses, resolveLmsCourseCatalog } from "../lms/user-course-access";
 
 interface RegisterTenantLmsConnectionRoutesInput {
   app: Hono<AppEnv>;
@@ -77,8 +77,7 @@ const authorizeCourseForUser = async (input: {
   try {
     const authorization = await authorizeLmsUserCourses({
       db: input.db,
-      connection: input.resolved.connection,
-      provider: input.resolved.provider,
+      resolvedProvider: input.resolved,
       userId: input.userId,
       courseIds: [input.courseId],
     });
@@ -239,19 +238,18 @@ export const registerTenantLmsConnectionRoutes = (
       return resolved;
     }
 
-    const scope = await resolveLmsCourseAccessScope({
+    const catalogResult = await resolveLmsCourseCatalog({
       db,
-      connection: resolved.connection,
+      resolvedProvider: resolved,
       userId: roleCheck.principal.userId,
     });
 
-    if (scope.status === "identity_unlinked") {
-      return c.json({ error: scope.error }, 403);
+    if (catalogResult.status === "identity_unlinked") {
+      return c.json({ error: catalogResult.error }, 403);
     }
 
     try {
-      const result = await resolved.provider.listCourses({
-        accessScope: scope.accessScope,
+      const result = await catalogResult.catalog.listCourses({
         limit: LMS_PICKER_MAX_COURSES,
         ...(query.q === undefined ? {} : { searchTerm: query.q }),
       });
