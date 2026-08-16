@@ -8,7 +8,7 @@ import {
   institutionAdminApiKeysPage,
   institutionAdminDashboardPage,
   institutionAdminIssuedBadgesPage,
-} from "../../admin/institution-admin-page";
+} from "../../admin/institution-admin/page";
 import {
   loadInstitutionAdminWorkspacePageData,
   renderInstitutionAdminWorkspacePage,

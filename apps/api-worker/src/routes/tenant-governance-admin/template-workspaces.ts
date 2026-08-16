@@ -13,7 +13,7 @@ import {
 import {
   institutionAdminRuleTemplateEditorPage,
   institutionAdminRuleTemplatesPage,
-} from "../../admin/institution-admin-page";
+} from "../../admin/institution-admin/page";
 import type { BadgeTemplateHistoryPanel } from "../../admin/institution-admin-templates-page";
 import type { AppContext } from "../../app";
 import type { ResolveDatabase } from "../../app/route-deps";

@@ -12,7 +12,7 @@ import {
   type TenantMembershipRole,
   type TenantReportingLifecycleFilter,
 } from "@credtrail/db";
-import { institutionAdminDashboardPage } from "../admin/institution-admin-page";
+import { institutionAdminDashboardPage } from "../admin/institution-admin/page";
 import type { AppContext } from "../app";
 import type { ResolveDatabase } from "../app/route-deps";
 import { resolveTenantReportingAccess } from "../auth/tenant-access";

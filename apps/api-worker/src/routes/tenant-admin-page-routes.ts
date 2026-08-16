@@ -34,7 +34,7 @@ import {
 import {
   institutionAdminBadgeStatusPage,
   institutionAdminDashboardPage,
-} from "../admin/institution-admin-page";
+} from "../admin/institution-admin/page";
 import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
 import type { InstitutionAdminView } from "../admin/institution-admin/page-types";
 import { buildLmsConnectionEditPath } from "../admin/lms-connection-admin-helpers";

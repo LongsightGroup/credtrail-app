@@ -52,7 +52,7 @@ export interface InstitutionAdminRuleBuilderPageContext {
   }[];
 }
 
-export const buildInstitutionAdminRuleBuilderDraftContext = (
+const buildInstitutionAdminRuleBuilderDraftContext = (
   builderDraft: BadgeIssuanceRuleBuilderDraftRecord | null,
   editRule: InstitutionAdminRuleBuilderEditContext | null,
 ): InstitutionAdminRuleBuilderPageContext["builderDraft"] => {
@@ -94,7 +94,7 @@ export const buildInstitutionAdminRuleBuilderDraftContext = (
   };
 };
 
-export const buildInstitutionAdminRuleBuilderEditContext = (input: {
+const buildInstitutionAdminRuleBuilderEditContext = (input: {
   ruleId: string;
   latestVersion: BadgeIssuanceRuleVersionRecord;
   definition: unknown;

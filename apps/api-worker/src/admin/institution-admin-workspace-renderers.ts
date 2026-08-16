@@ -32,7 +32,7 @@ import {
   institutionAdminOrgUnitAccessPage,
   institutionAdminOrgUnitsPage,
   institutionAdminRulesPage,
-} from "./institution-admin-page";
+} from "./institution-admin/page";
 import {
   loadInstitutionAdminWorkspacePageData,
   renderInstitutionAdminWorkspacePage,

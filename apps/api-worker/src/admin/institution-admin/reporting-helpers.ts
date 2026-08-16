@@ -120,7 +120,7 @@ export const buildReportingHierarchyFocusId = (orgUnitId: string): string => {
   return `reporting-hierarchy-focus-${encodeURIComponent(orgUnitId)}`;
 };
 
-export const appendQueryParam = (
+const appendQueryParam = (
   params: URLSearchParams,
   key: string,
   value: string | null | undefined,

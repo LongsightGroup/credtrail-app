@@ -4,7 +4,7 @@ import {
   institutionAdminReportingPage,
   institutionAdminReportingReportsPage,
   institutionAdminReportingTrendsPage,
-} from "../admin/institution-admin-page";
+} from "../admin/institution-admin/page";
 import type { AppContext, AppEnv } from "../app";
 import type { AppPage } from "../ui/render-page";
 

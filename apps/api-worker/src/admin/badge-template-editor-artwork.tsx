@@ -147,7 +147,7 @@ export const BadgeTemplateEditorCurrentArtwork = ({
   );
 };
 
-export const BadgeTemplateEditorArtworkActionsCopy = ({
+const BadgeTemplateEditorArtworkActionsCopy = ({
   artworkReadiness,
   hasArtworkReference,
 }: {

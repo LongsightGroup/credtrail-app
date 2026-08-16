@@ -20,7 +20,7 @@ export const buildIssuedBadgesPagePath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/operations/issued-badges`;
 };
 
-export const buildAssertionEvidencePagePath = (
+const buildAssertionEvidencePagePath = (
   tenantId: string,
   assertionId: string,
   returnFilters?: IssuedBadgesPageFilterValues,

@@ -97,7 +97,7 @@ export const buildInstitutionAdminSidebarPaths = (
   };
 };
 
-export const buildInstitutionAdminSidebarSections = (
+const buildInstitutionAdminSidebarSections = (
   paths: InstitutionAdminSidebarPaths,
   view: InstitutionAdminSidebarView,
   options?: { showEnterpriseAuthentication?: boolean },

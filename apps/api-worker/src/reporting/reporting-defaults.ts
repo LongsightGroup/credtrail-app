@@ -1,6 +1,6 @@
 import type { TenantReportingOverviewQuery } from "@credtrail/validation";
 
-export const REPORTING_DEFAULT_WINDOW_DAYS = 90;
+const REPORTING_DEFAULT_WINDOW_DAYS = 90;
 
 const subtractUtcDays = (isoDate: string, days: number): string => {
   const date = new Date(`${isoDate}T00:00:00.000Z`);
@@ -8,11 +8,11 @@ const subtractUtcDays = (isoDate: string, days: number): string => {
   return date.toISOString().slice(0, 10);
 };
 
-export const currentUtcDateKey = (): string => {
+const currentUtcDateKey = (): string => {
   return new Date().toISOString().slice(0, 10);
 };
 
-export const resolveReportingDefaultWindow = (input?: {
+const resolveReportingDefaultWindow = (input?: {
   today?: string | undefined;
 }): {
   issuedFrom: string;

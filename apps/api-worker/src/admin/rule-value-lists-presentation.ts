@@ -4,7 +4,7 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 
-export const ADMIN_BADGE_RULE_VALUE_LIST_LIMIT = 100;
+const ADMIN_BADGE_RULE_VALUE_LIST_LIMIT = 100;
 
 export interface RuleValueListBuilderContextEntry {
   id: string;

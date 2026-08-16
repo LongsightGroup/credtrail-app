@@ -103,7 +103,7 @@ export const buildBadgeRuleVersionImpactPreviewPath = (
   return `${buildBadgeRuleVersionReviewPath(tenantId, ruleId, versionId)}/impact-preview`;
 };
 
-export const buildOperationsAdminPath = (tenantId: string): string => {
+const buildOperationsAdminPath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/operations`;
 };
 

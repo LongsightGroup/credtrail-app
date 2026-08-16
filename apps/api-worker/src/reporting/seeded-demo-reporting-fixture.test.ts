@@ -39,7 +39,7 @@ describe("seeded demo reporting fixture", () => {
 
   it("stays test-only verification data and is not imported by runtime reporting code", () => {
     const runtimeSources = [
-      "../admin/institution-admin-page.tsx",
+      "../admin/institution-admin/page.tsx",
       "../routes/reporting-routes.ts",
       "../routes/tenant-governance-routes.tsx",
     ].map(readRuntimeSource);

@@ -5,7 +5,7 @@ import {
   type TenantMembershipRole,
 } from "@credtrail/db";
 import { parseLearnerRecordImportBatchDefaults } from "@credtrail/validation";
-import { institutionAdminLearnerRecordImportsPage } from "../../admin/institution-admin-page";
+import { institutionAdminLearnerRecordImportsPage } from "../../admin/institution-admin/page";
 import type { AppContext } from "../../app";
 import type { ResolveDatabase } from "../../app/route-deps";
 import {

@@ -8,7 +8,7 @@ import {
   parseTenantPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import { institutionAdminLearnerRecordsPage } from "../admin/institution-admin-page";
+import { institutionAdminLearnerRecordsPage } from "../admin/institution-admin/page";
 import type { AppContext, AppEnv } from "../app";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import type { AppPage } from "../ui/render-page";

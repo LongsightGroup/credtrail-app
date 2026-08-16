@@ -48,7 +48,7 @@ const normalizedExtraClass = (className: string | undefined): string | undefined
     : normalizedClassName;
 };
 
-export const adminPanelClass = (input?: {
+const adminPanelClass = (input?: {
   variant?: AdminPanelVariant | undefined;
   stack?: boolean | undefined;
   extraClass?: string | undefined;
@@ -74,7 +74,7 @@ export const adminPanelClass = (input?: {
   return classNames.join(" ");
 };
 
-export const adminMetricCardClass = (input?: {
+const adminMetricCardClass = (input?: {
   stack?: boolean | undefined;
   extraClass?: string | undefined;
 }): string => {
@@ -128,7 +128,7 @@ export const AdminPageHeader = ({
   return <div class={classNames.join(" ")}>{content}</div>;
 };
 
-export const AdminSidebarToggle = (): HonoElement => {
+const AdminSidebarToggle = (): HonoElement => {
   return (
     <button
       type="button"
@@ -593,7 +593,7 @@ export const AdminStatus = ({
   );
 };
 
-export const AdminActionBar = ({
+const AdminActionBar = ({
   ariaLabel,
   children,
 }: PropsWithChildren<{
@@ -665,7 +665,7 @@ export const AdminActionMenuLink = ({
   );
 };
 
-export const IssuedBadgeActions = (input: {
+const IssuedBadgeActions = (input: {
   assertionId: string;
   viewBadgeHref: string;
   rawJsonHref: string;
@@ -702,7 +702,7 @@ export const IssuedBadgeActions = (input: {
   );
 };
 
-export const IssuedBadgeRow = (input: {
+const IssuedBadgeRow = (input: {
   assertion: TenantAssertionSummaryRecord;
   evidenceHref: string;
   revokeLifecycleHref: string;
@@ -745,9 +745,7 @@ export const IssuedBadgeRow = (input: {
   );
 };
 
-export const RuleValueListRow = (input: {
-  valueList: BadgeIssuanceRuleValueListRecord;
-}): HonoElement => {
+const RuleValueListRow = (input: { valueList: BadgeIssuanceRuleValueListRecord }): HonoElement => {
   const valueList = input.valueList;
   const valueSummary = formatRuleValueListValuesSummary(valueList.values);
 
@@ -789,7 +787,7 @@ export const RuleValueListRows = (input: {
   );
 };
 
-export const ReviewQueueRow = (input: {
+const ReviewQueueRow = (input: {
   entry: BadgeRuleReviewQueueEntryView;
   resolveActionPath: string;
 }): HonoElement => {

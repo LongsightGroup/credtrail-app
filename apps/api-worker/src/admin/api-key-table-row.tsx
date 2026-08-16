@@ -7,7 +7,7 @@ import { AdminButton, AdminForm } from "./components";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
-export const formatTenantApiKeyScopesSummary = (scopesJson: string): string => {
+const formatTenantApiKeyScopesSummary = (scopesJson: string): string => {
   try {
     const parsed = JSON.parse(scopesJson) as unknown;
 
