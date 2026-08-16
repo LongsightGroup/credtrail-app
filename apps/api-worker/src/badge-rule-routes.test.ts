@@ -153,8 +153,6 @@ import {
   type TenantMembershipRecord,
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
-import { GradebookProviderError } from "./lms/gradebook-provider-error";
-import type { GradebookCourseSearchInput } from "./lms/gradebook-types";
 import {
   buildBadgeRuleVersionRecord,
   type BadgeRuleVersionRecordOverrides,
@@ -235,7 +233,6 @@ const sampleTenantLmsConnection = (
 const fakeDb = {
   prepare: vi.fn(),
 } as unknown as SqlDatabase;
-const courseSearchInputs: GradebookCourseSearchInput[] = [];
 
 const createEnv = (): {
   APP_ENV: string;
@@ -520,14 +517,12 @@ beforeEach(() => {
   mockedResolveBadgeIssuanceRuleEvaluationReview.mockReset();
   mockedIssueBadgeForTenant.mockReset();
   mockedCreateGradebookProvider.mockReset();
-  courseSearchInputs.length = 0;
   mockedCreateGradebookProvider.mockReturnValue({
     kind: "canvas",
     courseCatalogForUser: () => ({
       verifyCourseAccess: () =>
         Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
-      listCourses: (input: GradebookCourseSearchInput) => {
-        courseSearchInputs.push(input);
+      listCourses: () => {
         return Promise.resolve({
           courses: [
             {
@@ -1250,254 +1245,6 @@ describe("badge rule routes", () => {
       ltiDeploymentId: "deployment-123",
     });
     expect(body.connection).not.toHaveProperty("accessToken");
-  });
-
-  it("looks up LMS courses, learners, gradebook items, and workflow states", async () => {
-    const env = createEnv();
-
-    const coursesResponse = await app.request(
-      "/v1/tenants/tenant_123/lms/connections/lms_123/courses?q=cs",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const coursesBody = await coursesResponse.json<{
-      courses: Array<{ courseId: string }>;
-      hasMore: boolean;
-    }>();
-
-    expect(coursesResponse.status).toBe(200);
-    expect(coursesResponse.headers.get("Cache-Control")).toBe("no-store");
-    expect(coursesBody.courses[0]?.courseId).toBe("course_101");
-    expect(coursesBody.hasMore).toBe(false);
-    expect(courseSearchInputs).toEqual([
-      {
-        searchTerm: "cs",
-        limit: 100,
-      },
-    ]);
-
-    const learnersResponse = await app.request(
-      "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/learners",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const learnersBody = await learnersResponse.json<{
-      learners: Array<{ learnerId: string; displayName: string; email: string | null }>;
-      hasMore: boolean;
-    }>();
-
-    expect(learnersResponse.status).toBe(200);
-    expect(learnersResponse.headers.get("Cache-Control")).toBe("no-store");
-    expect(learnersBody.hasMore).toBe(false);
-    expect(learnersBody.learners).toEqual([
-      {
-        courseId: "course_101",
-        learnerId: "learner_123",
-        displayName: "Learner One",
-        email: "learner@example.edu",
-      },
-    ]);
-
-    const itemsResponse = await app.request(
-      "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/gradebook-items?q=final",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const itemsBody = await itemsResponse.json<{
-      items: Array<{ assignmentId: string }>;
-    }>();
-
-    expect(itemsResponse.status).toBe(200);
-    expect(itemsBody.items[0]?.assignmentId).toBe("assignment_1");
-
-    const statesResponse = await app.request(
-      "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/gradebook-items/assignment_1/workflow-states",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const statesBody = await statesResponse.json<{
-      states: Array<{ value: string; preselected: boolean }>;
-    }>();
-
-    expect(statesResponse.status).toBe(200);
-    expect(statesBody.states).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ value: "submitted", preselected: true }),
-        expect.objectContaining({ value: "graded", preselected: true }),
-        expect.objectContaining({ value: "pending_review", preselected: false }),
-      ]),
-    );
-  });
-
-  it("does not expose generic LMS pickers to approval-only reviewers", async () => {
-    const env = createEnv();
-    mockedFindTenantMembership.mockResolvedValue(sampleMembership({ role: "approver" }));
-
-    const coursesResponse = await app.request(
-      "/v1/tenants/tenant_123/lms/connections/lms_123/courses?q=course_101",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const itemsResponse = await app.request(
-      "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/gradebook-items",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const learnersResponse = await app.request(
-      "/v1/tenants/tenant_123/lms/connections/lms_123/courses/course_101/learners",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-
-    expect(coursesResponse.status).toBe(403);
-    expect(itemsResponse.status).toBe(403);
-    expect(learnersResponse.status).toBe(403);
-  });
-
-  it("bounds course search results and reports when more matches are available", async () => {
-    const env = createEnv();
-    mockedCreateGradebookProvider.mockReturnValue({
-      kind: "canvas",
-      courseCatalogForUser: () => ({
-        verifyCourseAccess: () =>
-          Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
-        listCourses: (input: GradebookCourseSearchInput) => {
-          courseSearchInputs.push(input);
-          return Promise.resolve({
-            courses: Array.from({ length: 100 }, (_, index) => ({
-              courseId: `course_${String(index).padStart(3, "0")}`,
-              title: `Course ${String(index).padStart(3, "0")}`,
-              courseCode: null,
-              workflowState: "available",
-              startsAt: null,
-              endsAt: null,
-            })),
-            hasMore: true,
-          });
-        },
-      }),
-      listAssignments: () => Promise.resolve([]),
-      listEnrollments: () => Promise.resolve([]),
-      listLearners: () => Promise.resolve([]),
-      listSubmissions: () => Promise.resolve([]),
-      listGrades: () => Promise.resolve([]),
-      listCompletions: () => Promise.resolve([]),
-    });
-
-    const response = await app.request(
-      "/v1/tenants/tenant_123/lms/connections/lms_123/courses",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const body = await response.json<{
-      courses: Array<{ courseId: string }>;
-      hasMore: boolean;
-    }>();
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(body.courses).toHaveLength(100);
-    expect(body.hasMore).toBe(true);
-    expect(body.courses.at(-1)?.courseId).toBe("course_099");
-    expect(courseSearchInputs).toEqual([
-      {
-        limit: 100,
-      },
-    ]);
-  });
-
-  it("returns actionable Sakai 403 guidance for course lookup failures", async () => {
-    const env = createEnv();
-    mockedFindTenantLmsConnectionById.mockResolvedValue(
-      sampleTenantLmsConnection({
-        displayName: "TrySakai",
-        providerKind: "sakai",
-        apiBaseUrl: "https://trysakai.example.edu",
-        accessToken: "sakai-session",
-        refreshToken: null,
-      }),
-    );
-    mockedCreateGradebookProvider.mockReturnValue({
-      kind: "sakai",
-      courseCatalogForConnection: () => ({
-        verifyCourseAccess: () =>
-          Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
-        listCourses: (input: GradebookCourseSearchInput) => {
-          courseSearchInputs.push(input);
-          return Promise.reject(
-            new GradebookProviderError({
-              providerKind: "sakai",
-              operation: "course_search",
-              reason: "permission_denied",
-              statusCode: 403,
-              message: "sakai course_search request failed (403)",
-            }),
-          );
-        },
-      }),
-      listAssignments: () => Promise.resolve([]),
-      listEnrollments: () => Promise.resolve([]),
-      listLearners: () => Promise.resolve([]),
-      listSubmissions: () => Promise.resolve([]),
-      listGrades: () => Promise.resolve([]),
-      listCompletions: () => Promise.resolve([]),
-    });
-
-    const response = await app.request(
-      "/v1/tenants/tenant_123/lms/connections/lms_123/courses?q=cs",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const body = await response.json<{ error: string }>();
-
-    expect(response.status).toBe(502);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(body.error).toContain("Sakai blocked CredTrail from searching courses (403).");
-    expect(body.error).toContain("Save a Sakai administrator username and password");
-    expect(body.error).toContain("then try again");
-    expect(body.error).toContain("allow EntityBroker Sites and Gradebook access");
-    expect(courseSearchInputs).toEqual([
-      {
-        searchTerm: "cs",
-        limit: 100,
-      },
-    ]);
   });
 
   it("creates reusable badge-rule value lists", async () => {

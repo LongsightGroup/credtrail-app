@@ -36,22 +36,34 @@ interface RegisterTenantLmsConnectionRoutesInput {
 const LMS_PICKER_MAX_COURSES = 100;
 const LMS_PICKER_MAX_LEARNERS = 100;
 
-const lmsCourseAuthoringFailureResponse = (failure: LmsCourseAuthoringFailure): Response => {
+const lmsCourseAuthoringFailureStatus = (
+  failure: LmsCourseAuthoringFailure,
+): 403 | 404 | 408 | 409 | 502 | 503 => {
   switch (failure.status) {
     case "connection_not_found":
-      return Response.json({ error: failure.error }, { status: 404 });
+      return 404;
     case "connection_unusable":
-      return Response.json({ error: failure.error }, { status: 409 });
+      return 409;
     case "dependency_unavailable":
-      return Response.json({ error: failure.error }, { status: 503 });
+      return 503;
     case "identity_unlinked":
     case "course_unauthorized":
-      return Response.json({ error: failure.error }, { status: 403 });
+      return 403;
     case "request_cancelled":
-      return Response.json({ error: failure.error }, { status: 408 });
+      return 408;
     case "provider_unavailable":
-      return Response.json({ error: failure.error }, { status: 502 });
+      return 502;
   }
+};
+
+const lmsCourseAuthoringFailureResponse = (failure: LmsCourseAuthoringFailure): Response => {
+  return Response.json(
+    { error: failure.error },
+    {
+      status: lmsCourseAuthoringFailureStatus(failure),
+      headers: { "Cache-Control": "no-store" },
+    },
+  );
 };
 
 export const registerTenantLmsConnectionRoutes = (
@@ -211,6 +223,7 @@ export const registerTenantLmsConnectionRoutes = (
     async (c) => {
       const pathParams = parseTenantLmsConnectionCoursePathParams(c.req.param());
       const query = parseTenantLmsConnectionCourseSearchQuery(c.req.query());
+      c.header("Cache-Control", "no-store");
       const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
 
       if (roleCheck instanceof Response) {
@@ -235,7 +248,6 @@ export const registerTenantLmsConnectionRoutes = (
         return lmsCourseAuthoringFailureResponse(result);
       }
 
-      c.header("Cache-Control", "no-store");
       return c.json({
         tenantId: pathParams.tenantId,
         connectionId: pathParams.connectionId,
@@ -251,6 +263,7 @@ export const registerTenantLmsConnectionRoutes = (
     async (c) => {
       const pathParams = parseTenantLmsConnectionCoursePathParams(c.req.param());
       const query = parseTenantLmsConnectionCourseSearchQuery(c.req.query());
+      c.header("Cache-Control", "no-store");
       const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
 
       if (roleCheck instanceof Response) {
@@ -287,6 +300,7 @@ export const registerTenantLmsConnectionRoutes = (
     "/v1/tenants/:tenantId/lms/connections/:connectionId/courses/:courseId/gradebook-items/:assignmentId/workflow-states",
     async (c) => {
       const pathParams = parseTenantLmsConnectionGradebookItemPathParams(c.req.param());
+      c.header("Cache-Control", "no-store");
       const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
 
       if (roleCheck instanceof Response) {
