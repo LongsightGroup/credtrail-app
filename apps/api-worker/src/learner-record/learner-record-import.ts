@@ -28,7 +28,7 @@ import {
   type LearnerRecordImportSmartContext,
 } from "@credtrail/validation";
 
-export type LearnerRecordImportFileFormat = "csv";
+type LearnerRecordImportFileFormat = "csv";
 
 export interface LearnerRecordImportCandidateRow {
   rowNumber: number;
@@ -40,7 +40,7 @@ export interface ParseLearnerRecordImportFileResult {
   rows: LearnerRecordImportCandidateRow[];
 }
 
-export class LearnerRecordImportFileParseError extends Error {
+class LearnerRecordImportFileParseError extends Error {
   public constructor(message: string) {
     super(message);
     this.name = "LearnerRecordImportFileParseError";
@@ -117,7 +117,7 @@ const LEARNER_RECORD_IMPORT_FIELDS = [
 
 type LearnerRecordImportField = (typeof LEARNER_RECORD_IMPORT_FIELDS)[number];
 
-export const LEARNER_RECORD_IMPORT_TEMPLATE_HEADERS = [
+const LEARNER_RECORD_IMPORT_TEMPLATE_HEADERS = [
   "learnerEmail",
   "learnerDisplayName",
   "title",

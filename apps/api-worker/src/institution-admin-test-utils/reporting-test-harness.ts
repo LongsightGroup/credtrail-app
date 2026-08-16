@@ -1,5 +1,5 @@
 import { beforeEach } from "vitest";
-import { resetInstitutionAdminTestDefaults } from "./support";
+import { resetInstitutionAdminTestDefaults } from "./reset-defaults";
 
 beforeEach(resetInstitutionAdminTestDefaults);
 
