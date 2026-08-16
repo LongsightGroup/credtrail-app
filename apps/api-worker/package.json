@@ -15,7 +15,6 @@
     "@aws-sdk/client-sesv2": "^3.1055.0",
     "@credtrail/core-domain": "workspace:*",
     "@credtrail/db": "workspace:*",
-    "@credtrail/ui-components": "workspace:*",
     "@credtrail/validation": "workspace:*",
     "@hono/node-server": "^2.0.10",
     "@longsightgroup/lti-tool": "0.1.6",

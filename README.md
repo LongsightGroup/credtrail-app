@@ -78,7 +78,6 @@ Open-source Open Badges 3.0 platform with Cloudflare Workers SaaS and Docker sel
 - `packages/core-domain`: Shared domain models, VC signing, and cryptographic helpers.
 - `packages/db`: Postgres query helpers, tenant scoping utilities, and DB-backed job queue storage.
 - `packages/validation`: Zod schemas for HTTP and queue boundaries.
-- `packages/ui-components`: Shared Hono JSX page layout components.
 - `docs`: Implementation docs and ADRs (including `docs/LEARNER_DID_SETUP.md`, `docs/LEARNER_WALLET_IMPORT.md`, `docs/DCC_LCW_COMPATIBILITY.md`, `docs/VERIFIABLE_PRESENTATIONS.md`, and `docs/LMS_INDEPENDENCE_MIGRATION_RUNBOOK.md`).
 
 ### API worker module layout (`apps/api-worker/src`)

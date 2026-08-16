@@ -13,7 +13,6 @@ COPY apps/api-worker/package.json ./apps/api-worker/package.json
 COPY apps/api-worker/rolldown.node-runtime.config.mjs ./apps/api-worker/rolldown.node-runtime.config.mjs
 COPY packages/core-domain/package.json ./packages/core-domain/package.json
 COPY packages/db/package.json ./packages/db/package.json
-COPY packages/ui-components/package.json ./packages/ui-components/package.json
 COPY packages/validation/package.json ./packages/validation/package.json
 
 RUN pnpm install --frozen-lockfile

@@ -1,4 +1,3 @@
-import { PageLayout, type PageRenderProps, type PageVariant } from "@credtrail/ui-components";
 import type { Context, Hono } from "hono";
 import { jsxRenderer } from "hono/jsx-renderer";
 import type { PropsWithChildren } from "hono/jsx";
@@ -7,6 +6,36 @@ import type { AppEnv } from "../app";
 import { PageAssets, type PageAssetKey } from "./page-assets";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
+type PageVariant = "shell" | "open" | "admin";
+
+interface PageRenderProps {
+  title: string;
+  head?: HonoElement | readonly HonoElement[];
+  variant?: PageVariant;
+}
+
+const PageLayout = ({
+  title,
+  head,
+  variant = "shell",
+  children,
+}: PropsWithChildren<PageRenderProps>): HonoElement => {
+  return (
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>{title}</title>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        {head}
+      </head>
+      <body data-variant={variant}>
+        <main>{children}</main>
+      </body>
+    </html>
+  );
+};
 
 declare module "hono" {
   interface ContextRenderer {

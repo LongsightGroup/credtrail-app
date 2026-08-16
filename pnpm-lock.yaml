@@ -80,9 +80,6 @@ importers:
       '@credtrail/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@credtrail/ui-components':
-        specifier: workspace:*
-        version: link:../../packages/ui-components
       '@credtrail/validation':
         specifier: workspace:*
         version: link:../../packages/validation
@@ -150,12 +147,6 @@ importers:
       zod:
         specifier: 4.4.3
         version: 4.4.3
-
-  packages/ui-components:
-    dependencies:
-      hono:
-        specifier: ^4.12.34
-        version: 4.13.0
 
   packages/validation:
     dependencies:
