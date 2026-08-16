@@ -16,7 +16,7 @@
     "export:ob3-openapi": "pnpm exec tsx scripts/export-ob3-openapi.mjs",
     "check:ob3-openapi": "pnpm exec tsx scripts/check-ob3-openapi.mjs",
     "db:migrate:postgres": "node packages/db/scripts/migrate-postgres.mjs",
-    "dev": "CLOUDFLARE_ENV=local pnpm exec vite dev --host 127.0.0.1 --port 8787",
+    "dev": "pnpm exec vite dev --host 127.0.0.1 --port 8787",
     "dev:up": "node scripts/dev-up.mjs",
     "dev:down": "node scripts/dev-down.mjs",
     "dev:reset": "node scripts/dev-reset.mjs && pnpm dev:seed",
@@ -24,7 +24,7 @@
     "dev:seed": "pnpm exec tsx scripts/seed-local-dev.ts",
     "dev:login-as": "node scripts/create-local-login-url.mjs",
     "dev:demo": "node scripts/run-local-demo.mjs",
-    "preview": "pnpm build && CLOUDFLARE_ENV=local pnpm exec vite preview --host 127.0.0.1 --port 8787",
+    "preview": "pnpm build && pnpm exec vite preview --host 127.0.0.1 --port 8787",
     "test:e2e": "pnpm exec playwright test --config playwright.config.mjs --project chromium",
     "audit:prod": "pnpm audit --prod --audit-level high",
     "lint": "node scripts/run-oxlint.mjs --deny-warnings",
@@ -37,8 +37,8 @@
     "check": "pnpm check:design-tokens && pnpm check:page-assets && pnpm check:ob3-openapi && pnpm check:node-runtime && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:scripts"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.40.0",
-    "@cloudflare/workers-types": "^5.20260814.1",
+    "@cloudflare/vite-plugin": "1.52.1",
+    "@cloudflare/workers-types": "5.20260816.1",
     "@playwright/test": "^1.60.0",
     "@types/jsonld": "^1.5.15",
     "@types/node": "24.13.2",
@@ -52,6 +52,6 @@
     "typescript": "^6.0.3",
     "vite": "8.1.3",
     "vitest": "^4.1.7",
-    "wrangler": "^4.123.0"
+    "wrangler": "4.123.0"
   }
 }
