@@ -16,8 +16,6 @@ import type { TenantExecutiveDashboardRecord } from "../executive/executive-roll
 
 const GENERATED_AT = "2026-03-22T12:00:00.000Z";
 const TENANT_ID = "tenant_123";
-const SEEDED_DEMO_EXECUTIVE_VERIFY_COMMAND =
-  "pnpm exec vitest run apps/api-worker/src/executive/seeded-demo-executive-fixture.test.ts apps/api-worker/src/executive/executive-rollup-loader.test.ts apps/api-worker/src/executive/executive-dashboard-page.test.ts apps/api-worker/src/routes/executive-routes.test.ts";
 
 const createOrgUnit = (input: {
   id: string;
@@ -672,7 +670,6 @@ interface SeededDemoExecutiveFixture {
     focused: TenantExecutiveDashboardRecord;
     scoped: TenantExecutiveDashboardRecord;
   };
-  verificationCommand: string;
 }
 
 export const seededDemoExecutiveFixture: SeededDemoExecutiveFixture = {
@@ -703,7 +700,6 @@ export const seededDemoExecutiveFixture: SeededDemoExecutiveFixture = {
     focused: focusedSlice,
     scoped: scopedSlice,
   },
-  verificationCommand: SEEDED_DEMO_EXECUTIVE_VERIFY_COMMAND,
 };
 
 type SeededDemoExecutiveSliceName = keyof SeededDemoExecutiveFixture["slices"];
