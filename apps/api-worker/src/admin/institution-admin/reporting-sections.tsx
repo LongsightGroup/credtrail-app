@@ -725,7 +725,7 @@ export const renderInstitutionAdminReportingSections = (
           <AdminButtonLink href={input.actionHref} variant="secondary">
             Open Explore
           </AdminButtonLink>
-          <AdminButtonLink href={input.exportHref} variant="ghost">
+          <AdminButtonLink href={input.exportHref} variant="quiet">
             Export CSV
           </AdminButtonLink>
         </AdminActions>
@@ -1086,7 +1086,7 @@ export const renderInstitutionAdminReportingSections = (
                 <h3>{item.title}</h3>
                 <p class="ct-admin__hint">{item.detail}</p>
               </div>
-              <AdminButtonLink href={item.href} variant="ghost">
+              <AdminButtonLink href={item.href} variant="quiet">
                 {item.actionLabel}
               </AdminButtonLink>
             </article>
@@ -1133,7 +1133,7 @@ export const renderInstitutionAdminReportingSections = (
         <AdminButtonLink href={reportingPath} variant="secondary">
           Open Highlights
         </AdminButtonLink>
-        <AdminButtonLink href={reportingExploreHref} variant="ghost">
+        <AdminButtonLink href={reportingExploreHref} variant="quiet">
           Open Explore
         </AdminButtonLink>
       </AdminActions>
@@ -1156,7 +1156,7 @@ export const renderInstitutionAdminReportingSections = (
         <AdminButtonLink href={reportingExploreHref} variant="secondary">
           Build from Explore
         </AdminButtonLink>
-        <AdminButtonLink href={reportingReportsExportsHref} variant="ghost">
+        <AdminButtonLink href={reportingReportsExportsHref} variant="quiet">
           Export current view
         </AdminButtonLink>
       </AdminActions>

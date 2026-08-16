@@ -5,7 +5,6 @@ import {
   CtButtonLink,
   CtTextButton,
   CtTextLink,
-  ctActionVariantFromLegacy,
   ctActionClass,
 } from "./actions";
 import { renderDesignSystemPage } from "./design-system-page";
@@ -28,13 +27,6 @@ describe("CredTrail action primitives", () => {
     expect(ctActionClass({ text: true })).toBe(
       "ct-action ct-action--primary ct-action--md ct-action--text",
     );
-  });
-
-  it("normalizes legacy action variants", () => {
-    expect(ctActionVariantFromLegacy(undefined)).toBe("primary");
-    expect(ctActionVariantFromLegacy(undefined, "secondary")).toBe("secondary");
-    expect(ctActionVariantFromLegacy("ghost")).toBe("quiet");
-    expect(ctActionVariantFromLegacy("danger")).toBe("danger");
   });
 
   it("renders real buttons with expected attributes", () => {

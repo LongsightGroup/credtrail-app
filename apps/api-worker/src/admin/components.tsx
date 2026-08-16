@@ -824,7 +824,7 @@ export const ReviewQueueRow = (input: {
               <CtInput type="hidden" name="evaluationId" value={entry.evaluationId} />
               <CtInput type="hidden" name="decision" value="dismiss" />
               <CtInput type="hidden" name="comment" value="Missing facts confirmed; no issue" />
-              <AdminButton type="submit" size="tiny" variant="ghost">
+              <AdminButton type="submit" size="tiny" variant="quiet">
                 Dismiss
               </AdminButton>
             </AdminForm>

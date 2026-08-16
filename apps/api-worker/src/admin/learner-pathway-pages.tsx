@@ -395,7 +395,7 @@ export const learnerPathwayBuilderPage = (
             <AdminButton type="submit">
               {input.draft === null ? "Create pathway draft" : "Save draft"}
             </AdminButton>
-            <AdminButtonLink href={basePath} variant="ghost">
+            <AdminButtonLink href={basePath} variant="quiet">
               Cancel
             </AdminButtonLink>
           </AdminActions>
@@ -506,7 +506,7 @@ export const learnerPathwayDetailPage = (
               </AdminForm>
             </>
           ) : null}
-          <AdminButtonLink href={basePath} variant="ghost">
+          <AdminButtonLink href={basePath} variant="quiet">
             Back to pathways
           </AdminButtonLink>
         </AdminActions>

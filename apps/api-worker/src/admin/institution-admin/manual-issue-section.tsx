@@ -55,7 +55,7 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
               </AdminButtonLink>
               <AdminButtonLink
                 href={successLinks.jsonLdPath}
-                variant="ghost"
+                variant="quiet"
                 target="_blank"
                 rel="noopener noreferrer"
               >

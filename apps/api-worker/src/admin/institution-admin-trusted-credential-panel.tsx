@@ -194,7 +194,7 @@ const TrustEdRepeatableGroup = <RowValue,>(
               <span>{`${group.title} ${index + 1}`}</span>
               <AdminButton
                 type="button"
-                variant="ghost"
+                variant="quiet"
                 size="tiny"
                 dataAttributes={{ "data-trusted-repeatable-remove": group.groupName }}
               >
@@ -219,7 +219,7 @@ const TrustEdRepeatableGroup = <RowValue,>(
             <span>{`${group.title} __ROW_NUMBER__`}</span>
             <AdminButton
               type="button"
-              variant="ghost"
+              variant="quiet"
               size="tiny"
               dataAttributes={{ "data-trusted-repeatable-remove": group.groupName }}
             >

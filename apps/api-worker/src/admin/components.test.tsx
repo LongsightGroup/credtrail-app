@@ -15,7 +15,7 @@ describe("admin action wrappers", () => {
       </AdminButton>,
     );
     const linkHtml = renderToString(
-      <AdminButtonLink href="/admin/rules" variant="ghost" size="tiny">
+      <AdminButtonLink href="/admin/rules" variant="quiet" size="tiny">
         View rules
       </AdminButtonLink>,
     );

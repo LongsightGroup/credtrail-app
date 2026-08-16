@@ -5,17 +5,13 @@ import {
   CtButton,
   CtButtonLink,
   type CtActionSize,
-  type CtLegacyActionVariant,
-  ctActionVariantFromLegacy,
+  type CtActionVariant,
 } from "../ui/actions";
 import type { CtDataAttributes } from "../ui/jsx-utils";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
-export type AdminButtonVariant = Extract<
-  CtLegacyActionVariant,
-  "primary" | "secondary" | "ghost" | "danger"
->;
+export type AdminButtonVariant = CtActionVariant;
 export type AdminButtonSize = "default" | "tiny";
 
 type ButtonType = "button" | "submit" | "reset";
@@ -85,7 +81,7 @@ export const AdminButton = ({
       formAction={formAction}
       name={name}
       value={value}
-      variant={ctActionVariantFromLegacy(variant)}
+      variant={variant}
       size={adminButtonSizeToCtSize(size)}
       className={adminButtonClass({ extraClass: className })}
       disabled={disabled}
@@ -123,7 +119,7 @@ export const AdminButtonLink = ({
   return (
     <CtButtonLink
       href={href}
-      variant={ctActionVariantFromLegacy(variant, "secondary")}
+      variant={variant ?? "secondary"}
       size={adminButtonSizeToCtSize(size)}
       target={target}
       rel={rel}

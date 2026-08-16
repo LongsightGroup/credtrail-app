@@ -506,7 +506,7 @@ const renderBadgeTemplatesTable = (input: {
         <AdminButton type="submit">Apply filters</AdminButton>
         {input.badgeTemplatesPage.searchQuery.length > 0 ||
         input.badgeTemplatesPage.includeArchived ? (
-          <AdminButtonLink href={input.rulesTemplatesPath} variant="ghost">
+          <AdminButtonLink href={input.rulesTemplatesPath} variant="quiet">
             Clear filters
           </AdminButtonLink>
         ) : null}
@@ -683,7 +683,7 @@ export const institutionAdminRuleTemplateEditorPage = (
                 </AdminButtonLink>
                 <AdminButtonLink
                   href={badgeTemplateCriteriaRegistryHref(input.tenant.id, template.id)}
-                  variant="ghost"
+                  variant="quiet"
                   target="_blank"
                   rel="noopener noreferrer"
                 >

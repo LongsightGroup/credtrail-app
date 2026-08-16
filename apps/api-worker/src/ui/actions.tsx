@@ -4,7 +4,6 @@ import { type CtDataAttributes, type HonoElement, normalizedClassName } from "./
 export type { CtDataAttributes } from "./jsx-utils";
 
 export type CtActionVariant = "primary" | "secondary" | "quiet" | "danger";
-export type CtLegacyActionVariant = CtActionVariant | "ghost";
 export type CtActionSize = "sm" | "md" | "lg" | "compact";
 export type CtButtonType = "button" | "submit" | "reset";
 
@@ -31,17 +30,6 @@ export const ctActionClass = (input: CtActionClassInput = {}): string => {
   }
 
   return classes.join(" ");
-};
-
-export const ctActionVariantFromLegacy = (
-  variant: CtLegacyActionVariant | undefined,
-  defaultVariant: CtActionVariant = "primary",
-): CtActionVariant => {
-  if (variant === undefined) {
-    return defaultVariant;
-  }
-
-  return variant === "ghost" ? "quiet" : variant;
 };
 
 export const CtButton = ({

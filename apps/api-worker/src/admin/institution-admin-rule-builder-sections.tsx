@@ -69,7 +69,7 @@ export const RuleBuilderConditionCardTemplate = (): HonoElement => {
               <AdminButton
                 type="button"
                 size="tiny"
-                variant="ghost"
+                variant="quiet"
                 ariaLabel="Move requirement up"
                 dataAttributes={{ "data-condition-move": "up" }}
               >
@@ -78,7 +78,7 @@ export const RuleBuilderConditionCardTemplate = (): HonoElement => {
               <AdminButton
                 type="button"
                 size="tiny"
-                variant="ghost"
+                variant="quiet"
                 ariaLabel="Move requirement down"
                 dataAttributes={{ "data-condition-move": "down" }}
               >

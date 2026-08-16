@@ -228,7 +228,7 @@ const renderResolvedRuleRow = (
             View
           </AdminButtonLink>
           {canEditBadgeIssuanceRuleDraft(rule, versions) ? (
-            <AdminButtonLink href={editRulePath} variant="ghost" size="tiny">
+            <AdminButtonLink href={editRulePath} variant="quiet" size="tiny">
               Edit
             </AdminButtonLink>
           ) : null}
@@ -419,7 +419,7 @@ const renderRegistryFilters = (input: RenderBadgeRulesTableInput): HonoElement =
       <CtInput type="hidden" name="direction" value={input.registry.direction} />
       <AdminButton type="submit">Apply filters</AdminButton>
       {input.registry.searchQuery.length === 0 && input.registry.latestStatus === null ? null : (
-        <AdminButtonLink href={clearFiltersUrl} variant="ghost">
+        <AdminButtonLink href={clearFiltersUrl} variant="quiet">
           Clear filters
         </AdminButtonLink>
       )}
@@ -453,7 +453,7 @@ const renderRegistryPagination = (
               Previous
             </span>
           ) : (
-            <AdminButtonLink href={input.registry.previousPageHref} variant="ghost">
+            <AdminButtonLink href={input.registry.previousPageHref} variant="quiet">
               Previous
             </AdminButtonLink>
           )}
@@ -462,7 +462,7 @@ const renderRegistryPagination = (
               Next
             </span>
           ) : (
-            <AdminButtonLink href={input.registry.nextPageHref} variant="ghost">
+            <AdminButtonLink href={input.registry.nextPageHref} variant="quiet">
               Next
             </AdminButtonLink>
           )}
@@ -484,7 +484,7 @@ export const renderBadgeRulesTable = (input: RenderBadgeRulesTableInput): HonoEl
             <AdminButtonLink href={input.ruleBuilderPath} variant="secondary">
               Create badge rule
             </AdminButtonLink>
-            <AdminButtonLink href={input.rulesTemplatesPath} variant="ghost">
+            <AdminButtonLink href={input.rulesTemplatesPath} variant="quiet">
               Manage badge templates
             </AdminButtonLink>
           </AdminActions>
