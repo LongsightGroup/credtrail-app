@@ -183,6 +183,21 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("Canvas Test (Canvas)");
     expect(body).toContain("Update LMS connection");
     expect(body).toContain("Choose a badge template");
+    expect(body).toMatch(
+      /id="rule-builder-badge-template-fallback-field"[\s\S]*?id="rule-builder-badge-template-select"[^>]*name="badgeTemplateId"[^>]*required/,
+    );
+    expect(body).toMatch(/id="rule-builder-badge-template-enhanced-field"[^>]*hidden/);
+    expect(body).toMatch(
+      /<label[^>]*for="rule-builder-badge-template-combobox"[^>]*>[\s\S]*?Badge template[\s\S]*?<\/label>/,
+    );
+    expect(body).toMatch(
+      /id="rule-builder-badge-template-combobox"[^>]*role="combobox"[^>]*aria-autocomplete="list"[^>]*aria-controls="rule-builder-badge-template-listbox"[^>]*aria-expanded="false"/,
+    );
+    expect(body).toMatch(/id="rule-builder-badge-template-listbox"[^>]*role="listbox"[^>]*hidden/);
+    expect(body).toContain('data-template-title="TypeScript Foundations"');
+    expect(body).toContain('placeholder="Search badge templates"');
+    expect(body).not.toContain("Find a badge " + "template");
+    expect(body).not.toContain("Search by badge " + "name");
     expect(body).toContain("badge template ready for rules, A to Z.");
     expect(body).toContain("used by 1 other rule");
     expect(body).toContain("I confirm this rule is another valid way to earn the same badge.");

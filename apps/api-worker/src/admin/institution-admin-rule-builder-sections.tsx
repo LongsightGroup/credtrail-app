@@ -160,6 +160,8 @@ export const RuleBuilderCloneSettings = (props: {
   );
 };
 
+// An editable ARIA combobox requires a listbox popup rather than another select.
+/* oxlint-disable jsx-a11y/prefer-tag-over-role */
 export const RuleBuilderMetadataStep = (props: {
   readonly isEditMode: boolean;
   readonly templateOptions: readonly RuleBuilderTemplateOption[];
@@ -204,60 +206,81 @@ export const RuleBuilderMetadataStep = (props: {
             </p>
             <div class="ct-admin__builder-grid ct-grid">
               <div class="ct-admin__template-picker ct-stack">
-                <div id="rule-builder-badge-template-search-field" hidden>
-                  <AdminField label="Find a badge template">
-                    <CtInput
-                      id="rule-builder-badge-template-search"
-                      type="search"
-                      placeholder="Search by badge name"
-                      autocomplete="off"
-                      describedBy="rule-builder-badge-template-search-status"
-                    />
+                <div id="rule-builder-badge-template-fallback-field">
+                  <AdminField label="Badge template">
+                    <CtSelect
+                      id="rule-builder-badge-template-select"
+                      name="badgeTemplateId"
+                      required
+                      disabled={props.templateOptions.length === 0}
+                      describedBy={[
+                        "rule-builder-badge-template-search-status",
+                        "rule-builder-badge-template-reuse-message",
+                      ]}
+                    >
+                      {savedTemplateUnavailable ? (
+                        <option value="" selected disabled>
+                          Saved badge template is unavailable. Choose another.
+                        </option>
+                      ) : props.templateOptions.length === 0 ? (
+                        <option value="" selected>
+                          No badge templates are ready for rules
+                        </option>
+                      ) : (
+                        <option value="" selected={!hasSelectedTemplate} disabled>
+                          Choose a badge template
+                        </option>
+                      )}
+                      {props.templateOptions.map(({ template, isSelected, ruleUsageNames }) => (
+                        <option
+                          key={template.id}
+                          value={template.id}
+                          selected={isSelected}
+                          data-template-title={template.title}
+                          data-rule-usage-count={ruleUsageNames.length}
+                          data-rule-usage-names={ruleUsageNames.join(" · ")}
+                        >
+                          {template.title}
+                          {ruleUsageNames.length === 0
+                            ? ""
+                            : `, used by ${String(ruleUsageNames.length)} other ${
+                                ruleUsageNames.length === 1 ? "rule" : "rules"
+                              }`}
+                        </option>
+                      ))}
+                    </CtSelect>
                   </AdminField>
                 </div>
-                <AdminField label="Badge template">
-                  <CtSelect
-                    id="rule-builder-badge-template-select"
-                    name="badgeTemplateId"
-                    required
-                    disabled={props.templateOptions.length === 0}
-                    describedBy={[
-                      "rule-builder-badge-template-search-status",
-                      "rule-builder-badge-template-reuse-message",
-                    ]}
-                  >
-                    {savedTemplateUnavailable ? (
-                      <option value="" selected disabled>
-                        Saved badge template is unavailable. Choose another.
-                      </option>
-                    ) : props.templateOptions.length === 0 ? (
-                      <option value="" selected>
-                        No badge templates are ready for rules
-                      </option>
-                    ) : (
-                      <option value="" selected={!hasSelectedTemplate} disabled>
-                        Choose a badge template
-                      </option>
-                    )}
-                    {props.templateOptions.map(({ template, isSelected, ruleUsageNames }) => (
-                      <option
-                        key={template.id}
-                        value={template.id}
-                        selected={isSelected}
-                        data-template-search-text={`${template.title} ${template.slug} ${template.id}`}
-                        data-rule-usage-count={ruleUsageNames.length}
-                        data-rule-usage-names={ruleUsageNames.join(" · ")}
-                      >
-                        {template.title}
-                        {ruleUsageNames.length === 0
-                          ? ""
-                          : `, used by ${String(ruleUsageNames.length)} other ${
-                              ruleUsageNames.length === 1 ? "rule" : "rules"
-                            }`}
-                      </option>
-                    ))}
-                  </CtSelect>
-                </AdminField>
+                <div
+                  id="rule-builder-badge-template-enhanced-field"
+                  class="ct-field ct-admin__field"
+                  hidden
+                >
+                  <label class="ct-field__label" htmlFor="rule-builder-badge-template-combobox">
+                    Badge template
+                  </label>
+                  <div class="ct-admin__template-combobox">
+                    <input
+                      id="rule-builder-badge-template-combobox"
+                      class="ct-input ct-field__control"
+                      type="search"
+                      placeholder="Search badge templates"
+                      autocomplete="off"
+                      role="combobox"
+                      aria-autocomplete="list"
+                      aria-controls="rule-builder-badge-template-listbox"
+                      aria-expanded="false"
+                      aria-describedby="rule-builder-badge-template-search-status rule-builder-badge-template-reuse-message"
+                    />
+                    <div
+                      id="rule-builder-badge-template-listbox"
+                      class="ct-admin__template-listbox"
+                      role="listbox"
+                      aria-label="Badge templates"
+                      hidden
+                    ></div>
+                  </div>
+                </div>
                 <p
                   id="rule-builder-badge-template-search-status"
                   class="ct-admin__hint"
@@ -408,6 +431,7 @@ export const RuleBuilderMetadataStep = (props: {
     </li>
   );
 };
+/* oxlint-enable jsx-a11y/prefer-tag-over-role */
 
 export const RuleBuilderConditionsStep = (props: {
   readonly rulesListPath: string;

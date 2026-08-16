@@ -1,8 +1,22 @@
-type BrowserListener = (event?: FakeBrowserEvent) => void;
+type BrowserListener = (event: FakeBrowserEvent) => void;
 
 /** Minimal cancelable event substitute for page-asset behavior tests. */
 export class FakeBrowserEvent {
   public defaultPrevented = false;
+  public currentTarget: FakeElement | null = null;
+  public readonly bubbles: boolean;
+  public readonly key: string | undefined;
+  public target: FakeElement | null = null;
+  public readonly type: string;
+
+  public constructor(
+    type: string,
+    init: { readonly bubbles?: boolean; readonly key?: string } = {},
+  ) {
+    this.type = type;
+    this.bubbles = init.bubbles ?? false;
+    this.key = init.key;
+  }
 
   /** Records that the page asset canceled the browser's default action. */
   public preventDefault(): void {
@@ -22,11 +36,17 @@ export class FakeElement {
     add(...tokens: readonly string[]): void;
     contains(token: string): boolean;
     remove(...tokens: readonly string[]): void;
+    toggle(token: string, force?: boolean): boolean;
   };
   public className = "";
+  public focusCount = 0;
   public hidden = false;
+  public id = "";
+  public isFocused = false;
+  public scrollIntoViewCount = 0;
   public readonly tagName: string;
   public textContent: string | null = "";
+  private readonly attributes = new Map<string, string>();
   private readonly listeners = new Map<string, BrowserListener[]>();
 
   public constructor(tagName = "DIV") {
@@ -47,6 +67,15 @@ export class FakeElement {
           .filter((entry) => entry.length > 0 && !removed.has(entry))
           .join(" ");
       },
+      toggle: (token, force): boolean => {
+        const shouldAdd = force ?? !this.classList.contains(token);
+        if (shouldAdd) {
+          this.classList.add(token);
+        } else {
+          this.classList.remove(token);
+        }
+        return shouldAdd;
+      },
     };
   }
 
@@ -64,9 +93,36 @@ export class FakeElement {
 
   /** Dispatches a browser event to registered listeners. */
   public dispatch(type: string, event?: FakeBrowserEvent): void {
-    for (const listener of this.listeners.get(type) ?? []) {
+    this.dispatchEvent(event ?? new FakeBrowserEvent(type));
+  }
+
+  /** Dispatches a standard event object to registered listeners. */
+  public dispatchEvent(event: FakeBrowserEvent): boolean {
+    event.target ??= this;
+    event.currentTarget = this;
+    for (const listener of this.listeners.get(event.type) ?? []) {
       listener(event);
     }
+    return !event.defaultPrevented;
+  }
+
+  /** Moves fake focus to this element and emits focus once. */
+  public focus(): void {
+    this.focusCount += 1;
+    if (this.isFocused) {
+      return;
+    }
+    this.isFocused = true;
+    this.dispatch("focus");
+  }
+
+  /** Removes fake focus from this element and emits blur once. */
+  public blur(): void {
+    if (!this.isFocused) {
+      return;
+    }
+    this.isFocused = false;
+    this.dispatch("blur");
   }
 
   /** Replaces this fake element's children. */
@@ -76,9 +132,31 @@ export class FakeElement {
 
   /** Records data attributes used by page-asset code. */
   public setAttribute(name: string, value: string): void {
+    this.attributes.set(name, value);
     if (name.startsWith("data-")) {
       this.dataset[datasetName(name.slice("data-".length))] = value;
     }
+  }
+
+  /** Reads a standard or data attribute from this fake element. */
+  public getAttribute(name: string): string | null {
+    if (name.startsWith("data-")) {
+      return this.dataset[datasetName(name.slice("data-".length))] ?? null;
+    }
+    return this.attributes.get(name) ?? null;
+  }
+
+  /** Removes a standard or data attribute from this fake element. */
+  public removeAttribute(name: string): void {
+    this.attributes.delete(name);
+    if (name.startsWith("data-")) {
+      delete this.dataset[datasetName(name.slice("data-".length))];
+    }
+  }
+
+  /** Records that the page asset requested the closest row be revealed. */
+  public scrollIntoView(): void {
+    this.scrollIntoViewCount += 1;
   }
 
   /** Returns the first descendant matching the supported selector subset. */
@@ -86,7 +164,7 @@ export class FakeElement {
     return this.querySelectorAll(selector)[0] ?? null;
   }
 
-  /** Returns descendants matching class and data-attribute selectors. */
+  /** Returns descendants matching class and attribute selectors. */
   public querySelectorAll(selector: string): readonly FakeElement[] {
     return this.children.flatMap((child) => [
       ...(child.matches(selector) ? [child] : []),
@@ -99,7 +177,7 @@ export class FakeElement {
       return this.classList.contains(selector.slice(1));
     }
 
-    const attributes = [...selector.matchAll(/\[data-([a-z-]+)(?:="([^"]*)")?\]/g)];
+    const attributes = [...selector.matchAll(/\[([a-z-]+)(?:="([^"]*)")?\]/g)];
 
     if (attributes.length === 0) {
       return false;
@@ -112,11 +190,9 @@ export class FakeElement {
         return false;
       }
 
-      const key = datasetName(attributeName);
       const expectedValue = match[2];
-      return expectedValue === undefined
-        ? key in this.dataset
-        : this.dataset[key] === expectedValue;
+      const actualValue = this.getAttribute(attributeName);
+      return expectedValue === undefined ? actualValue !== null : actualValue === expectedValue;
     });
   }
 }
@@ -147,10 +223,16 @@ export class FakeInput extends FakeElement {
   public disabled = false;
   public required = false;
   public type = "text";
+  public validationMessage = "";
   public value = "";
 
   public constructor() {
     super("INPUT");
+  }
+
+  /** Stores the input's browser-native custom validation message. */
+  public setCustomValidity(message: string): void {
+    this.validationMessage = message;
   }
 }
 
@@ -240,9 +322,9 @@ export class FakeDocument extends FakeElement {
 /** Deterministic timer queue for browser page-asset tests. */
 export class FakeTimers {
   private nextId = 1;
-  private readonly callbacks = new Map<number, BrowserListener>();
+  private readonly callbacks = new Map<number, () => void>();
 
-  public readonly setTimeout = (callback: BrowserListener): number => {
+  public readonly setTimeout = (callback: () => void): number => {
     const id = this.nextId;
     this.nextId += 1;
     this.callbacks.set(id, callback);

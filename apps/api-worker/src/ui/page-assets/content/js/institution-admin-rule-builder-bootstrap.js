@@ -36,14 +36,20 @@ const ruleBuilderTemplatePreset = document.getElementById("rule-builder-template
 const ruleBuilderLmsConnectionSelect = document.getElementById("rule-builder-lms-connection");
 const ruleBuilderLmsStatus = document.getElementById("rule-builder-lms-status");
 const ruleBuilderLmsProviderKindInput = document.getElementById("rule-builder-lms-provider-kind");
-const ruleBuilderBadgeTemplateSearchField = document.getElementById(
-  "rule-builder-badge-template-search-field",
+const ruleBuilderBadgeTemplateFallbackField = document.getElementById(
+  "rule-builder-badge-template-fallback-field",
 );
-const ruleBuilderBadgeTemplateSearch = document.getElementById(
-  "rule-builder-badge-template-search",
+const ruleBuilderBadgeTemplateEnhancedField = document.getElementById(
+  "rule-builder-badge-template-enhanced-field",
+);
+const ruleBuilderBadgeTemplateCombobox = document.getElementById(
+  "rule-builder-badge-template-combobox",
 );
 const ruleBuilderBadgeTemplateSelect = document.getElementById(
   "rule-builder-badge-template-select",
+);
+const ruleBuilderBadgeTemplateListbox = document.getElementById(
+  "rule-builder-badge-template-listbox",
 );
 const ruleBuilderBadgeTemplateSearchStatus = document.getElementById(
   "rule-builder-badge-template-search-status",

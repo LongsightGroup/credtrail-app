@@ -116,7 +116,7 @@ describe("institution admin rule-version navigation", () => {
 
     new Script(ruleVersionAssetSource()).runInContext(context);
     document.dispatch("DOMContentLoaded");
-    const submitEvent = new FakeBrowserEvent();
+    const submitEvent = new FakeBrowserEvent("submit");
     form.dispatch("submit", submitEvent);
 
     expect(submitEvent.defaultPrevented).toBe(true);

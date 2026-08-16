@@ -1,7 +1,9 @@
     const ruleBuilderBadgeTemplatePicker = createBadgeTemplatePickerController({
-      searchField: ruleBuilderBadgeTemplateSearchField,
-      searchInput: ruleBuilderBadgeTemplateSearch,
+      fallbackField: ruleBuilderBadgeTemplateFallbackField,
+      enhancedField: ruleBuilderBadgeTemplateEnhancedField,
+      comboboxInput: ruleBuilderBadgeTemplateCombobox,
       select: ruleBuilderBadgeTemplateSelect,
+      listbox: ruleBuilderBadgeTemplateListbox,
       searchStatus: ruleBuilderBadgeTemplateSearchStatus,
       reusePanel: ruleBuilderBadgeTemplateReuse,
       reuseMessage: ruleBuilderBadgeTemplateReuseMessage,
@@ -505,6 +507,7 @@
 
       if (typeof editRuleContext.badgeTemplateId === 'string') {
         setRuleCreateFieldValue('badgeTemplateId', editRuleContext.badgeTemplateId);
+        ruleBuilderBadgeTemplatePicker.sync();
       }
 
       if (typeof editRuleContext.lmsConnectionId === 'string') {

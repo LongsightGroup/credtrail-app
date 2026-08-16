@@ -401,6 +401,7 @@ if (
         typeof parsed.badgeTemplateId === "string"
       ) {
         setRuleCreateFieldValue("badgeTemplateId", parsed.badgeTemplateId);
+        ruleBuilderBadgeTemplatePicker.sync();
       }
 
       if (
