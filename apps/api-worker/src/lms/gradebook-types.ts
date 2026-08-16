@@ -17,8 +17,15 @@ export interface GradebookCourseRecord {
   endsAt: string | null;
 }
 
+export type GradebookCourseAccessScope =
+  | { readonly kind: "connection" }
+  | {
+      readonly kind: "provider_user";
+      readonly providerUserId: string;
+    };
+
 export interface GradebookCourseSearchInput {
-  readonly providerUserId: string;
+  readonly accessScope: GradebookCourseAccessScope;
   readonly searchTerm?: string;
   readonly limit: number;
 }
@@ -92,7 +99,7 @@ export interface GradebookProvider {
   readonly kind: GradebookProviderKind;
   listCourses(input: GradebookCourseSearchInput): Promise<GradebookCourseSearchResult>;
   verifyCourseAccess(input: {
-    readonly providerUserId: string;
+    readonly accessScope: GradebookCourseAccessScope;
     readonly courseIds: readonly string[];
   }): Promise<GradebookCourseAccessResult>;
   listAssignments(input: { courseId: string }): Promise<readonly GradebookAssignmentRecord[]>;

@@ -317,7 +317,8 @@ const renderAssignmentSubmissionFields = (card, fieldsContainer, seed) => {
 };
 
 const renderSurveyCompletionFields = (card, fieldsContainer, seed) => {
-  const surveyPlaceholder = getCoursePlaceholder() + "_EXIT_SURVEY";
+  const defaultCourseId = getDefaultCourseId();
+  const surveyPlaceholder = defaultCourseId.length > 0 ? defaultCourseId + "_EXIT_SURVEY" : "";
   replaceConditionFields(fieldsContainer, [
     createConditionField(
       "Survey ID",

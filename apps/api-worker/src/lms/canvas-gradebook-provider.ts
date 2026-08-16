@@ -470,7 +470,11 @@ export const createCanvasGradebookProvider = (
   return {
     kind: "canvas",
     listCourses: async (input): Promise<GradebookCourseSearchResult> => {
-      const normalizedCourses = await listManageableCourses(input.providerUserId);
+      if (input.accessScope.kind !== "provider_user") {
+        throw new Error("Canvas course access requires a linked provider user");
+      }
+
+      const normalizedCourses = await listManageableCourses(input.accessScope.providerUserId);
       const searchTerm = input.searchTerm?.trim().toLocaleLowerCase() ?? "";
 
       const matchingCourses = normalizedCourses
@@ -494,8 +498,12 @@ export const createCanvasGradebookProvider = (
       };
     },
     verifyCourseAccess: async (input) => {
+      if (input.accessScope.kind !== "provider_user") {
+        throw new Error("Canvas course access requires a linked provider user");
+      }
+
       const manageableCoursesById = new Map(
-        (await listManageableCourses(input.providerUserId)).map((course) => [
+        (await listManageableCourses(input.accessScope.providerUserId)).map((course) => [
           course.courseId,
           course,
         ]),

@@ -417,17 +417,12 @@ var adminStatusPillClass = function adminStatusPillClass(tone) {
       return '';
     };
 
-    const getCoursePlaceholder = () => {
-      const courseId = getDefaultCourseId();
-
-      return courseId.length > 0 ? courseId : 'COURSE_ID';
-    };
-
     const buildDefaultTemplateDefinitions = (courseId) => {
-      const primaryCourseId = courseId.length > 0 ? courseId : 'COURSE_ID';
-      const programCourseIds = deriveRelatedCourseIds(primaryCourseId, 3);
-      const nextCourseId = programCourseIds[1] ?? primaryCourseId + '-2';
-      const surveyId = primaryCourseId + '_EXIT_SURVEY';
+      const primaryCourseId = courseId;
+      const programCourseIds =
+        primaryCourseId.length > 0 ? deriveRelatedCourseIds(primaryCourseId, 3) : [];
+      const nextCourseId = programCourseIds[1] ?? '';
+      const surveyId = primaryCourseId.length > 0 ? primaryCourseId + '_EXIT_SURVEY' : '';
 
       return {
         blank: {
@@ -2242,7 +2237,8 @@ const renderAssignmentSubmissionFields = (card, fieldsContainer, seed) => {
 };
 
 const renderSurveyCompletionFields = (card, fieldsContainer, seed) => {
-  const surveyPlaceholder = getCoursePlaceholder() + "_EXIT_SURVEY";
+  const defaultCourseId = getDefaultCourseId();
+  const surveyPlaceholder = defaultCourseId.length > 0 ? defaultCourseId + "_EXIT_SURVEY" : "";
   replaceConditionFields(fieldsContainer, [
     createConditionField(
       "Survey ID",
@@ -3085,9 +3081,7 @@ const readConditionFromCard = (card, strict) => {
       minCompletionPercent: minCompletionPercent ?? 100,
       ...(courseListId.length > 0
         ? { courseListId }
-        : {
-            courseId: courseId.length > 0 ? courseId : "COURSE_ID",
-          }),
+        : { courseId }),
     };
   } else if (conditionType === "grade_threshold") {
     const courseId = readFieldFromCard(card, "courseId");
@@ -3115,9 +3109,7 @@ const readConditionFromCard = (card, strict) => {
         readFieldFromCard(card, "scoreField") === "current_score" ? "current_score" : "final_score",
       ...(courseListId.length > 0
         ? { courseListId }
-        : {
-            courseId: courseId.length > 0 ? courseId : "COURSE_ID",
-          }),
+        : { courseId }),
     };
 
     if (minScore !== null) {
@@ -3148,9 +3140,7 @@ const readConditionFromCard = (card, strict) => {
       type: "program_completion",
       ...(courseListId.length > 0
         ? { courseListId }
-        : {
-            courseIds: courseIds.length > 0 ? courseIds : ["COURSE_ID"],
-          }),
+        : { courseIds }),
     };
 
     if (minimumCompleted !== null) {
@@ -3172,8 +3162,8 @@ const readConditionFromCard = (card, strict) => {
 
     condition = {
       type: "assignment_submission",
-      courseId: courseId.length > 0 ? courseId : "COURSE_ID",
-      assignmentId: assignmentId.length > 0 ? assignmentId : "ASSIGNMENT_ID",
+      courseId,
+      assignmentId,
       requireSubmitted: readCheckboxFromCard(card, "requireSubmitted"),
     };
 
@@ -3194,7 +3184,7 @@ const readConditionFromCard = (card, strict) => {
 
     condition = {
       type: "survey_completion",
-      surveyId: surveyId.length > 0 ? surveyId : "SURVEY_ID",
+      surveyId,
       requireCompleted: readCheckboxFromCard(card, "requireCompleted"),
     };
 
@@ -3591,7 +3581,7 @@ const sourceEntriesForConditions = (conditions) => {
 };
 
 const buildSampleFactsFromConditions = (conditions, learnerId) => {
-  const courseId = getDefaultCourseId() || getCoursePlaceholder();
+  const courseId = getDefaultCourseId();
   const parsedFinalScore = Number(getTextFieldValue("testFinalScore"));
   const finalScore =
     Number.isFinite(parsedFinalScore) && parsedFinalScore >= 0 && parsedFinalScore <= 100
@@ -4335,7 +4325,7 @@ const applyDefinitionToBuilder = (definition, sourceLabel) => {
   if (normalizedChildren.length === 0) {
     addConditionToCanvas({
       type: "course_completion",
-      courseId: getDefaultCourseId() || getCoursePlaceholder(),
+      courseId: getDefaultCourseId(),
       minCompletionPercent: 100,
       negate: false,
     });
@@ -5026,7 +5016,7 @@ if (ruleBuilderAddConditionButton instanceof HTMLButtonElement) {
   ruleBuilderAddConditionButton.addEventListener("click", () => {
     addConditionToCanvas({
       type: "course_completion",
-      courseId: getDefaultCourseId() || getCoursePlaceholder(),
+      courseId: getDefaultCourseId(),
       minCompletionPercent: 100,
       negate: false,
     });
@@ -5038,7 +5028,7 @@ if (ruleBuilderAddAlternativePathButton instanceof HTMLButtonElement) {
     setRuleBuilderRootLogic("any");
     addConditionToCanvas({
       type: "grade_threshold",
-      courseId: getDefaultCourseId() || getCoursePlaceholder(),
+      courseId: getDefaultCourseId(),
       scoreField: "final_score",
       minScore: 80,
       negate: false,

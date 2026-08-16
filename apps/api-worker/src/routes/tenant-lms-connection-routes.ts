@@ -29,7 +29,7 @@ import {
   resolveGradebookProviderWithConnection,
   type ResolvedGradebookProvider,
 } from "../lms/gradebook-provider-resolution";
-import { authorizeLmsUserCourses, resolveLmsUserCourseScope } from "../lms/user-course-access";
+import { authorizeLmsUserCourses, resolveLmsCourseAccessScope } from "../lms/user-course-access";
 
 interface RegisterTenantLmsConnectionRoutesInput {
   app: Hono<AppEnv>;
@@ -239,7 +239,7 @@ export const registerTenantLmsConnectionRoutes = (
       return resolved;
     }
 
-    const scope = await resolveLmsUserCourseScope({
+    const scope = await resolveLmsCourseAccessScope({
       db,
       connection: resolved.connection,
       userId: roleCheck.principal.userId,
@@ -251,7 +251,7 @@ export const registerTenantLmsConnectionRoutes = (
 
     try {
       const result = await resolved.provider.listCourses({
-        providerUserId: scope.providerUserId,
+        accessScope: scope.accessScope,
         limit: LMS_PICKER_MAX_COURSES,
         ...(query.q === undefined ? {} : { searchTerm: query.q }),
       });

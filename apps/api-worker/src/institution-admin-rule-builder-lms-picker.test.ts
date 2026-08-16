@@ -120,7 +120,7 @@ const loadPickerHarness = (input: {
     fetch: input.fetchImpl,
     bindExclusiveFieldPair: (): void => undefined,
     conditionTypeLabels: {},
-    getCoursePlaceholder: (): string => "COURSE_ID",
+    getDefaultCourseId: (): string => "",
     getSelectedLmsConnectionId: (): string => "connection-1",
     lmsConnectionsApiPath: "/v1/lms/connections",
     ruleBuilderConditionList: conditionList,
@@ -142,6 +142,43 @@ const loadPickerHarness = (input: {
 };
 
 describe("rule-builder LMS course picker", () => {
+  it("keeps an unfinished course requirement empty instead of inventing a course ID", () => {
+    const harness = loadPickerHarness({
+      fetchImpl: (() => Promise.reject(new Error("not called"))) as typeof fetch,
+      status: new FakeStatusElement(),
+    });
+    const card = new FakeElement();
+    card.className = "ct-admin__condition-card";
+    const typeSelect = new FakeSelect();
+    typeSelect.className = "ct-admin__condition-type";
+    typeSelect.value = "course_completion";
+    const negate = new FakeInput();
+    negate.dataset.field = "negate";
+    const fields = new FakeElement();
+    fields.className = "ct-admin__condition-fields";
+    const summary = new FakeElement();
+    summary.className = "ct-admin__condition-summary";
+    card.append(typeSelect, negate, fields, summary);
+
+    harness.renderConditionFields(card, {
+      type: "course_completion",
+      courseId: "",
+      minCompletionPercent: 100,
+    });
+
+    const select = card.querySelector('[data-field="courseId"]');
+
+    expect(select).toBeInstanceOf(FakeSelect);
+    expect(
+      select instanceof FakeSelect ? select.options.map((option) => option.value) : [],
+    ).toEqual([""]);
+    expect(harness.readConditionFromCard(card, false)).toEqual({
+      type: "course_completion",
+      courseId: "",
+      minCompletionPercent: 100,
+    });
+  });
+
   it("makes restored single- and multi-course selections available before hydration", () => {
     const status = new FakeStatusElement();
     const harness = loadPickerHarness({

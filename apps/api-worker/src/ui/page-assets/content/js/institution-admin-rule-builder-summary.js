@@ -571,7 +571,7 @@ const applyDefinitionToBuilder = (definition, sourceLabel) => {
   if (normalizedChildren.length === 0) {
     addConditionToCanvas({
       type: "course_completion",
-      courseId: getDefaultCourseId() || getCoursePlaceholder(),
+      courseId: getDefaultCourseId(),
       minCompletionPercent: 100,
       negate: false,
     });

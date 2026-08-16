@@ -226,7 +226,7 @@ describe("createCanvasGradebookProvider", () => {
     });
 
     const courseSearch = await provider.listCourses({
-      providerUserId: "instructor-1",
+      accessScope: { kind: "provider_user", providerUserId: "instructor-1" },
       limit: 100,
     });
     const assignments = await provider.listAssignments({
@@ -376,7 +376,7 @@ describe("createCanvasGradebookProvider", () => {
     });
 
     const result = await provider.listCourses({
-      providerUserId: "instructor-1",
+      accessScope: { kind: "provider_user", providerUserId: "instructor-1" },
       searchTerm: "capstone",
       limit: 100,
     });
@@ -428,7 +428,7 @@ describe("createCanvasGradebookProvider", () => {
 
     await expect(
       provider.listCourses({
-        providerUserId: "instructor-1",
+        accessScope: { kind: "provider_user", providerUserId: "instructor-1" },
         searchTerm: " cap-401 ",
         limit: 100,
       }),
@@ -443,7 +443,7 @@ describe("createCanvasGradebookProvider", () => {
     });
     await expect(
       provider.listCourses({
-        providerUserId: "instructor-1",
+        accessScope: { kind: "provider_user", providerUserId: "instructor-1" },
         searchTerm: "77",
         limit: 100,
       }),
@@ -482,7 +482,7 @@ describe("createCanvasGradebookProvider", () => {
 
     await expect(
       provider.verifyCourseAccess({
-        providerUserId: "instructor-1",
+        accessScope: { kind: "provider_user", providerUserId: "instructor-1" },
         courseIds: ["42", "77"],
       }),
     ).resolves.toEqual({
@@ -564,7 +564,10 @@ describe("createCanvasGradebookProvider", () => {
     });
 
     await expect(
-      provider.listCourses({ providerUserId: "instructor-1", limit: 100 }),
+      provider.listCourses({
+        accessScope: { kind: "provider_user", providerUserId: "instructor-1" },
+        limit: 100,
+      }),
     ).rejects.toMatchObject({
       _tag: "GradebookProviderError",
       operation: "course_search",
@@ -593,7 +596,10 @@ describe("createCanvasGradebookProvider", () => {
     });
 
     await expect(
-      provider.listCourses({ providerUserId: "instructor-1", limit: 100 }),
+      provider.listCourses({
+        accessScope: { kind: "provider_user", providerUserId: "instructor-1" },
+        limit: 100,
+      }),
     ).rejects.toMatchObject({
       _tag: "GradebookProviderError",
       operation: "course_search",

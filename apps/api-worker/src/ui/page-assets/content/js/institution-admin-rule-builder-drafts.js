@@ -297,7 +297,7 @@ if (ruleBuilderAddConditionButton instanceof HTMLButtonElement) {
   ruleBuilderAddConditionButton.addEventListener("click", () => {
     addConditionToCanvas({
       type: "course_completion",
-      courseId: getDefaultCourseId() || getCoursePlaceholder(),
+      courseId: getDefaultCourseId(),
       minCompletionPercent: 100,
       negate: false,
     });
@@ -309,7 +309,7 @@ if (ruleBuilderAddAlternativePathButton instanceof HTMLButtonElement) {
     setRuleBuilderRootLogic("any");
     addConditionToCanvas({
       type: "grade_threshold",
-      courseId: getDefaultCourseId() || getCoursePlaceholder(),
+      courseId: getDefaultCourseId(),
       scoreField: "final_score",
       minScore: 80,
       negate: false,

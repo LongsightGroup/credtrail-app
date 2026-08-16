@@ -29,9 +29,7 @@ const readConditionFromCard = (card, strict) => {
       minCompletionPercent: minCompletionPercent ?? 100,
       ...(courseListId.length > 0
         ? { courseListId }
-        : {
-            courseId: courseId.length > 0 ? courseId : "COURSE_ID",
-          }),
+        : { courseId }),
     };
   } else if (conditionType === "grade_threshold") {
     const courseId = readFieldFromCard(card, "courseId");
@@ -59,9 +57,7 @@ const readConditionFromCard = (card, strict) => {
         readFieldFromCard(card, "scoreField") === "current_score" ? "current_score" : "final_score",
       ...(courseListId.length > 0
         ? { courseListId }
-        : {
-            courseId: courseId.length > 0 ? courseId : "COURSE_ID",
-          }),
+        : { courseId }),
     };
 
     if (minScore !== null) {
@@ -92,9 +88,7 @@ const readConditionFromCard = (card, strict) => {
       type: "program_completion",
       ...(courseListId.length > 0
         ? { courseListId }
-        : {
-            courseIds: courseIds.length > 0 ? courseIds : ["COURSE_ID"],
-          }),
+        : { courseIds }),
     };
 
     if (minimumCompleted !== null) {
@@ -116,8 +110,8 @@ const readConditionFromCard = (card, strict) => {
 
     condition = {
       type: "assignment_submission",
-      courseId: courseId.length > 0 ? courseId : "COURSE_ID",
-      assignmentId: assignmentId.length > 0 ? assignmentId : "ASSIGNMENT_ID",
+      courseId,
+      assignmentId,
       requireSubmitted: readCheckboxFromCard(card, "requireSubmitted"),
     };
 
@@ -138,7 +132,7 @@ const readConditionFromCard = (card, strict) => {
 
     condition = {
       type: "survey_completion",
-      surveyId: surveyId.length > 0 ? surveyId : "SURVEY_ID",
+      surveyId,
       requireCompleted: readCheckboxFromCard(card, "requireCompleted"),
     };
 
@@ -535,7 +529,7 @@ const sourceEntriesForConditions = (conditions) => {
 };
 
 const buildSampleFactsFromConditions = (conditions, learnerId) => {
-  const courseId = getDefaultCourseId() || getCoursePlaceholder();
+  const courseId = getDefaultCourseId();
   const parsedFinalScore = Number(getTextFieldValue("testFinalScore"));
   const finalScore =
     Number.isFinite(parsedFinalScore) && parsedFinalScore >= 0 && parsedFinalScore <= 100

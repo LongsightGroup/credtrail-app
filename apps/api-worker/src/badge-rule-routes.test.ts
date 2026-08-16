@@ -1271,7 +1271,11 @@ describe("badge rule routes", () => {
     expect(coursesBody.courses[0]?.courseId).toBe("course_101");
     expect(coursesBody.hasMore).toBe(false);
     expect(courseSearchInputs).toEqual([
-      { providerUserId: "instructor_123", searchTerm: "cs", limit: 100 },
+      {
+        accessScope: { kind: "provider_user", providerUserId: "instructor_123" },
+        searchTerm: "cs",
+        limit: 100,
+      },
     ]);
 
     const learnersResponse = await app.request(
@@ -1423,11 +1427,17 @@ describe("badge rule routes", () => {
     expect(body.courses).toHaveLength(100);
     expect(body.hasMore).toBe(true);
     expect(body.courses.at(-1)?.courseId).toBe("course_099");
-    expect(courseSearchInputs).toEqual([{ providerUserId: "instructor_123", limit: 100 }]);
+    expect(courseSearchInputs).toEqual([
+      {
+        accessScope: { kind: "provider_user", providerUserId: "instructor_123" },
+        limit: 100,
+      },
+    ]);
   });
 
   it("returns actionable Sakai 403 guidance for course lookup failures", async () => {
     const env = createEnv();
+    mockedFindTenantLmsUserIdentity.mockResolvedValue(null);
     mockedFindTenantLmsConnectionById.mockResolvedValue(
       sampleTenantLmsConnection({
         displayName: "TrySakai",
@@ -1441,8 +1451,9 @@ describe("badge rule routes", () => {
       kind: "sakai",
       verifyCourseAccess: () =>
         Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
-      listCourses: () =>
-        Promise.reject(
+      listCourses: (input: GradebookCourseSearchInput) => {
+        courseSearchInputs.push(input);
+        return Promise.reject(
           new GradebookProviderError({
             providerKind: "sakai",
             operation: "course_search",
@@ -1450,7 +1461,8 @@ describe("badge rule routes", () => {
             statusCode: 403,
             message: "sakai course_search request failed (403)",
           }),
-        ),
+        );
+      },
       listAssignments: () => Promise.resolve([]),
       listEnrollments: () => Promise.resolve([]),
       listLearners: () => Promise.resolve([]),
@@ -1476,6 +1488,14 @@ describe("badge rule routes", () => {
     expect(body.error).toContain("Save a Sakai administrator username and password");
     expect(body.error).toContain("then try again");
     expect(body.error).toContain("allow EntityBroker Sites and Gradebook access");
+    expect(mockedFindTenantLmsUserIdentity).not.toHaveBeenCalled();
+    expect(courseSearchInputs).toEqual([
+      {
+        accessScope: { kind: "connection" },
+        searchTerm: "cs",
+        limit: 100,
+      },
+    ]);
   });
 
   it("creates reusable badge-rule value lists", async () => {

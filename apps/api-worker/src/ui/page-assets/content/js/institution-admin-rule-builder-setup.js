@@ -146,17 +146,12 @@
       return '';
     };
 
-    const getCoursePlaceholder = () => {
-      const courseId = getDefaultCourseId();
-
-      return courseId.length > 0 ? courseId : 'COURSE_ID';
-    };
-
     const buildDefaultTemplateDefinitions = (courseId) => {
-      const primaryCourseId = courseId.length > 0 ? courseId : 'COURSE_ID';
-      const programCourseIds = deriveRelatedCourseIds(primaryCourseId, 3);
-      const nextCourseId = programCourseIds[1] ?? primaryCourseId + '-2';
-      const surveyId = primaryCourseId + '_EXIT_SURVEY';
+      const primaryCourseId = courseId;
+      const programCourseIds =
+        primaryCourseId.length > 0 ? deriveRelatedCourseIds(primaryCourseId, 3) : [];
+      const nextCourseId = programCourseIds[1] ?? '';
+      const surveyId = primaryCourseId.length > 0 ? primaryCourseId + '_EXIT_SURVEY' : '';
 
       return {
         blank: {

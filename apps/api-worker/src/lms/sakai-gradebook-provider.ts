@@ -87,15 +87,6 @@ const SAKAI_COURSE_ACCESS_CONCURRENCY = 4;
 const sakaiSiteCollectionSchema = z.object({
   site_collection: z.array(z.unknown()),
 });
-const sakaiMembershipCollectionSchema = z.object({
-  membership_collection: z.array(
-    z.object({
-      active: z.boolean().optional(),
-      locationReference: z.string(),
-      memberRole: z.string(),
-    }),
-  ),
-});
 
 const asIdentifier = (value: unknown): string | null => {
   if (typeof value === "string") {
@@ -575,26 +566,6 @@ const parseSakaiCourseRecord = (candidate: unknown): GradebookCourseRecord | nul
   };
 };
 
-const sakaiSiteMaintainRole = (candidate: unknown): string | null => {
-  return asNonEmptyString(asJsonObject(candidate)?.maintainRole);
-};
-
-const hasSakaiCourseManagementAccess = (memberRole: string | undefined, site: unknown): boolean => {
-  // TODO: Also authorize users granted Sakai's section.role.instructor fine-grained permission.
-  return memberRole !== undefined && memberRole === sakaiSiteMaintainRole(site);
-};
-
-const sakaiCourseIdFromLocationReference = (locationReference: string): string | null => {
-  const prefix = "/site/";
-
-  if (!locationReference.startsWith(prefix)) {
-    return null;
-  }
-
-  const courseId = locationReference.slice(prefix.length);
-  return courseId.length > 0 && !courseId.includes("/") ? courseId : null;
-};
-
 const isRetryableSessionStatus = (status: number): boolean => {
   return status === 401 || status === 403;
 };
@@ -605,7 +576,6 @@ export const createSakaiGradebookProvider = (
   const { config } = input;
   const fetchImpl = input.fetchImpl ?? fetch;
   const apiBaseUrl = ensureHttpBaseUrl(config.apiBaseUrl);
-  const courseAccessByUserCache = new Map<string, Promise<ReadonlyMap<string, string>>>();
   const matrixRequestCache = new Map<string, Promise<SakaiGradebookMatrix>>();
   const siteRequestCache = new Map<string, Promise<unknown>>();
   let cookieHeader = sakaiCookieHeaderFromAccessToken(config.accessToken);
@@ -691,46 +661,6 @@ export const createSakaiGradebookProvider = (
     return request;
   };
 
-  const courseAccessByUser = (providerUserId: string): Promise<ReadonlyMap<string, string>> => {
-    const cached = courseAccessByUserCache.get(providerUserId);
-
-    if (cached !== undefined) {
-      return cached;
-    }
-
-    const request = requestJson(
-      `/direct/membership/fastroles/${encodeURIComponent(providerUserId)}.json`,
-      "course_search",
-    ).then((payload) => {
-      const parsed = sakaiMembershipCollectionSchema.safeParse(payload);
-
-      if (!parsed.success) {
-        throw new GradebookProviderError({
-          providerKind: "sakai",
-          operation: "course_search",
-          reason: "invalid_response",
-          statusCode: 200,
-          message: "sakai course_search response did not include membership_collection",
-          cause: parsed.error,
-        });
-      }
-
-      const rolesByCourseId = new Map<string, string>();
-
-      for (const membership of parsed.data.membership_collection) {
-        const courseId = sakaiCourseIdFromLocationReference(membership.locationReference);
-
-        if (courseId !== null && membership.active !== false) {
-          rolesByCourseId.set(courseId, membership.memberRole);
-        }
-      }
-
-      return rolesByCourseId;
-    });
-    courseAccessByUserCache.set(providerUserId, request);
-    return request;
-  };
-
   const siteById = (courseId: string): Promise<unknown> => {
     const cached = siteRequestCache.get(courseId);
 
@@ -741,7 +671,13 @@ export const createSakaiGradebookProvider = (
     const request = requestJson(
       `/direct/site/${encodeURIComponent(courseId)}.json`,
       "course_search",
-    );
+    ).catch((error: unknown) => {
+      if (error instanceof GradebookProviderError && error.statusCode === 404) {
+        return null;
+      }
+
+      throw error;
+    });
     siteRequestCache.set(courseId, request);
     return request;
   };
@@ -749,7 +685,12 @@ export const createSakaiGradebookProvider = (
   return {
     kind: "sakai",
     listCourses: async (listInput): Promise<GradebookCourseSearchResult> => {
-      const rolesByCourseId = await courseAccessByUser(listInput.providerUserId);
+      if (listInput.accessScope.kind !== "connection") {
+        throw new Error("Sakai course access requires the saved connection account");
+      }
+
+      // Sakai applies select=any to the authenticated administrator session. Intersecting these
+      // results with an LTI launch user's memberships would hide institution-wide admin access.
       const requestedCourseCount = listInput.limit + 1;
       const searchTerm = listInput.searchTerm?.trim();
       const coursesById = new Map<string, GradebookCourseRecord>();
@@ -796,10 +737,7 @@ export const createSakaiGradebookProvider = (
         for (const candidate of candidates) {
           const course = parseSakaiCourseRecord(candidate);
 
-          if (
-            course !== null &&
-            hasSakaiCourseManagementAccess(rolesByCourseId.get(course.courseId), candidate)
-          ) {
+          if (course !== null) {
             coursesById.set(course.courseId, course);
           }
         }
@@ -829,25 +767,18 @@ export const createSakaiGradebookProvider = (
       };
     },
     verifyCourseAccess: async (accessInput) => {
-      const rolesByCourseId = await courseAccessByUser(accessInput.providerUserId);
+      if (accessInput.accessScope.kind !== "connection") {
+        throw new Error("Sakai course access requires the saved connection account");
+      }
+
       const uniqueCourseIds = [...new Set(accessInput.courseIds)];
       const accessChecks = await mapConcurrentBounded(
         uniqueCourseIds,
         { concurrency: SAKAI_COURSE_ACCESS_CONCURRENCY },
         async (courseId) => {
-          const memberRole = rolesByCourseId.get(courseId);
-
-          if (memberRole === undefined) {
-            return { courseId, course: null };
-          }
-
           const site = await siteById(courseId);
           const course = parseSakaiCourseRecord(site);
-          return {
-            courseId,
-            course:
-              course !== null && hasSakaiCourseManagementAccess(memberRole, site) ? course : null,
-          };
+          return { courseId, course };
         },
       );
       const authorizedCoursesById = new Map(

@@ -46,29 +46,7 @@ const createMockFetch = (
       cookie: request.headers.get("cookie"),
       userAgent: request.headers.get("user-agent"),
     });
-    const route =
-      routeMap.get(routeKey) ??
-      (routeKey === "/direct/membership/fastroles/instructor-1.json"
-        ? {
-            pathWithQuery: routeKey,
-            responseBody: {
-              membership_collection: [
-                "site-1",
-                "capstone-2026-a",
-                "capstone-2026-b",
-                "course-100",
-                "course-101",
-                "course-102",
-                "course-a",
-                "course-z",
-              ].map((courseId) => ({
-                active: true,
-                locationReference: `/site/${courseId}`,
-                memberRole: "Instructor",
-              })),
-            },
-          }
-        : undefined);
+    const route = routeMap.get(routeKey);
 
     if (
       request.headers.get("authorization") !== null ||
@@ -253,7 +231,7 @@ describe("createSakaiGradebookProvider", () => {
     });
 
     const courseSearch = await provider.listCourses({
-      providerUserId: "instructor-1",
+      accessScope: { kind: "connection" },
       limit: 100,
     });
     const assignments = await provider.listAssignments({ courseId: "site-1" });
@@ -346,7 +324,7 @@ describe("createSakaiGradebookProvider", () => {
     ]);
   });
 
-  it("searches authorized Sakai sites and returns only courses in title order", async () => {
+  it("searches all administrator-visible Sakai sites without enrollment filtering", async () => {
     const { fetchImpl, requests } = createMockFetch([
       {
         pathWithQuery: "/direct/site.json?select=any&_limit=101&search=capstone+2026",
@@ -397,7 +375,7 @@ describe("createSakaiGradebookProvider", () => {
 
     await expect(
       provider.listCourses({
-        providerUserId: "instructor-1",
+        accessScope: { kind: "connection" },
         searchTerm: "  capstone 2026  ",
         limit: 100,
       }),
@@ -415,7 +393,6 @@ describe("createSakaiGradebookProvider", () => {
       hasMore: false,
     });
     expect(requests.map((request) => request.pathWithQuery)).toEqual([
-      "/direct/membership/fastroles/instructor-1.json",
       "/direct/site.json?select=any&_limit=101&search=capstone+2026",
       "/direct/site.json?select=any&_limit=101&_start=4&search=capstone+2026",
     ]);
@@ -463,7 +440,7 @@ describe("createSakaiGradebookProvider", () => {
     });
 
     await expect(
-      provider.listCourses({ providerUserId: "instructor-1", limit: 1 }),
+      provider.listCourses({ accessScope: { kind: "connection" }, limit: 1 }),
     ).resolves.toEqual({
       courses: [
         expect.objectContaining({
@@ -474,31 +451,13 @@ describe("createSakaiGradebookProvider", () => {
       hasMore: true,
     });
     expect(requests.map((request) => request.pathWithQuery)).toEqual([
-      "/direct/membership/fastroles/instructor-1.json",
       "/direct/site.json?select=any&_limit=101",
       "/direct/site.json?select=any&_limit=101&_start=101",
     ]);
   });
 
-  it("requires the instructor's Sakai role to match the site's maintain role", async () => {
+  it("verifies courses through the saved Sakai administrator connection", async () => {
     const { fetchImpl } = createMockFetch([
-      {
-        pathWithQuery: "/direct/membership/fastroles/instructor-1.json",
-        responseBody: {
-          membership_collection: [
-            {
-              active: true,
-              locationReference: "/site/course-101",
-              memberRole: "Instructor",
-            },
-            {
-              active: true,
-              locationReference: "/site/course-202",
-              memberRole: "Student",
-            },
-          ],
-        },
-      },
       {
         pathWithQuery: "/direct/site/course-101.json",
         responseBody: {
@@ -512,10 +471,14 @@ describe("createSakaiGradebookProvider", () => {
         pathWithQuery: "/direct/site/course-202.json",
         responseBody: {
           id: "course-202",
-          title: "Course 202",
-          type: "course",
-          maintainRole: "Instructor",
+          title: "Faculty workspace",
+          type: "project",
         },
+      },
+      {
+        pathWithQuery: "/direct/site/course-303.json",
+        responseBody: { message: "Not found" },
+        status: 404,
       },
     ]);
     const provider = createSakaiGradebookProvider({
@@ -529,8 +492,8 @@ describe("createSakaiGradebookProvider", () => {
 
     await expect(
       provider.verifyCourseAccess({
-        providerUserId: "instructor-1",
-        courseIds: ["course-101", "course-202"],
+        accessScope: { kind: "connection" },
+        courseIds: ["course-101", "course-202", "course-303"],
       }),
     ).resolves.toEqual({
       authorizedCourses: [
@@ -543,7 +506,7 @@ describe("createSakaiGradebookProvider", () => {
           endsAt: null,
         },
       ],
-      unauthorizedCourseIds: ["course-202"],
+      unauthorizedCourseIds: ["course-202", "course-303"],
     });
   });
 
@@ -566,7 +529,7 @@ describe("createSakaiGradebookProvider", () => {
     });
 
     await expect(
-      provider.listCourses({ providerUserId: "instructor-1", limit: 100 }),
+      provider.listCourses({ accessScope: { kind: "connection" }, limit: 100 }),
     ).rejects.toMatchObject({
       _tag: "GradebookProviderError",
       operation: "course_search",
@@ -595,7 +558,7 @@ describe("createSakaiGradebookProvider", () => {
     });
 
     await expect(
-      provider.listCourses({ providerUserId: "instructor-1", limit: 100 }),
+      provider.listCourses({ accessScope: { kind: "connection" }, limit: 100 }),
     ).rejects.toMatchObject({
       _tag: "GradebookProviderError",
       operation: "course_search",
@@ -640,7 +603,7 @@ describe("createSakaiGradebookProvider", () => {
     });
 
     await expect(
-      provider.listCourses({ providerUserId: "instructor-1", limit: 100 }),
+      provider.listCourses({ accessScope: { kind: "connection" }, limit: 100 }),
     ).resolves.toEqual({
       courses: [
         {
@@ -668,7 +631,6 @@ describe("createSakaiGradebookProvider", () => {
       requests.push({ pathWithQuery, cookie });
 
       if (
-        pathWithQuery !== "/direct/membership/fastroles/instructor-1.json" &&
         pathWithQuery !== "/direct/site.json?select=any&_limit=101" &&
         pathWithQuery !== "/direct/site.json?select=any&_limit=101&_start=1"
       ) {
@@ -695,31 +657,19 @@ describe("createSakaiGradebookProvider", () => {
 
       return Promise.resolve(
         new Response(
-          JSON.stringify(
-            pathWithQuery === "/direct/membership/fastroles/instructor-1.json"
-              ? {
-                  membership_collection: [
+          JSON.stringify({
+            site_collection:
+              pathWithQuery === "/direct/site.json?select=any&_limit=101"
+                ? [
                     {
-                      active: true,
-                      locationReference: "/site/site-1",
-                      memberRole: "Instructor",
+                      id: "site-1",
+                      title: "CS 101",
+                      type: "course",
+                      maintainRole: "Instructor",
                     },
-                  ],
-                }
-              : {
-                  site_collection:
-                    pathWithQuery === "/direct/site.json?select=any&_limit=101"
-                      ? [
-                          {
-                            id: "site-1",
-                            title: "CS 101",
-                            type: "course",
-                            maintainRole: "Instructor",
-                          },
-                        ]
-                      : [],
-                },
-          ),
+                  ]
+                : [],
+          }),
           {
             status: 200,
             headers: {
@@ -747,7 +697,7 @@ describe("createSakaiGradebookProvider", () => {
     });
 
     await expect(
-      provider.listCourses({ providerUserId: "instructor-1", limit: 100 }),
+      provider.listCourses({ accessScope: { kind: "connection" }, limit: 100 }),
     ).resolves.toEqual({
       courses: [
         {
@@ -764,12 +714,8 @@ describe("createSakaiGradebookProvider", () => {
     expect(refreshCalls).toBe(1);
     expect(requests).toEqual([
       {
-        pathWithQuery: "/direct/membership/fastroles/instructor-1.json",
+        pathWithQuery: "/direct/site.json?select=any&_limit=101",
         cookie: "SAKAIID=stale-token",
-      },
-      {
-        pathWithQuery: "/direct/membership/fastroles/instructor-1.json",
-        cookie: "SAKAIID=fresh-token",
       },
       {
         pathWithQuery: "/direct/site.json?select=any&_limit=101",

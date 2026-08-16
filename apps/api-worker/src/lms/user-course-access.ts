@@ -3,12 +3,16 @@ import {
   type SqlDatabase,
   type TenantLmsConnectionRecord,
 } from "@credtrail/db";
-import type { GradebookCourseRecord, GradebookProvider } from "./gradebook-types";
+import type {
+  GradebookCourseAccessScope,
+  GradebookCourseRecord,
+  GradebookProvider,
+} from "./gradebook-types";
 
-export type LmsUserCourseScopeResult =
+export type LmsCourseAccessScopeResult =
   | {
-      readonly status: "linked";
-      readonly providerUserId: string;
+      readonly status: "resolved";
+      readonly accessScope: GradebookCourseAccessScope;
     }
   | {
       readonly status: "identity_unlinked";
@@ -35,17 +39,22 @@ export type LmsScopedCourseAuthorizationResult =
     }
   | Exclude<LmsCourseAuthorizationResult, { readonly status: "authorized" }>;
 
-const identityRequiredMessage = (providerKind: "canvas" | "sakai"): string => {
-  const providerName = providerKind === "sakai" ? "Sakai" : "Canvas";
-  return `Open CredTrail from ${providerName} once to link your account before choosing courses.`;
-};
+const canvasIdentityRequiredMessage =
+  "Open CredTrail from Canvas once to link your account before choosing courses.";
 
-/** Resolves the LMS subject established for a CredTrail user by a verified LTI launch. */
-export const resolveLmsUserCourseScope = async (input: {
+/** Resolves the provider-specific authorization boundary used for LMS course authoring. */
+export const resolveLmsCourseAccessScope = async (input: {
   readonly db: SqlDatabase;
   readonly connection: TenantLmsConnectionRecord;
   readonly userId: string;
-}): Promise<LmsUserCourseScopeResult> => {
+}): Promise<LmsCourseAccessScopeResult> => {
+  if (input.connection.providerKind === "sakai") {
+    return {
+      status: "resolved",
+      accessScope: { kind: "connection" },
+    };
+  }
+
   const identity = await findTenantLmsUserIdentity(input.db, {
     tenantId: input.connection.tenantId,
     connectionId: input.connection.id,
@@ -55,17 +64,20 @@ export const resolveLmsUserCourseScope = async (input: {
   if (identity === null) {
     return {
       status: "identity_unlinked",
-      error: identityRequiredMessage(input.connection.providerKind),
+      error: canvasIdentityRequiredMessage,
     };
   }
 
   return {
-    status: "linked",
-    providerUserId: identity.providerUserId,
+    status: "resolved",
+    accessScope: {
+      kind: "provider_user",
+      providerUserId: identity.providerUserId,
+    },
   };
 };
 
-/** Verifies that the interactive user can manage every referenced LMS course. */
+/** Verifies every referenced course through the provider's resolved authorization boundary. */
 export const authorizeLmsUserCoursesWithScope = async (input: {
   readonly db: SqlDatabase;
   readonly connection: TenantLmsConnectionRecord;
@@ -73,14 +85,14 @@ export const authorizeLmsUserCoursesWithScope = async (input: {
   readonly userId: string;
   readonly courseIds: readonly string[];
 }): Promise<LmsScopedCourseAuthorizationResult> => {
-  const scope = await resolveLmsUserCourseScope(input);
+  const scope = await resolveLmsCourseAccessScope(input);
 
   if (scope.status === "identity_unlinked") {
     return scope;
   }
 
   const access = await input.provider.verifyCourseAccess({
-    providerUserId: scope.providerUserId,
+    accessScope: scope.accessScope,
     courseIds: input.courseIds,
   });
   const unauthorizedCourseId = access.unauthorizedCourseIds[0];
@@ -95,7 +107,10 @@ export const authorizeLmsUserCoursesWithScope = async (input: {
   return {
     status: "course_unauthorized",
     courseId: unauthorizedCourseId,
-    error: `You do not have instructor access to course ${unauthorizedCourseId} in ${input.connection.displayName}.`,
+    error:
+      scope.accessScope.kind === "connection"
+        ? `Course ${unauthorizedCourseId} is not available to ${input.connection.displayName}.`
+        : `You do not have instructor access to course ${unauthorizedCourseId} in ${input.connection.displayName}.`,
   };
 };
 
