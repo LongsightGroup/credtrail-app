@@ -2,18 +2,16 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { seededDemoExecutiveFixture } from "../test-support/seeded-demo-executive-fixture";
 
 const executiveDir = dirname(fileURLToPath(import.meta.url));
-
-const loadFixtureModule = async () => import("./seeded-demo-executive-fixture");
 
 const readRuntimeSource = (relativePath: string): string => {
   return readFileSync(resolve(executiveDir, relativePath), "utf8");
 };
 
 describe("seeded demo executive fixture", () => {
-  it("exports believable system, focused, and scoped executive slices", async () => {
-    const { seededDemoExecutiveFixture } = await loadFixtureModule();
+  it("exports believable system, focused, and scoped executive slices", () => {
     const moduleKinds = seededDemoExecutiveFixture.slices.system.kpiCatalog.modules.map(
       (module) => module.kind,
     );
@@ -45,9 +43,7 @@ describe("seeded demo executive fixture", () => {
     expect(seededDemoExecutiveFixture.slices.scoped.navigation.back).toBeNull();
   });
 
-  it("stays test-only verification data and is not imported by runtime executive code", async () => {
-    await loadFixtureModule();
-
+  it("stays test-only verification data and is not imported by runtime executive code", () => {
     const runtimeSources = [
       "./executive-rollup-loader.ts",
       "./executive-dashboard-page.tsx",
@@ -59,8 +55,7 @@ describe("seeded demo executive fixture", () => {
     }
   });
 
-  it("keeps values route-faithful without introducing demo-only behavior", async () => {
-    const { seededDemoExecutiveFixture } = await loadFixtureModule();
+  it("keeps values route-faithful without introducing demo-only behavior", () => {
     const trendIssuedTotal = seededDemoExecutiveFixture.slices.system.trends.series.reduce(
       (sum, row) => sum + row.issuedCount,
       0,

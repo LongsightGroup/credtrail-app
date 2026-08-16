@@ -6,7 +6,7 @@ import {
   renderExecutiveDashboardPage,
   renderExecutiveUnavailablePage,
 } from "./executive-dashboard-page";
-import { createSeededDemoExecutiveDashboardSlice } from "./seeded-demo-executive-fixture";
+import { createSeededDemoExecutiveDashboardSlice } from "../test-support/seeded-demo-executive-fixture";
 
 describe("renderExecutiveDashboardPage", () => {
   it("renders a dedicated executive shell with linked assets instead of inline route-local styles", () => {

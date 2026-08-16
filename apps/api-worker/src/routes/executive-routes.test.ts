@@ -62,7 +62,7 @@ vi.mock("../executive/executive-rollup-loader", async () => {
 
 import { findTenantMembership } from "@credtrail/db";
 
-import { createSeededDemoExecutiveDashboardSlice } from "../executive/seeded-demo-executive-fixture";
+import { createSeededDemoExecutiveDashboardSlice } from "../test-support/seeded-demo-executive-fixture";
 import { app } from "../index";
 import { pageAssetPath } from "../ui/page-assets";
 

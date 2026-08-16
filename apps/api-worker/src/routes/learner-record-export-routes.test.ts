@@ -63,7 +63,7 @@ import type {
 } from "@credtrail/db";
 
 import { app } from "../index";
-import { getSeededDemoLearnerRecordFixture } from "../learner-record/seeded-demo-learner-record-fixture";
+import { seededDemoLearnerRecordFixture } from "../test-support/seeded-demo-learner-record-fixture";
 
 const createEnv = () => {
   return {
@@ -209,7 +209,7 @@ describe("learner-record export routes", () => {
   });
 
   it("can verify the seeded-demo learner-record export bundle on the normal route", async () => {
-    const seededDemo = getSeededDemoLearnerRecordFixture();
+    const seededDemo = seededDemoLearnerRecordFixture;
     mockedFindLearnerProfileById.mockResolvedValueOnce(seededDemo.learnerProfile);
     mockedListLearnerRecordAssertionExports.mockResolvedValueOnce([...seededDemo.assertionExports]);
     mockedListLearnerRecordEntries.mockResolvedValueOnce([...seededDemo.recordEntries]);
@@ -274,7 +274,7 @@ describe("learner-record export routes", () => {
   });
 
   it("can verify the seeded-demo standards-mapping output on the normal route", async () => {
-    const seededDemo = getSeededDemoLearnerRecordFixture();
+    const seededDemo = seededDemoLearnerRecordFixture;
     mockedFindLearnerProfileById.mockResolvedValueOnce(seededDemo.learnerProfile);
     mockedListLearnerRecordAssertionExports.mockResolvedValueOnce([...seededDemo.assertionExports]);
     mockedListLearnerRecordEntries.mockResolvedValueOnce([...seededDemo.recordEntries]);

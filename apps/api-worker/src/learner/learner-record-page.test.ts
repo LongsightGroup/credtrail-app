@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { LearnerRecordPresentationModel } from "../learner-record/learner-record-presentation";
-import { getSeededDemoLearnerRecordFixture } from "../learner-record/seeded-demo-learner-record-fixture";
+import { seededDemoLearnerRecordFixture } from "../test-support/seeded-demo-learner-record-fixture";
 import { pageAssetPath } from "../ui/page-assets";
 import { renderAppPageToString } from "../ui/render-page";
 import { createLearnerRecordPage } from "./learner-record-page";
@@ -10,14 +9,10 @@ const learnerRecordPage = createLearnerRecordPage({
   formatIsoTimestamp: (value) => value,
 });
 
-const samplePresentation = (): LearnerRecordPresentationModel => {
-  return getSeededDemoLearnerRecordFixture().presentation;
-};
-
 describe("createLearnerRecordPage", () => {
   it("renders the unified learner record without admin-only export affordances", () => {
     const html = renderAppPageToString(
-      learnerRecordPage("tenant_123", samplePresentation(), {
+      learnerRecordPage("tenant_123", seededDemoLearnerRecordFixture.presentation, {
         switchOrganizationPath:
           "/account/organizations?next=%2Ftenants%2Ftenant_123%2Flearner%2Frecord",
       }),
@@ -42,7 +37,7 @@ describe("createLearnerRecordPage", () => {
   it("renders a truthful empty state when the learner record has no items yet", () => {
     const html = renderAppPageToString(
       learnerRecordPage("tenant_123", {
-        ...samplePresentation(),
+        ...seededDemoLearnerRecordFixture.presentation,
         summary: {
           total: 0,
           issuerVerified: 0,
@@ -64,7 +59,7 @@ describe("createLearnerRecordPage", () => {
 
   it("places governed pathway progress above the flat learner-record inventory", () => {
     const html = renderAppPageToString(
-      learnerRecordPage("tenant_123", samplePresentation(), {
+      learnerRecordPage("tenant_123", seededDemoLearnerRecordFixture.presentation, {
         pathways: [
           {
             enrollmentId: "pthe_123",

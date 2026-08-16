@@ -85,7 +85,7 @@ import {
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
-import { getSeededDemoLearnerRecordFixture } from "./learner-record/seeded-demo-learner-record-fixture";
+import { seededDemoLearnerRecordFixture } from "./test-support/seeded-demo-learner-record-fixture";
 
 interface ErrorResponse {
   error: string;
@@ -782,7 +782,7 @@ describe("GET /tenants/:tenantId/learner/record", () => {
   });
 
   it("can verify a seeded-demo learner-record slice on the normal learner route from the canonical fixture", async () => {
-    const seededDemo = getSeededDemoLearnerRecordFixture();
+    const seededDemo = seededDemoLearnerRecordFixture;
 
     mockedResolveLearnerProfileForIdentity.mockResolvedValueOnce(seededDemo.learnerProfile);
     mockedFindLearnerProfileById.mockResolvedValueOnce(seededDemo.learnerProfile);

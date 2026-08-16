@@ -2,19 +2,16 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { seededDemoReportingFixture } from "../test-support/seeded-demo-reporting-fixture";
 
 const reportDir = dirname(fileURLToPath(import.meta.url));
-
-const loadFixtureModule = async () => import("./seeded-demo-reporting-fixture");
 
 const readRuntimeSource = (relativePath: string): string => {
   return readFileSync(resolve(reportDir, relativePath), "utf8");
 };
 
 describe("seeded demo reporting fixture", () => {
-  it("exports a canonical seeded-demo slice with the contract minimums", async () => {
-    const { seededDemoReportingFixture } = await loadFixtureModule();
-
+  it("exports a canonical seeded-demo slice with the contract minimums", () => {
     expect(seededDemoReportingFixture.tenantId).toBe("tenant_123");
     expect(seededDemoReportingFixture.routePath).toBe("/tenants/tenant_123/admin/reporting");
     expect(seededDemoReportingFixture.overview.counts.issued).toBeGreaterThan(0);
@@ -40,9 +37,7 @@ describe("seeded demo reporting fixture", () => {
     );
   });
 
-  it("stays test-only verification data and is not imported by runtime reporting code", async () => {
-    await loadFixtureModule();
-
+  it("stays test-only verification data and is not imported by runtime reporting code", () => {
     const runtimeSources = [
       "../admin/institution-admin-page.tsx",
       "../routes/reporting-routes.ts",
@@ -54,8 +49,7 @@ describe("seeded demo reporting fixture", () => {
     }
   });
 
-  it("keeps seeded values plausible enough for the shipped visuals without inventing metrics", async () => {
-    const { seededDemoReportingFixture } = await loadFixtureModule();
+  it("keeps seeded values plausible enough for the shipped visuals without inventing metrics", () => {
     const supportedComparisonKeys = [
       "claimRate",
       "groupBy",

@@ -16,7 +16,7 @@ import {
 } from "./institution-admin-page-test-utils";
 import { app } from "./index";
 import { readScriptAssetSource, readStyleAssetSource } from "./page-asset-test-utils";
-import { getSeededDemoReportingRouteFixture } from "./reporting/seeded-demo-reporting-fixture";
+import { seededDemoReportingFixture } from "./test-support/seeded-demo-reporting-fixture";
 import { pageAssetPath } from "./ui/page-assets";
 
 const INSTITUTION_ADMIN_CSS = readStyleAssetSource("institutionAdminCss");
@@ -769,7 +769,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
 
   it("can verify a seeded-demo reporting view on the normal reporting route from the canonical fixture", async () => {
     const env = createEnv();
-    const seededDemo = getSeededDemoReportingRouteFixture();
+    const seededDemo = seededDemoReportingFixture;
 
     mockedListTenantOrgUnits.mockResolvedValueOnce([...seededDemo.orgUnits]);
     mockedListBadgeTemplates.mockResolvedValueOnce([...seededDemo.badgeTemplates]);

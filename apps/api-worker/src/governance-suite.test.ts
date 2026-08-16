@@ -54,7 +54,7 @@ describe("admin learner-record review route", () => {
 
   it("can verify the canonical seeded-demo learner-record review route for admins", async () => {
     const env = createEnv();
-    const seededDemo = getSeededDemoLearnerRecordFixture();
+    const seededDemo = seededDemoLearnerRecordFixture;
 
     mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: "admin" }));
     mockedListLearnerProfilesForRecordLookup.mockResolvedValueOnce([seededDemo.learnerProfile]);
@@ -339,8 +339,8 @@ import {
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
-import { getSeededDemoLearnerRecordFixture } from "./learner-record/seeded-demo-learner-record-fixture";
-import { getSeededDemoReportingRouteFixture } from "./reporting/seeded-demo-reporting-fixture";
+import { seededDemoLearnerRecordFixture } from "./test-support/seeded-demo-learner-record-fixture";
+import { seededDemoReportingFixture } from "./test-support/seeded-demo-reporting-fixture";
 
 interface ErrorResponse {
   error: string;
@@ -2190,7 +2190,7 @@ describe("org unit and badge ownership governance endpoints", () => {
 
   it("can verify scoped seeded-demo reporting from the canonical fixture on the normal route", async () => {
     const env = createEnv();
-    const seededDemo = getSeededDemoReportingRouteFixture();
+    const seededDemo = seededDemoReportingFixture;
     const scopedSlice = seededDemo.scopedOrgContext;
 
     mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership({ role: "issuer" }));

@@ -43,7 +43,7 @@ import {
   createSeededDemoExecutiveRollup,
   createSeededDemoExecutiveScope,
   seededDemoExecutiveFixture,
-} from "./seeded-demo-executive-fixture";
+} from "../test-support/seeded-demo-executive-fixture";
 import { loadTenantExecutiveDashboard } from "./executive-rollup-loader";
 
 const mockedGetTenantExecutiveRollupDb = vi.mocked(getTenantExecutiveRollup);

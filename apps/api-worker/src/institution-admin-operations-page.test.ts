@@ -35,7 +35,7 @@ vi.mock("./badges/direct-issue", async () => {
 });
 
 import { app } from "./index";
-import { getSeededDemoLearnerRecordFixture } from "./learner-record/seeded-demo-learner-record-fixture";
+import { seededDemoLearnerRecordFixture } from "./test-support/seeded-demo-learner-record-fixture";
 import { pageAssetPath } from "./ui/page-assets";
 
 beforeEach(() => {
@@ -308,7 +308,7 @@ describe("GET /tenants/:tenantId/admin/operations/learner-records", () => {
   });
 
   it("can verify a seeded-demo learner review on the normal admin operations route", async () => {
-    const seededDemo = getSeededDemoLearnerRecordFixture();
+    const seededDemo = seededDemoLearnerRecordFixture;
 
     mockedListLearnerProfilesForRecordLookupDb.mockResolvedValueOnce([seededDemo.learnerProfile]);
     mockedListLearnerRecordAssertionExportsDb.mockResolvedValueOnce([

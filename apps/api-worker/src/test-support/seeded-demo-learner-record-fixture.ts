@@ -7,7 +7,7 @@ import type {
 import {
   mapAssertionToCanonicalLearnerRecordItem,
   mapLearnerRecordEntryToCanonicalLearnerRecordItem,
-} from "./learner-record-contract";
+} from "../learner-record/learner-record-contract";
 import {
   buildLearnerRecordStandardsMappingResponse,
   createLearnerRecordStandardsMappingCatalog,
@@ -15,11 +15,11 @@ import {
   type LearnerRecordClrAlignedExport,
   type LearnerRecordExportBundle,
   type LearnerRecordPortableExport,
-} from "./learner-record-export";
+} from "../learner-record/learner-record-export";
 import {
   createLearnerRecordPresentation,
   type LearnerRecordPresentationModel,
-} from "./learner-record-presentation";
+} from "../learner-record/learner-record-presentation";
 
 const GENERATED_AT = "2026-03-26T12:00:00.000Z";
 const TENANT_ID = "tenant_123";
@@ -28,14 +28,14 @@ const LEARNER_EMAIL = "learner@example.edu";
 const NATIVE_EXPORT_PROFILE = "native_portable_json";
 const STANDARDS_MAPPING_PROFILE = "clr_alignment_json";
 
-export interface SeededDemoLearnerRecordRouteFamily {
+interface SeededDemoLearnerRecordRouteFamily {
   learnerRecord: string;
   adminReview: string;
   nativeExport: string;
   standardsMapping: string;
 }
 
-export interface SeededDemoLearnerRecordFixture {
+interface SeededDemoLearnerRecordFixture {
   tenantId: string;
   learnerProfileId: string;
   learnerEmail: string;
@@ -218,8 +218,4 @@ export const seededDemoLearnerRecordFixture: SeededDemoLearnerRecordFixture = {
     exportBundle,
     STANDARDS_MAPPING_PROFILE,
   ),
-};
-
-export const getSeededDemoLearnerRecordFixture = (): SeededDemoLearnerRecordFixture => {
-  return seededDemoLearnerRecordFixture;
 };

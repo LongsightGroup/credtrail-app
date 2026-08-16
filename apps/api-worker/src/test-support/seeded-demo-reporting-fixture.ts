@@ -154,14 +154,14 @@ const createComparisonRow = (input: {
   };
 };
 
-export interface SeededDemoReportingHierarchyFixture {
+interface SeededDemoReportingHierarchyFixture {
   focusOrgUnitId: string;
   level: TenantOrgUnitRecord["unitType"];
   orgUnitLineageIds: readonly string[];
   rows: readonly TenantReportingComparisonRowRecord[];
 }
 
-export interface SeededDemoReportingScopedOrgContext {
+interface SeededDemoReportingScopedOrgContext {
   rootOrgUnitId: string;
   orgUnitId: string;
   visibleOrgUnitIds: readonly string[];
@@ -173,7 +173,7 @@ export interface SeededDemoReportingScopedOrgContext {
   rawOrgUnitComparisons: readonly TenantReportingComparisonRowRecord[];
 }
 
-export interface SeededDemoReportingFixture {
+interface SeededDemoReportingFixture {
   tenantId: string;
   routePath: string;
   badgeTemplates: readonly BadgeTemplateRecord[];
@@ -543,8 +543,4 @@ export const seededDemoReportingFixture: SeededDemoReportingFixture = {
     ),
     rawOrgUnitComparisons: scopedRawOrgUnitComparisons,
   },
-};
-
-export const getSeededDemoReportingRouteFixture = (): SeededDemoReportingFixture => {
-  return seededDemoReportingFixture;
 };

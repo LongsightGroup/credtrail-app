@@ -10,13 +10,13 @@ import { createReportingHierarchyPageFilters } from "../reporting/reporting-page
 import {
   buildExecutiveDrilldownPath,
   buildExecutiveDashboardPath,
-} from "./executive-dashboard-paths";
-import { buildExecutiveKpiCatalog } from "./executive-kpi-catalog";
-import type { TenantExecutiveDashboardRecord } from "./executive-rollup-loader";
+} from "../executive/executive-dashboard-paths";
+import { buildExecutiveKpiCatalog } from "../executive/executive-kpi-catalog";
+import type { TenantExecutiveDashboardRecord } from "../executive/executive-rollup-loader";
 
 const GENERATED_AT = "2026-03-22T12:00:00.000Z";
 const TENANT_ID = "tenant_123";
-export const SEEDED_DEMO_EXECUTIVE_VERIFY_COMMAND =
+const SEEDED_DEMO_EXECUTIVE_VERIFY_COMMAND =
   "pnpm exec vitest run apps/api-worker/src/executive/seeded-demo-executive-fixture.test.ts apps/api-worker/src/executive/executive-rollup-loader.test.ts apps/api-worker/src/executive/executive-dashboard-page.test.ts apps/api-worker/src/routes/executive-routes.test.ts";
 
 const createOrgUnit = (input: {
@@ -647,7 +647,7 @@ const scopedSlice: TenantExecutiveDashboardRecord = {
   rollup: rollups.scoped,
 };
 
-export interface SeededDemoExecutiveFixture {
+interface SeededDemoExecutiveFixture {
   tenantId: string;
   routeFamily: {
     landing: string;
@@ -706,9 +706,9 @@ export const seededDemoExecutiveFixture: SeededDemoExecutiveFixture = {
   verificationCommand: SEEDED_DEMO_EXECUTIVE_VERIFY_COMMAND,
 };
 
-export type SeededDemoExecutiveSliceName = keyof SeededDemoExecutiveFixture["slices"];
-export type SeededDemoExecutiveRollupName = keyof SeededDemoExecutiveFixture["rollups"];
-export type SeededDemoExecutiveScopeName = keyof SeededDemoExecutiveFixture["scopes"];
+type SeededDemoExecutiveSliceName = keyof SeededDemoExecutiveFixture["slices"];
+type SeededDemoExecutiveRollupName = keyof SeededDemoExecutiveFixture["rollups"];
+type SeededDemoExecutiveScopeName = keyof SeededDemoExecutiveFixture["scopes"];
 
 const cloneValue = <T>(value: T): T => {
   return structuredClone(value);
