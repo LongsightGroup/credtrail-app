@@ -4,6 +4,8 @@ import type { BadgeTemplateRecord, TenantOrgUnitRecord } from "@credtrail/db";
 
 import {
   buildLearnerRecordImportTemplateCsv,
+  learnerRecordImportQueuePayloadsFromJson,
+  learnerRecordImportRowReportsFromJson,
   parseLearnerRecordImportFile,
   prepareLearnerRecordImportBatch,
 } from "./learner-record-import";
@@ -232,6 +234,55 @@ describe("learner-record import contract", () => {
       errors: ["supplemental_artifact rows must import as learner_supplemental"],
       preview: null,
     });
+  });
+
+  it("validates persisted import JSON with the shared schemas", () => {
+    const prepared = prepareLearnerRecordImportBatch({
+      rows: [
+        {
+          rowNumber: 1,
+          candidate: {
+            learnerEmail: "learner@example.edu",
+            title: "Clinical Placement Seminar",
+            recordType: "course",
+            issuedAt: "2026-03-26T12:00:00.000Z",
+          },
+        },
+      ],
+      defaults: { defaultTrustLevel: "issuer_verified" },
+      tenantDisplayName: "CredTrail University",
+      orgUnits: sampleOrgUnits(),
+      badgeTemplates: sampleBadgeTemplates(),
+      fileName: "learner-records.csv",
+      batchId: "batch_123",
+      requestedAt: "2026-03-26T12:00:00.000Z",
+    });
+    const queuePayload = prepared.queuePayloads[0];
+    const rowReport = prepared.reports[0];
+
+    expect(queuePayload).toBeDefined();
+    expect(rowReport).toBeDefined();
+
+    if (queuePayload === undefined || rowReport === undefined) {
+      throw new Error("Expected one prepared learner-record import row");
+    }
+
+    expect(
+      learnerRecordImportQueuePayloadsFromJson(JSON.stringify(prepared.queuePayloads)),
+    ).toEqual(prepared.queuePayloads);
+    expect(learnerRecordImportRowReportsFromJson(JSON.stringify(prepared.reports))).toEqual(
+      prepared.reports,
+    );
+    expect(
+      learnerRecordImportQueuePayloadsFromJson(
+        JSON.stringify([{ ...queuePayload, requestedAt: "not-a-timestamp" }]),
+      ),
+    ).toBeNull();
+    expect(
+      learnerRecordImportRowReportsFromJson(JSON.stringify([{ ...rowReport, rowNumber: 0 }])),
+    ).toBeNull();
+    expect(learnerRecordImportQueuePayloadsFromJson("{")).toBeNull();
+    expect(learnerRecordImportRowReportsFromJson("{")).toBeNull();
   });
 
   it("builds a downloadable CSV template", () => {

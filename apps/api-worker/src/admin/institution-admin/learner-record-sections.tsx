@@ -1,5 +1,5 @@
 import type { HtmlEscapedString } from "hono/utils/html";
-import type { LearnerRecordImportRowReport } from "../../learner-record/learner-record-import";
+import type { LearnerRecordImportRowReport } from "@credtrail/validation";
 import { formatIsoTimestamp } from "../../utils/display-format";
 import {
   AdminActions,

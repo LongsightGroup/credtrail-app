@@ -64,6 +64,13 @@ export const learnerRecordImportBatchDefaultsSchema = z.object({
   defaultIssuerName: z.string().trim().min(1).max(200).optional(),
 });
 
+const learnerRecordImportInferenceSourceSchema = z.enum([
+  "row",
+  "badge_template",
+  "org_unit",
+  "none",
+]);
+
 export const learnerRecordImportPreparedRowSchema = z.object({
   learnerEmail: z.string().trim().email().max(320),
   learnerDisplayName: z.string().trim().min(1).max(200).nullable(),
@@ -79,11 +86,44 @@ export const learnerRecordImportPreparedRowSchema = z.object({
     orgUnitId: resourceIdSchema.nullable(),
     badgeTemplateId: resourceIdSchema.nullable(),
     pathwayLabel: z.string().trim().min(1).max(200).nullable(),
-    inferredFrom: z
-      .array(z.enum(["row", "badge_template", "org_unit", "none"]))
-      .min(1)
-      .max(4),
+    inferredFrom: z.array(learnerRecordImportInferenceSourceSchema).min(1).max(4),
   }),
+});
+
+const learnerRecordImportSmartContextSchema = z.object({
+  orgUnitId: resourceIdSchema.nullable(),
+  orgUnitLabel: z.string().nullable(),
+  badgeTemplateId: resourceIdSchema.nullable(),
+  badgeTemplateLabel: z.string().nullable(),
+  pathwayLabel: z.string().nullable(),
+  inferredFrom: z.array(learnerRecordImportInferenceSourceSchema),
+});
+
+export const learnerRecordImportPreviewSchema = z.object({
+  learner: z.object({
+    email: z.string(),
+    displayName: z.string().nullable(),
+  }),
+  record: z.object({
+    title: z.string(),
+    recordType: learnerRecordEntryTypeSchema,
+    issuedAt: z.string(),
+    description: z.string().nullable(),
+    sourceRecordId: z.string().nullable(),
+    evidenceLinks: z.array(z.string()),
+  }),
+  trustLevel: learnerRecordTrustLevelSchema,
+  issuerName: z.string(),
+  sourceSystem: z.literal("csv_import"),
+  smartContext: learnerRecordImportSmartContextSchema,
+});
+
+export const learnerRecordImportRowReportSchema = z.object({
+  rowNumber: z.number().int().min(1),
+  status: z.enum(["valid", "invalid"]),
+  errors: z.array(z.string()),
+  warnings: z.array(z.string()),
+  preview: learnerRecordImportPreviewSchema.nullable(),
 });
 
 export const createLearnerRecordEntryRequestSchema = z
@@ -210,6 +250,10 @@ export type LearnerRecordImportRow = z.infer<typeof learnerRecordImportRowSchema
 export type LearnerRecordImportBatchDefaults = z.infer<
   typeof learnerRecordImportBatchDefaultsSchema
 >;
+
+export type LearnerRecordImportSmartContext = z.infer<typeof learnerRecordImportSmartContextSchema>;
+
+export type LearnerRecordImportRowReport = z.infer<typeof learnerRecordImportRowReportSchema>;
 
 export type LearnerRecordProvenance = z.infer<typeof learnerRecordProvenanceSchema>;
 

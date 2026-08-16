@@ -328,6 +328,8 @@ export type MigrationBatchRetryRequest = z.infer<typeof migrationBatchRetryReque
 
 export type LearnerRecordImportRetryRequest = z.infer<typeof learnerRecordImportRetryRequestSchema>;
 
+export type LearnerRecordImportQueuePayload = z.infer<typeof learnerRecordImportQueuePayloadSchema>;
+
 export type Ob2ImportConversionRequest = z.infer<typeof ob2ImportConversionRequestSchema>;
 
 export type IssueBadgeQueueJob = z.infer<typeof issueBadgeQueueJobSchema>;
