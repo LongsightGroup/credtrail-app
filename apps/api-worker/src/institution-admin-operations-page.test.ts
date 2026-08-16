@@ -15,7 +15,7 @@ import {
   mockedFindBadgeIssuanceRuleVersionByIdDb,
   mockedMarkLearnerRecordImportPreviewQueuedDb,
   sampleLearnerRecordAssertionExport,
-} from "./institution-admin-page-test-utils";
+} from "./institution-admin-test-utils/operations-test-harness";
 import { buildBadgeRuleVersionRecord } from "./test-support/badge-rule-version";
 
 const { mockedIssueBadgeForTenant } = vi.hoisted(() => {

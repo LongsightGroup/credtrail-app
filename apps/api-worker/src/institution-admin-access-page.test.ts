@@ -17,7 +17,7 @@ import {
   mockedResolveTenantDefaultBadgeRuleApprovalPolicyDb,
   mockedUpsertTenantMembershipOrgUnitScopeDb,
   mockedUpsertBadgeRuleApprovalPolicyDb,
-} from "./institution-admin-page-test-utils";
+} from "./institution-admin-test-utils/access-test-harness";
 import { app } from "./index";
 import { readScriptAssetSource } from "./page-asset-test-utils";
 import { pageAssetPath } from "./ui/page-assets";

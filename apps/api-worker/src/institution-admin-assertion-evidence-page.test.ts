@@ -5,7 +5,7 @@ import {
   mockedListTenantAssertions,
   sampleTenantAssertionSummary,
   stubAssertionEvidenceMocks,
-} from "./institution-admin-page-test-utils";
+} from "./institution-admin-test-utils/operations-test-harness";
 import { app } from "./index";
 import { pageAssetPath } from "./ui/page-assets";
 

@@ -1,4 +1,4 @@
-import { beforeEach, expect, vi } from "vitest";
+import { expect, vi } from "vitest";
 import { buildBadgeRuleVersionRecord } from "../test-support/badge-rule-version";
 
 import {
@@ -124,15 +124,15 @@ export const mockedSetBadgeTemplateArchivedState = vi.mocked(setBadgeTemplateArc
 export const mockedCreateBadgeTemplate = vi.mocked(createBadgeTemplate);
 export const mockedUpdateBadgeTemplate = vi.mocked(updateBadgeTemplate);
 export const mockedCreateAuditLogDb = vi.mocked(createAuditLog);
-export const mockedListAuditLogs = vi.mocked(listAuditLogs);
+const mockedListAuditLogs = vi.mocked(listAuditLogs);
 export const mockedListBadgeTemplateImageRevisions = vi.mocked(listBadgeTemplateImageRevisions);
-export const mockedListBadgeTemplateOwnershipEvents = vi.mocked(listBadgeTemplateOwnershipEvents);
+const mockedListBadgeTemplateOwnershipEvents = vi.mocked(listBadgeTemplateOwnershipEvents);
 export const mockedCreateLearnerRecordImportPreviewDb = vi.mocked(createLearnerRecordImportPreview);
 export const mockedFindActiveLearnerRecordImportPreviewDb = vi.mocked(
   findActiveLearnerRecordImportPreview,
 );
-export const mockedFindLearnerProfileByIdDb = vi.mocked(findLearnerProfileById);
-export const mockedFindLearnerProfileByIdentityDb = vi.mocked(findLearnerProfileByIdentity);
+const mockedFindLearnerProfileByIdDb = vi.mocked(findLearnerProfileById);
+const mockedFindLearnerProfileByIdentityDb = vi.mocked(findLearnerProfileByIdentity);
 export const mockedListLearnerProfilesForRecordLookupDb = vi.mocked(
   listLearnerProfilesForRecordLookup,
 );
@@ -159,7 +159,7 @@ export const mockedListBadgeIssuanceRuleVersions = vi.mocked(listBadgeIssuanceRu
 export const mockedListBadgeIssuanceRuleVersionsForRules = vi.mocked(
   listBadgeIssuanceRuleVersionsForRules,
 );
-export const mockedListBadgeTemplateRuleUsagesDb = mockedListBadgeTemplateRuleUsages;
+const mockedListBadgeTemplateRuleUsagesDb = mockedListBadgeTemplateRuleUsages;
 export const mockedFindBadgeIssuanceRuleVersionByIdDb = vi.mocked(findBadgeIssuanceRuleVersionById);
 export const mockedFindBadgeIssuanceRuleBuilderDraftDb = vi.mocked(
   findBadgeIssuanceRuleBuilderDraftById,
@@ -185,18 +185,16 @@ export const mockedReopenApprovedBadgeIssuanceRuleVersionDb = vi.mocked(
 export const mockedWithdrawBadgeIssuanceRuleVersionSubmissionDb = vi.mocked(
   withdrawBadgeIssuanceRuleVersionSubmission,
 );
-export const mockedRecertifyBadgeIssuanceRuleVersionDb = vi.mocked(
-  recertifyBadgeIssuanceRuleVersion,
-);
+const mockedRecertifyBadgeIssuanceRuleVersionDb = vi.mocked(recertifyBadgeIssuanceRuleVersion);
 export const mockedCreateBadgeRuleApproverGroupDb = vi.mocked(createBadgeRuleApproverGroup);
 export const mockedAddBadgeRuleApproverGroupMemberDb = vi.mocked(addBadgeRuleApproverGroupMember);
-export const mockedListBadgeRuleApproverGroupsWithMembersDb = vi.mocked(
+const mockedListBadgeRuleApproverGroupsWithMembersDb = vi.mocked(
   listBadgeRuleApproverGroupsWithMembers,
 );
 export const mockedRemoveBadgeRuleApproverGroupMemberDb = vi.mocked(
   removeBadgeRuleApproverGroupMember,
 );
-export const mockedRemoveBadgeRuleApproverGroupDb = vi.mocked(removeBadgeRuleApproverGroup);
+const mockedRemoveBadgeRuleApproverGroupDb = vi.mocked(removeBadgeRuleApproverGroup);
 export const mockedUpsertBadgeRuleApprovalPolicyDb = vi.mocked(upsertBadgeRuleApprovalPolicy);
 export const mockedListBadgeIssuanceRuleEvaluations = vi.mocked(listBadgeIssuanceRuleEvaluations);
 export const mockedListBadgeIssuanceRuleValueLists = vi.mocked(listBadgeIssuanceRuleValueLists);
@@ -215,36 +213,36 @@ export const mockedListBadgeTemplateImageRevisionCountsByTenant = vi.mocked(
   listBadgeTemplateImageRevisionCountsByTenant,
 );
 export const mockedListBadgeTemplates = vi.mocked(listBadgeTemplates);
-export const mockedListImportLearnerRecordBatchQueueMessagesDb = vi.mocked(
+const mockedListImportLearnerRecordBatchQueueMessagesDb = vi.mocked(
   listImportLearnerRecordBatchQueueMessages,
 );
 export const mockedListTenantOrgUnits = vi.mocked(listTenantOrgUnits);
-export const mockedListTenantApiKeys = vi.mocked(listTenantApiKeys);
+const mockedListTenantApiKeys = vi.mocked(listTenantApiKeys);
 export const mockedListTenantAssertions = vi.mocked(listTenantAssertions);
 export const mockedFindAssertionById = vi.mocked(findAssertionById);
-export const mockedFindAssertionIssuanceProvenanceByAssertionId = vi.mocked(
+const mockedFindAssertionIssuanceProvenanceByAssertionId = vi.mocked(
   findAssertionIssuanceProvenanceByAssertionId,
 );
-export const mockedFindAssertionReportingAttributionByAssertionId = vi.mocked(
+const mockedFindAssertionReportingAttributionByAssertionId = vi.mocked(
   findAssertionReportingAttributionByAssertionId,
 );
-export const mockedFindBadgeIssuanceRuleEvaluationByAssertionId = vi.mocked(
+const mockedFindBadgeIssuanceRuleEvaluationByAssertionId = vi.mocked(
   findBadgeIssuanceRuleEvaluationByAssertionId,
 );
 export const mockedFindTenantOrgUnitById = vi.mocked(findTenantOrgUnitById);
-export const mockedFindUsersByIds = vi.mocked(findUsersByIds);
-export const mockedListAssertionLifecycleEvents = vi.mocked(listAssertionLifecycleEvents);
-export const mockedListAuditLogsForAssertion = vi.mocked(listAuditLogsForAssertion);
-export const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
+const mockedFindUsersByIds = vi.mocked(findUsersByIds);
+const mockedListAssertionLifecycleEvents = vi.mocked(listAssertionLifecycleEvents);
+const mockedListAuditLogsForAssertion = vi.mocked(listAuditLogsForAssertion);
+const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
 export const mockedRecordAssertionLifecycleTransition = vi.mocked(
   recordAssertionLifecycleTransition,
 );
-export const mockedCreateTenantApiKey = vi.mocked(createTenantApiKey);
-export const mockedRevokeTenantApiKey = vi.mocked(revokeTenantApiKey);
-export const mockedUpsertTenantLmsConnection = vi.mocked(upsertTenantLmsConnection);
-export const mockedFindTenantLmsConnectionByIdDb = vi.mocked(findTenantLmsConnectionById);
-export const mockedListTenantLmsConnectionsDb = vi.mocked(listTenantLmsConnections);
-export const mockedListTenantMembersDb = vi.mocked(listTenantMembers);
+const mockedCreateTenantApiKey = vi.mocked(createTenantApiKey);
+const mockedRevokeTenantApiKey = vi.mocked(revokeTenantApiKey);
+const mockedUpsertTenantLmsConnection = vi.mocked(upsertTenantLmsConnection);
+const mockedFindTenantLmsConnectionByIdDb = vi.mocked(findTenantLmsConnectionById);
+const mockedListTenantLmsConnectionsDb = vi.mocked(listTenantLmsConnections);
+const mockedListTenantMembersDb = vi.mocked(listTenantMembers);
 export const mockedListTenantMembershipOrgUnitScopes = vi.mocked(listTenantMembershipOrgUnitScopes);
 export const mockedUpsertTenantMembershipOrgUnitScopeDb = vi.mocked(
   upsertTenantMembershipOrgUnitScope,
@@ -265,7 +263,7 @@ export const mockedListLearnerRecordAssertionExportsDb = vi.mocked(
   listLearnerRecordAssertionExports,
 );
 export const mockedListLearnerRecordEntriesDb = vi.mocked(listLearnerRecordEntries);
-export const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
+const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 export const fakeDbPrepare = vi.fn();
 export const fakeDb = {
   prepare: fakeDbPrepare,
@@ -299,7 +297,7 @@ export const sampleMembership = (role: TenantMembershipRecord["role"]): TenantMe
   };
 };
 
-export const sampleTenantMember = (overrides?: Partial<TenantMemberRecord>): TenantMemberRecord => {
+const sampleTenantMember = (overrides?: Partial<TenantMemberRecord>): TenantMemberRecord => {
   return {
     tenantId: "tenant_123",
     userId: "usr_member",
@@ -311,9 +309,7 @@ export const sampleTenantMember = (overrides?: Partial<TenantMemberRecord>): Ten
   };
 };
 
-export const sampleLearnerProfile = (
-  overrides?: Partial<LearnerProfileRecord>,
-): LearnerProfileRecord => {
+const sampleLearnerProfile = (overrides?: Partial<LearnerProfileRecord>): LearnerProfileRecord => {
   return {
     id: "lpr_123",
     tenantId: "tenant_123",
@@ -453,7 +449,7 @@ export const stubAssertionEvidenceMocks = (
   );
 };
 
-export const sampleLearnerRecordEntry = (
+const sampleLearnerRecordEntry = (
   overrides?: Partial<LearnerRecordEntryRecord>,
 ): LearnerRecordEntryRecord => {
   return {
@@ -480,7 +476,7 @@ export const sampleLearnerRecordEntry = (
   };
 };
 
-export const sampleTenantLmsConnection = (
+const sampleTenantLmsConnection = (
   overrides?: Partial<TenantLmsConnectionRecord>,
 ): TenantLmsConnectionRecord => {
   return {
@@ -508,7 +504,7 @@ export const sampleTenantLmsConnection = (
   };
 };
 
-export const sampleReportingOrgUnits = () => {
+const sampleReportingOrgUnits = () => {
   return [
     {
       id: "tenant_123:org:institution",
@@ -663,7 +659,7 @@ const defaultBadgeRuleVersion = buildBadgeRuleVersionRecord({
   },
 });
 
-beforeEach(() => {
+export const resetInstitutionAdminTestDefaults = (): void => {
   fakeDbPrepare.mockReset();
   mockedCreatePostgresDatabase.mockReset();
   mockedCreatePostgresDatabase.mockReturnValue(fakeDb);
@@ -1441,4 +1437,4 @@ beforeEach(() => {
   );
   mockedResolveBetterAuthRequestedTenant.mockReset();
   mockedResolveBetterAuthRequestedTenant.mockResolvedValue(null);
-});
+};

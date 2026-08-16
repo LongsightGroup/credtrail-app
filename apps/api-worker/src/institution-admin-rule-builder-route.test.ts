@@ -6,7 +6,7 @@ import {
   mockedListBadgeIssuanceRules,
   mockedListBadgeIssuanceRuleVersions,
   mockedListBadgeTemplates,
-} from "./institution-admin-page-test-utils";
+} from "./institution-admin-test-utils/rules-test-harness";
 import { buildBadgeRuleVersionRecord } from "./test-support/badge-rule-version";
 import { app } from "./index";
 import { pageAssetPath } from "./ui/page-assets";

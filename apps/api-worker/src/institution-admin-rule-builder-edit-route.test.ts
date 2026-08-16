@@ -10,7 +10,7 @@ import {
   mockedListBadgeIssuanceRules,
   mockedListBadgeIssuanceRuleVersions,
   sampleMembership,
-} from "./institution-admin-page-test-utils";
+} from "./institution-admin-test-utils/rules-test-harness";
 import { app } from "./index";
 import { buildBadgeRuleVersionRecord } from "./test-support/badge-rule-version";
 

@@ -6,7 +6,7 @@ import {
   mockedFindBadgeIssuanceRuleEvaluationById,
   mockedListBadgeIssuanceRuleEvaluations,
   mockedResolveBadgeIssuanceRuleEvaluationReview,
-} from "./institution-admin-page-test-utils";
+} from "./institution-admin-test-utils/rules-test-harness";
 import { app } from "./index";
 
 describe("POST /tenants/:tenantId/admin/rules/value-lists", () => {

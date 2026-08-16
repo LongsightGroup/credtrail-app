@@ -13,7 +13,7 @@ import {
   mockedListTenantMembershipOrgUnitScopes,
   mockedListTenantOrgUnits,
   sampleMembership,
-} from "./institution-admin-page-test-utils";
+} from "./institution-admin-test-utils/reporting-test-harness";
 import { app } from "./index";
 import { readScriptAssetSource, readStyleAssetSource } from "./page-asset-test-utils";
 import { seededDemoReportingFixture } from "./test-support/seeded-demo-reporting-fixture";

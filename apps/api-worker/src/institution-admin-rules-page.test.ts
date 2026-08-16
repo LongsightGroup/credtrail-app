@@ -44,7 +44,7 @@ import {
   mockedUpdateBadgeTemplate,
   sampleRuleBadgeTemplate,
   sampleMembership,
-} from "./institution-admin-page-test-utils";
+} from "./institution-admin-test-utils/rules-test-harness";
 import { buildBadgeRuleVersionRecord } from "./test-support/badge-rule-version";
 import { app } from "./index";
 import { readScriptAssetSource } from "./page-asset-test-utils";

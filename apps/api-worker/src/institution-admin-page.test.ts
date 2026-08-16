@@ -11,7 +11,7 @@ import {
   mockedListBadgeIssuanceRuleVersionsForRules,
   mockedListBadgeTemplates,
   sampleMembership,
-} from "./institution-admin-page-test-utils";
+} from "./institution-admin-test-utils/rules-test-harness";
 import { app } from "./index";
 import { pageAssetPath } from "./ui/page-assets";
 
