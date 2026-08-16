@@ -1,6 +1,6 @@
 .ct-admin__builder-canvas {
   --ct-stack-gap: 0.55rem;
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-md);
   background: var(--ct-theme-surface-info);
   padding: 0.58rem;
@@ -15,7 +15,7 @@
   margin: 0;
   padding: 0.62rem 0.66rem;
   border-radius: var(--ct-radius-sm);
-  border: 1px dashed var(--ct-border-soft);
+  border: 1px dashed var(--ct-theme-border-soft);
   background: var(--ct-theme-surface-card-strong);
   color: var(--ct-theme-text-subtle);
   font-size: 0.84rem;
@@ -26,7 +26,7 @@
 .ct-admin__builder-flow {
   --ct-stack-gap: 0.58rem;
   padding: 0.72rem;
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-md);
   background: var(--ct-theme-surface-card-strong);
 }
@@ -53,7 +53,7 @@
   align-self: center;
   min-height: 1.8rem;
   padding: 0.16rem 0.48rem;
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-pill);
   background: var(--ct-theme-surface-soft);
   color: var(--ct-theme-text-muted);
@@ -71,7 +71,7 @@
   background: var(--ct-theme-surface-info);
 }
 .ct-admin__builder-flow-node strong {
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
   font-size: 0.88rem;
   line-height: 1.25;
 }
@@ -125,7 +125,7 @@
 .ct-admin__builder-simulation {
   padding: 0.82rem;
   border-radius: var(--ct-radius-md);
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   background: linear-gradient(
     180deg,
     var(--ct-theme-surface-card-strong),
@@ -137,13 +137,13 @@
 .ct-admin__builder-rail-card {
   padding: 0.78rem 0.82rem;
   border-radius: var(--ct-radius-md);
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   background: var(--ct-theme-surface-soft);
 }
 .ct-admin__builder-source-panel {
   --ct-stack-gap: 0.56rem;
   padding-top: 0.74rem;
-  border-top: 1px solid var(--ct-border-soft);
+  border-top: 1px solid var(--ct-theme-border-soft);
 }
 .ct-admin__builder-source-list {
   display: grid;
@@ -155,12 +155,12 @@
   display: grid;
   gap: 0.18rem;
   padding: 0.54rem 0.58rem;
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-sm);
   background: var(--ct-theme-surface-card-strong);
 }
 .ct-admin__builder-source-list dt {
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
   font-size: 0.82rem;
   font-weight: 700;
 }
@@ -181,7 +181,7 @@
   min-height: 2.4rem;
   cursor: pointer;
   font-weight: 700;
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
 }
 .ct-admin__builder-summary-list {
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -205,7 +205,7 @@
 }
 .ct-admin__condition-card.is-dragging {
   opacity: 0.65;
-  box-shadow: var(--ct-focus-ring);
+  box-shadow: var(--ct-theme-shadow-focus);
 }
 .ct-admin__condition-card--course_completion {
   border-color: var(--ct-theme-border-success);
@@ -223,7 +223,7 @@
   border-color: var(--ct-theme-border-info);
 }
 .ct-admin__condition-card--time_window {
-  border-color: var(--ct-border-strong);
+  border-color: var(--ct-theme-border-default);
 }
 .ct-admin__condition-card--prerequisite_badge {
   border-color: var(--ct-theme-border-danger);

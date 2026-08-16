@@ -12,7 +12,7 @@
   font-size: 0.92rem;
   line-height: 1.45;
   font-weight: 600;
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
 }
 .ct-admin__condition-details {
   --ct-stack-gap: 0.55rem;
@@ -27,7 +27,7 @@
   display: inline-flex;
   align-items: center;
   border-radius: var(--ct-radius-pill);
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   background: var(--ct-theme-surface-soft);
   color: var(--ct-theme-text-muted);
   font-size: 0.74rem;
@@ -42,7 +42,7 @@
   width: auto;
   height: 1.7rem;
   border-radius: var(--ct-radius-sm);
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   background: var(--ct-theme-surface-info);
   color: var(--ct-theme-text-muted);
   font-size: 0.72rem;
@@ -65,7 +65,7 @@
 }
 .ct-admin__condition-advanced {
   align-self: end;
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-sm);
   background: var(--ct-theme-surface-soft);
   padding: 0.22rem 0.42rem;
@@ -148,7 +148,7 @@
   align-items: start;
   gap: 0.65rem;
   text-align: left;
-  border: 1px solid var(--ct-border-strong);
+  border: 1px solid var(--ct-theme-border-default);
   border-radius: var(--ct-radius-md);
   background: var(--ct-theme-surface-info);
   color: var(--ct-theme-text-body);
@@ -172,7 +172,7 @@
   inline-size: 1.7rem;
   block-size: 1.7rem;
   border-radius: 999px;
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   background: var(--ct-theme-surface-card-strong);
   color: var(--ct-theme-text-subtle);
   font-size: 0.78rem;
@@ -211,7 +211,7 @@
   color: var(--ct-theme-text-on-brand);
   border-color: transparent;
   background: var(--ct-theme-gradient-action);
-  box-shadow: var(--ct-shadow-soft);
+  box-shadow: var(--ct-theme-shadow-soft);
 }
 .ct-admin__step-button.is-active .ct-admin__step-number {
   border-color: rgba(255, 255, 255, 0.28);
@@ -229,7 +229,7 @@
 }
 .ct-admin__step-button.is-locked:hover,
 .ct-admin__step-button:disabled:hover {
-  border-color: var(--ct-border-strong);
+  border-color: var(--ct-theme-border-default);
   background: var(--ct-theme-surface-info);
   color: var(--ct-theme-text-body);
 }
@@ -240,7 +240,7 @@
 }
 .ct-admin__builder-steps--vertical-stepper .ct-admin__step-button.is-locked .ct-admin__step-number,
 .ct-admin__builder-steps--vertical-stepper .ct-admin__step-button:disabled .ct-admin__step-number {
-  border-color: var(--ct-border-soft);
+  border-color: var(--ct-theme-border-soft);
   background: var(--ct-theme-surface-soft);
   color: var(--ct-theme-text-muted);
 }
@@ -253,7 +253,7 @@
   color: var(--ct-theme-text-muted);
 }
 .ct-admin__builder-advanced {
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-md);
   background: var(--ct-theme-surface-soft);
   padding: 0.58rem 0.64rem;
@@ -264,7 +264,7 @@
   min-height: 2.75rem;
   cursor: pointer;
   font-weight: 700;
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
 }
 .ct-admin__builder-advanced[open] > summary {
   margin-bottom: 0.45rem;
@@ -277,7 +277,7 @@
   min-height: 2.15rem;
 }
 .ct-admin__builder-guide {
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-md);
   background: var(--ct-theme-surface-soft);
   padding: 0.58rem 0.64rem;
@@ -288,7 +288,7 @@
   min-height: 2.75rem;
   cursor: pointer;
   font-weight: 700;
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
 }
 .ct-admin__builder-guide[open] > summary {
   margin-bottom: 0.45rem;
@@ -306,7 +306,7 @@
 .ct-admin__builder-guide-list dt {
   font-size: 0.82rem;
   font-weight: 700;
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
 }
 .ct-admin__builder-guide-list dd {
   margin: 0;
@@ -325,11 +325,11 @@
 }
 .ct-admin__builder-summary-list dt {
   font-size: 0.8rem;
-  color: var(--ct-color-ink-soft);
+  color: var(--ct-theme-text-muted);
 }
 .ct-admin__builder-summary-list dd {
   margin: 0;
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
   font-weight: 700;
 }
 .ct-admin__builder-summary-value[data-tone='success'] {

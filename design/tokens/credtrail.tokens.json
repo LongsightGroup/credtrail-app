@@ -266,86 +266,6 @@
         }
       }
     },
-    "color": {
-      "ink-strong": {
-        "$type": "color",
-        "$value": "{ct.theme.text.title}"
-      },
-      "ink": {
-        "$type": "color",
-        "$value": "{ct.theme.text.body}"
-      },
-      "ink-soft": {
-        "$type": "color",
-        "$value": "{ct.theme.text.muted}"
-      },
-      "link": {
-        "$type": "color",
-        "$value": "{ct.theme.link}"
-      },
-      "link-hover": {
-        "$type": "color",
-        "$value": "{ct.theme.link-hover}"
-      },
-      "primary": {
-        "900": {
-          "$type": "color",
-          "$value": "{ct.brand.midnight.900}"
-        },
-        "700": {
-          "$type": "color",
-          "$value": "{ct.brand.lake.700}"
-        },
-        "500": {
-          "$type": "color",
-          "$value": "{ct.brand.lake.500}"
-        }
-      },
-      "success": {
-        "$type": "color",
-        "$value": "{ct.theme.state.success}"
-      },
-      "danger": {
-        "$type": "color",
-        "$value": "{ct.theme.state.danger}"
-      },
-      "warning": {
-        "$type": "color",
-        "$value": "{ct.theme.state.warning}"
-      }
-    },
-    "surface": {
-      "base": {
-        "$type": "color",
-        "$value": "{ct.theme.surface.card-strong}"
-      },
-      "soft": {
-        "$type": "color",
-        "$value": "{ct.theme.surface.soft}"
-      },
-      "elevated": {
-        "$type": "color",
-        "$value": "{ct.theme.surface.card}"
-      },
-      "shell": {
-        "$type": "color",
-        "$value": "{ct.theme.surface.shell}"
-      }
-    },
-    "border": {
-      "soft": {
-        "$type": "color",
-        "$value": "{ct.theme.border.soft}"
-      },
-      "strong": {
-        "$type": "color",
-        "$value": "{ct.theme.border.default}"
-      },
-      "focus": {
-        "$type": "color",
-        "$value": "{ct.theme.border.focus}"
-      }
-    },
     "space": {
       "1": {
         "$type": "dimension",
@@ -392,22 +312,6 @@
       "pill": {
         "$type": "dimension",
         "$value": "999px"
-      }
-    },
-    "shadow": {
-      "card": {
-        "$value": "{ct.theme.shadow.card}"
-      },
-      "soft": {
-        "$value": "{ct.theme.shadow.soft}"
-      },
-      "shell": {
-        "$value": "{ct.theme.shadow.shell}"
-      }
-    },
-    "focus": {
-      "ring": {
-        "$value": "{ct.theme.shadow.focus}"
       }
     },
     "duration": {

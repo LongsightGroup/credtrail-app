@@ -26,7 +26,7 @@
   align-items: end;
   gap: var(--ct-space-3);
   padding-block: var(--ct-space-3);
-  border-block: 1px solid var(--ct-border-soft);
+  border-block: 1px solid var(--ct-theme-border-soft);
 }
 
 .ct-admin__rule-version-navigation-form {
@@ -80,7 +80,7 @@
   place-items: center;
   inline-size: 6rem;
   block-size: 6rem;
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-md);
   background: var(--ct-theme-surface-soft);
   overflow: hidden;
@@ -136,7 +136,7 @@
 
 .ct-admin__rule-version-lifecycle-summary {
   padding-block-start: var(--ct-space-2);
-  border-block-start: 1px solid var(--ct-border-soft);
+  border-block-start: 1px solid var(--ct-theme-border-soft);
   font-size: 0.86rem;
 }
 
@@ -154,7 +154,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--ct-space-5);
   padding-block: var(--ct-space-4);
-  border-block: 1px solid var(--ct-border-soft);
+  border-block: 1px solid var(--ct-theme-border-soft);
 }
 
 .ct-admin__rule-version-metadata-groups > section {
@@ -211,7 +211,7 @@
 
 .ct-admin__rule-version-technical-details {
   padding-block-start: var(--ct-space-3);
-  border-block-start: 1px solid var(--ct-border-soft);
+  border-block-start: 1px solid var(--ct-theme-border-soft);
   color: var(--ct-theme-text-subtle);
   font-size: 0.8rem;
 }

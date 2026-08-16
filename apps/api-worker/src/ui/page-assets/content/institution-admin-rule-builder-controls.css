@@ -22,7 +22,7 @@
   --ct-stack-gap: 0.6rem;
   padding: 0.75rem;
   border-radius: var(--ct-radius-md);
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   background: linear-gradient(
     180deg,
     var(--ct-theme-surface-card-strong),
@@ -34,7 +34,7 @@
 }
 .ct-admin__step-head {
   --ct-stack-gap: 0.28rem;
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-md);
   background: linear-gradient(
     180deg,
@@ -67,7 +67,7 @@
   margin: 0;
 }
 .ct-admin__builder-principle strong {
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
   font-size: 0.9rem;
 }
 .ct-admin__builder-principle p {
@@ -82,14 +82,14 @@
 }
 .ct-admin__field-label {
   font-size: 0.88rem;
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
 }
 .ct-admin__segmented-control {
   display: inline-grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.18rem;
   padding: 0.18rem;
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-sm);
   background: var(--ct-theme-surface-soft);
 }
@@ -129,8 +129,8 @@
 }
 .ct-admin__segmented-control input:checked + span {
   background: var(--ct-theme-surface-card-strong);
-  color: var(--ct-color-ink);
-  box-shadow: var(--ct-shadow-soft);
+  color: var(--ct-theme-text-body);
+  box-shadow: var(--ct-theme-shadow-soft);
 }
 .ct-admin__segmented-control input:focus-visible + span {
   outline: 2px solid var(--ct-theme-border-focus);

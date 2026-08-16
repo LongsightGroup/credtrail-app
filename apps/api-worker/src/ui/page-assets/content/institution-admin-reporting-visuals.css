@@ -43,7 +43,7 @@
   border: 1px solid var(--ct-reporting-visual-border);
   border-radius: var(--ct-radius-lg);
   background: var(--ct-reporting-visual-surface);
-  box-shadow: var(--ct-shadow-soft);
+  box-shadow: var(--ct-theme-shadow-soft);
 }
 .ct-reporting-visual__header {
   display: grid;

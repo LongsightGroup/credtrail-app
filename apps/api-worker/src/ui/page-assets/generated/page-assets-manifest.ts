@@ -1,11 +1,11 @@
 export const PAGE_ASSET_MANIFEST = {
   foundationCss: {
     kind: "style",
-    path: "/assets/ui/foundation.d875b666aa.css",
+    path: "/assets/ui/foundation.b06c018c49.css",
   },
   authLoginCss: {
     kind: "style",
-    path: "/assets/ui/auth-login.7e802e331e.css",
+    path: "/assets/ui/auth-login.9d7c219a3e.css",
   },
   authLoginJs: {
     kind: "script",
@@ -17,11 +17,11 @@ export const PAGE_ASSET_MANIFEST = {
   },
   designSystemCss: {
     kind: "style",
-    path: "/assets/ui/design-system.518036499a.css",
+    path: "/assets/ui/design-system.82b8499e76.css",
   },
   institutionAdminCss: {
     kind: "style",
-    path: "/assets/ui/institution-admin.d995097d48.css",
+    path: "/assets/ui/institution-admin.81bfed116a.css",
   },
   institutionAdminJs: {
     kind: "script",
@@ -37,7 +37,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminTemplateEditorCss: {
     kind: "style",
-    path: "/assets/ui/institution-admin-template-editor.4646f6644b.css",
+    path: "/assets/ui/institution-admin-template-editor.5eabe8e1ef.css",
   },
   institutionAdminBadgeTemplateListJs: {
     kind: "script",
@@ -57,7 +57,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminRuleVersionCss: {
     kind: "style",
-    path: "/assets/ui/institution-admin-rule-version.c32dbac2fa.css",
+    path: "/assets/ui/institution-admin-rule-version.c5cd21ad6e.css",
   },
   institutionAdminRuleApprovalReviewJs: {
     kind: "script",
@@ -65,7 +65,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   institutionAdminRuleApprovalReviewCss: {
     kind: "style",
-    path: "/assets/ui/institution-admin-rule-approval-review.bde78ecafe.css",
+    path: "/assets/ui/institution-admin-rule-approval-review.9f7cf50bcd.css",
   },
   assertionEvidenceCss: {
     kind: "style",
@@ -89,7 +89,7 @@ export const PAGE_ASSET_MANIFEST = {
   },
   ltiPagesCss: {
     kind: "style",
-    path: "/assets/ui/lti-pages.bf653b6d68.css",
+    path: "/assets/ui/lti-pages.8577ba9025.css",
   },
   ltiCourseSummaryJs: {
     kind: "script",

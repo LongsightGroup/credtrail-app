@@ -8,7 +8,7 @@
   display: grid;
   gap: var(--ct-field-gap);
   min-width: 0;
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
   font-size: 0.88rem;
   font-weight: 600;
 }
@@ -25,7 +25,7 @@
 }
 
 .ct-field__label {
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
   font-size: 0.88rem;
   font-weight: 600;
   line-height: 1.3;
@@ -53,7 +53,7 @@
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  border: 1px solid var(--ct-border-strong);
+  border: 1px solid var(--ct-theme-border-default);
   border-radius: var(--ct-radius-md);
   min-height: 2.75rem;
   padding: 0.65rem 0.72rem;
@@ -118,7 +118,7 @@
 .ct-textarea:focus-visible {
   outline: none;
   border-color: var(--ct-theme-border-focus);
-  box-shadow: var(--ct-focus-ring);
+  box-shadow: var(--ct-theme-shadow-focus);
 }
 
 .ct-input:user-invalid,
@@ -169,7 +169,7 @@
   align-items: center;
   gap: var(--ct-space-2);
   min-width: 0;
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
   font-size: 0.88rem;
   font-weight: 600;
   line-height: 1.35;

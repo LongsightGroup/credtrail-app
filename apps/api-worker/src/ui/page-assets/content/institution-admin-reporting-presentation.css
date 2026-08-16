@@ -239,7 +239,7 @@
   min-height: 2.25rem;
   padding: 0.45rem 0.85rem;
   border-radius: var(--ct-radius-sm);
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   background: var(--ct-theme-surface-card-strong);
   color: var(--ct-theme-text-title);
   font-size: 0.86rem;

@@ -13,7 +13,7 @@
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   background: #ffffff;
-  border-right: 1px solid var(--ct-border-soft);
+  border-right: 1px solid var(--ct-theme-border-soft);
   display: grid;
   grid-template-rows: auto 1fr auto;
   padding: 0;
@@ -27,7 +27,7 @@
   letter-spacing: 0;
   text-decoration: none;
   display: block;
-  border-bottom: 1px solid var(--ct-border-soft);
+  border-bottom: 1px solid var(--ct-theme-border-soft);
 }
 .ct-admin-sidebar__nav {
   padding: 0.9rem 1.25rem;
@@ -136,7 +136,7 @@
 .ct-admin-sidebar__group-content {
   margin: 0.18rem 0 0.56rem 0.78rem;
   padding-left: 0.72rem;
-  border-left: 1px solid var(--ct-border-soft);
+  border-left: 1px solid var(--ct-theme-border-soft);
 }
 .ct-admin-sidebar__link {
   display: flex;
@@ -184,7 +184,7 @@
   display: grid;
   gap: 0.08rem;
   padding: 0.75rem 1.25rem;
-  border-top: 1px solid var(--ct-border-soft);
+  border-top: 1px solid var(--ct-theme-border-soft);
 }
 .ct-admin-sidebar__footer-link,
 .ct-admin-sidebar__footer-action {
@@ -228,7 +228,7 @@
   align-items: center;
   gap: 1rem;
   padding: 0.6rem 1.5rem;
-  border-bottom: 1px solid var(--ct-border-soft);
+  border-bottom: 1px solid var(--ct-theme-border-soft);
   background: rgba(255, 255, 255, 0.96);
   position: sticky;
   top: 0;
@@ -263,7 +263,7 @@
   font-size: 0.73rem;
   font-weight: 600;
   background: var(--ct-theme-surface-soft);
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   color: var(--ct-theme-text-muted);
 }
 .ct-admin-topbar__toggle {
@@ -274,7 +274,7 @@
   justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-sm);
   background: transparent;
   cursor: pointer;
@@ -348,7 +348,7 @@
     z-index: 100;
     transform: translateX(-100%);
     transition: transform var(--ct-duration-standard) var(--ct-ease-standard);
-    box-shadow: var(--ct-shadow-soft);
+    box-shadow: var(--ct-theme-shadow-soft);
   }
   .ct-admin-sidebar--open {
     transform: translateX(0);

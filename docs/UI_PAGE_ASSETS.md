@@ -88,7 +88,7 @@ Not allowed inline content:
 Token/layout guidance:
 
 - Prefer semantic page classes for page personality.
-- Prefer semantic `--ct-theme-*` tokens (with `--ct-color-*` aliases only for migration compatibility).
+- Use semantic `--ct-theme-*` tokens for color, surface, border, state, and shadow roles.
 - Prefer foundation tokens/utilities for spacing, radius, elevation, and layout primitives.
 - Avoid introducing Tailwind-like utility sprawl; keep utilities few and predictable.
 

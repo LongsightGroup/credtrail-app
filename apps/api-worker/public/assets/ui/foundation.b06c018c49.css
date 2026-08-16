@@ -88,28 +88,6 @@
   --ct-theme-state-success: var(--ct-brand-mint-600);
   --ct-theme-state-danger: var(--ct-brand-rose-600);
   --ct-theme-state-warning: var(--ct-brand-amber-600);
-  --ct-color-ink-strong: var(--ct-theme-text-title);
-  --ct-color-ink: var(--ct-theme-text-body);
-  --ct-color-ink-soft: var(--ct-theme-text-muted);
-  --ct-color-link-hover: var(--ct-theme-link-hover);
-  --ct-color-primary-500: var(--ct-brand-lake-500);
-  --ct-color-primary-700: var(--ct-brand-lake-700);
-  --ct-color-primary-900: var(--ct-brand-midnight-900);
-  --ct-surface-base: var(--ct-theme-surface-card-strong);
-  --ct-surface-soft: var(--ct-theme-surface-soft);
-  --ct-surface-elevated: var(--ct-theme-surface-card);
-  --ct-surface-shell: var(--ct-theme-surface-shell);
-  --ct-border-soft: var(--ct-theme-border-soft);
-  --ct-border-strong: var(--ct-theme-border-default);
-  --ct-border-focus: var(--ct-theme-border-focus);
-  --ct-shadow-card: var(--ct-theme-shadow-card);
-  --ct-shadow-soft: var(--ct-theme-shadow-soft);
-  --ct-shadow-shell: var(--ct-theme-shadow-shell);
-  --ct-focus-ring: var(--ct-theme-shadow-focus);
-  --ct-color-link: var(--ct-theme-link);
-  --ct-color-success: var(--ct-theme-state-success);
-  --ct-color-danger: var(--ct-theme-state-danger);
-  --ct-color-warning: var(--ct-theme-state-warning);
 }
 
 
@@ -162,25 +140,25 @@
 }
 
 .ct-action--secondary {
-  --ct-action-color: var(--ct-color-ink);
+  --ct-action-color: var(--ct-theme-text-body);
   --ct-action-background: linear-gradient(
     180deg,
     var(--ct-theme-surface-card-strong),
     var(--ct-theme-surface-info)
   );
-  --ct-action-border: var(--ct-border-strong);
-  --ct-action-hover-color: var(--ct-color-ink);
+  --ct-action-border: var(--ct-theme-border-default);
+  --ct-action-hover-color: var(--ct-theme-text-body);
   --ct-action-hover-background: var(--ct-action-background);
-  --ct-action-hover-border: var(--ct-border-strong);
+  --ct-action-hover-border: var(--ct-theme-border-default);
 }
 
 .ct-action--quiet {
   --ct-action-color: var(--ct-theme-text-body);
   --ct-action-background: var(--ct-theme-surface-card-strong);
-  --ct-action-border: var(--ct-border-soft);
+  --ct-action-border: var(--ct-theme-border-soft);
   --ct-action-hover-color: var(--ct-theme-text-body);
   --ct-action-hover-background: var(--ct-theme-surface-info);
-  --ct-action-hover-border: var(--ct-border-strong);
+  --ct-action-hover-border: var(--ct-theme-border-default);
 }
 
 .ct-action--danger {
@@ -254,7 +232,7 @@
     border-color: var(--ct-action-hover-border);
     background: var(--ct-action-hover-background);
     transform: translateY(-1px);
-    box-shadow: var(--ct-theme-shadow-soft, var(--ct-shadow-soft));
+    box-shadow: var(--ct-theme-shadow-soft);
     filter: brightness(1.03);
   }
 
@@ -274,7 +252,7 @@
 .ct-action:focus-visible {
   outline: 2px solid var(--ct-theme-border-focus);
   outline-offset: 3px;
-  box-shadow: var(--ct-theme-shadow-soft, var(--ct-shadow-soft));
+  box-shadow: var(--ct-theme-shadow-soft);
 }
 
 .ct-action--compact:focus-visible {
@@ -334,7 +312,7 @@
   display: grid;
   gap: var(--ct-field-gap);
   min-width: 0;
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
   font-size: 0.88rem;
   font-weight: 600;
 }
@@ -351,7 +329,7 @@
 }
 
 .ct-field__label {
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
   font-size: 0.88rem;
   font-weight: 600;
   line-height: 1.3;
@@ -379,7 +357,7 @@
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  border: 1px solid var(--ct-border-strong);
+  border: 1px solid var(--ct-theme-border-default);
   border-radius: var(--ct-radius-md);
   min-height: 2.75rem;
   padding: 0.65rem 0.72rem;
@@ -444,7 +422,7 @@
 .ct-textarea:focus-visible {
   outline: none;
   border-color: var(--ct-theme-border-focus);
-  box-shadow: var(--ct-focus-ring);
+  box-shadow: var(--ct-theme-shadow-focus);
 }
 
 .ct-input:user-invalid,
@@ -495,7 +473,7 @@
   align-items: center;
   gap: var(--ct-space-2);
   min-width: 0;
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
   font-size: 0.88rem;
   font-weight: 600;
   line-height: 1.35;
@@ -702,10 +680,10 @@ body[data-variant='admin'] main {
 }
 
 .ct-card {
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-lg);
   background: var(--ct-theme-surface-card);
-  box-shadow: var(--ct-shadow-soft);
+  box-shadow: var(--ct-theme-shadow-soft);
 }
 
 .ct-muted {

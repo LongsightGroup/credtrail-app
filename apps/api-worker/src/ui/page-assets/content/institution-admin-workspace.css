@@ -22,9 +22,9 @@
   text-decoration: none;
   padding: 1rem;
   border-radius: var(--ct-radius-lg);
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   background: var(--ct-theme-surface-card-strong);
-  box-shadow: var(--ct-shadow-soft);
+  box-shadow: var(--ct-theme-shadow-soft);
   transition:
     background var(--ct-duration-fast) var(--ct-ease-standard),
     border-color var(--ct-duration-fast) var(--ct-ease-standard),
@@ -36,7 +36,7 @@ a.ct-admin__workspace-card {
 a.ct-admin__workspace-card:hover {
   border-color: var(--ct-theme-border-info);
   background: var(--ct-theme-surface-info);
-  box-shadow: var(--ct-shadow-card);
+  box-shadow: var(--ct-theme-shadow-card);
 }
 a.ct-admin__workspace-card:focus-visible {
   outline: 2px solid var(--ct-theme-border-focus);
@@ -70,9 +70,9 @@ a.ct-admin__workspace-card:active {
 .ct-admin__metric-card {
   padding: 1rem;
   border-radius: var(--ct-radius-lg);
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   background: var(--ct-theme-surface-card);
-  box-shadow: var(--ct-shadow-soft);
+  box-shadow: var(--ct-theme-shadow-soft);
 }
 .ct-admin__metric-card--rate {
   background: var(--ct-theme-surface-info);

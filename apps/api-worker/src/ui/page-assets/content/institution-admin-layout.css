@@ -4,14 +4,14 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--ct-radius-sm);
-  border: 1px solid var(--ct-border-strong);
+  border: 1px solid var(--ct-theme-border-default);
   min-height: 2.24rem;
   padding: 0.4rem 0.66rem;
   font-family: var(--ct-font-sans);
   font-size: 0.77rem;
   font-weight: 600;
   line-height: 1.1;
-  color: var(--ct-color-ink);
+  color: var(--ct-theme-text-body);
   text-decoration: none;
   background: linear-gradient(
     180deg,
@@ -27,7 +27,7 @@
 @media (hover: hover) {
   .ct-admin__cta-link:hover {
     transform: translateY(-1px);
-    border-color: var(--ct-border-strong);
+    border-color: var(--ct-theme-border-default);
     color: var(--ct-theme-text-title);
     background: var(--ct-theme-surface-info);
   }
@@ -35,7 +35,7 @@
 .ct-admin__cta-link:focus-visible {
   outline: 2px solid var(--ct-theme-border-focus);
   outline-offset: 3px;
-  box-shadow: var(--ct-shadow-soft);
+  box-shadow: var(--ct-theme-shadow-soft);
 }
 .ct-admin__cta-link:active {
   transform: translateY(0);
@@ -55,7 +55,7 @@
     var(--ct-theme-surface-card-strong),
     var(--ct-theme-surface-soft)
   );
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-lg);
   padding: var(--ct-space-4);
   min-width: 0;
@@ -69,7 +69,7 @@
 }
 .ct-admin__panel p {
   margin: 0;
-  color: var(--ct-color-ink-soft);
+  color: var(--ct-theme-text-muted);
   font-size: 0.9rem;
 }
 .ct-admin__panel h3,
@@ -80,7 +80,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-md);
   overflow: hidden;
   background: var(--ct-theme-surface-info);

@@ -27,14 +27,14 @@
   padding: 0.6rem;
   border-radius: var(--ct-radius-sm);
   background: var(--ct-theme-surface-info);
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   overflow-wrap: anywhere;
 }
 .ct-admin__code-output {
   margin: 0;
   padding: 0.68rem;
   border-radius: var(--ct-radius-sm);
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   background: var(--ct-theme-surface-info);
   color: var(--ct-theme-text-body);
   font-size: 0.79rem;

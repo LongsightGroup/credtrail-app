@@ -38,7 +38,7 @@
   justify-content: center;
   width: 100%;
   height: 100%;
-  border: 1px dashed var(--ct-border-strong);
+  border: 1px dashed var(--ct-theme-border-default);
   border-radius: var(--ct-radius-md);
   color: var(--ct-theme-text-muted);
   font-size: 0.84rem;
@@ -121,7 +121,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed var(--ct-border-strong);
+  border: 1px dashed var(--ct-theme-border-default);
   border-radius: var(--ct-radius-sm);
   color: var(--ct-theme-text-muted);
   font-size: 0.78rem;
@@ -515,7 +515,7 @@
 }
 .ct-admin__template-editor-body .ct-input[type='file'] {
   width: 100%;
-  border: 1px dashed var(--ct-border-soft);
+  border: 1px dashed var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-md);
   padding: 0.55rem 0.72rem;
   background: var(--ct-theme-surface-soft);

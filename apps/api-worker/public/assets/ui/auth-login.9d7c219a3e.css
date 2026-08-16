@@ -248,7 +248,7 @@
 
 .ct-login__tenant-choice:focus-visible {
   outline: none;
-  box-shadow: var(--ct-focus-ring);
+  box-shadow: var(--ct-theme-shadow-focus);
 }
 
 .ct-login__tenant-choice-name {
@@ -308,7 +308,7 @@
   border-radius: var(--ct-radius-md);
   padding: 0.55rem 0.65rem;
   font-size: 0.86rem;
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   background: var(--ct-theme-surface-info);
   color: var(--ct-theme-text-muted);
   min-height: 1.2rem;

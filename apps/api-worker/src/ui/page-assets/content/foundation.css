@@ -173,10 +173,10 @@ body[data-variant='admin'] main {
 }
 
 .ct-card {
-  border: 1px solid var(--ct-border-soft);
+  border: 1px solid var(--ct-theme-border-soft);
   border-radius: var(--ct-radius-lg);
   background: var(--ct-theme-surface-card);
-  box-shadow: var(--ct-shadow-soft);
+  box-shadow: var(--ct-theme-shadow-soft);
 }
 
 .ct-muted {

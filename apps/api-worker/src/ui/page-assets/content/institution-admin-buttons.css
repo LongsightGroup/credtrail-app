@@ -96,10 +96,10 @@
   gap: 0.18rem;
   min-width: 11rem;
   padding: 0.32rem;
-  border: 1px solid var(--ct-border-strong);
+  border: 1px solid var(--ct-theme-border-default);
   border-radius: var(--ct-radius-md);
   background: var(--ct-theme-surface-card-strong);
-  box-shadow: var(--ct-shadow-soft);
+  box-shadow: var(--ct-theme-shadow-soft);
 }
 .ct-admin__action-menu-popover[hidden] {
   display: none;
