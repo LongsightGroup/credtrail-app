@@ -6,7 +6,7 @@ import {
 } from "@credtrail/db";
 import { parsePersistedLtiSession, resolveLtiServiceCapabilities } from "@longsightgroup/lti-tool";
 import { createGradebookProviderForConnection } from "../lms/gradebook-provider-resolution";
-import type { GradebookProvider } from "../lms/gradebook-types";
+import type { GradebookItemSetupReader } from "../lms/gradebook-types";
 import { matchingSakaiLmsConnection } from "./course-badge-setup";
 import { findLtiIssuerRegistryEntry, type LtiIssuerRegistry } from "./lti-issuer-registry";
 
@@ -27,7 +27,7 @@ export interface ResolvedLtiGradebookLookup {
   tenantId: string;
   ltiSession: LtiGradebookLookupSession;
   connection: TenantLmsConnectionRecord;
-  provider: GradebookProvider;
+  provider: GradebookItemSetupReader;
 }
 
 export type LtiGradebookLookupFailure = {

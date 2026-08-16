@@ -17,7 +17,7 @@ import {
   type BadgeIssuanceRuleSurveyCompletionFact,
 } from "./engine";
 import { resolveGradebookProvider } from "../lms/gradebook-provider-resolution";
-import type { GradebookProvider } from "../lms/gradebook-types";
+import type { GradebookRuleFactReader } from "../lms/gradebook-types";
 
 export class MissingRuleRecipientIdentityError extends Error {
   public constructor() {
@@ -40,7 +40,7 @@ export const loadRuleFacts = async (input: {
     | undefined;
   definition: ReturnType<typeof parseBadgeIssuanceRuleDefinition>;
   requestedFacts?: BadgeIssuanceRuleFacts | undefined;
-  gradebookProvider?: GradebookProvider | undefined;
+  gradebookProvider?: GradebookRuleFactReader | undefined;
   nowIso: string;
 }): Promise<BadgeIssuanceRuleEvaluationFacts> => {
   const requestedFacts = input.requestedFacts;

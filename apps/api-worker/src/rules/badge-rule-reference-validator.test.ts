@@ -1,6 +1,6 @@
 import { parseCreateBadgeIssuanceRuleRequest } from "@credtrail/validation";
 import { describe, expect, it } from "vitest";
-import type { GradebookAssignmentRecord, GradebookProvider } from "../lms/gradebook-types";
+import type { GradebookAssignmentReader, GradebookAssignmentRecord } from "../lms/gradebook-types";
 import { validateBadgeRuleReferences } from "./badge-rule-reference-validator";
 
 const definitionWithAssignments = (assignmentIds: readonly string[]) => {
@@ -33,15 +33,9 @@ const assignment = (assignmentId: string): GradebookAssignmentRecord => ({
 });
 
 const createProvider = (
-  listAssignments: GradebookProvider["listAssignments"],
-): GradebookProvider => ({
-  kind: "sakai",
+  listAssignments: GradebookAssignmentReader["listAssignments"],
+): GradebookAssignmentReader => ({
   listAssignments,
-  listEnrollments: () => Promise.resolve([]),
-  listLearners: () => Promise.resolve([]),
-  listSubmissions: () => Promise.resolve([]),
-  listGrades: () => Promise.resolve([]),
-  listCompletions: () => Promise.resolve([]),
 });
 
 describe("validateBadgeRuleReferences", () => {

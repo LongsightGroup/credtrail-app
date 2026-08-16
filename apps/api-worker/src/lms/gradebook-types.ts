@@ -95,30 +95,60 @@ export interface GradebookCompletionRecord {
   sourceState: string | null;
 }
 
-export interface GradebookProvider {
-  readonly kind: GradebookProviderKind;
-  listAssignments(input: { courseId: string }): Promise<readonly GradebookAssignmentRecord[]>;
+/** Reads assignment metadata for course setup and reference validation. */
+export interface GradebookAssignmentReader {
+  listAssignments(input: {
+    readonly courseId: string;
+  }): Promise<readonly GradebookAssignmentRecord[]>;
+}
+
+/** Reads enrollment records for one LMS course. */
+export interface GradebookEnrollmentReader {
   listEnrollments(input: {
-    courseId: string;
-    learnerId?: string;
+    readonly courseId: string;
+    readonly learnerId?: string;
   }): Promise<readonly GradebookEnrollmentRecord[]>;
+}
+
+/** Reads learner rosters for discovery and automated evaluation. */
+export interface GradebookLearnerReader {
   listLearners(input: {
-    courseId: string;
-    searchTerm?: string;
+    readonly courseId: string;
+    readonly searchTerm?: string;
   }): Promise<readonly GradebookLearnerRecord[]>;
+}
+
+/** Reads assignment submissions for rule setup and evaluation. */
+export interface GradebookSubmissionReader {
   listSubmissions(input: {
-    courseId: string;
-    assignmentId?: string;
-    learnerId?: string;
+    readonly courseId: string;
+    readonly assignmentId?: string;
+    readonly learnerId?: string;
   }): Promise<readonly GradebookSubmissionRecord[]>;
+}
+
+/** Reads the grade, completion, and submission facts required by badge rules. */
+export interface GradebookRuleFactReader extends GradebookSubmissionReader {
   listGrades(input: {
-    courseId: string;
-    learnerId?: string;
+    readonly courseId: string;
+    readonly learnerId?: string;
   }): Promise<readonly GradebookGradeRecord[]>;
   listCompletions(input: {
-    courseId: string;
-    learnerId?: string;
+    readonly courseId: string;
+    readonly learnerId?: string;
   }): Promise<readonly GradebookCompletionRecord[]>;
+}
+
+/** Reads the roster and rule facts needed for automated badge evaluation. */
+export type GradebookAutomatedEvaluationReader = GradebookLearnerReader & GradebookRuleFactReader;
+
+/** Reads the assignment metadata and submissions needed by gradebook-item setup. */
+export type GradebookItemSetupReader = GradebookAssignmentReader & GradebookSubmissionReader;
+
+/** Full adapter contract implemented by supported LMS gradebook providers. */
+export interface GradebookProvider
+  extends GradebookAssignmentReader, GradebookEnrollmentReader, GradebookAutomatedEvaluationReader {
+  readonly kind: GradebookProviderKind;
 }
 
 /** Canvas provider whose course catalog is bound to a linked Canvas user. */

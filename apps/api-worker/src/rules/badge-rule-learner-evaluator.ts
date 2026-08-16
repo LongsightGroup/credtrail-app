@@ -3,7 +3,7 @@ import {
   buildIssuanceProvenanceSnapshotJson,
   type BadgeIssuanceRuleDefinition,
 } from "@credtrail/validation";
-import type { GradebookProvider } from "../lms/gradebook-types";
+import type { GradebookRuleFactReader } from "../lms/gradebook-types";
 import { loadRuleFacts } from "./badge-rule-facts-loader";
 import {
   evaluateBadgeIssuanceRuleDefinition,
@@ -34,7 +34,7 @@ export const evaluateBadgeRuleLearner = async (input: {
   readonly recipientEmail: string;
   readonly definition: BadgeIssuanceRuleDefinition;
   readonly nowIso: string;
-  readonly gradebookProvider?: GradebookProvider | undefined;
+  readonly gradebookProvider?: GradebookRuleFactReader | undefined;
 }): Promise<BadgeRuleLearnerEvaluationResult> => {
   try {
     const facts = await loadRuleFacts({

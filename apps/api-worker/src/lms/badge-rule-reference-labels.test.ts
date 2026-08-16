@@ -1,16 +1,12 @@
 import { parseBadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import { describe, expect, it } from "vitest";
-import type { GradebookCourseRecord, GradebookProvider } from "./gradebook-types";
+import type { GradebookAssignmentReader, GradebookCourseRecord } from "./gradebook-types";
 import { resolveBadgeRuleReferenceLabels } from "./badge-rule-reference-labels";
 
-const createProvider = (overrides: Partial<GradebookProvider> = {}): GradebookProvider => ({
-  kind: "canvas",
+const createProvider = (
+  overrides: Partial<GradebookAssignmentReader> = {},
+): GradebookAssignmentReader => ({
   listAssignments: () => Promise.resolve([]),
-  listEnrollments: () => Promise.resolve([]),
-  listLearners: () => Promise.resolve([]),
-  listSubmissions: () => Promise.resolve([]),
-  listGrades: () => Promise.resolve([]),
-  listCompletions: () => Promise.resolve([]),
   ...overrides,
 });
 

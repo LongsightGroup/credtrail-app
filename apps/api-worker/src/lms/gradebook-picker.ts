@@ -1,7 +1,8 @@
 import type { TenantLmsConnectionRecord } from "@credtrail/db";
 import type {
   GradebookAssignmentRecord,
-  GradebookProvider,
+  GradebookAssignmentReader,
+  GradebookSubmissionReader,
   GradebookSubmissionRecord,
 } from "./gradebook-types";
 import { GradebookProviderError } from "./gradebook-provider-error";
@@ -141,7 +142,7 @@ export const lmsLookupErrorMessage = (
 };
 
 export const listGradebookItemsForCourse = async (input: {
-  provider: GradebookProvider;
+  provider: GradebookAssignmentReader;
   courseId: string;
   query: string | undefined;
 }): Promise<readonly GradebookAssignmentRecord[]> => {
@@ -151,7 +152,7 @@ export const listGradebookItemsForCourse = async (input: {
 };
 
 export const listWorkflowStatesForAssignment = async (input: {
-  provider: GradebookProvider;
+  provider: GradebookSubmissionReader;
   connection: GradebookPickerConnection;
   courseId: string;
   assignmentId: string;

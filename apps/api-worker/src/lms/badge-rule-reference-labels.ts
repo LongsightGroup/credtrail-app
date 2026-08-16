@@ -1,7 +1,7 @@
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import { extractBadgeIssuanceRuleRequirements } from "../rules/engine";
 import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
-import type { GradebookCourseRecord, GradebookProvider } from "./gradebook-types";
+import type { GradebookAssignmentReader, GradebookCourseRecord } from "./gradebook-types";
 
 const RULE_REFERENCE_LABEL_CONCURRENCY = 4;
 
@@ -30,7 +30,7 @@ interface CourseReferenceLabels {
 }
 
 const resolveAssignmentReferenceLabels = async (input: {
-  readonly provider: GradebookProvider;
+  readonly provider: GradebookAssignmentReader;
   readonly courseId: string;
   readonly assignmentIds: ReadonlySet<string>;
 }): Promise<readonly BadgeRuleAssignmentReferenceLabel[]> => {
@@ -50,7 +50,7 @@ const resolveAssignmentReferenceLabels = async (input: {
 
 /** Resolves the labels referenced by one parsed rule with bounded LMS work. */
 export const resolveBadgeRuleReferenceLabels = async (input: {
-  readonly provider: GradebookProvider;
+  readonly provider: GradebookAssignmentReader;
   readonly courses: readonly GradebookCourseRecord[];
   readonly definition: BadgeIssuanceRuleDefinition;
 }): Promise<BadgeRuleReferenceLabelResolution> => {

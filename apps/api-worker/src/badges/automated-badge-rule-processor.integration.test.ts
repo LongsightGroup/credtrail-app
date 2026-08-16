@@ -6,7 +6,7 @@ import {
   createBadgeRuleIntegrationFixture,
   describeDbIntegration,
 } from "../../../../packages/db/src/postgres-test-support";
-import type { GradebookProvider } from "../lms/gradebook-types";
+import type { GradebookAutomatedEvaluationReader } from "../lms/gradebook-types";
 import { processAutomatedBadgeRule } from "./automated-badge-rule-processor";
 import { processBadgeRuleLifecycleForTenant } from "./badge-rule-lifecycle-processor";
 
@@ -18,10 +18,7 @@ const sha256Hex = async (value: string): Promise<string> =>
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
 
-const pathwayProvider = (): GradebookProvider => ({
-  kind: "canvas",
-  listAssignments: () => Promise.resolve([]),
-  listEnrollments: () => Promise.resolve([]),
+const pathwayProvider = (): GradebookAutomatedEvaluationReader => ({
   listLearners: ({ courseId }) =>
     Promise.resolve([
       {
@@ -214,7 +211,7 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
         expiresAt: NOW_ISO,
       });
       const baseProvider = pathwayProvider();
-      const provider: GradebookProvider = {
+      const provider: GradebookAutomatedEvaluationReader = {
         ...baseProvider,
         listCompletions: (request) => {
           if (request.learnerId === "learner-incomplete") {
@@ -308,7 +305,7 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
       });
       const baseProvider = pathwayProvider();
       let suspension: Promise<unknown> | undefined;
-      const provider: GradebookProvider = {
+      const provider: GradebookAutomatedEvaluationReader = {
         ...baseProvider,
         listCompletions: async ({ courseId, learnerId }) => {
           suspension ??= dbModule.suspendBadgeIssuanceRuleVersion(fixture.db, {
@@ -453,7 +450,7 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
         actorUserId: fixture.userId,
         activatedAt: NOW_ISO,
       });
-      const provider: GradebookProvider = {
+      const provider: GradebookAutomatedEvaluationReader = {
         ...pathwayProvider(),
         listLearners: ({ courseId }) =>
           Promise.resolve([

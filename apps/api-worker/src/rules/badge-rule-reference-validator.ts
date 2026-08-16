@@ -1,5 +1,5 @@
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
-import type { GradebookProvider } from "../lms/gradebook-types";
+import type { GradebookAssignmentReader } from "../lms/gradebook-types";
 import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
 import { extractBadgeIssuanceRuleRequirements } from "./engine";
 
@@ -32,7 +32,7 @@ type CourseAssignmentValidation =
 
 /** Validates every unique rule course through gradebook access and reuses assignment results. */
 export const validateBadgeRuleReferences = async (input: {
-  readonly provider: GradebookProvider;
+  readonly provider: GradebookAssignmentReader;
   readonly definition: BadgeIssuanceRuleDefinition;
 }): Promise<BadgeRuleReferenceValidationResult> => {
   const requirements = extractBadgeIssuanceRuleRequirements(input.definition);

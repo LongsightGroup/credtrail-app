@@ -13,7 +13,10 @@ import {
   type IssueBadgeQueueJob,
   type ProcessAutomatedBadgeRuleQueueJob,
 } from "@credtrail/validation";
-import type { GradebookLearnerRecord, GradebookProvider } from "../lms/gradebook-types";
+import type {
+  GradebookAutomatedEvaluationReader,
+  GradebookLearnerRecord,
+} from "../lms/gradebook-types";
 import { resolveGradebookProvider } from "../lms/gradebook-provider-resolution";
 import { issueBadgeQueueJobFromRequest } from "../queue/job-builders";
 import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
@@ -191,7 +194,7 @@ const candidateLearnersFromRosters = (
 };
 
 const listCandidateLearners = async (
-  provider: GradebookProvider,
+  provider: GradebookAutomatedEvaluationReader,
   courseIds: readonly string[],
 ): Promise<CandidateLearnerDiscovery> => {
   const courseRosters = await mapConcurrentBounded(
@@ -249,7 +252,7 @@ export const processAutomatedBadgeRule = async (input: {
   readonly tenantId: string;
   readonly payload: ProcessAutomatedBadgeRuleQueueJob["payload"];
   readonly sha256Hex: (value: string) => Promise<string>;
-  readonly gradebookProvider?: GradebookProvider | undefined;
+  readonly gradebookProvider?: GradebookAutomatedEvaluationReader | undefined;
 }): Promise<ProcessAutomatedBadgeRuleResult> => {
   const [rule, version] = await Promise.all([
     findBadgeIssuanceRuleById(input.db, input.tenantId, input.payload.ruleId),
