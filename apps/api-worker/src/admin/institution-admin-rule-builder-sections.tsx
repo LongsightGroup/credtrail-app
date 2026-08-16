@@ -237,6 +237,7 @@ export const RuleBuilderMetadataStep = (props: {
                           value={template.id}
                           selected={isSelected}
                           data-template-title={template.title}
+                          data-template-search-text={`${template.title} ${template.slug} ${template.id}`}
                           data-rule-usage-count={ruleUsageNames.length}
                           data-rule-usage-names={ruleUsageNames.join(" · ")}
                         >

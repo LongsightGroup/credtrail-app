@@ -1,165 +1,68 @@
-const createBadgeTemplatePickerController = (input) => {
-  const {
-    fallbackField,
-    enhancedField,
-    comboboxInput,
-    select,
-    listbox,
-    searchStatus,
-    reusePanel,
-    reuseMessage,
-    reuseConfirmation,
-    onStateChange,
-  } = input;
-  const options =
-    select instanceof HTMLSelectElement
-      ? Array.from(select.options).filter(
-          (option) => option.value.trim().length > 0 && !option.disabled,
-        )
-      : [];
+const normalizeSearchQuery = (query) => query.trim().normalize("NFKC").toLocaleLowerCase();
 
-  let committedOption = null;
-  let optionRows = [];
-  let filteredRows = [];
-  let activeIndex = null;
-  let isOpen = false;
-  let isEnhanced = false;
-  let announcementTimer = null;
+const optionTitle = (option) => option.dataset.templateTitle?.trim() ?? "";
 
-  const selectedOption = () => {
-    if (!(select instanceof HTMLSelectElement)) {
-      return null;
-    }
+const optionSearchText = (option) =>
+  (option.dataset.templateSearchText ?? optionTitle(option)).normalize("NFKC").toLocaleLowerCase();
 
-    const option = select.selectedOptions[0];
-    return option instanceof HTMLOptionElement && option.value.trim().length > 0 ? option : null;
-  };
+const selectableTemplateOptions = (select) =>
+  select instanceof HTMLSelectElement
+    ? Array.from(select.options).filter(
+        (option) => option.value.trim().length > 0 && !option.disabled,
+      )
+    : [];
 
-  const optionTitle = (option) => option.dataset.templateTitle?.trim() ?? "";
-  const defaultStatusText =
-    searchStatus instanceof HTMLElement ? (searchStatus.textContent ?? "") : "";
+const selectedTemplateOption = (select) => {
+  if (!(select instanceof HTMLSelectElement)) {
+    return null;
+  }
 
-  const cancelAnnouncement = () => {
-    if (announcementTimer !== null) {
-      clearTimeout(announcementTimer);
-      announcementTimer = null;
-    }
-  };
+  const option = select.selectedOptions[0];
+  return option instanceof HTMLOptionElement && option.value.trim().length > 0 ? option : null;
+};
 
-  const announceResults = (visibleCount) => {
-    if (!(searchStatus instanceof HTMLElement)) {
-      return;
-    }
+const filterTemplateRows = (optionRows, query) => {
+  const normalizedQuery = normalizeSearchQuery(query);
 
-    cancelAnnouncement();
-    announcementTimer = setTimeout(() => {
-      searchStatus.textContent =
-        visibleCount === 0
-          ? "No badge templates match this search."
-          : String(visibleCount) +
-            (visibleCount === 1 ? " badge template shown." : " badge templates shown.");
-      announcementTimer = null;
-    }, 200);
-  };
+  return optionRows.filter(({ option, row }) => {
+    const isVisible =
+      normalizedQuery.length === 0 || optionSearchText(option).includes(normalizedQuery);
+    row.hidden = !isVisible;
+    return isVisible;
+  });
+};
 
-  const syncValidity = () => {
-    if (!(comboboxInput instanceof HTMLInputElement)) {
-      return;
-    }
+const buildTemplateOptionRow = (option, index, commitOption) => {
+  const row = document.createElement("div");
+  row.id = "rule-builder-badge-template-option-" + String(index + 1);
+  row.className = "ct-admin__template-option";
+  row.setAttribute("role", "option");
+  row.setAttribute("aria-selected", "false");
+  row.dataset.templateValue = option.value;
 
-    comboboxInput.setCustomValidity(
-      committedOption === null ? "Choose a badge template from the list." : "",
-    );
-  };
+  const title = document.createElement("span");
+  title.className = "ct-admin__template-option-title";
+  title.textContent = optionTitle(option);
+  row.append(title);
 
-  const syncSelectedRows = () => {
-    optionRows.forEach(({ option, row }) => {
-      const isSelected = committedOption !== null && option.value === committedOption.value;
-      row.setAttribute("aria-selected", isSelected ? "true" : "false");
-      row.classList.toggle("is-selected", isSelected);
-    });
-  };
+  const usageCount = Number.parseInt(option.dataset.ruleUsageCount ?? "0", 10);
+  if (Number.isFinite(usageCount) && usageCount > 0) {
+    const usage = document.createElement("span");
+    usage.className = "ct-admin__template-option-meta";
+    usage.textContent =
+      "Used by " + String(usageCount) + (usageCount === 1 ? " other rule" : " other rules");
+    row.append(usage);
+  }
 
-  const clearActiveRow = () => {
-    optionRows.forEach(({ row }) => row.classList.remove("is-active"));
-    activeIndex = null;
+  row.addEventListener("pointerdown", (event) => event.preventDefault());
+  row.addEventListener("click", () => {
+    commitOption(option);
+  });
+  return { option, row };
+};
 
-    if (comboboxInput instanceof HTMLInputElement) {
-      comboboxInput.removeAttribute("aria-activedescendant");
-    }
-  };
-
-  const setActiveRow = (index) => {
-    clearActiveRow();
-
-    const pair = filteredRows[index];
-    if (pair === undefined || !(comboboxInput instanceof HTMLInputElement)) {
-      return;
-    }
-
-    activeIndex = index;
-    pair.row.classList.add("is-active");
-    comboboxInput.setAttribute("aria-activedescendant", pair.row.id);
-    pair.row.scrollIntoView({ block: "nearest" });
-  };
-
-  const filterRows = (query) => {
-    const normalizedQuery = query.trim().normalize("NFKC").toLocaleLowerCase();
-    filteredRows = optionRows.filter(({ option, row }) => {
-      const isVisible =
-        normalizedQuery.length === 0 ||
-        optionTitle(option).normalize("NFKC").toLocaleLowerCase().includes(normalizedQuery);
-      row.hidden = !isVisible;
-      return isVisible;
-    });
-
-    clearActiveRow();
-    const emptyRow = listbox instanceof HTMLElement ? listbox.querySelector("[data-empty-result]") : null;
-    if (emptyRow instanceof HTMLElement) {
-      emptyRow.hidden = filteredRows.length > 0;
-    }
-    announceResults(filteredRows.length);
-  };
-
-  const openList = (showAll = false) => {
-    if (!(comboboxInput instanceof HTMLInputElement) || !(listbox instanceof HTMLElement)) {
-      return;
-    }
-
-    if (showAll) {
-      filterRows("");
-    } else {
-      filterRows(comboboxInput.value);
-    }
-    listbox.hidden = false;
-    comboboxInput.setAttribute("aria-expanded", "true");
-    isOpen = true;
-  };
-
-  const closeList = (restoreTitle = true, restoreStatus = false) => {
-    cancelAnnouncement();
-    clearActiveRow();
-
-    if (listbox instanceof HTMLElement) {
-      listbox.hidden = true;
-    }
-
-    if (comboboxInput instanceof HTMLInputElement) {
-      comboboxInput.setAttribute("aria-expanded", "false");
-      if (restoreTitle) {
-        comboboxInput.value = committedOption === null ? "" : optionTitle(committedOption);
-      }
-    }
-
-    if (restoreStatus && searchStatus instanceof HTMLElement) {
-      searchStatus.textContent =
-        committedOption === null
-          ? defaultStatusText
-          : optionTitle(committedOption) + " selected.";
-    }
-
-    isOpen = false;
-  };
+const createTemplateReuseState = (input) => {
+  const { select, reusePanel, reuseMessage, reuseConfirmation, onStateChange } = input;
 
   const syncReuse = (resetConfirmation = false) => {
     if (
@@ -174,7 +77,7 @@ const createBadgeTemplatePickerController = (input) => {
       reuseConfirmation.checked = false;
     }
 
-    const option = selectedOption();
+    const option = selectedTemplateOption(select);
     const usageCount = Number.parseInt(option?.dataset.ruleUsageCount ?? "0", 10);
 
     if (option === null || !Number.isFinite(usageCount) || usageCount < 1) {
@@ -200,31 +103,191 @@ const createBadgeTemplatePickerController = (input) => {
     reuseConfirmation.required = true;
   };
 
+  const isComplete = () =>
+    !(
+      reuseConfirmation instanceof HTMLInputElement &&
+      reuseConfirmation.required &&
+      !reuseConfirmation.checked
+    );
+
+  const isReuseAcknowledged = () =>
+    reuseConfirmation instanceof HTMLInputElement &&
+    reuseConfirmation.required &&
+    reuseConfirmation.checked;
+
+  const wireReuseListeners = () => {
+    if (reuseConfirmation instanceof HTMLInputElement) {
+      reuseConfirmation.addEventListener("change", () => {
+        if (typeof onStateChange === "function") {
+          onStateChange();
+        }
+      });
+    }
+  };
+
+  return { syncReuse, isComplete, isReuseAcknowledged, wireReuseListeners };
+};
+
+const createFallbackBadgeTemplatePickerController = (input) => {
+  const { select, onStateChange } = input;
+  const reuse = createTemplateReuseState(input);
+
   const sync = (resetConfirmation = false) => {
-    committedOption = selectedOption();
-    closeList();
+    reuse.syncReuse(resetConfirmation);
+  };
+
+  if (select instanceof HTMLSelectElement) {
+    select.addEventListener("change", () => {
+      sync(true);
+      if (typeof onStateChange === "function") {
+        onStateChange();
+      }
+    });
+  }
+
+  reuse.wireReuseListeners();
+  sync();
+
+  return Object.freeze({
+    sync,
+    isComplete: reuse.isComplete,
+    isReuseAcknowledged: reuse.isReuseAcknowledged,
+  });
+};
+
+const createEnhancedBadgeTemplatePickerController = (input) => {
+  const {
+    fallbackField,
+    enhancedField,
+    comboboxInput,
+    select,
+    listbox,
+    searchStatus,
+    options,
+    onStateChange,
+  } = input;
+  const reuse = createTemplateReuseState(input);
+  const defaultStatusText = searchStatus.textContent ?? "";
+
+  let optionRows = [];
+  let filteredRows = [];
+  let activeIndex = null;
+  let isOpen = false;
+  let announcementTimer = null;
+
+  const cancelAnnouncement = () => {
+    if (announcementTimer !== null) {
+      clearTimeout(announcementTimer);
+      announcementTimer = null;
+    }
+  };
+
+  const announceResults = (visibleCount) => {
+    cancelAnnouncement();
+    announcementTimer = setTimeout(() => {
+      searchStatus.textContent =
+        visibleCount === 0
+          ? "No badge templates match this search."
+          : String(visibleCount) +
+            (visibleCount === 1 ? " badge template shown." : " badge templates shown.");
+      announcementTimer = null;
+    }, 200);
+  };
+
+  const updateSelectionStatus = () => {
+    const option = selectedTemplateOption(select);
+    searchStatus.textContent =
+      option === null ? defaultStatusText : optionTitle(option) + " selected.";
+  };
+
+  const syncValidity = () => {
+    comboboxInput.setCustomValidity(
+      selectedTemplateOption(select) === null ? "Choose a badge template from the list." : "",
+    );
+  };
+
+  const syncSelectedRows = () => {
+    const selected = selectedTemplateOption(select);
+    optionRows.forEach(({ option, row }) => {
+      const isSelected = selected !== null && option.value === selected.value;
+      row.setAttribute("aria-selected", isSelected ? "true" : "false");
+      row.classList.toggle("is-selected", isSelected);
+    });
+  };
+
+  const clearActiveRow = () => {
+    optionRows.forEach(({ row }) => row.classList.remove("is-active"));
+    activeIndex = null;
+    comboboxInput.removeAttribute("aria-activedescendant");
+  };
+
+  const setActiveRow = (index) => {
+    clearActiveRow();
+
+    const pair = filteredRows[index];
+    if (pair === undefined) {
+      return;
+    }
+
+    activeIndex = index;
+    pair.row.classList.add("is-active");
+    comboboxInput.setAttribute("aria-activedescendant", pair.row.id);
+    pair.row.scrollIntoView({ block: "nearest" });
+  };
+
+  const applyFilter = (query) => {
+    filteredRows = filterTemplateRows(optionRows, query);
+    clearActiveRow();
+
+    const emptyRow = listbox.querySelector("[data-empty-result]");
+    if (emptyRow instanceof HTMLElement) {
+      emptyRow.hidden = filteredRows.length > 0;
+    }
+    announceResults(filteredRows.length);
+  };
+
+  const hideListbox = ({ restoreQuery = true } = {}) => {
+    cancelAnnouncement();
+    clearActiveRow();
+    listbox.hidden = true;
+    comboboxInput.setAttribute("aria-expanded", "false");
+    isOpen = false;
+
+    if (restoreQuery) {
+      const option = selectedTemplateOption(select);
+      comboboxInput.value = option === null ? "" : optionTitle(option);
+    }
+  };
+
+  const openList = (showAll = false) => {
+    applyFilter(showAll ? "" : comboboxInput.value);
+    listbox.hidden = false;
+    comboboxInput.setAttribute("aria-expanded", "true");
+    isOpen = true;
+  };
+
+  const dismissList = () => {
+    hideListbox({ restoreQuery: true });
+    updateSelectionStatus();
+  };
+
+  const sync = (resetConfirmation = false, { updateSelectionStatus: shouldUpdateStatus = false } = {}) => {
+    hideListbox({ restoreQuery: true });
     syncSelectedRows();
     syncValidity();
-    syncReuse(resetConfirmation);
+    reuse.syncReuse(resetConfirmation);
+
+    if (shouldUpdateStatus) {
+      updateSelectionStatus();
+    }
   };
 
   const commitOption = (option) => {
-    if (
-      !(select instanceof HTMLSelectElement) ||
-      !(comboboxInput instanceof HTMLInputElement) ||
-      !(option instanceof HTMLOptionElement)
-    ) {
+    if (!(option instanceof HTMLOptionElement)) {
       return;
     }
 
     select.value = option.value;
-    committedOption = option;
-    syncSelectedRows();
-    syncValidity();
-    closeList();
-    if (searchStatus instanceof HTMLElement) {
-      searchStatus.textContent = optionTitle(option) + " selected.";
-    }
     select.dispatchEvent(new Event("change", { bubbles: true }));
   };
 
@@ -242,86 +305,12 @@ const createBadgeTemplatePickerController = (input) => {
     setActiveRow(nextIndex);
   };
 
-  const isComplete = () => {
-    return !(
-      reuseConfirmation instanceof HTMLInputElement &&
-      reuseConfirmation.required &&
-      !reuseConfirmation.checked
-    );
-  };
-
-  const isReuseAcknowledged = () => {
-    return (
-      reuseConfirmation instanceof HTMLInputElement &&
-      reuseConfirmation.required &&
-      reuseConfirmation.checked
-    );
-  };
-
-  if (select instanceof HTMLSelectElement) {
-    select.addEventListener("change", () => {
-      if (isEnhanced) {
-        sync(true);
-      } else {
-        syncReuse(true);
-      }
-      if (typeof onStateChange === "function") {
-        onStateChange();
-      }
-    });
-  }
-  if (reuseConfirmation instanceof HTMLInputElement) {
-    reuseConfirmation.addEventListener("change", () => {
-      if (typeof onStateChange === "function") {
-        onStateChange();
-      }
-    });
-  }
-
-  if (
-    !(fallbackField instanceof HTMLElement) ||
-    !(enhancedField instanceof HTMLElement) ||
-    !(comboboxInput instanceof HTMLInputElement) ||
-    !(select instanceof HTMLSelectElement) ||
-    !(listbox instanceof HTMLElement) ||
-    !(searchStatus instanceof HTMLElement) ||
-    options.length === 0
-  ) {
-    syncReuse();
-    return Object.freeze({ sync, isComplete, isReuseAcknowledged });
-  }
-
-  optionRows = options.map((option, index) => {
-    const row = document.createElement("div");
-    row.id = "rule-builder-badge-template-option-" + String(index + 1);
-    row.className = "ct-admin__template-option";
-    row.setAttribute("role", "option");
-    row.setAttribute("aria-selected", "false");
-    row.dataset.templateValue = option.value;
-
-    const title = document.createElement("span");
-    title.className = "ct-admin__template-option-title";
-    title.textContent = optionTitle(option);
-    row.append(title);
-
-    const usageCount = Number.parseInt(option.dataset.ruleUsageCount ?? "0", 10);
-    if (Number.isFinite(usageCount) && usageCount > 0) {
-      const usage = document.createElement("span");
-      usage.className = "ct-admin__template-option-meta";
-      usage.textContent =
-        "Used by " +
-        String(usageCount) +
-        (usageCount === 1 ? " other rule" : " other rules");
-      row.append(usage);
-    }
-
-    row.addEventListener("pointerdown", (event) => event.preventDefault());
-    row.addEventListener("click", () => {
+  optionRows = options.map((option, index) =>
+    buildTemplateOptionRow(option, index, (selectedOption) => {
       comboboxInput.focus();
-      commitOption(option);
-    });
-    return { option, row };
-  });
+      commitOption(selectedOption);
+    }),
+  );
 
   const emptyRow = document.createElement("div");
   emptyRow.className = "ct-admin__template-empty";
@@ -334,12 +323,20 @@ const createBadgeTemplatePickerController = (input) => {
   comboboxInput.required = true;
   fallbackField.hidden = true;
   enhancedField.hidden = false;
-  isEnhanced = true;
+
+  select.addEventListener("change", () => {
+    sync(true, { updateSelectionStatus: true });
+    if (typeof onStateChange === "function") {
+      onStateChange();
+    }
+  });
+
+  reuse.wireReuseListeners();
 
   comboboxInput.addEventListener("focus", () => openList(true));
   comboboxInput.addEventListener("click", () => openList(true));
   comboboxInput.addEventListener("input", () => openList());
-  comboboxInput.addEventListener("blur", () => closeList(true, true));
+  comboboxInput.addEventListener("blur", dismissList);
   comboboxInput.addEventListener("keydown", (event) => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
@@ -361,15 +358,39 @@ const createBadgeTemplatePickerController = (input) => {
 
     if (event.key === "Escape" && isOpen) {
       event.preventDefault();
-      closeList(true, true);
+      dismissList();
       return;
     }
 
     if (event.key === "Tab" && isOpen) {
-      closeList(true, true);
+      dismissList();
     }
   });
+
   sync();
 
-  return Object.freeze({ sync, isComplete, isReuseAcknowledged });
+  return Object.freeze({
+    sync,
+    isComplete: reuse.isComplete,
+    isReuseAcknowledged: reuse.isReuseAcknowledged,
+  });
+};
+
+const createBadgeTemplatePickerController = (input) => {
+  const { fallbackField, enhancedField, comboboxInput, select, listbox, searchStatus } = input;
+  const options = selectableTemplateOptions(select);
+  const canEnhance =
+    fallbackField instanceof HTMLElement &&
+    enhancedField instanceof HTMLElement &&
+    comboboxInput instanceof HTMLInputElement &&
+    select instanceof HTMLSelectElement &&
+    listbox instanceof HTMLElement &&
+    searchStatus instanceof HTMLElement &&
+    options.length > 0;
+
+  if (!canEnhance) {
+    return createFallbackBadgeTemplatePickerController(input);
+  }
+
+  return createEnhancedBadgeTemplatePickerController({ ...input, options });
 };

@@ -26,11 +26,14 @@ const templateOption = (input: {
   readonly title: string;
   readonly ruleUsageCount?: number | undefined;
   readonly ruleUsageNames?: string | undefined;
+  readonly searchText?: string | undefined;
 }): FakeOption => {
   const option = new FakeOption();
   option.value = input.value;
   option.textContent = input.title;
   option.dataset.templateTitle = input.title;
+  option.dataset.templateSearchText =
+    input.searchText ?? `${input.title} ${input.value}`;
   option.dataset.ruleUsageCount = String(input.ruleUsageCount ?? 0);
   option.dataset.ruleUsageNames = input.ruleUsageNames ?? "";
   return option;
@@ -169,6 +172,16 @@ describe("institution admin rule-builder badge template picker", () => {
     expect(rows[0]?.dataset.templateValue).toBe("badge_analytics");
     expect(rows[0]?.textContent).not.toContain("badge_analytics");
     expect(rows[0]?.getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("matches slug and id text in addition to the visible title", () => {
+    const fixture = pickerFixture();
+    const rows = optionRows(fixture.listbox);
+
+    fixture.combobox.value = "badge_analytics";
+    fixture.combobox.dispatch("input");
+    expect(rows[0]?.hidden).toBe(false);
+    expect(rows[1]?.hidden).toBe(true);
   });
 
   it("filters rows immediately and debounces polite result announcements", () => {
