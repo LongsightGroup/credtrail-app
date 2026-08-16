@@ -2,8 +2,10 @@ import { withCredTrailUserAgent } from "../http/outbound-user-agent";
 import {
   GradebookProviderError,
   gradebookProviderHttpError,
+  gradebookProviderRequestError,
   type GradebookProviderOperation,
 } from "./gradebook-provider-error";
+import type { GradebookRequestOptions } from "./gradebook-types";
 
 /**
  * LMS picker limits are intentionally tighter than full gradebook sync limits:
@@ -70,6 +72,7 @@ const asJsonArray = (value: unknown): readonly unknown[] | null => {
 
 export const fetchCanvasJsonArrayPages = async (
   input: FetchCanvasJsonArrayPagesInput,
+  options: GradebookRequestOptions = {},
 ): Promise<readonly unknown[]> => {
   const firstRequestUrl = new URL(input.path, input.apiBaseUrl);
 
@@ -84,13 +87,25 @@ export const fetchCanvasJsonArrayPages = async (
   while (requestUrl !== null) {
     pageCount += 1;
 
-    const response = await input.fetchImpl(requestUrl.toString(), {
-      method: "GET",
-      headers: withCredTrailUserAgent({
-        authorization: `Bearer ${input.accessToken}`,
-        accept: "application/json",
-      }),
-    });
+    let response: Response;
+
+    try {
+      response = await input.fetchImpl(requestUrl.toString(), {
+        method: "GET",
+        headers: withCredTrailUserAgent({
+          authorization: `Bearer ${input.accessToken}`,
+          accept: "application/json",
+        }),
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
+      });
+    } catch (cause: unknown) {
+      throw gradebookProviderRequestError({
+        providerKind: "canvas",
+        operation: input.operation,
+        cause,
+        options,
+      });
+    }
 
     if (!response.ok) {
       throw gradebookProviderHttpError({
@@ -100,7 +115,22 @@ export const fetchCanvasJsonArrayPages = async (
       });
     }
 
-    const body = await response.json<unknown>().catch(() => null);
+    let body: unknown;
+
+    try {
+      body = await response.json<unknown>();
+    } catch (cause: unknown) {
+      if (options.signal?.aborted === true) {
+        throw gradebookProviderRequestError({
+          providerKind: "canvas",
+          operation: input.operation,
+          cause,
+          options,
+        });
+      }
+
+      body = null;
+    }
     const payload = asJsonArray(body);
 
     if (payload === null) {

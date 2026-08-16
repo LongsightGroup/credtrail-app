@@ -34,6 +34,9 @@ import {
   resolveGradebookProviderWithConnection,
   type ResolvedGradebookProvider,
 } from "../lms/gradebook-provider-resolution";
+import { isGradebookProviderRequestCancelled } from "../lms/gradebook-provider-error";
+import { gradebookRequestOptionsWithDeadline } from "../lms/gradebook-request-options";
+import type { GradebookRequestOptions } from "../lms/gradebook-types";
 import { lmsLookupErrorMessage } from "../lms/gradebook-picker";
 import { authorizeBadgeRuleCourses } from "../rules/badge-rule-course-authorization";
 import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
@@ -52,17 +55,20 @@ type PrepareBadgeRuleDraftResult =
     }
   | {
       status: "error";
-      statusCode: 403 | 409 | 422 | 502;
+      statusCode: 403 | 408 | 409 | 422 | 502;
       error: string;
     };
 
-const prepareBadgeRuleDraft = async (input: {
-  db: SqlDatabase;
-  tenantId: string;
-  userId: string;
-  request: BadgeRuleDraftRequest;
-  missingLmsConnectionMessage: string;
-}): Promise<PrepareBadgeRuleDraftResult> => {
+const prepareBadgeRuleDraft = async (
+  input: {
+    db: SqlDatabase;
+    tenantId: string;
+    userId: string;
+    request: BadgeRuleDraftRequest;
+    missingLmsConnectionMessage: string;
+  },
+  options: GradebookRequestOptions = {},
+): Promise<PrepareBadgeRuleDraftResult> => {
   let resolvedDefinition: Parameters<typeof extractBadgeIssuanceRuleRequirements>[0];
 
   try {
@@ -94,12 +100,15 @@ const prepareBadgeRuleDraft = async (input: {
   let resolvedProvider: ResolvedGradebookProvider;
 
   try {
-    resolvedProvider = await resolveGradebookProviderWithConnection({
-      db: input.db,
-      tenantId: input.tenantId,
-      lmsConnectionId: input.request.lmsConnectionId,
-      nowIso: new Date().toISOString(),
-    });
+    resolvedProvider = await resolveGradebookProviderWithConnection(
+      {
+        db: input.db,
+        tenantId: input.tenantId,
+        lmsConnectionId: input.request.lmsConnectionId,
+        nowIso: new Date().toISOString(),
+      },
+      options,
+    );
   } catch (error) {
     if (
       error instanceof GradebookProviderResolutionError &&
@@ -112,6 +121,17 @@ const prepareBadgeRuleDraft = async (input: {
       };
     }
 
+    if (
+      (error instanceof GradebookProviderResolutionError && error.reason === "cancelled") ||
+      isGradebookProviderRequestCancelled(error, options)
+    ) {
+      return {
+        status: "error",
+        statusCode: 408,
+        error: "LMS request was cancelled",
+      };
+    }
+
     return {
       status: "error",
       statusCode: 409,
@@ -120,12 +140,15 @@ const prepareBadgeRuleDraft = async (input: {
   }
 
   try {
-    const authorization = await authorizeBadgeRuleCourses({
-      db: input.db,
-      resolvedProvider,
-      userId: input.userId,
-      definition: resolvedDefinition,
-    });
+    const authorization = await authorizeBadgeRuleCourses(
+      {
+        db: input.db,
+        resolvedProvider,
+        userId: input.userId,
+        definition: resolvedDefinition,
+      },
+      options,
+    );
 
     if (authorization.status !== "authorized") {
       return {
@@ -137,29 +160,41 @@ const prepareBadgeRuleDraft = async (input: {
   } catch (error) {
     return {
       status: "error",
-      statusCode: 502,
-      error: lmsLookupErrorMessage(
-        resolvedProvider.connection,
-        error,
-        "Unable to verify LMS course access",
-      ),
+      statusCode: isGradebookProviderRequestCancelled(error, options) ? 408 : 502,
+      error: isGradebookProviderRequestCancelled(error, options)
+        ? "LMS request was cancelled"
+        : lmsLookupErrorMessage(
+            resolvedProvider.connection,
+            error,
+            "Unable to verify LMS course access",
+          ),
     };
   }
 
-  const referenceValidation = await validateBadgeRuleReferences({
-    provider: resolvedProvider.provider,
-    definition: resolvedDefinition,
-  });
+  const referenceValidation = await validateBadgeRuleReferences(
+    {
+      provider: resolvedProvider.provider,
+      definition: resolvedDefinition,
+    },
+    options,
+  );
 
   if (referenceValidation.status === "gradebook_unavailable") {
+    const requestCancelled = isGradebookProviderRequestCancelled(
+      referenceValidation.cause,
+      options,
+    );
+
     return {
       status: "error",
-      statusCode: 502,
-      error: lmsLookupErrorMessage(
-        resolvedProvider.connection,
-        referenceValidation.cause,
-        `Unable to read the gradebook for course ${referenceValidation.courseId}`,
-      ),
+      statusCode: requestCancelled ? 408 : 502,
+      error: requestCancelled
+        ? "LMS request was cancelled"
+        : lmsLookupErrorMessage(
+            resolvedProvider.connection,
+            referenceValidation.cause,
+            `Unable to read the gradebook for course ${referenceValidation.courseId}`,
+          ),
     };
   }
 
@@ -246,14 +281,17 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
           });
 
     if (result === null) {
-      const prepared = await prepareBadgeRuleDraft({
-        db,
-        tenantId: tenantParams.tenantId,
-        userId: principal.userId,
-        request,
-        missingLmsConnectionMessage:
-          "Select a connected LMS gradebook source before creating a rule.",
-      });
+      const prepared = await prepareBadgeRuleDraft(
+        {
+          db,
+          tenantId: tenantParams.tenantId,
+          userId: principal.userId,
+          request,
+          missingLmsConnectionMessage:
+            "Select a connected LMS gradebook source before creating a rule.",
+        },
+        gradebookRequestOptionsWithDeadline({ signal: c.req.raw.signal }),
+      );
 
       if (prepared.status === "error") {
         const replay =
@@ -377,14 +415,17 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
 
     const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
-    const prepared = await prepareBadgeRuleDraft({
-      db,
-      tenantId: pathParams.tenantId,
-      userId: principal.userId,
-      request,
-      missingLmsConnectionMessage:
-        "Select a connected LMS gradebook source before saving a rule draft.",
-    });
+    const prepared = await prepareBadgeRuleDraft(
+      {
+        db,
+        tenantId: pathParams.tenantId,
+        userId: principal.userId,
+        request,
+        missingLmsConnectionMessage:
+          "Select a connected LMS gradebook source before saving a rule draft.",
+      },
+      gradebookRequestOptionsWithDeadline({ signal: c.req.raw.signal }),
+    );
 
     if (prepared.status === "error") {
       return c.json(

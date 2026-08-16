@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
   GradebookProviderError,
   gradebookProviderHttpError,
+  gradebookProviderRequestError,
   type GradebookProviderOperation,
 } from "./gradebook-provider-error";
 import type {
@@ -16,6 +17,7 @@ import type {
   GradebookEnrollmentRecord,
   GradebookGradeRecord,
   GradebookLearnerRecord,
+  GradebookRequestOptions,
   GradebookSubmissionRecord,
   SakaiGradebookProvider,
   SakaiGradebookProviderConfig,
@@ -24,7 +26,7 @@ import type {
 interface CreateSakaiGradebookProviderInput {
   config: SakaiGradebookProviderConfig;
   fetchImpl?: typeof fetch;
-  refreshSession?: () => Promise<SakaiSessionLoginResult>;
+  refreshSession?: (options?: GradebookRequestOptions) => Promise<SakaiSessionLoginResult>;
 }
 
 export interface CreateSakaiSessionInput {
@@ -294,6 +296,7 @@ export const sakaiCookieHeaderFromAccessToken = (accessToken: string): string =>
 
 export const createSakaiSession = async (
   input: CreateSakaiSessionInput,
+  options: GradebookRequestOptions = {},
 ): Promise<SakaiSessionLoginResult> => {
   const fetchImpl = input.fetchImpl ?? fetch;
   const apiBaseUrl = ensureHttpBaseUrl(input.apiBaseUrl);
@@ -302,15 +305,38 @@ export const createSakaiSession = async (
     _username: input.username,
     _password: input.password,
   });
-  const response = await fetchImpl(loginUrl.toString(), {
-    method: "POST",
-    headers: withCredTrailUserAgent({
-      accept: "text/plain, application/json",
-      "content-type": "application/x-www-form-urlencoded",
-    }),
-    body,
-  });
-  const responseBody = await response.text();
+  let response: Response;
+
+  try {
+    response = await fetchImpl(loginUrl.toString(), {
+      method: "POST",
+      headers: withCredTrailUserAgent({
+        accept: "text/plain, application/json",
+        "content-type": "application/x-www-form-urlencoded",
+      }),
+      body,
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+    });
+  } catch (cause: unknown) {
+    throw gradebookProviderRequestError({
+      providerKind: "sakai",
+      operation: "connection",
+      cause,
+      options,
+    });
+  }
+  let responseBody: string;
+
+  try {
+    responseBody = await response.text();
+  } catch (cause: unknown) {
+    throw gradebookProviderRequestError({
+      providerKind: "sakai",
+      operation: "connection",
+      cause,
+      options,
+    });
+  }
 
   if (!response.ok) {
     throw new Error(
@@ -581,20 +607,35 @@ export const createSakaiGradebookProvider = (
   const siteRequestCache = new Map<string, Promise<unknown>>();
   let cookieHeader = sakaiCookieHeaderFromAccessToken(config.accessToken);
 
-  const fetchJson = (requestUrl: URL): Promise<Response> => {
-    return fetchImpl(requestUrl.toString(), {
-      method: "GET",
-      headers: withCredTrailUserAgent({
-        cookie: cookieHeader,
-        accept: "application/json",
-      }),
-    });
+  const fetchJson = async (
+    requestUrl: URL,
+    operation: GradebookProviderOperation,
+    options: GradebookRequestOptions,
+  ): Promise<Response> => {
+    try {
+      return await fetchImpl(requestUrl.toString(), {
+        method: "GET",
+        headers: withCredTrailUserAgent({
+          cookie: cookieHeader,
+          accept: "application/json",
+        }),
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
+      });
+    } catch (cause: unknown) {
+      throw gradebookProviderRequestError({
+        providerKind: "sakai",
+        operation,
+        cause,
+        options,
+      });
+    }
   };
 
   const requestJson = async (
     path: string,
     operation: GradebookProviderOperation,
     query?: URLSearchParams,
+    options: GradebookRequestOptions = {},
   ): Promise<unknown> => {
     const requestUrl = new URL(path, apiBaseUrl);
 
@@ -602,7 +643,7 @@ export const createSakaiGradebookProvider = (
       requestUrl.search = query.toString();
     }
 
-    let response = await fetchJson(requestUrl);
+    let response = await fetchJson(requestUrl, operation, options);
 
     if (
       !response.ok &&
@@ -610,17 +651,15 @@ export const createSakaiGradebookProvider = (
       input.refreshSession !== undefined
     ) {
       try {
-        const refreshedSession = await input.refreshSession();
+        const refreshedSession = await input.refreshSession(options);
         cookieHeader = refreshedSession.cookieHeader;
-        response = await fetchJson(requestUrl);
+        response = await fetchJson(requestUrl, operation, options);
       } catch (cause: unknown) {
-        throw new GradebookProviderError({
+        throw gradebookProviderRequestError({
           providerKind: "sakai",
           operation,
-          reason: "request_failed",
-          statusCode: null,
-          message: `sakai ${operation} session refresh failed`,
           cause,
+          options,
         });
       }
     }
@@ -636,6 +675,15 @@ export const createSakaiGradebookProvider = (
     try {
       return await response.json<unknown>();
     } catch (cause: unknown) {
+      if (options.signal?.aborted === true) {
+        throw gradebookProviderRequestError({
+          providerKind: "sakai",
+          operation,
+          cause,
+          options,
+        });
+      }
+
       throw new GradebookProviderError({
         providerKind: "sakai",
         operation,
@@ -647,7 +695,11 @@ export const createSakaiGradebookProvider = (
     }
   };
 
-  const fetchMatrix = (courseId: string): Promise<SakaiGradebookMatrix> => {
+  const fetchMatrix = (
+    courseId: string,
+    options: GradebookRequestOptions,
+  ): Promise<SakaiGradebookMatrix> => {
+    options.signal?.throwIfAborted();
     const cached = matrixRequestCache.get(courseId);
 
     if (cached !== undefined) {
@@ -657,12 +709,20 @@ export const createSakaiGradebookProvider = (
     const request = requestJson(
       `/api/sites/${encodeURIComponent(courseId)}/grading/full-gradebook`,
       "gradebook_read",
-    ).then((body) => parseSakaiGradebookMatrix(courseId, body));
+      undefined,
+      options,
+    )
+      .then((body) => parseSakaiGradebookMatrix(courseId, body))
+      .catch((cause: unknown) => {
+        matrixRequestCache.delete(courseId);
+        throw cause;
+      });
     matrixRequestCache.set(courseId, request);
     return request;
   };
 
-  const siteById = (courseId: string): Promise<unknown> => {
+  const siteById = (courseId: string, options: GradebookRequestOptions): Promise<unknown> => {
+    options.signal?.throwIfAborted();
     const cached = siteRequestCache.get(courseId);
 
     if (cached !== undefined) {
@@ -672,11 +732,14 @@ export const createSakaiGradebookProvider = (
     const request = requestJson(
       `/direct/site/${encodeURIComponent(courseId)}.json`,
       "course_search",
+      undefined,
+      options,
     ).catch((error: unknown) => {
       if (error instanceof GradebookProviderError && error.statusCode === 404) {
         return null;
       }
 
+      siteRequestCache.delete(courseId);
       throw error;
     });
     siteRequestCache.set(courseId, request);
@@ -684,7 +747,7 @@ export const createSakaiGradebookProvider = (
   };
 
   const courseCatalog: GradebookCourseCatalog = {
-    listCourses: async (listInput): Promise<GradebookCourseSearchResult> => {
+    listCourses: async (listInput, options = {}): Promise<GradebookCourseSearchResult> => {
       // Sakai applies select=any to the authenticated administrator session. Intersecting these
       // results with an LTI launch user's memberships would hide institution-wide admin access.
       const requestedCourseCount = listInput.limit + 1;
@@ -708,7 +771,7 @@ export const createSakaiGradebookProvider = (
           query.set("search", searchTerm);
         }
 
-        const payload = await requestJson("/direct/site.json", "course_search", query);
+        const payload = await requestJson("/direct/site.json", "course_search", query, options);
         const parsedPayload = sakaiSiteCollectionSchema.safeParse(payload);
 
         if (!parsedPayload.success) {
@@ -762,13 +825,13 @@ export const createSakaiGradebookProvider = (
         hasMore: matchingCourses.length > listInput.limit,
       };
     },
-    verifyCourseAccess: async (accessInput) => {
+    verifyCourseAccess: async (accessInput, options = {}) => {
       const uniqueCourseIds = [...new Set(accessInput.courseIds)];
       const accessChecks = await mapConcurrentBounded(
         uniqueCourseIds,
         { concurrency: SAKAI_COURSE_ACCESS_CONCURRENCY },
         async (courseId) => {
-          const site = await siteById(courseId);
+          const site = await siteById(courseId, options);
           const course = parseSakaiCourseRecord(site);
           return { courseId, course };
         },
@@ -794,8 +857,8 @@ export const createSakaiGradebookProvider = (
   return {
     kind: "sakai",
     courseCatalogForConnection: () => courseCatalog,
-    listAssignments: async (input): Promise<readonly GradebookAssignmentRecord[]> => {
-      const matrix = await fetchMatrix(input.courseId);
+    listAssignments: async (input, options = {}): Promise<readonly GradebookAssignmentRecord[]> => {
+      const matrix = await fetchMatrix(input.courseId, options);
       return matrix.columns.map((column) => ({
         assignmentId: column.id,
         courseId: matrix.siteId,
@@ -805,8 +868,8 @@ export const createSakaiGradebookProvider = (
         dueAt: column.dueDate,
       }));
     },
-    listEnrollments: async (input): Promise<readonly GradebookEnrollmentRecord[]> => {
-      const matrix = await fetchMatrix(input.courseId);
+    listEnrollments: async (input, options = {}): Promise<readonly GradebookEnrollmentRecord[]> => {
+      const matrix = await fetchMatrix(input.courseId, options);
 
       return matrix.students
         .filter((student) => input.learnerId === undefined || student.learnerId === input.learnerId)
@@ -819,12 +882,14 @@ export const createSakaiGradebookProvider = (
           lastActivityAt: null,
         }));
     },
-    listLearners: async (input): Promise<readonly GradebookLearnerRecord[]> => {
+    listLearners: async (input, options = {}): Promise<readonly GradebookLearnerRecord[]> => {
       const [matrix, membershipPayload] = await Promise.all([
-        fetchMatrix(input.courseId),
+        fetchMatrix(input.courseId, options),
         requestJson(
           `/direct/membership/site/${encodeURIComponent(input.courseId)}.json`,
           "learner_search",
+          undefined,
+          options,
         ),
       ]);
       const membershipObject = asJsonObject(membershipPayload);
@@ -856,8 +921,8 @@ export const createSakaiGradebookProvider = (
           );
         });
     },
-    listSubmissions: async (input): Promise<readonly GradebookSubmissionRecord[]> => {
-      const matrix = await fetchMatrix(input.courseId);
+    listSubmissions: async (input, options = {}): Promise<readonly GradebookSubmissionRecord[]> => {
+      const matrix = await fetchMatrix(input.courseId, options);
       const submissions: GradebookSubmissionRecord[] = [];
 
       for (const student of matrix.students) {
@@ -886,8 +951,8 @@ export const createSakaiGradebookProvider = (
 
       return submissions;
     },
-    listGrades: async (input): Promise<readonly GradebookGradeRecord[]> => {
-      const matrix = await fetchMatrix(input.courseId);
+    listGrades: async (input, options = {}): Promise<readonly GradebookGradeRecord[]> => {
+      const matrix = await fetchMatrix(input.courseId, options);
 
       return matrix.students
         .filter((student) => input.learnerId === undefined || student.learnerId === input.learnerId)
@@ -905,8 +970,8 @@ export const createSakaiGradebookProvider = (
           };
         });
     },
-    listCompletions: async (input): Promise<readonly GradebookCompletionRecord[]> => {
-      const matrix = await fetchMatrix(input.courseId);
+    listCompletions: async (input, options = {}): Promise<readonly GradebookCompletionRecord[]> => {
+      const matrix = await fetchMatrix(input.courseId, options);
 
       return matrix.students
         .filter((student) => input.learnerId === undefined || student.learnerId === input.learnerId)

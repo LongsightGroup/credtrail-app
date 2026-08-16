@@ -47,6 +47,8 @@ const lmsCourseAuthoringFailureResponse = (failure: LmsCourseAuthoringFailure): 
     case "identity_unlinked":
     case "course_unauthorized":
       return Response.json({ error: failure.error }, { status: 403 });
+    case "request_cancelled":
+      return Response.json({ error: failure.error }, { status: 408 });
     case "provider_unavailable":
       return Response.json({ error: failure.error }, { status: 502 });
   }
@@ -180,14 +182,17 @@ export const registerTenantLmsConnectionRoutes = (
     }
 
     const db = resolveDatabase(c.env);
-    const result = await lmsCourseAuthoring.searchCourses({
-      db,
-      tenantId: pathParams.tenantId,
-      connectionId: pathParams.connectionId,
-      userId: roleCheck.principal.userId,
-      limit: LMS_PICKER_MAX_COURSES,
-      ...(query.q === undefined ? {} : { searchTerm: query.q }),
-    });
+    const result = await lmsCourseAuthoring.searchCourses(
+      {
+        db,
+        tenantId: pathParams.tenantId,
+        connectionId: pathParams.connectionId,
+        userId: roleCheck.principal.userId,
+        limit: LMS_PICKER_MAX_COURSES,
+        ...(query.q === undefined ? {} : { searchTerm: query.q }),
+      },
+      { signal: c.req.raw.signal },
+    );
 
     if (result.status !== "resolved") {
       return lmsCourseAuthoringFailureResponse(result);
@@ -213,15 +218,18 @@ export const registerTenantLmsConnectionRoutes = (
       }
 
       const db = resolveDatabase(c.env);
-      const result = await lmsCourseAuthoring.searchLearners({
-        db,
-        tenantId: pathParams.tenantId,
-        connectionId: pathParams.connectionId,
-        userId: roleCheck.principal.userId,
-        courseId: pathParams.courseId,
-        limit: LMS_PICKER_MAX_LEARNERS,
-        ...(query.q === undefined ? {} : { searchTerm: query.q }),
-      });
+      const result = await lmsCourseAuthoring.searchLearners(
+        {
+          db,
+          tenantId: pathParams.tenantId,
+          connectionId: pathParams.connectionId,
+          userId: roleCheck.principal.userId,
+          courseId: pathParams.courseId,
+          limit: LMS_PICKER_MAX_LEARNERS,
+          ...(query.q === undefined ? {} : { searchTerm: query.q }),
+        },
+        { signal: c.req.raw.signal },
+      );
 
       if (result.status !== "resolved") {
         return lmsCourseAuthoringFailureResponse(result);
@@ -250,14 +258,17 @@ export const registerTenantLmsConnectionRoutes = (
       }
 
       const db = resolveDatabase(c.env);
-      const result = await lmsCourseAuthoring.listGradebookItems({
-        db,
-        tenantId: pathParams.tenantId,
-        connectionId: pathParams.connectionId,
-        userId: roleCheck.principal.userId,
-        courseId: pathParams.courseId,
-        ...(query.q === undefined ? {} : { searchTerm: query.q }),
-      });
+      const result = await lmsCourseAuthoring.listGradebookItems(
+        {
+          db,
+          tenantId: pathParams.tenantId,
+          connectionId: pathParams.connectionId,
+          userId: roleCheck.principal.userId,
+          courseId: pathParams.courseId,
+          ...(query.q === undefined ? {} : { searchTerm: query.q }),
+        },
+        { signal: c.req.raw.signal },
+      );
 
       if (result.status !== "resolved") {
         return lmsCourseAuthoringFailureResponse(result);
@@ -283,14 +294,17 @@ export const registerTenantLmsConnectionRoutes = (
       }
 
       const db = resolveDatabase(c.env);
-      const result = await lmsCourseAuthoring.listWorkflowStates({
-        db,
-        tenantId: pathParams.tenantId,
-        connectionId: pathParams.connectionId,
-        userId: roleCheck.principal.userId,
-        courseId: pathParams.courseId,
-        assignmentId: pathParams.assignmentId,
-      });
+      const result = await lmsCourseAuthoring.listWorkflowStates(
+        {
+          db,
+          tenantId: pathParams.tenantId,
+          connectionId: pathParams.connectionId,
+          userId: roleCheck.principal.userId,
+          courseId: pathParams.courseId,
+          assignmentId: pathParams.assignmentId,
+        },
+        { signal: c.req.raw.signal },
+      );
 
       if (result.status !== "resolved") {
         return lmsCourseAuthoringFailureResponse(result);

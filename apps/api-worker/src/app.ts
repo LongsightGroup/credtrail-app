@@ -86,6 +86,7 @@ import { asJsonObject, asNonEmptyString, asString } from "./utils/value-parsers"
 import { createApiWorker } from "./worker/create-worker";
 import { createPostgresQueueIngressStore } from "./queue/ingress-store";
 import { createLmsCourseAuthoringService } from "./lms/lms-course-authoring-service";
+import { DEFAULT_GRADEBOOK_REQUEST_TIMEOUT_MS } from "./lms/gradebook-request-options";
 import { createProductionBadgeRuleVersionReferenceLabelService } from "./lms/badge-rule-version-reference-label-service";
 import {
   createProcessQueuedJobs,
@@ -324,6 +325,7 @@ export const processScheduledQueue = async (env: AppBindings): Promise<ProcessQu
 
 const lmsCourseAuthoring = createLmsCourseAuthoringService({
   currentTimestamp: () => new Date().toISOString(),
+  requestTimeoutMs: DEFAULT_GRADEBOOK_REQUEST_TIMEOUT_MS,
 });
 const loadBadgeRuleVersionReferenceLabels =
   createProductionBadgeRuleVersionReferenceLabelService(lmsCourseAuthoring);

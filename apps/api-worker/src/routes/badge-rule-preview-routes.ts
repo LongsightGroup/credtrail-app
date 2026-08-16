@@ -9,10 +9,13 @@ import type { Hono } from "hono";
 import type { AppEnv } from "../app";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import {
+  GradebookProviderResolutionError,
   isClientGradebookProviderResolutionError,
   resolveGradebookProviderWithConnection,
   type ResolvedGradebookProvider,
 } from "../lms/gradebook-provider-resolution";
+import { isGradebookProviderRequestCancelled } from "../lms/gradebook-provider-error";
+import { gradebookRequestOptionsWithDeadline } from "../lms/gradebook-request-options";
 import { lmsLookupErrorMessage } from "../lms/gradebook-picker";
 import { authorizeBadgeRuleCourses } from "../rules/badge-rule-course-authorization";
 import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
@@ -41,6 +44,7 @@ export const registerBadgeRulePreviewRoutes = (
   const { app, resolveDatabase, requireTenantRole, ISSUER_ROLES } = input;
 
   app.post("/v1/tenants/:tenantId/badge-rules/preview-evaluate", async (c) => {
+    const requestOptions = gradebookRequestOptionsWithDeadline({ signal: c.req.raw.signal });
     const pathParams = parseTenantPathParams(c.req.param());
     let request;
 
@@ -84,28 +88,39 @@ export const registerBadgeRulePreviewRoutes = (
 
     if (extractBadgeIssuanceRuleRequirements(definition).courseIds.length > 0) {
       try {
-        resolvedProvider = await resolveGradebookProviderWithConnection({
-          db,
-          tenantId: pathParams.tenantId,
-          lmsConnectionId: request.lmsConnectionId,
-          nowIso,
-        });
+        resolvedProvider = await resolveGradebookProviderWithConnection(
+          {
+            db,
+            tenantId: pathParams.tenantId,
+            lmsConnectionId: request.lmsConnectionId,
+            nowIso,
+          },
+          requestOptions,
+        );
       } catch (error) {
         return c.json(
           {
             error: error instanceof Error ? error.message : "Unable to use LMS connection",
           },
-          isClientGradebookProviderResolutionError(error) ? 422 : 409,
+          (error instanceof GradebookProviderResolutionError && error.reason === "cancelled") ||
+            isGradebookProviderRequestCancelled(error, requestOptions)
+            ? 408
+            : isClientGradebookProviderResolutionError(error)
+              ? 422
+              : 409,
         );
       }
 
       try {
-        const authorization = await authorizeBadgeRuleCourses({
-          db,
-          resolvedProvider,
-          userId: roleCheck.principal.userId,
-          definition,
-        });
+        const authorization = await authorizeBadgeRuleCourses(
+          {
+            db,
+            resolvedProvider,
+            userId: roleCheck.principal.userId,
+            definition,
+          },
+          requestOptions,
+        );
 
         if (authorization.status !== "authorized") {
           return c.json({ error: authorization.error }, 403);
@@ -119,7 +134,7 @@ export const registerBadgeRulePreviewRoutes = (
               "Unable to verify LMS course access",
             ),
           },
-          502,
+          isGradebookProviderRequestCancelled(error, requestOptions) ? 408 : 502,
         );
       }
     }
@@ -127,27 +142,34 @@ export const registerBadgeRulePreviewRoutes = (
     let facts: BadgeIssuanceRuleEvaluationFacts;
 
     try {
-      facts = await loadRuleFacts({
-        db,
-        tenantId: pathParams.tenantId,
-        lmsProviderKind: request.lmsProviderKind,
-        lmsConnectionId: request.lmsConnectionId,
-        learnerId: request.learnerId,
-        ...(request.recipient === undefined ? {} : { recipient: request.recipient }),
-        definition,
-        requestedFacts: request.facts,
-        ...(resolvedProvider === undefined ? {} : { gradebookProvider: resolvedProvider.provider }),
-        nowIso,
-      });
+      facts = await loadRuleFacts(
+        {
+          db,
+          tenantId: pathParams.tenantId,
+          lmsProviderKind: request.lmsProviderKind,
+          lmsConnectionId: request.lmsConnectionId,
+          learnerId: request.learnerId,
+          ...(request.recipient === undefined ? {} : { recipient: request.recipient }),
+          definition,
+          requestedFacts: request.facts,
+          ...(resolvedProvider === undefined
+            ? {}
+            : { gradebookProvider: resolvedProvider.provider }),
+          nowIso,
+        },
+        requestOptions,
+      );
     } catch (error) {
       return c.json(
         {
           error: error instanceof Error ? error.message : "Failed to load rule facts",
         },
-        isClientGradebookProviderResolutionError(error) ||
-          error instanceof MissingRuleRecipientIdentityError
-          ? 422
-          : 502,
+        isGradebookProviderRequestCancelled(error, requestOptions)
+          ? 408
+          : isClientGradebookProviderResolutionError(error) ||
+              error instanceof MissingRuleRecipientIdentityError
+            ? 422
+            : 502,
       );
     }
 

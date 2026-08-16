@@ -6,10 +6,12 @@ import {
 } from "@credtrail/db";
 import { refreshCanvasAccessToken } from "./canvas-oauth";
 import { createGradebookProvider } from "./gradebook-provider";
+import { isGradebookProviderRequestCancelled } from "./gradebook-provider-error";
 import type {
   CanvasGradebookProvider,
   CourseAuthoringGradebookProvider,
   GradebookProvider,
+  GradebookRequestOptions,
   SakaiGradebookProvider,
 } from "./gradebook-types";
 import { createSakaiSession, type SakaiSessionLoginResult } from "./sakai-gradebook-provider";
@@ -51,28 +53,36 @@ const hasSakaiPasswordCredentials = (
   );
 };
 
-const refreshSakaiSessionForConnection = async (input: {
-  db: SqlDatabase;
-  connection: TenantLmsConnectionRecord & {
-    providerKind: "sakai";
-    clientId: string;
-    clientSecret: string;
-  };
-  nowIso: string;
-  fetchImpl?: typeof fetch;
-}): Promise<SakaiSessionLoginResult> => {
-  const session = await createSakaiSession({
-    apiBaseUrl: input.connection.apiBaseUrl,
-    username: input.connection.clientId,
-    password: input.connection.clientSecret,
-    ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
-  });
+const refreshSakaiSessionForConnection = async (
+  input: {
+    db: SqlDatabase;
+    connection: TenantLmsConnectionRecord & {
+      providerKind: "sakai";
+      clientId: string;
+      clientSecret: string;
+    };
+    nowIso: string;
+    fetchImpl?: typeof fetch;
+  },
+  options: GradebookRequestOptions = {},
+): Promise<SakaiSessionLoginResult> => {
+  const session = await createSakaiSession(
+    {
+      apiBaseUrl: input.connection.apiBaseUrl,
+      username: input.connection.clientId,
+      password: input.connection.clientSecret,
+      ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
+    },
+    options,
+  );
+  options.signal?.throwIfAborted();
   const refreshed = await updateTenantLmsConnectionTokens(input.db, {
     tenantId: input.connection.tenantId,
     connectionId: input.connection.id,
     accessToken: session.cookieHeader,
     accessTokenExpiresAt: addSecondsToIso(input.nowIso, SAKAI_SESSION_CACHE_TTL_SECONDS),
   });
+  options.signal?.throwIfAborted();
 
   return {
     sessionId: session.sessionId,
@@ -109,9 +119,12 @@ export interface PublicTenantLmsConnection {
 }
 
 export class GradebookProviderResolutionError extends Error {
-  public readonly reason: "missing_connection" | "not_found" | "unusable";
+  public readonly reason: "cancelled" | "missing_connection" | "not_found" | "unusable";
 
-  public constructor(reason: "missing_connection" | "not_found" | "unusable", message: string) {
+  public constructor(
+    reason: "cancelled" | "missing_connection" | "not_found" | "unusable",
+    message: string,
+  ) {
     super(message);
     this.name = "GradebookProviderResolutionError";
     this.reason = reason;
@@ -188,12 +201,16 @@ const isSakaiTenantLmsConnection = (
   return connection.providerKind === "sakai";
 };
 
-export const createGradebookProviderForConnection = async (input: {
-  db: SqlDatabase;
-  connection: TenantLmsConnectionRecord;
-  nowIso: string;
-  fetchImpl?: typeof fetch;
-}): Promise<CourseAuthoringGradebookProvider> => {
+export const createGradebookProviderForConnection = async (
+  input: {
+    db: SqlDatabase;
+    connection: TenantLmsConnectionRecord;
+    nowIso: string;
+    fetchImpl?: typeof fetch;
+  },
+  options: GradebookRequestOptions = {},
+): Promise<CourseAuthoringGradebookProvider> => {
+  options.signal?.throwIfAborted();
   let accessToken = input.connection.accessToken;
 
   if (input.connection.providerKind === "sakai") {
@@ -209,12 +226,15 @@ export const createGradebookProviderForConnection = async (input: {
         );
       }
 
-      const session = await refreshSakaiSessionForConnection({
-        db: input.db,
-        connection: input.connection,
-        nowIso: input.nowIso,
-        ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
-      });
+      const session = await refreshSakaiSessionForConnection(
+        {
+          db: input.db,
+          connection: input.connection,
+          nowIso: input.nowIso,
+          ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
+        },
+        options,
+      );
 
       accessToken = session.cookieHeader;
     }
@@ -237,13 +257,16 @@ export const createGradebookProviderForConnection = async (input: {
       ...(sakaiCredentialConnection === null
         ? {}
         : {
-            sakaiRefreshSession: () =>
-              refreshSakaiSessionForConnection({
-                db: input.db,
-                connection: sakaiCredentialConnection,
-                nowIso: input.nowIso,
-                ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
-              }),
+            sakaiRefreshSession: (refreshOptions) =>
+              refreshSakaiSessionForConnection(
+                {
+                  db: input.db,
+                  connection: sakaiCredentialConnection,
+                  nowIso: input.nowIso,
+                  ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
+                },
+                refreshOptions,
+              ),
           }),
     });
   }
@@ -265,13 +288,17 @@ export const createGradebookProviderForConnection = async (input: {
       throw new Error("Canvas LMS connection token has expired. Reconnect the gradebook source.");
     }
 
-    const refresh = await refreshCanvasAccessToken({
-      tokenEndpoint: input.connection.tokenEndpoint,
-      clientId: input.connection.clientId,
-      clientSecret: input.connection.clientSecret,
-      refreshToken: input.connection.refreshToken,
-      ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
-    });
+    const refresh = await refreshCanvasAccessToken(
+      {
+        tokenEndpoint: input.connection.tokenEndpoint,
+        clientId: input.connection.clientId,
+        clientSecret: input.connection.clientSecret,
+        refreshToken: input.connection.refreshToken,
+        ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
+      },
+      options,
+    );
+    options.signal?.throwIfAborted();
     const refreshed = await updateTenantLmsConnectionTokens(input.db, {
       tenantId: input.connection.tenantId,
       connectionId: input.connection.id,
@@ -288,6 +315,7 @@ export const createGradebookProviderForConnection = async (input: {
               Date.parse(input.nowIso) + refresh.refreshTokenExpiresInSeconds * 1000,
             ).toISOString(),
     });
+    options.signal?.throwIfAborted();
 
     if (refreshed !== null && refreshed.accessToken !== null) {
       accessToken = refreshed.accessToken;
@@ -304,13 +332,17 @@ export const createGradebookProviderForConnection = async (input: {
   });
 };
 
-export const resolveGradebookProviderWithConnection = async (input: {
-  db: SqlDatabase;
-  tenantId: string;
-  lmsConnectionId?: string | null | undefined;
-  nowIso: string;
-  fetchImpl?: typeof fetch;
-}): Promise<ResolvedGradebookProvider> => {
+export const resolveGradebookProviderWithConnection = async (
+  input: {
+    db: SqlDatabase;
+    tenantId: string;
+    lmsConnectionId?: string | null | undefined;
+    nowIso: string;
+    fetchImpl?: typeof fetch;
+  },
+  options: GradebookRequestOptions = {},
+): Promise<ResolvedGradebookProvider> => {
+  options.signal?.throwIfAborted();
   if (
     input.lmsConnectionId === undefined ||
     input.lmsConnectionId === null ||
@@ -326,6 +358,7 @@ export const resolveGradebookProviderWithConnection = async (input: {
     tenantId: input.tenantId,
     connectionId: input.lmsConnectionId,
   });
+  options.signal?.throwIfAborted();
 
   if (connection === null) {
     throw new GradebookProviderResolutionError(
@@ -335,12 +368,15 @@ export const resolveGradebookProviderWithConnection = async (input: {
   }
 
   try {
-    const provider = await createGradebookProviderForConnection({
-      db: input.db,
-      connection,
-      nowIso: input.nowIso,
-      ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
-    });
+    const provider = await createGradebookProviderForConnection(
+      {
+        db: input.db,
+        connection,
+        nowIso: input.nowIso,
+        ...(input.fetchImpl === undefined ? {} : { fetchImpl: input.fetchImpl }),
+      },
+      options,
+    );
 
     if (isCanvasTenantLmsConnection(connection) && provider.kind === "canvas") {
       return {
@@ -360,6 +396,10 @@ export const resolveGradebookProviderWithConnection = async (input: {
 
     throw new Error("Resolved LMS provider did not match its saved connection");
   } catch (error) {
+    if (isGradebookProviderRequestCancelled(error, options)) {
+      throw new GradebookProviderResolutionError("cancelled", "LMS request was cancelled");
+    }
+
     throw new GradebookProviderResolutionError(
       "unusable",
       error instanceof Error ? error.message : "Unable to use LMS connection",
@@ -367,12 +407,15 @@ export const resolveGradebookProviderWithConnection = async (input: {
   }
 };
 
-export const resolveGradebookProvider = async (input: {
-  db: SqlDatabase;
-  tenantId: string;
-  lmsConnectionId?: string | null | undefined;
-  nowIso: string;
-}): Promise<GradebookProvider> => {
-  const resolved = await resolveGradebookProviderWithConnection(input);
+export const resolveGradebookProvider = async (
+  input: {
+    db: SqlDatabase;
+    tenantId: string;
+    lmsConnectionId?: string | null | undefined;
+    nowIso: string;
+  },
+  options: GradebookRequestOptions = {},
+): Promise<GradebookProvider> => {
+  const resolved = await resolveGradebookProviderWithConnection(input, options);
   return resolved.provider;
 };

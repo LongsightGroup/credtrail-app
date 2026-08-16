@@ -32,12 +32,23 @@ export interface GradebookCourseAccessResult {
   readonly unauthorizedCourseIds: readonly string[];
 }
 
+/** Caller-owned cancellation options for gradebook and LMS network work. */
+export interface GradebookRequestOptions {
+  readonly signal?: AbortSignal;
+}
+
 /** Course discovery and verification bound to one provider authorization boundary. */
 export interface GradebookCourseCatalog {
-  listCourses(input: GradebookCourseSearchInput): Promise<GradebookCourseSearchResult>;
-  verifyCourseAccess(input: {
-    readonly courseIds: readonly string[];
-  }): Promise<GradebookCourseAccessResult>;
+  listCourses(
+    input: GradebookCourseSearchInput,
+    options?: GradebookRequestOptions,
+  ): Promise<GradebookCourseSearchResult>;
+  verifyCourseAccess(
+    input: {
+      readonly courseIds: readonly string[];
+    },
+    options?: GradebookRequestOptions,
+  ): Promise<GradebookCourseAccessResult>;
 }
 
 export interface GradebookAssignmentRecord {
@@ -97,46 +108,64 @@ export interface GradebookCompletionRecord {
 
 /** Reads assignment metadata for course setup and reference validation. */
 export interface GradebookAssignmentReader {
-  listAssignments(input: {
-    readonly courseId: string;
-  }): Promise<readonly GradebookAssignmentRecord[]>;
+  listAssignments(
+    input: {
+      readonly courseId: string;
+    },
+    options?: GradebookRequestOptions,
+  ): Promise<readonly GradebookAssignmentRecord[]>;
 }
 
 /** Reads enrollment records for one LMS course. */
 export interface GradebookEnrollmentReader {
-  listEnrollments(input: {
-    readonly courseId: string;
-    readonly learnerId?: string;
-  }): Promise<readonly GradebookEnrollmentRecord[]>;
+  listEnrollments(
+    input: {
+      readonly courseId: string;
+      readonly learnerId?: string;
+    },
+    options?: GradebookRequestOptions,
+  ): Promise<readonly GradebookEnrollmentRecord[]>;
 }
 
 /** Reads learner rosters for discovery and automated evaluation. */
 export interface GradebookLearnerReader {
-  listLearners(input: {
-    readonly courseId: string;
-    readonly searchTerm?: string;
-  }): Promise<readonly GradebookLearnerRecord[]>;
+  listLearners(
+    input: {
+      readonly courseId: string;
+      readonly searchTerm?: string;
+    },
+    options?: GradebookRequestOptions,
+  ): Promise<readonly GradebookLearnerRecord[]>;
 }
 
 /** Reads assignment submissions for rule setup and evaluation. */
 export interface GradebookSubmissionReader {
-  listSubmissions(input: {
-    readonly courseId: string;
-    readonly assignmentId?: string;
-    readonly learnerId?: string;
-  }): Promise<readonly GradebookSubmissionRecord[]>;
+  listSubmissions(
+    input: {
+      readonly courseId: string;
+      readonly assignmentId?: string;
+      readonly learnerId?: string;
+    },
+    options?: GradebookRequestOptions,
+  ): Promise<readonly GradebookSubmissionRecord[]>;
 }
 
 /** Reads the grade, completion, and submission facts required by badge rules. */
 export interface GradebookRuleFactReader extends GradebookSubmissionReader {
-  listGrades(input: {
-    readonly courseId: string;
-    readonly learnerId?: string;
-  }): Promise<readonly GradebookGradeRecord[]>;
-  listCompletions(input: {
-    readonly courseId: string;
-    readonly learnerId?: string;
-  }): Promise<readonly GradebookCompletionRecord[]>;
+  listGrades(
+    input: {
+      readonly courseId: string;
+      readonly learnerId?: string;
+    },
+    options?: GradebookRequestOptions,
+  ): Promise<readonly GradebookGradeRecord[]>;
+  listCompletions(
+    input: {
+      readonly courseId: string;
+      readonly learnerId?: string;
+    },
+    options?: GradebookRequestOptions,
+  ): Promise<readonly GradebookCompletionRecord[]>;
 }
 
 /** Reads the roster and rule facts needed for automated badge evaluation. */

@@ -267,6 +267,24 @@ describe("LTI deep linking gradebook lookup routes", () => {
     ]);
   });
 
+  it("returns a typed timeout response when the caller cancels the lookup", async () => {
+    const env = createEnv();
+    const controller = new AbortController();
+    controller.abort();
+    const request = new Request(
+      "https://credtrail.test/v1/lti/deep-linking/sessions/lti-session-123/gradebook-items",
+      { signal: controller.signal },
+    );
+
+    const response = await app.request(request, undefined, env);
+
+    expect(response.status).toBe(408);
+    await expect(response.json<ErrorResponse>()).resolves.toEqual({
+      error: "LMS request was cancelled",
+    });
+    expect(mockedFindActiveLtiLaunchSessionByOpaqueId).not.toHaveBeenCalled();
+  });
+
   it("lists known workflow states for a selected Sakai gradebook item", async () => {
     const env = createEnv();
     mockedFindActiveLtiLaunchSessionByOpaqueId.mockResolvedValue(

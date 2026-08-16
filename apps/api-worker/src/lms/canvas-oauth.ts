@@ -1,5 +1,7 @@
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
 import { withCredTrailUserAgent } from "../http/outbound-user-agent";
+import { gradebookProviderRequestError } from "./gradebook-provider-error";
+import type { GradebookRequestOptions } from "./gradebook-types";
 
 const parseCanvasTokenResponse = (
   input: unknown,
@@ -51,13 +53,16 @@ const parseCanvasTokenResponse = (
   };
 };
 
-export const refreshCanvasAccessToken = async (input: {
-  tokenEndpoint: string;
-  clientId: string;
-  clientSecret: string;
-  refreshToken: string;
-  fetchImpl?: typeof fetch;
-}): Promise<{
+export const refreshCanvasAccessToken = async (
+  input: {
+    tokenEndpoint: string;
+    clientId: string;
+    clientSecret: string;
+    refreshToken: string;
+    fetchImpl?: typeof fetch;
+  },
+  options: GradebookRequestOptions = {},
+): Promise<{
   accessToken: string;
   refreshToken?: string | undefined;
   expiresInSeconds?: number | undefined;
@@ -65,24 +70,52 @@ export const refreshCanvasAccessToken = async (input: {
   scope?: string | undefined;
 }> => {
   const fetchImpl = input.fetchImpl ?? fetch;
-  const response = await fetchImpl(input.tokenEndpoint, {
-    method: "POST",
-    headers: withCredTrailUserAgent({
-      "content-type": "application/x-www-form-urlencoded",
-      accept: "application/json",
-    }),
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      client_id: input.clientId,
-      client_secret: input.clientSecret,
-      refresh_token: input.refreshToken,
-    }).toString(),
-  });
+  let response: Response;
+
+  try {
+    response = await fetchImpl(input.tokenEndpoint, {
+      method: "POST",
+      headers: withCredTrailUserAgent({
+        "content-type": "application/x-www-form-urlencoded",
+        accept: "application/json",
+      }),
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        client_id: input.clientId,
+        client_secret: input.clientSecret,
+        refresh_token: input.refreshToken,
+      }).toString(),
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+    });
+  } catch (cause: unknown) {
+    throw gradebookProviderRequestError({
+      providerKind: "canvas",
+      operation: "connection",
+      cause,
+      options,
+    });
+  }
 
   if (!response.ok) {
     throw new Error(`Canvas token refresh failed (${String(response.status)})`);
   }
 
-  const responseBody = await response.json<unknown>().catch(() => null);
+  let responseBody: unknown;
+
+  try {
+    responseBody = await response.json<unknown>();
+  } catch (cause: unknown) {
+    if (options.signal?.aborted === true) {
+      throw gradebookProviderRequestError({
+        providerKind: "canvas",
+        operation: "connection",
+        cause,
+        options,
+      });
+    }
+
+    responseBody = null;
+  }
+
   return parseCanvasTokenResponse(responseBody);
 };

@@ -1,7 +1,11 @@
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import { extractBadgeIssuanceRuleRequirements } from "../rules/engine";
 import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
-import type { GradebookAssignmentReader, GradebookCourseRecord } from "./gradebook-types";
+import type {
+  GradebookAssignmentReader,
+  GradebookCourseRecord,
+  GradebookRequestOptions,
+} from "./gradebook-types";
 
 const RULE_REFERENCE_LABEL_CONCURRENCY = 4;
 
@@ -29,16 +33,19 @@ interface CourseReferenceLabels {
   readonly assignments: readonly BadgeRuleAssignmentReferenceLabel[];
 }
 
-const resolveAssignmentReferenceLabels = async (input: {
-  readonly provider: GradebookAssignmentReader;
-  readonly courseId: string;
-  readonly assignmentIds: ReadonlySet<string>;
-}): Promise<readonly BadgeRuleAssignmentReferenceLabel[]> => {
+const resolveAssignmentReferenceLabels = async (
+  input: {
+    readonly provider: GradebookAssignmentReader;
+    readonly courseId: string;
+    readonly assignmentIds: ReadonlySet<string>;
+  },
+  options: GradebookRequestOptions,
+): Promise<readonly BadgeRuleAssignmentReferenceLabel[]> => {
   if (input.assignmentIds.size === 0) {
     return [];
   }
 
-  const assignments = await input.provider.listAssignments({ courseId: input.courseId });
+  const assignments = await input.provider.listAssignments({ courseId: input.courseId }, options);
   return assignments
     .filter((assignment) => input.assignmentIds.has(assignment.assignmentId))
     .map((assignment) => ({
@@ -49,11 +56,14 @@ const resolveAssignmentReferenceLabels = async (input: {
 };
 
 /** Resolves the labels referenced by one parsed rule with bounded LMS work. */
-export const resolveBadgeRuleReferenceLabels = async (input: {
-  readonly provider: GradebookAssignmentReader;
-  readonly courses: readonly GradebookCourseRecord[];
-  readonly definition: BadgeIssuanceRuleDefinition;
-}): Promise<BadgeRuleReferenceLabelResolution> => {
+export const resolveBadgeRuleReferenceLabels = async (
+  input: {
+    readonly provider: GradebookAssignmentReader;
+    readonly courses: readonly GradebookCourseRecord[];
+    readonly definition: BadgeIssuanceRuleDefinition;
+  },
+  options: GradebookRequestOptions = {},
+): Promise<BadgeRuleReferenceLabelResolution> => {
   const requirements = extractBadgeIssuanceRuleRequirements(input.definition);
   const courseIds = [...new Set(requirements.courseIds)];
 
@@ -76,11 +86,14 @@ export const resolveBadgeRuleReferenceLabels = async (input: {
     async (courseId): Promise<CourseReferenceLabels> => {
       const assignmentIds = assignmentIdsByCourseId.get(courseId) ?? new Set<string>();
       const course = courseById.get(courseId) ?? null;
-      const assignments = await resolveAssignmentReferenceLabels({
-        provider: input.provider,
-        courseId,
-        assignmentIds,
-      });
+      const assignments = await resolveAssignmentReferenceLabels(
+        {
+          provider: input.provider,
+          courseId,
+          assignmentIds,
+        },
+        options,
+      );
 
       return {
         course: course === null ? null : { courseId, title: course.title },

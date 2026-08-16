@@ -46,12 +46,15 @@ export const registerBadgeRuleVersionReferenceRoutes = (
         return roleCheck;
       }
 
-      const result = await loadReferenceLabels({
-        db: resolveDatabase(c.env),
-        ...pathParams,
-        actorUserId: roleCheck.principal.userId,
-        actorRole: roleCheck.membershipRole,
-      });
+      const result = await loadReferenceLabels(
+        {
+          db: resolveDatabase(c.env),
+          ...pathParams,
+          actorUserId: roleCheck.principal.userId,
+          actorRole: roleCheck.membershipRole,
+        },
+        { signal: c.req.raw.signal },
+      );
 
       if (result.status !== "resolved") {
         return c.json({ error: result.error }, statusCodeForFailure(result.status));

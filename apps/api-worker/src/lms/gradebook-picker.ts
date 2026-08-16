@@ -2,6 +2,7 @@ import type { TenantLmsConnectionRecord } from "@credtrail/db";
 import type {
   GradebookAssignmentRecord,
   GradebookAssignmentReader,
+  GradebookRequestOptions,
   GradebookSubmissionReader,
   GradebookSubmissionRecord,
 } from "./gradebook-types";
@@ -141,26 +142,35 @@ export const lmsLookupErrorMessage = (
   return fallback;
 };
 
-export const listGradebookItemsForCourse = async (input: {
-  provider: GradebookAssignmentReader;
-  courseId: string;
-  query: string | undefined;
-}): Promise<readonly GradebookAssignmentRecord[]> => {
-  return (await input.provider.listAssignments({ courseId: input.courseId }))
+export const listGradebookItemsForCourse = async (
+  input: {
+    provider: GradebookAssignmentReader;
+    courseId: string;
+    query: string | undefined;
+  },
+  options: GradebookRequestOptions = {},
+): Promise<readonly GradebookAssignmentRecord[]> => {
+  return (await input.provider.listAssignments({ courseId: input.courseId }, options))
     .filter((assignment) => assignmentMatches(input.query, assignment))
     .slice(0, LMS_PICKER_MAX_GRADEBOOK_ITEMS);
 };
 
-export const listWorkflowStatesForAssignment = async (input: {
-  provider: GradebookSubmissionReader;
-  connection: GradebookPickerConnection;
-  courseId: string;
-  assignmentId: string;
-}): Promise<WorkflowStateOption[]> => {
-  const submissions = await input.provider.listSubmissions({
-    courseId: input.courseId,
-    assignmentId: input.assignmentId,
-  });
+export const listWorkflowStatesForAssignment = async (
+  input: {
+    provider: GradebookSubmissionReader;
+    connection: GradebookPickerConnection;
+    courseId: string;
+    assignmentId: string;
+  },
+  options: GradebookRequestOptions = {},
+): Promise<WorkflowStateOption[]> => {
+  const submissions = await input.provider.listSubmissions(
+    {
+      courseId: input.courseId,
+      assignmentId: input.assignmentId,
+    },
+    options,
+  );
 
   return mergeWorkflowStates({
     defaults: defaultWorkflowStates(input.connection.providerKind),

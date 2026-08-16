@@ -6,7 +6,7 @@ import {
 } from "@credtrail/db";
 import { parsePersistedLtiSession, resolveLtiServiceCapabilities } from "@longsightgroup/lti-tool";
 import { createGradebookProviderForConnection } from "../lms/gradebook-provider-resolution";
-import type { GradebookItemSetupReader } from "../lms/gradebook-types";
+import type { GradebookItemSetupReader, GradebookRequestOptions } from "../lms/gradebook-types";
 import { matchingSakaiLmsConnection } from "./course-badge-setup";
 import { findLtiIssuerRegistryEntry, type LtiIssuerRegistry } from "./lti-issuer-registry";
 
@@ -60,13 +60,18 @@ export const parsePersistedLtiSessionDataJson = (
   };
 };
 
-export const resolveLtiGradebookLookup = async (input: {
-  db: SqlDatabase;
-  ltiSessionId: string;
-  issuerRegistry: LtiIssuerRegistry;
-  nowIso: string;
-}): Promise<ResolvedLtiGradebookLookup | LtiGradebookLookupFailure> => {
+export const resolveLtiGradebookLookup = async (
+  input: {
+    db: SqlDatabase;
+    ltiSessionId: string;
+    issuerRegistry: LtiIssuerRegistry;
+    nowIso: string;
+  },
+  options: GradebookRequestOptions = {},
+): Promise<ResolvedLtiGradebookLookup | LtiGradebookLookupFailure> => {
+  options.signal?.throwIfAborted();
   const persistedSession = await findActiveLtiLaunchSessionByOpaqueId(input.db, input.ltiSessionId);
+  options.signal?.throwIfAborted();
 
   if (persistedSession === null) {
     return {
@@ -122,6 +127,7 @@ export const resolveLtiGradebookLookup = async (input: {
   }
 
   const connections = await listTenantLmsConnections(input.db, tenantId);
+  options.signal?.throwIfAborted();
   const connection = matchingSakaiLmsConnection(connections, {
     issuer: ltiSession.platform.issuer,
     clientId: ltiSession.platform.clientId,
@@ -141,13 +147,20 @@ export const resolveLtiGradebookLookup = async (input: {
       tenantId,
       ltiSession,
       connection,
-      provider: await createGradebookProviderForConnection({
-        db: input.db,
-        connection,
-        nowIso: input.nowIso,
-      }),
+      provider: await createGradebookProviderForConnection(
+        {
+          db: input.db,
+          connection,
+          nowIso: input.nowIso,
+        },
+        options,
+      ),
     };
   } catch (error) {
+    if (options.signal?.aborted === true) {
+      throw error;
+    }
+
     return {
       status: 409,
       error:

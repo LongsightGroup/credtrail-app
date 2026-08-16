@@ -17,7 +17,7 @@ import {
   type BadgeIssuanceRuleSurveyCompletionFact,
 } from "./engine";
 import { resolveGradebookProvider } from "../lms/gradebook-provider-resolution";
-import type { GradebookRuleFactReader } from "../lms/gradebook-types";
+import type { GradebookRequestOptions, GradebookRuleFactReader } from "../lms/gradebook-types";
 
 export class MissingRuleRecipientIdentityError extends Error {
   public constructor() {
@@ -26,23 +26,26 @@ export class MissingRuleRecipientIdentityError extends Error {
   }
 }
 
-export const loadRuleFacts = async (input: {
-  db: SqlDatabase;
-  tenantId: string;
-  lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
-  lmsConnectionId?: string | undefined;
-  learnerId: string;
-  recipient?:
-    | {
-        identity: string;
-        identityType: "email" | "email_sha256" | "did" | "url";
-      }
-    | undefined;
-  definition: ReturnType<typeof parseBadgeIssuanceRuleDefinition>;
-  requestedFacts?: BadgeIssuanceRuleFacts | undefined;
-  gradebookProvider?: GradebookRuleFactReader | undefined;
-  nowIso: string;
-}): Promise<BadgeIssuanceRuleEvaluationFacts> => {
+export const loadRuleFacts = async (
+  input: {
+    db: SqlDatabase;
+    tenantId: string;
+    lmsProviderKind: BadgeIssuanceRuleLmsProviderKind;
+    lmsConnectionId?: string | undefined;
+    learnerId: string;
+    recipient?:
+      | {
+          identity: string;
+          identityType: "email" | "email_sha256" | "did" | "url";
+        }
+      | undefined;
+    definition: ReturnType<typeof parseBadgeIssuanceRuleDefinition>;
+    requestedFacts?: BadgeIssuanceRuleFacts | undefined;
+    gradebookProvider?: GradebookRuleFactReader | undefined;
+    nowIso: string;
+  },
+  options: GradebookRequestOptions = {},
+): Promise<BadgeIssuanceRuleEvaluationFacts> => {
   const requestedFacts = input.requestedFacts;
   const requirements = extractBadgeIssuanceRuleRequirements(input.definition);
 
@@ -122,12 +125,15 @@ export const loadRuleFacts = async (input: {
 
   const provider =
     input.gradebookProvider ??
-    (await resolveGradebookProvider({
-      db: input.db,
-      tenantId: input.tenantId,
-      lmsConnectionId: input.lmsConnectionId,
-      nowIso: input.nowIso,
-    }));
+    (await resolveGradebookProvider(
+      {
+        db: input.db,
+        tenantId: input.tenantId,
+        lmsConnectionId: input.lmsConnectionId,
+        nowIso: input.nowIso,
+      },
+      options,
+    ));
 
   const grades: BadgeIssuanceRuleGradeFact[] = [];
   const completions: BadgeIssuanceRuleCompletionFact[] = [];
@@ -137,14 +143,20 @@ export const loadRuleFacts = async (input: {
 
   for (const courseId of requirements.courseIds) {
     const [courseGrades, courseCompletions] = await Promise.all([
-      provider.listGrades({
-        courseId,
-        learnerId: input.learnerId,
-      }),
-      provider.listCompletions({
-        courseId,
-        learnerId: input.learnerId,
-      }),
+      provider.listGrades(
+        {
+          courseId,
+          learnerId: input.learnerId,
+        },
+        options,
+      ),
+      provider.listCompletions(
+        {
+          courseId,
+          learnerId: input.learnerId,
+        },
+        options,
+      ),
     ]);
 
     grades.push(
@@ -166,11 +178,14 @@ export const loadRuleFacts = async (input: {
   }
 
   for (const assignment of requirements.assignmentRefs) {
-    const assignmentSubmissions = await provider.listSubmissions({
-      courseId: assignment.courseId,
-      assignmentId: assignment.assignmentId,
-      learnerId: input.learnerId,
-    });
+    const assignmentSubmissions = await provider.listSubmissions(
+      {
+        courseId: assignment.courseId,
+        assignmentId: assignment.assignmentId,
+        learnerId: input.learnerId,
+      },
+      options,
+    );
 
     submissions.push(
       ...assignmentSubmissions.map((submission) => ({

@@ -1,10 +1,15 @@
-import type { GradebookProviderKind } from "./gradebook-types";
+import type { GradebookProviderKind, GradebookRequestOptions } from "./gradebook-types";
 
-export type GradebookProviderOperation = "course_search" | "gradebook_read" | "learner_search";
+export type GradebookProviderOperation =
+  | "connection"
+  | "course_search"
+  | "gradebook_read"
+  | "learner_search";
 
 export type GradebookProviderErrorReason =
   | "invalid_response"
   | "permission_denied"
+  | "request_cancelled"
   | "request_failed"
   | "unauthorized";
 
@@ -53,4 +58,36 @@ export const gradebookProviderHttpError = (input: {
     reason,
     message: `${input.providerKind} ${input.operation} request failed (${String(input.statusCode)})`,
   });
+};
+
+/** Classifies a thrown LMS transport failure without exposing request data. */
+export const gradebookProviderRequestError = (input: {
+  readonly providerKind: GradebookProviderKind;
+  readonly operation: GradebookProviderOperation;
+  readonly cause: unknown;
+  readonly options?: GradebookRequestOptions;
+}): GradebookProviderError => {
+  const requestCancelled = input.options?.signal?.aborted === true;
+
+  return new GradebookProviderError({
+    providerKind: input.providerKind,
+    operation: input.operation,
+    reason: requestCancelled ? "request_cancelled" : "request_failed",
+    statusCode: null,
+    message: requestCancelled
+      ? `${input.providerKind} ${input.operation} request was cancelled`
+      : `${input.providerKind} ${input.operation} request failed`,
+    cause: input.cause,
+  });
+};
+
+/** Returns whether an LMS adapter failure represents caller cancellation or a deadline. */
+export const isGradebookProviderRequestCancelled = (
+  cause: unknown,
+  options: GradebookRequestOptions = {},
+): boolean => {
+  return (
+    options.signal?.aborted === true ||
+    (cause instanceof GradebookProviderError && cause.reason === "request_cancelled")
+  );
 };

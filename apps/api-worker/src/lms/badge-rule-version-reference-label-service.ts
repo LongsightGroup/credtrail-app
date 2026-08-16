@@ -13,7 +13,10 @@ import {
 import { actorCanViewBadgeRuleVersionApproval } from "../badges/badge-rule-approval-access";
 import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
 import type { BadgeRuleReferenceLabelResolution } from "./badge-rule-reference-labels";
-import type { LmsCourseAuthoringService } from "./lms-course-authoring-service";
+import type {
+  LmsCourseAuthoringOptions,
+  LmsCourseAuthoringService,
+} from "./lms-course-authoring-service";
 
 export interface BadgeRuleVersionReferenceLabelServiceInput {
   readonly db: SqlDatabase;
@@ -59,6 +62,7 @@ export interface BadgeRuleVersionReferenceLabelServiceDependencies {
 
 export type LoadBadgeRuleVersionReferenceLabels = (
   input: BadgeRuleVersionReferenceLabelServiceInput,
+  options?: LmsCourseAuthoringOptions,
 ) => Promise<BadgeRuleVersionReferenceLabelServiceResult>;
 
 const emptyLabels = (): BadgeRuleReferenceLabelResolution => ({ courses: [], assignments: [] });
@@ -67,7 +71,7 @@ const emptyLabels = (): BadgeRuleReferenceLabelResolution => ({ courses: [], ass
 export const createBadgeRuleVersionReferenceLabelService = (
   dependencies: BadgeRuleVersionReferenceLabelServiceDependencies,
 ): LoadBadgeRuleVersionReferenceLabels => {
-  return async (input) => {
+  return async (input, options = {}) => {
     const path = {
       tenantId: input.tenantId,
       ruleId: input.ruleId,
@@ -121,13 +125,16 @@ export const createBadgeRuleVersionReferenceLabelService = (
       return { status: "resolved", labels: emptyLabels() };
     }
 
-    const labelsResult = await dependencies.lmsCourseAuthoring.resolveReferenceLabels({
-      db: input.db,
-      tenantId: input.tenantId,
-      connectionId: lmsConnectionId,
-      userId: input.actorUserId,
-      definition,
-    });
+    const labelsResult = await dependencies.lmsCourseAuthoring.resolveReferenceLabels(
+      {
+        db: input.db,
+        tenantId: input.tenantId,
+        connectionId: lmsConnectionId,
+        userId: input.actorUserId,
+        definition,
+      },
+      options,
+    );
 
     switch (labelsResult.status) {
       case "resolved":
@@ -139,6 +146,7 @@ export const createBadgeRuleVersionReferenceLabelService = (
       case "connection_unusable":
         return { status: "conflict", error: labelsResult.error };
       case "dependency_unavailable":
+      case "request_cancelled":
       case "provider_unavailable":
         return { status: "bad_gateway", error: labelsResult.error };
     }

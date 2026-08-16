@@ -1,5 +1,5 @@
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
-import type { GradebookAssignmentReader } from "../lms/gradebook-types";
+import type { GradebookAssignmentReader, GradebookRequestOptions } from "../lms/gradebook-types";
 import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
 import { extractBadgeIssuanceRuleRequirements } from "./engine";
 
@@ -31,10 +31,13 @@ type CourseAssignmentValidation =
     };
 
 /** Validates every unique rule course through gradebook access and reuses assignment results. */
-export const validateBadgeRuleReferences = async (input: {
-  readonly provider: GradebookAssignmentReader;
-  readonly definition: BadgeIssuanceRuleDefinition;
-}): Promise<BadgeRuleReferenceValidationResult> => {
+export const validateBadgeRuleReferences = async (
+  input: {
+    readonly provider: GradebookAssignmentReader;
+    readonly definition: BadgeIssuanceRuleDefinition;
+  },
+  options: GradebookRequestOptions = {},
+): Promise<BadgeRuleReferenceValidationResult> => {
   const requirements = extractBadgeIssuanceRuleRequirements(input.definition);
   const courseIds = [
     ...new Set([
@@ -52,7 +55,7 @@ export const validateBadgeRuleReferences = async (input: {
     { concurrency: RULE_REFERENCE_VALIDATION_CONCURRENCY },
     async (courseId): Promise<CourseAssignmentValidation> => {
       try {
-        const assignments = await input.provider.listAssignments({ courseId });
+        const assignments = await input.provider.listAssignments({ courseId }, options);
         return {
           status: "available",
           courseId,

@@ -9,6 +9,7 @@ import {
   type CourseAuthoringGradebookProvider,
   type GradebookProviderConfig,
   type GradebookProviderKind,
+  type GradebookRequestOptions,
 } from "./gradebook-types";
 
 const isGradebookProviderKind = (value: string): value is GradebookProviderKind => {
@@ -64,7 +65,7 @@ export const parseGradebookProviderConfigJson = (
 export interface CreateGradebookProviderInput {
   config: GradebookProviderConfig;
   fetchImpl?: typeof fetch;
-  sakaiRefreshSession?: () => Promise<SakaiSessionLoginResult>;
+  sakaiRefreshSession?: (options?: GradebookRequestOptions) => Promise<SakaiSessionLoginResult>;
 }
 
 export const createGradebookProvider = (

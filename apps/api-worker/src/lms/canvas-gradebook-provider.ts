@@ -16,6 +16,7 @@ import type {
   GradebookEnrollmentRecord,
   GradebookGradeRecord,
   GradebookLearnerRecord,
+  GradebookRequestOptions,
   GradebookSubmissionRecord,
 } from "./gradebook-types";
 
@@ -307,15 +308,20 @@ export const createCanvasGradebookProvider = (
   const readCachedArray = <T>(
     cache: Map<string, Promise<readonly T[]>>,
     key: string,
+    options: GradebookRequestOptions,
     load: () => Promise<readonly T[]>,
   ): Promise<readonly T[]> => {
+    options.signal?.throwIfAborted();
     const cached = cache.get(key);
 
     if (cached !== undefined) {
       return cached;
     }
 
-    const pending = load();
+    const pending = load().catch((cause: unknown) => {
+      cache.delete(key);
+      throw cause;
+    });
     cache.set(key, pending);
     return pending;
   };
@@ -338,24 +344,31 @@ export const createCanvasGradebookProvider = (
     maxPages: number,
     onMaxPages: "truncate" | "throw",
     operation: GradebookProviderOperation,
+    options: GradebookRequestOptions,
   ): Promise<readonly unknown[]> => {
-    return fetchCanvasJsonArrayPages({
-      apiBaseUrl,
-      fetchImpl,
-      accessToken: config.accessToken,
-      path,
-      ...(query !== undefined ? { query } : {}),
-      maxPages,
-      onMaxPages,
-      operation,
-    });
+    return fetchCanvasJsonArrayPages(
+      {
+        apiBaseUrl,
+        fetchImpl,
+        accessToken: config.accessToken,
+        path,
+        ...(query !== undefined ? { query } : {}),
+        maxPages,
+        onMaxPages,
+        operation,
+      },
+      options,
+    );
   };
 
-  const listRawEnrollments = async (input: {
-    courseId: string;
-    learnerId?: string;
-  }): Promise<readonly unknown[]> => {
-    return readCachedArray(rawEnrollmentsCache, enrollmentCacheKey(input), async () => {
+  const listRawEnrollments = async (
+    input: {
+      courseId: string;
+      learnerId?: string;
+    },
+    options: GradebookRequestOptions,
+  ): Promise<readonly unknown[]> => {
+    return readCachedArray(rawEnrollmentsCache, enrollmentCacheKey(input), options, async () => {
       const query = new URLSearchParams();
       query.set("per_page", "100");
       query.append("type[]", "StudentEnrollment");
@@ -370,14 +383,16 @@ export const createCanvasGradebookProvider = (
         CANVAS_GRADEBOOK_FULL_MAX_PAGES,
         "throw",
         "gradebook_read",
+        options,
       );
     });
   };
 
   const listAssignmentsForCourse = async (
     courseId: string,
+    options: GradebookRequestOptions,
   ): Promise<readonly GradebookAssignmentRecord[]> => {
-    return readCachedArray(assignmentsCache, courseId, async () => {
+    return readCachedArray(assignmentsCache, courseId, options, async () => {
       const query = new URLSearchParams();
       query.set("per_page", "100");
       const assignments = await requestArray(
@@ -386,6 +401,7 @@ export const createCanvasGradebookProvider = (
         CANVAS_GRADEBOOK_FULL_MAX_PAGES,
         "throw",
         "gradebook_read",
+        options,
       );
       const normalizedAssignments = assignments
         .map((assignment) => parseAssignmentRecord(courseId, assignment))
@@ -394,11 +410,14 @@ export const createCanvasGradebookProvider = (
     });
   };
 
-  const fetchSubmissions = async (input: {
-    courseId: string;
-    assignmentId?: string;
-    learnerId?: string;
-  }): Promise<readonly GradebookSubmissionRecord[]> => {
+  const fetchSubmissions = async (
+    input: {
+      courseId: string;
+      assignmentId?: string;
+      learnerId?: string;
+    },
+    options: GradebookRequestOptions,
+  ): Promise<readonly GradebookSubmissionRecord[]> => {
     const query = new URLSearchParams();
     query.set("per_page", "100");
 
@@ -416,6 +435,7 @@ export const createCanvasGradebookProvider = (
       CANVAS_GRADEBOOK_FULL_MAX_PAGES,
       "throw",
       "gradebook_read",
+      options,
     );
     const normalizedSubmissions = submissions
       .map((submission) => parseSubmissionRecord(input.courseId, submission))
@@ -423,11 +443,14 @@ export const createCanvasGradebookProvider = (
     return normalizedSubmissions;
   };
 
-  const listSubmissionsForCourse = async (input: {
-    courseId: string;
-    assignmentId?: string;
-    learnerId?: string;
-  }): Promise<readonly GradebookSubmissionRecord[]> => {
+  const listSubmissionsForCourse = async (
+    input: {
+      courseId: string;
+      assignmentId?: string;
+      learnerId?: string;
+    },
+    options: GradebookRequestOptions,
+  ): Promise<readonly GradebookSubmissionRecord[]> => {
     if (input.assignmentId !== undefined) {
       const allSubmissionsKey = submissionsCacheKey({
         courseId: input.courseId,
@@ -441,15 +464,16 @@ export const createCanvasGradebookProvider = (
       }
     }
 
-    return readCachedArray(submissionsCache, submissionsCacheKey(input), async () => {
-      return fetchSubmissions(input);
+    return readCachedArray(submissionsCache, submissionsCacheKey(input), options, async () => {
+      return fetchSubmissions(input, options);
     });
   };
 
   const listManageableCourses = (
     providerUserId: string,
+    options: GradebookRequestOptions,
   ): Promise<readonly GradebookCourseRecord[]> => {
-    return readCachedArray(manageableCoursesCache, providerUserId, async () => {
+    return readCachedArray(manageableCoursesCache, providerUserId, options, async () => {
       const query = new URLSearchParams();
       query.set("per_page", "100");
       query.set("enrollment_state", "active");
@@ -460,6 +484,7 @@ export const createCanvasGradebookProvider = (
         CANVAS_GRADEBOOK_FULL_MAX_PAGES,
         "throw",
         "course_search",
+        options,
       );
 
       return courses
@@ -470,8 +495,8 @@ export const createCanvasGradebookProvider = (
 
   const courseCatalogForUser = (providerUserId: string): GradebookCourseCatalog => {
     return {
-      listCourses: async (input): Promise<GradebookCourseSearchResult> => {
-        const normalizedCourses = await listManageableCourses(providerUserId);
+      listCourses: async (input, options = {}): Promise<GradebookCourseSearchResult> => {
+        const normalizedCourses = await listManageableCourses(providerUserId, options);
         const searchTerm = input.searchTerm?.trim().toLocaleLowerCase() ?? "";
 
         const matchingCourses = normalizedCourses
@@ -494,9 +519,12 @@ export const createCanvasGradebookProvider = (
           hasMore: matchingCourses.length > input.limit,
         };
       },
-      verifyCourseAccess: async (input) => {
+      verifyCourseAccess: async (input, options = {}) => {
         const manageableCoursesById = new Map(
-          (await listManageableCourses(providerUserId)).map((course) => [course.courseId, course]),
+          (await listManageableCourses(providerUserId, options)).map((course) => [
+            course.courseId,
+            course,
+          ]),
         );
         const uniqueCourseIds = [...new Set(input.courseIds)];
 
@@ -516,17 +544,17 @@ export const createCanvasGradebookProvider = (
   return {
     kind: "canvas",
     courseCatalogForUser,
-    listAssignments: async (input): Promise<readonly GradebookAssignmentRecord[]> => {
-      return listAssignmentsForCourse(input.courseId);
+    listAssignments: async (input, options = {}): Promise<readonly GradebookAssignmentRecord[]> => {
+      return listAssignmentsForCourse(input.courseId, options);
     },
-    listEnrollments: async (input): Promise<readonly GradebookEnrollmentRecord[]> => {
-      const enrollments = await listRawEnrollments(input);
+    listEnrollments: async (input, options = {}): Promise<readonly GradebookEnrollmentRecord[]> => {
+      const enrollments = await listRawEnrollments(input, options);
       const normalizedEnrollments = enrollments
         .map((enrollment) => parseEnrollmentRecord(input.courseId, enrollment))
         .filter((enrollment): enrollment is GradebookEnrollmentRecord => enrollment !== null);
       return normalizedEnrollments;
     },
-    listLearners: async (input): Promise<readonly GradebookLearnerRecord[]> => {
+    listLearners: async (input, options = {}): Promise<readonly GradebookLearnerRecord[]> => {
       const query = new URLSearchParams();
       query.set("per_page", "100");
       query.append("enrollment_type[]", "student");
@@ -537,6 +565,7 @@ export const createCanvasGradebookProvider = (
         CANVAS_PICKER_MAX_PAGES,
         "truncate",
         "learner_search",
+        options,
       );
       const searchTerm = input.searchTerm?.trim().toLocaleLowerCase() ?? "";
 
@@ -553,24 +582,27 @@ export const createCanvasGradebookProvider = (
           );
         });
     },
-    listSubmissions: async (input): Promise<readonly GradebookSubmissionRecord[]> => {
-      return listSubmissionsForCourse(input);
+    listSubmissions: async (input, options = {}): Promise<readonly GradebookSubmissionRecord[]> => {
+      return listSubmissionsForCourse(input, options);
     },
-    listGrades: async (input): Promise<readonly GradebookGradeRecord[]> => {
-      const enrollments = await listRawEnrollments(input);
+    listGrades: async (input, options = {}): Promise<readonly GradebookGradeRecord[]> => {
+      const enrollments = await listRawEnrollments(input, options);
       const normalizedGrades = enrollments
         .map((enrollment) => parseGradeRecord(input.courseId, enrollment))
         .filter((grade): grade is GradebookGradeRecord => grade !== null);
       return normalizedGrades;
     },
-    listCompletions: async (input): Promise<readonly GradebookCompletionRecord[]> => {
+    listCompletions: async (input, options = {}): Promise<readonly GradebookCompletionRecord[]> => {
       const [rawEnrollments, assignments, submissions] = await Promise.all([
-        listRawEnrollments(input),
-        listAssignmentsForCourse(input.courseId),
-        listSubmissionsForCourse({
-          courseId: input.courseId,
-          ...(input.learnerId !== undefined ? { learnerId: input.learnerId } : {}),
-        }),
+        listRawEnrollments(input, options),
+        listAssignmentsForCourse(input.courseId, options),
+        listSubmissionsForCourse(
+          {
+            courseId: input.courseId,
+            ...(input.learnerId !== undefined ? { learnerId: input.learnerId } : {}),
+          },
+          options,
+        ),
       ]);
       const normalizedEnrollments = rawEnrollments
         .map((enrollment) => parseEnrollmentRecord(input.courseId, enrollment))

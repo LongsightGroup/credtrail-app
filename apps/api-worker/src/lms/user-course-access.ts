@@ -3,6 +3,7 @@ import type {
   GradebookCourseAccessResult,
   GradebookCourseCatalog,
   GradebookCourseRecord,
+  GradebookRequestOptions,
 } from "./gradebook-types";
 import type { ResolvedGradebookProvider } from "./gradebook-provider-resolution";
 
@@ -73,21 +74,27 @@ export const resolveLmsCourseCatalog = async (input: {
 };
 
 /** Verifies every referenced course through the provider's resolved authorization boundary. */
-export const authorizeLmsUserCoursesWithRecords = async (input: {
-  readonly db: SqlDatabase;
-  readonly resolvedProvider: ResolvedGradebookProvider;
-  readonly userId: string;
-  readonly courseIds: readonly string[];
-}): Promise<LmsCourseAuthorizationWithRecordsResult> => {
+export const authorizeLmsUserCoursesWithRecords = async (
+  input: {
+    readonly db: SqlDatabase;
+    readonly resolvedProvider: ResolvedGradebookProvider;
+    readonly userId: string;
+    readonly courseIds: readonly string[];
+  },
+  options: GradebookRequestOptions = {},
+): Promise<LmsCourseAuthorizationWithRecordsResult> => {
+  options.signal?.throwIfAborted();
   const catalogResult = await resolveLmsCourseCatalog(input);
+  options.signal?.throwIfAborted();
 
   if (catalogResult.status === "identity_unlinked") {
     return catalogResult;
   }
 
-  const access = await catalogResult.catalog.verifyCourseAccess({
-    courseIds: input.courseIds,
-  });
+  const access = await catalogResult.catalog.verifyCourseAccess(
+    { courseIds: input.courseIds },
+    options,
+  );
   return lmsCourseAuthorizationFromAccess({
     resolvedProvider: input.resolvedProvider,
     access,
@@ -120,12 +127,15 @@ export const lmsCourseAuthorizationFromAccess = (input: {
 };
 
 /** Verifies course access without returning the matching provider course records. */
-export const authorizeLmsUserCourses = async (input: {
-  readonly db: SqlDatabase;
-  readonly resolvedProvider: ResolvedGradebookProvider;
-  readonly userId: string;
-  readonly courseIds: readonly string[];
-}): Promise<LmsCourseAuthorizationResult> => {
-  const authorization = await authorizeLmsUserCoursesWithRecords(input);
+export const authorizeLmsUserCourses = async (
+  input: {
+    readonly db: SqlDatabase;
+    readonly resolvedProvider: ResolvedGradebookProvider;
+    readonly userId: string;
+    readonly courseIds: readonly string[];
+  },
+  options: GradebookRequestOptions = {},
+): Promise<LmsCourseAuthorizationResult> => {
+  const authorization = await authorizeLmsUserCoursesWithRecords(input, options);
   return authorization.status === "authorized" ? { status: "authorized" } : authorization;
 };
