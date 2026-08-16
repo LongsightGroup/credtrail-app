@@ -31,7 +31,7 @@ Page assets are registered in `apps/api-worker/src/ui/page-assets/build-registry
 - Keep individual source files under 1000 lines; split large surfaces into focused files and list them in `build-registry.ts`.
 - Use `assemble-style-asset.ts` as the single assembly implementation for both `pnpm build:page-assets` and test helpers.
 - Resolve authored source paths through `page-asset-content.ts` (`PAGE_ASSET_CONTENT_DIR`, `readPageAssetContentFile`).
-- Run `pnpm build:page-assets` after CSS edits so hashed public assets and `page-assets-manifest.ts` stay in sync.
+- Hashed public assets and `page-assets-manifest.ts` are generated automatically before typechecking, testing, Vite builds, and Node runtime builds. Run `pnpm build:page-assets` directly only when you want to inspect the generated files locally.
 
 ## Usage
 

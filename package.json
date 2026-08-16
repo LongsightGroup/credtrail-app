@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build:page-assets": "pnpm exec tsx scripts/build-page-assets.mjs",
-    "check:page-assets": "pnpm build:page-assets && git diff --exit-code -- apps/api-worker/public apps/api-worker/src/ui/page-assets/generated/page-assets-manifest.ts",
+    "check:page-assets": "pnpm build:page-assets && pnpm exec vitest run apps/api-worker/src/page-assets.test.ts",
     "build:design-tokens": "style-dictionary build --config style-dictionary.config.mjs",
     "check:design-tokens": "pnpm build:design-tokens && git diff --exit-code -- apps/api-worker/src/ui/page-assets/content/generated/design-tokens.css",
     "build": "pnpm exec vite build",
@@ -31,7 +31,9 @@
     "lint:fix": "node scripts/run-oxlint.mjs --fix --fix-suggestions --deny-warnings",
     "format": "pnpm exec oxfmt \"apps/**/*.ts\" \"apps/**/*.tsx\" \"packages/**/*.ts\" \"packages/**/*.tsx\" \"vite.config.mts\" \"vitest.config.ts\"",
     "format:check": "pnpm exec oxfmt --check \"apps/**/*.ts\" \"apps/**/*.tsx\" \"packages/**/*.ts\" \"packages/**/*.tsx\" \"vite.config.mts\" \"vitest.config.ts\"",
+    "pretypecheck": "pnpm build:page-assets",
     "typecheck": "tsc --noEmit",
+    "pretest": "pnpm build:page-assets",
     "test": "vitest run",
     "test:scripts": "node --test scripts/*.test.mjs",
     "check": "pnpm check:design-tokens && pnpm check:page-assets && pnpm check:ob3-openapi && pnpm check:node-runtime && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:scripts"

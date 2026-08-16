@@ -21,6 +21,7 @@ FROM deps AS deploy
 
 COPY apps ./apps
 COPY packages ./packages
+COPY scripts ./scripts
 
 RUN pnpm --filter @credtrail/api-worker build:node-runtime:prod
 RUN pnpm --filter @credtrail/api-worker deploy --prod --legacy /prod

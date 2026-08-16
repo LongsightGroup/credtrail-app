@@ -7,7 +7,9 @@
     "node": ">=24"
   },
   "scripts": {
+    "prebuild:node-runtime": "pnpm --dir ../.. build:page-assets",
     "build:node-runtime": "rolldown -c rolldown.node-runtime.config.mjs",
+    "prebuild:node-runtime:prod": "pnpm --dir ../.. build:page-assets",
     "build:node-runtime:prod": "NODE_ENV=production rolldown -c rolldown.node-runtime.config.mjs"
   },
   "dependencies": {

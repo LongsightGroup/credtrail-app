@@ -16,5 +16,9 @@ artifacts/
 .playwright-cli/
 output/
 
+# Generated page assets
+apps/api-worker/public/assets/ui/
+apps/api-worker/src/ui/page-assets/generated/
+
 # OS
 .DS_Store

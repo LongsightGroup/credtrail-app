@@ -97,10 +97,8 @@ const manifestEntriesBody = pageManifestEntries
   })
   .join("\n");
 const manifestBody = `export const PAGE_ASSET_MANIFEST = {\n${manifestEntriesBody}\n} as const;\n`;
-const headersBody = `/assets/ui/*\n  Cache-Control: public, max-age=31536000, immutable\n  X-Content-Type-Options: nosniff\n`;
 
 await writeFile(manifestPath, manifestBody);
-await writeFile(join(publicRoot, "_headers"), headersBody);
 
 console.log(
   `Built ${Object.keys(PAGE_ASSET_BUILD_SOURCES).length} page assets and ${
