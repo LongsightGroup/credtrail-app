@@ -1,15 +1,16 @@
 import { createHash } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { basename, dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Script } from "node:vm";
 import { assembleScriptAsset } from "../apps/api-worker/src/ui/page-assets/assemble-script-asset.ts";
 import { assembleStyleAsset } from "../apps/api-worker/src/ui/page-assets/assemble-style-asset.ts";
 import {
-  FONT_ASSET_SOURCES,
+  FONT_ASSET_SOURCE_PATHS,
   PAGE_ASSET_BUILD_SOURCES,
 } from "../apps/api-worker/src/ui/page-assets/build-registry.ts";
 import {
+  readPageAssetBinaryContentFile,
   readPageAssetContentFile,
   readPageAssetScriptContentFile,
 } from "../apps/api-worker/src/ui/page-assets/page-asset-content.ts";
@@ -33,12 +34,13 @@ await mkdir(fontAssetRoot, { recursive: true });
 await mkdir(dirname(manifestPath), { recursive: true });
 
 const fontPathByOriginalPath = new Map();
-const fontEntries = Object.values(FONT_ASSET_SOURCES).map((source) => {
-  const body = Buffer.from(source.bodyBase64, "base64");
-  const extension = source.filename.split(".").at(-1) ?? "woff2";
-  const stem = source.filename.slice(0, -(extension.length + 1));
-  const filename = `${stem}.${hashBody(body)}.${extension}`;
-  const originalPath = `${fontAssetBasePath}/${source.filename}`;
+const fontEntries = FONT_ASSET_SOURCE_PATHS.map((sourcePath) => {
+  const body = readPageAssetBinaryContentFile(sourcePath);
+  const sourceFilename = basename(sourcePath);
+  const extension = extname(sourceFilename);
+  const stem = basename(sourceFilename, extension);
+  const filename = `${stem}.${hashBody(body)}${extension}`;
+  const originalPath = `${fontAssetBasePath}/${sourceFilename}`;
   const path = `${fontAssetBasePath}/${filename}`;
 
   fontPathByOriginalPath.set(originalPath, path);

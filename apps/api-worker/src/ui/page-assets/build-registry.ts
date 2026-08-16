@@ -1,5 +1,4 @@
 import type { StylePageAssetSource } from "./assemble-style-asset";
-import { FONT_ASSET_SOURCES } from "./content/font-assets";
 import {
   ADMIN_STATUS_PILL_CLASS_SCRIPT_SOURCE,
   type ScriptPageAssetSource,
@@ -20,6 +19,8 @@ export interface ScriptPageAssetBuildSource {
 }
 
 export type PageAssetBuildSource = StylePageAssetBuildSource | ScriptPageAssetBuildSource;
+
+export const FONT_ASSET_SOURCE_PATHS = ["fonts/newsreader-latin.woff2"] as const;
 
 export const PAGE_ASSET_BUILD_SOURCES = {
   foundationCss: {
@@ -232,5 +233,3 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     sources: ["public-badge.js"],
   },
 } as const satisfies Record<string, PageAssetBuildSource>;
-
-export { FONT_ASSET_SOURCES };
