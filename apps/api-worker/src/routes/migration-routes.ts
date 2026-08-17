@@ -374,11 +374,7 @@ const registerMigrationFileIngestRoutes = (input: RegisterMigrationRoutesInput):
   for (const route of MIGRATION_FILE_INGEST_ROUTES) {
     input.app.post(route.path, async (c) => {
       const pathParams = parseTenantPathParams(c.req.param());
-      const roleCheck = await input.requireTenantRole(
-        c,
-        pathParams.tenantId,
-        input.ISSUER_ROLES,
-      );
+      const roleCheck = await input.requireTenantRole(c, pathParams.tenantId, input.ISSUER_ROLES);
 
       if (roleCheck instanceof Response) {
         return roleCheck;
