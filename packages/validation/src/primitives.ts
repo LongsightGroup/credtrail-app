@@ -103,12 +103,6 @@ export const badgeTemplateOwnershipReasonCodeSchema = z.enum([
   "governance_policy_update",
   "other",
 ]);
-export const badgeTemplateOwnershipTransferReasonCodeSchema = z.enum([
-  "administrative_transfer",
-  "reorganization",
-  "governance_policy_update",
-  "other",
-]);
 // --- inferred types and parsers ---
 export type BootstrapTenantRequest = z.infer<typeof bootstrapTenantRequestSchema>;
 

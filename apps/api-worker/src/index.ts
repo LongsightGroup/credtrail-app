@@ -1,3 +1,2 @@
-export { app, sendIssuanceEmailNotification } from "./app";
-export type { SendIssuanceEmailNotificationInput } from "./app";
+export { app } from "./app";
 export { default } from "./app";

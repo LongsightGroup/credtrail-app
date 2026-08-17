@@ -76,10 +76,7 @@ import { createResolveLtiIssuerRegistry } from "./lti/lti-issuer-registry-resolv
 import { processAutomatedBadgeRuleQueueJob } from "./badges/automated-badge-rule-job";
 import { createLearnerDashboardPage, learnerDidSettingsNoticeFromQuery } from "./learner/pages";
 import { createLearnerRecordPage } from "./learner/learner-record-page";
-import {
-  sendIssuanceEmailNotification,
-  type SendIssuanceEmailNotificationInput,
-} from "./notifications/send-issuance-email";
+import { sendIssuanceEmailNotification } from "./notifications/send-issuance-email";
 import { addSecondsToIso, generateOpaqueToken, sha256Base64Url, sha256Hex } from "./utils/crypto";
 import { formatIsoTimestamp, linkedInAddToProfileUrl } from "./utils/display-format";
 import { asJsonObject, asNonEmptyString, asString } from "./utils/value-parsers";
@@ -126,8 +123,6 @@ import { walletCredentialOfferPayload } from "./oid4vci/wallet-credential-offer-
 export type { AppBindings, AppContext, AppEnv } from "./app/types";
 
 export const app = new Hono<AppEnv>();
-export { sendIssuanceEmailNotification };
-export type { SendIssuanceEmailNotificationInput };
 const LEARNER_IDENTITY_LINK_TTL_SECONDS = 10 * 60;
 const OID4VCI_PRE_AUTH_CODE_TTL_SECONDS = 10 * 60;
 const OID4VCI_ACCESS_TOKEN_TTL_SECONDS = 10 * 60;
