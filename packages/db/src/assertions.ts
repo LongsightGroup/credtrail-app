@@ -85,6 +85,6 @@ export * from "./assertion-reporting-queries.js";
 export * from "./assertion-public-badge-wall.js";
 export {
   listAssertionStatusListEntries,
-  nextAssertionStatusListIndex,
+  reserveAssertionStatusListIndex,
   recordAssertionRevocation,
 } from "./assertion-writes.js";

@@ -104,27 +104,32 @@ export const createAssertion = async (
   };
 };
 
-export const nextAssertionStatusListIndex = async (
+/** Atomically reserves one status-list index that will never be issued again for this tenant. */
+export const reserveAssertionStatusListIndex = async (
   db: SqlDatabase,
   tenantId: string,
 ): Promise<number> => {
   const row = await db
     .prepare(
       `
-      SELECT
-        COALESCE(MAX(status_list_index), -1) + 1 AS nextStatusListIndex
-      FROM assertions
-      WHERE tenant_id = ?
+      INSERT INTO assertion_status_list_counters AS counters (
+        tenant_id,
+        next_index
+      )
+      VALUES (?, 1)
+      ON CONFLICT (tenant_id) DO UPDATE
+      SET next_index = counters.next_index + 1
+      RETURNING next_index - 1 AS statusListIndex
     `,
     )
     .bind(tenantId)
-    .first<{ nextStatusListIndex: number }>();
+    .first<{ statusListIndex: number }>();
 
   if (row === null) {
-    throw new Error(`Unable to allocate status list index for tenant "${tenantId}"`);
+    throw new Error(`Unable to reserve status list index for tenant "${tenantId}"`);
   }
 
-  return row.nextStatusListIndex;
+  return row.statusListIndex;
 };
 
 export const listAssertionStatusListEntries = async (

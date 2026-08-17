@@ -42,7 +42,7 @@ vi.mock("@credtrail/db", async () => {
     hasTenantMembershipOrgUnitAccess: vi.fn(),
     hasTenantMembershipOrgUnitScopeAssignments: vi.fn(),
     listLearnerIdentitiesByProfile: vi.fn(),
-    nextAssertionStatusListIndex: vi.fn(),
+    reserveAssertionStatusListIndex: vi.fn(),
     resolveAssertionLifecycleState: vi.fn(),
     resolveLearnerProfileForIdentity: vi.fn(),
     touchSession: mockedTouchSession,
@@ -95,7 +95,7 @@ import {
   hasTenantMembershipOrgUnitAccess,
   hasTenantMembershipOrgUnitScopeAssignments,
   listLearnerIdentitiesByProfile,
-  nextAssertionStatusListIndex,
+  reserveAssertionStatusListIndex,
   resolveAssertionLifecycleState,
   resolveLearnerProfileForIdentity,
   type AssertionRecord,
@@ -147,7 +147,7 @@ const mockedHasTenantMembershipOrgUnitScopeAssignments = vi.mocked(
   hasTenantMembershipOrgUnitScopeAssignments,
 );
 const mockedResolveLearnerProfileForIdentity = vi.mocked(resolveLearnerProfileForIdentity);
-const mockedNextAssertionStatusListIndex = vi.mocked(nextAssertionStatusListIndex);
+const mockedReserveAssertionStatusListIndex = vi.mocked(reserveAssertionStatusListIndex);
 const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
 const mockedListLearnerIdentitiesByProfile = vi.mocked(listLearnerIdentitiesByProfile);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
@@ -232,7 +232,7 @@ beforeEach(() => {
   mockedResolveLearnerProfileForIdentity.mockReset();
   mockedResolveAssertionLifecycleState.mockReset();
   mockedResolveAssertionLifecycleState.mockResolvedValue(sampleLifecycle());
-  mockedNextAssertionStatusListIndex.mockReset();
+  mockedReserveAssertionStatusListIndex.mockReset();
   mockedFinalizeAssertionIssuance.mockReset();
   mockedFinalizeAssertionIssuance.mockResolvedValue(sampleFinalizedIssuance());
   mockedSendIssuanceEmailNotification.mockReset();
@@ -499,7 +499,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     mockedResolveLearnerProfileForIdentity.mockReset();
     mockedResolveAssertionLifecycleState.mockReset();
     mockedResolveAssertionLifecycleState.mockResolvedValue(sampleLifecycle());
-    mockedNextAssertionStatusListIndex.mockReset();
+    mockedReserveAssertionStatusListIndex.mockReset();
   });
 
   it("returns already_issued when idempotency key matches an active assertion", async () => {
@@ -667,7 +667,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(
       sampleLearnerProfile({ displayName: "@student" }),
     );
-    mockedNextAssertionStatusListIndex.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
+    mockedReserveAssertionStatusListIndex.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
 
     const firstIssueResponse = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -854,7 +854,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     mockedTouchSession.mockResolvedValue(undefined);
     mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
-    mockedNextAssertionStatusListIndex.mockResolvedValue(0);
+    mockedReserveAssertionStatusListIndex.mockResolvedValue(0);
     const issuedAssertion = sampleAssertion({
       statusListIndex: null,
     });
@@ -914,7 +914,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     );
     mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
-    mockedNextAssertionStatusListIndex.mockResolvedValue(0);
+    mockedReserveAssertionStatusListIndex.mockResolvedValue(0);
 
     const response = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -1057,7 +1057,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     );
     mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
-    mockedNextAssertionStatusListIndex.mockResolvedValue(0);
+    mockedReserveAssertionStatusListIndex.mockResolvedValue(0);
 
     const response = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -1115,7 +1115,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     );
     mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
-    mockedNextAssertionStatusListIndex.mockResolvedValue(0);
+    mockedReserveAssertionStatusListIndex.mockResolvedValue(0);
 
     const response = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -1194,7 +1194,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
         updatedAt: "2026-02-10T22:00:00.000Z",
       },
     ]);
-    mockedNextAssertionStatusListIndex.mockResolvedValue(0);
+    mockedReserveAssertionStatusListIndex.mockResolvedValue(0);
 
     const response = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -1288,7 +1288,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
     mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
-    mockedNextAssertionStatusListIndex.mockResolvedValue(0);
+    mockedReserveAssertionStatusListIndex.mockResolvedValue(0);
 
     const response = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",
@@ -1352,7 +1352,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     );
     mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
     mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
-    mockedNextAssertionStatusListIndex.mockResolvedValue(0);
+    mockedReserveAssertionStatusListIndex.mockResolvedValue(0);
 
     const response = await app.request(
       "/v1/tenants/tenant_123/assertions/manual-issue",

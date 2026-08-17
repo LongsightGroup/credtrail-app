@@ -16,7 +16,7 @@ import {
   findBadgeIssuanceRuleVersionById,
   findTenantById,
   listLearnerIdentitiesByProfile,
-  nextAssertionStatusListIndex,
+  reserveAssertionStatusListIndex,
   resolveAssertionLifecycleState,
   resolveLearnerProfileForIdentity,
   type AssertionLifecycleState,
@@ -360,7 +360,7 @@ export const createIssueBadgeForTenant = <
     });
     const issuedAt = new Date().toISOString();
     const assertionId = createTenantScopedId(tenantId);
-    const statusListIndex = await nextAssertionStatusListIndex(db, tenantId);
+    const statusListIndex = await reserveAssertionStatusListIndex(db, tenantId);
     const statusListCredentialUrl = revocationStatusListUrlForTenant(credentialBaseUrl, tenantId);
     const learnerIdentities = await listLearnerIdentitiesByProfile(db, tenantId, learnerProfile.id);
     const learnerDidSubjectId =
