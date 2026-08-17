@@ -189,6 +189,7 @@ jobs:
             --network credtrail-ci-net \
             -e DATABASE_URL="$DATABASE_URL" \
             postgres:17-alpine sh -ceu "
+              # Exercise a supported, storage-independent queue path without seeded tenant data.
               psql \"\$DATABASE_URL\" -v ON_ERROR_STOP=1 -c \"
                 INSERT INTO job_queue_messages (
                   id,
@@ -204,9 +205,9 @@ jobs:
                 VALUES (
                   'job-ci-smoke-1',
                   'ci-tenant',
-                  'rebuild_verification_cache',
-                  '{}',
-                  'ci-smoke-key-1',
+                  'process_badge_rule_lifecycle',
+                  '{"scheduledFor":"2026-08-17T00:00:00.000Z"}',
+                  'ci-smoke-lifecycle-1',
                   CURRENT_TIMESTAMP::text,
                   'pending',
                   CURRENT_TIMESTAMP::text,
