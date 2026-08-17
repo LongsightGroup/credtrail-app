@@ -488,6 +488,7 @@ describe("POST /v1/tenants/:tenantId/migrations/ob2/batch-upload", () => {
     const body = await response.json<Record<string, unknown>>();
 
     expect(response.status).toBe(200);
+    expect(body.source).toBe("file_upload");
     expect(body.dryRun).toBe(true);
     expect(body.totalRows).toBe(2);
     expect(body.validRows).toBe(1);

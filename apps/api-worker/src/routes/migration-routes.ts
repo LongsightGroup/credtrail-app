@@ -6,6 +6,7 @@ import {
   retryFailedImportMigrationBatchQueueMessages,
   type ImportMigrationBatchQueueMessageRecord,
   type LearnerIdentityType,
+  type MigrationBatchSource,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -44,7 +45,7 @@ interface RegisterMigrationRoutesInput {
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }
 
-type MigrationBatchSource = "file_upload" | "credly_export" | "parchment_export";
+type IngestMigrationBatchSource = Exclude<MigrationBatchSource, "unknown">;
 
 interface ParsedMigrationUploadFile {
   format: MigrationBatchFileFormat;
@@ -58,14 +59,13 @@ interface MigrationFileIngestRoute {
   path: string;
   requestLabel: string;
   queryErrorSubject: string;
-  source: MigrationBatchSource;
-  includeSourceInResponse: boolean;
+  source: IngestMigrationBatchSource;
   parseFile: (input: {
     fileName: string;
     mimeType: string;
     content: string;
   }) => ParsedMigrationUploadFile;
-  parseErrorMessage: (error: unknown) => string | null;
+  parseError: new (message: string) => Error;
 }
 
 const MIGRATION_FILE_INGEST_ROUTES = [
@@ -74,30 +74,24 @@ const MIGRATION_FILE_INGEST_ROUTES = [
     requestLabel: "Batch upload",
     queryErrorSubject: "batch upload",
     source: "file_upload",
-    includeSourceInResponse: false,
     parseFile: parseMigrationBatchUploadFile,
-    parseErrorMessage: (error: unknown): string | null =>
-      error instanceof MigrationBatchFileParseError ? error.message : null,
+    parseError: MigrationBatchFileParseError,
   },
   {
     path: "/v1/tenants/:tenantId/migrations/credly/ingest",
     requestLabel: "Credly ingest",
     queryErrorSubject: "credly ingest",
     source: "credly_export",
-    includeSourceInResponse: true,
     parseFile: parseCredlyExportFile,
-    parseErrorMessage: (error: unknown): string | null =>
-      error instanceof CredlyExportFileParseError ? error.message : null,
+    parseError: CredlyExportFileParseError,
   },
   {
     path: "/v1/tenants/:tenantId/migrations/parchment/ingest",
     requestLabel: "Parchment ingest",
     queryErrorSubject: "parchment ingest",
     source: "parchment_export",
-    includeSourceInResponse: true,
     parseFile: parseParchmentExportFile,
-    parseErrorMessage: (error: unknown): string | null =>
-      error instanceof ParchmentExportFileParseError ? error.message : null,
+    parseError: ParchmentExportFileParseError,
   },
 ] as const satisfies readonly MigrationFileIngestRoute[];
 
@@ -135,7 +129,7 @@ interface BatchUploadRowValidationResult {
 
 interface MigrationBatchProgressSummary {
   batchId: string;
-  source: MigrationBatchSource | "unknown";
+  source: MigrationBatchSource;
   fileName: string | null;
   format: string | null;
   totalRows: number;
@@ -264,7 +258,7 @@ const runBatchRowValidation = async (input: {
   db: SqlDatabase;
   tenantId: string;
   dryRun: boolean;
-  source: MigrationBatchSource;
+  source: IngestMigrationBatchSource;
   fileName: string;
   format: MigrationBatchFileFormat;
   batchId: string;
@@ -438,12 +432,10 @@ const registerMigrationFileIngestRoutes = (input: RegisterMigrationRoutesInput):
           content: fileContent,
         });
       } catch (error: unknown) {
-        const message = route.parseErrorMessage(error);
-
-        if (message !== null) {
+        if (error instanceof route.parseError) {
           return c.json(
             {
-              error: message,
+              error: error.message,
             },
             422,
           );
@@ -472,7 +464,7 @@ const registerMigrationFileIngestRoutes = (input: RegisterMigrationRoutesInput):
           fileName: upload.name,
           format: parsedFile.format,
           dryRun: query.dryRun,
-          ...(route.includeSourceInResponse ? { source: route.source } : {}),
+          source: route.source,
           totalRows: reports.length,
           validRows,
           invalidRows: reports.length - validRows,

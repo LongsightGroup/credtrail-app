@@ -65,14 +65,14 @@ export const buildInstitutionAdminViewResources = (
     page: input,
     dataNeeds: viewDefinition.dataNeeds,
   });
+  const home =
+    view === "home"
+      ? buildInstitutionAdminHomeViewResources({ page: input, paths })
+      : { workspaceCardsMarkup: <></> };
   const viewContent = renderInstitutionAdminViewContent({
     input,
     view,
-    home: buildInstitutionAdminHomeViewResources({
-      page: input,
-      paths,
-      enabled: view === "home",
-    }),
+    home,
     controls: options.controls,
     learnerRecords: buildInstitutionAdminLearnerRecordViewResources({
       page: input,

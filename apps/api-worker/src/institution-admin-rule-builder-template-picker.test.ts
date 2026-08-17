@@ -155,6 +155,16 @@ const optionRows = (listbox: FakeElement): readonly FakeElement[] => {
 };
 
 describe("institution admin rule-builder badge template picker", () => {
+  it("fails fast when the picker root invariant is broken", () => {
+    const fixture = pickerFixture();
+
+    expect(() => {
+      new Script(
+        "createBadgeTemplatePickerController(null, updateStepNavigationState);",
+      ).runInContext(fixture.context);
+    }).toThrow("Badge template picker root is missing.");
+  });
+
   it("enhances the native fallback into one initialized combobox", () => {
     const fixture = pickerFixture();
     const rows = optionRows(fixture.listbox);

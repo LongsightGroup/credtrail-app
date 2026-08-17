@@ -376,19 +376,30 @@ const createEnhancedBadgeTemplatePickerController = (input) => {
   });
 };
 
-const badgeTemplatePickerElements = (root, onStateChange) => ({
-  fallbackField: root?.querySelector("#rule-builder-badge-template-fallback-field") ?? null,
-  enhancedField: root?.querySelector("#rule-builder-badge-template-enhanced-field") ?? null,
-  comboboxInput: root?.querySelector("#rule-builder-badge-template-combobox") ?? null,
-  select: root?.querySelector("#rule-builder-badge-template-select") ?? null,
-  listbox: root?.querySelector("#rule-builder-badge-template-listbox") ?? null,
-  searchStatus: root?.querySelector("#rule-builder-badge-template-search-status") ?? null,
-  reusePanel: root?.querySelector("#rule-builder-badge-template-reuse") ?? null,
-  reuseMessage: root?.querySelector("#rule-builder-badge-template-reuse-message") ?? null,
-  reuseConfirmation:
-    root?.querySelector("#rule-builder-badge-template-reuse-confirmation") ?? null,
-  onStateChange,
-});
+const badgeTemplatePickerElements = (root, onStateChange) => {
+  if (!(root instanceof HTMLElement)) {
+    throw new Error("Badge template picker root is missing.");
+  }
+
+  const select = root.querySelector("#rule-builder-badge-template-select");
+
+  if (!(select instanceof HTMLSelectElement)) {
+    throw new Error("Badge template picker select is missing.");
+  }
+
+  return {
+    fallbackField: root.querySelector("#rule-builder-badge-template-fallback-field"),
+    enhancedField: root.querySelector("#rule-builder-badge-template-enhanced-field"),
+    comboboxInput: root.querySelector("#rule-builder-badge-template-combobox"),
+    select,
+    listbox: root.querySelector("#rule-builder-badge-template-listbox"),
+    searchStatus: root.querySelector("#rule-builder-badge-template-search-status"),
+    reusePanel: root.querySelector("#rule-builder-badge-template-reuse"),
+    reuseMessage: root.querySelector("#rule-builder-badge-template-reuse-message"),
+    reuseConfirmation: root.querySelector("#rule-builder-badge-template-reuse-confirmation"),
+    onStateChange,
+  };
+};
 
 const createBadgeTemplatePickerController = (root, onStateChange) => {
   const input = badgeTemplatePickerElements(root, onStateChange);

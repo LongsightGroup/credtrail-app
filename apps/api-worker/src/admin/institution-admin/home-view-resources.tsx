@@ -6,12 +6,7 @@ import type { buildInstitutionAdminViewPaths } from "./view-paths";
 export const buildInstitutionAdminHomeViewResources = (input: {
   page: InstitutionAdminPageInput;
   paths: ReturnType<typeof buildInstitutionAdminViewPaths>;
-  enabled: boolean;
 }): InstitutionAdminViewContentInput["home"] => {
-  if (!input.enabled) {
-    return { workspaceCardsMarkup: <></> };
-  }
-
   const { page, paths } = input;
   const badgeTemplateCount = String(page.badgeTemplates.length);
   const ruleCount = String(page.badgeRules.length);

@@ -1,4 +1,3 @@
-import type { Child } from "hono/jsx";
 import { renderBadgeRuleBuilderDraftRows } from "./badge-rule-builder-draft-rows";
 import { renderBadgeRulesTable } from "./badge-rules-table";
 import { renderInstitutionAdminLearnerRecordSections } from "./learner-record-sections";
@@ -13,8 +12,6 @@ import type { buildInstitutionAdminViewPaths } from "./view-paths";
 import type { InstitutionAdminViewOptionResources } from "./view-option-resources";
 
 const emptySectionMarkup = <></>;
-
-const asChild = (node: unknown): Child => node as Child;
 
 export const buildInstitutionAdminOperationsViewResources = (input: {
   page: InstitutionAdminPageInput;
@@ -50,9 +47,9 @@ export const buildInstitutionAdminOperationsViewResources = (input: {
   });
 
   return {
-    badgeStatusPanelMarkup: asChild(sections.badgeStatusPanelMarkup),
-    issuedBadgesPanelMarkup: asChild(sections.issuedBadgesPanelMarkup),
-    ruleReviewQueuePanelMarkup: asChild(sections.ruleReviewQueuePanelMarkup),
+    badgeStatusPanelMarkup: sections.badgeStatusPanelMarkup,
+    issuedBadgesPanelMarkup: sections.issuedBadgesPanelMarkup,
+    ruleReviewQueuePanelMarkup: sections.ruleReviewQueuePanelMarkup,
   };
 };
 
