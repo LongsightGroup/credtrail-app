@@ -173,6 +173,10 @@ export class FakeElement {
   }
 
   private matches(selector: string): boolean {
+    if (selector.startsWith("#")) {
+      return this.getAttribute("id") === selector.slice(1);
+    }
+
     if (selector.startsWith(".")) {
       return this.classList.contains(selector.slice(1));
     }

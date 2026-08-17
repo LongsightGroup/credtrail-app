@@ -1,16 +1,3 @@
-    const ruleBuilderBadgeTemplatePicker = createBadgeTemplatePickerController({
-      fallbackField: ruleBuilderBadgeTemplateFallbackField,
-      enhancedField: ruleBuilderBadgeTemplateEnhancedField,
-      comboboxInput: ruleBuilderBadgeTemplateCombobox,
-      select: ruleBuilderBadgeTemplateSelect,
-      listbox: ruleBuilderBadgeTemplateListbox,
-      searchStatus: ruleBuilderBadgeTemplateSearchStatus,
-      reusePanel: ruleBuilderBadgeTemplateReuse,
-      reuseMessage: ruleBuilderBadgeTemplateReuseMessage,
-      reuseConfirmation: ruleBuilderBadgeTemplateReuseConfirmation,
-      onStateChange: () => updateStepNavigationState(),
-    });
-
     runRuleBuilderTest = async (options) => {
       const autoRun = options && options.auto === true;
       const runningMessage = autoRun

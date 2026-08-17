@@ -60,13 +60,18 @@ const pickerFixture = (
   } = {},
 ): PickerFixture => {
   const fallbackField = new FakeElement();
+  fallbackField.setAttribute("id", "rule-builder-badge-template-fallback-field");
   const enhancedField = new FakeElement();
+  enhancedField.setAttribute("id", "rule-builder-badge-template-enhanced-field");
   enhancedField.hidden = true;
   const combobox = new FakeInput();
+  combobox.setAttribute("id", "rule-builder-badge-template-combobox");
   combobox.setAttribute("aria-expanded", "false");
   const listbox = new FakeElement();
+  listbox.setAttribute("id", "rule-builder-badge-template-listbox");
   listbox.hidden = true;
   const select = new FakeSelect();
+  select.setAttribute("id", "rule-builder-badge-template-select");
   select.required = true;
   const placeholder = templateOption({ value: "", title: "Choose a badge template" });
   placeholder.disabled = true;
@@ -83,11 +88,20 @@ const pickerFixture = (
   select.append(placeholder, ...(input.includeOptions === false ? [] : [analytics, typescript]));
   select.value = input.selectedValue ?? (input.includeOptions === false ? "" : "badge_analytics");
   const status = new FakeElement();
+  status.setAttribute("id", "rule-builder-badge-template-search-status");
   status.textContent = "2 badge templates ready for rules, A to Z.";
   const reusePanel = new FakeElement();
+  reusePanel.setAttribute("id", "rule-builder-badge-template-reuse");
   reusePanel.hidden = true;
   const reuseMessage = new FakeElement();
+  reuseMessage.setAttribute("id", "rule-builder-badge-template-reuse-message");
   const reuseConfirmation = new FakeInput();
+  reuseConfirmation.setAttribute("id", "rule-builder-badge-template-reuse-confirmation");
+  fallbackField.append(select);
+  enhancedField.append(combobox, listbox);
+  reusePanel.append(reuseMessage, reuseConfirmation);
+  const root = new FakeElement();
+  root.append(fallbackField, enhancedField, status, reusePanel);
   const timers = new FakeTimers();
   const document = new FakeDocument();
   let updateCount = 0;
@@ -105,32 +119,20 @@ const pickerFixture = (
     enhancedField,
     fallbackField,
     listbox,
-    onStateChange: (): void => {
-      updateCount += 1;
-    },
     reuseConfirmation,
     reuseMessage,
     reusePanel,
+    ruleBuilderBadgeTemplatePickerRoot: root,
     select,
     setTimeout: timers.setTimeout,
     status,
+    updateStepNavigationState: (): void => {
+      updateCount += 1;
+    },
   });
 
   new Script(templatePickerAssetSource()).runInContext(context);
-  new Script(`
-    controller = createBadgeTemplatePickerController({
-      fallbackField,
-      enhancedField,
-      comboboxInput: combobox,
-      select,
-      listbox,
-      searchStatus: status,
-      reusePanel,
-      reuseMessage,
-      reuseConfirmation,
-      onStateChange,
-    });
-  `).runInContext(context);
+  new Script("controller = ruleBuilderBadgeTemplatePicker;").runInContext(context);
 
   return {
     combobox,

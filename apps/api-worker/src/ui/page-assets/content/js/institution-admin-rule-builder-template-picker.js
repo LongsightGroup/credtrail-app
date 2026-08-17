@@ -376,7 +376,22 @@ const createEnhancedBadgeTemplatePickerController = (input) => {
   });
 };
 
-const createBadgeTemplatePickerController = (input) => {
+const badgeTemplatePickerElements = (root, onStateChange) => ({
+  fallbackField: root?.querySelector("#rule-builder-badge-template-fallback-field") ?? null,
+  enhancedField: root?.querySelector("#rule-builder-badge-template-enhanced-field") ?? null,
+  comboboxInput: root?.querySelector("#rule-builder-badge-template-combobox") ?? null,
+  select: root?.querySelector("#rule-builder-badge-template-select") ?? null,
+  listbox: root?.querySelector("#rule-builder-badge-template-listbox") ?? null,
+  searchStatus: root?.querySelector("#rule-builder-badge-template-search-status") ?? null,
+  reusePanel: root?.querySelector("#rule-builder-badge-template-reuse") ?? null,
+  reuseMessage: root?.querySelector("#rule-builder-badge-template-reuse-message") ?? null,
+  reuseConfirmation:
+    root?.querySelector("#rule-builder-badge-template-reuse-confirmation") ?? null,
+  onStateChange,
+});
+
+const createBadgeTemplatePickerController = (root, onStateChange) => {
+  const input = badgeTemplatePickerElements(root, onStateChange);
   const { fallbackField, enhancedField, comboboxInput, select, listbox, searchStatus } = input;
   const options = selectableTemplateOptions(select);
   const canEnhance =
@@ -394,3 +409,8 @@ const createBadgeTemplatePickerController = (input) => {
 
   return createEnhancedBadgeTemplatePickerController({ ...input, options });
 };
+
+const ruleBuilderBadgeTemplatePicker = createBadgeTemplatePickerController(
+  ruleBuilderBadgeTemplatePickerRoot,
+  () => updateStepNavigationState(),
+);

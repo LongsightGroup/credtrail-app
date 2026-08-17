@@ -36,32 +36,8 @@ const ruleBuilderTemplatePreset = document.getElementById("rule-builder-template
 const ruleBuilderLmsConnectionSelect = document.getElementById("rule-builder-lms-connection");
 const ruleBuilderLmsStatus = document.getElementById("rule-builder-lms-status");
 const ruleBuilderLmsProviderKindInput = document.getElementById("rule-builder-lms-provider-kind");
-const ruleBuilderBadgeTemplateFallbackField = document.getElementById(
-  "rule-builder-badge-template-fallback-field",
-);
-const ruleBuilderBadgeTemplateEnhancedField = document.getElementById(
-  "rule-builder-badge-template-enhanced-field",
-);
-const ruleBuilderBadgeTemplateCombobox = document.getElementById(
-  "rule-builder-badge-template-combobox",
-);
-const ruleBuilderBadgeTemplateSelect = document.getElementById(
-  "rule-builder-badge-template-select",
-);
-const ruleBuilderBadgeTemplateListbox = document.getElementById(
-  "rule-builder-badge-template-listbox",
-);
-const ruleBuilderBadgeTemplateSearchStatus = document.getElementById(
-  "rule-builder-badge-template-search-status",
-);
-const ruleBuilderBadgeTemplateReuse = document.getElementById(
-  "rule-builder-badge-template-reuse",
-);
-const ruleBuilderBadgeTemplateReuseMessage = document.getElementById(
-  "rule-builder-badge-template-reuse-message",
-);
-const ruleBuilderBadgeTemplateReuseConfirmation = document.getElementById(
-  "rule-builder-badge-template-reuse-confirmation",
+const ruleBuilderBadgeTemplatePickerRoot = document.getElementById(
+  "rule-builder-badge-template-picker",
 );
 const ruleBuilderApplyTemplateButton = document.getElementById("rule-builder-apply-template");
 const ruleBuilderAddConditionButton = document.getElementById("rule-builder-add-condition");

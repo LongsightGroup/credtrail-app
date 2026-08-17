@@ -205,7 +205,10 @@ export const RuleBuilderMetadataStep = (props: {
               Choose the badge, LMS connection, and how learners earn it.
             </p>
             <div class="ct-admin__builder-grid ct-grid">
-              <div class="ct-admin__template-picker ct-stack">
+              <div
+                id="rule-builder-badge-template-picker"
+                class="ct-admin__template-picker ct-stack"
+              >
                 <div id="rule-builder-badge-template-fallback-field">
                   <AdminField label="Badge template">
                     <CtSelect
