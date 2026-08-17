@@ -206,7 +206,10 @@ jobs:
                   'job-ci-smoke-1',
                   'ci-tenant',
                   'process_badge_rule_lifecycle',
-                  '{"scheduledFor":"2026-08-17T00:00:00.000Z"}',
+                  json_build_object(
+                    'scheduledFor',
+                    '2026-08-17T00:00:00.000Z'
+                  )::text,
                   'ci-smoke-lifecycle-1',
                   CURRENT_TIMESTAMP::text,
                   'pending',
