@@ -530,10 +530,10 @@ const sourceEntriesForConditions = (conditions) => {
 
 const buildSampleFactsFromConditions = (conditions, learnerId) => {
   const courseId = getDefaultCourseId();
-  const parsedFinalScore = Number(getTextFieldValue("testFinalScore"));
-  const finalScore =
-    Number.isFinite(parsedFinalScore) && parsedFinalScore >= 0 && parsedFinalScore <= 100
-      ? parsedFinalScore
+  const parsedScore = Number(getTextFieldValue("testScore"));
+  const score =
+    Number.isFinite(parsedScore) && parsedScore >= 0 && parsedScore <= 100
+      ? parsedScore
       : 92;
   const parsedCompletionPercent = Number(getTextFieldValue("testCompletionPercent"));
   const completionPercent =
@@ -562,7 +562,8 @@ const buildSampleFactsFromConditions = (conditions, learnerId) => {
       facts.grades.push({
         courseId: leaf.courseId ?? courseId,
         learnerId,
-        finalScore,
+        currentScore: score,
+        finalScore: score,
       });
       return;
     }
@@ -587,7 +588,7 @@ const buildSampleFactsFromConditions = (conditions, learnerId) => {
         courseId: leaf.courseId,
         assignmentId: leaf.assignmentId,
         learnerId,
-        score: finalScore,
+        score,
         workflowState: "submitted",
         submittedAt: new Date().toISOString(),
       });

@@ -206,6 +206,7 @@ const syncRuleBuilderStepCompletion = () => {
 const syncRuleBuilderSummary = (statusOverride) => {
   renderRuleFlowPreview();
   renderSourceReadiness();
+  ruleBuilderExampleTestController.sync(readConditionsForPreview());
 
   const ruleName = getTextFieldValue("name");
   const cardCount = getConditionCards().length;

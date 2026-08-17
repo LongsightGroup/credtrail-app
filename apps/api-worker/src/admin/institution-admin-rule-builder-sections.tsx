@@ -14,7 +14,7 @@ import {
   AdminFieldset,
   AdminStatus,
 } from "./components";
-import { CtCheckboxField, CtInput, CtSelect, CtTextarea } from "../ui/forms";
+import { CtCheckboxField, CtFieldHint, CtInput, CtSelect, CtTextarea } from "../ui/forms";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | null;
 type RuleBuilderStepTarget = "metadata" | "conditions" | "test";
@@ -683,26 +683,50 @@ export const RuleBuilderTestStep = (): HonoElement => {
                   Example data does not read the LMS. CredTrail generates matching facts from the
                   requirements below so you can check the rule structure.
                 </p>
-                <AdminField label="Example final score">
-                  <CtInput
-                    name="testFinalScore"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value="92"
-                  />
-                </AdminField>
-                <AdminField label="Example gradebook items completed %">
-                  <CtInput
-                    name="testCompletionPercent"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value="100"
-                  />
-                </AdminField>
+                <p
+                  id="rule-builder-example-test-guidance"
+                  class="ct-admin__hint"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  Generated values update with this rule's requirements.
+                </p>
+                <div id="rule-builder-example-score-field" class="ct-stack" hidden>
+                  <AdminField label="Example score">
+                    <CtInput
+                      id="rule-builder-example-score"
+                      name="testScore"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value="92"
+                      describedBy="rule-builder-example-score-hint"
+                      disabled
+                    />
+                    <CtFieldHint id="rule-builder-example-score-hint" />
+                  </AdminField>
+                </div>
+                <div id="rule-builder-example-completion-field" class="ct-stack" hidden>
+                  <AdminField label="Example gradebook completion (%)">
+                    <CtInput
+                      id="rule-builder-example-completion"
+                      name="testCompletionPercent"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value="100"
+                      describedBy="rule-builder-example-completion-hint"
+                      disabled
+                    />
+                    <CtFieldHint id="rule-builder-example-completion-hint" />
+                  </AdminField>
+                </div>
+                <p id="rule-builder-example-test-empty" class="ct-admin__hint">
+                  This rule's example facts come from its configured requirements. There are no
+                  values to adjust; run the test or use advanced facts.
+                </p>
               </div>
               <div class="ct-admin__builder-test-actions">
                 <AdminButton id="rule-builder-test" type="button" size="tiny">

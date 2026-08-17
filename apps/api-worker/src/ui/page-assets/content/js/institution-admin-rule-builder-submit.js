@@ -54,7 +54,8 @@
       const recipientIdentity = getTextFieldValue('testRecipientIdentity').toLowerCase();
       const requiresRecipientIdentity =
         testDataSource === 'lms' && ruleBuilderTestRequiresRecipientIdentity();
-      const sampleFinalScoreText = getTextFieldValue('testFinalScore');
+      const sampleScoreText = getTextFieldValue('testScore');
+      const sampleCompletionPercentText = getTextFieldValue('testCompletionPercent');
       const testFactsJson = getTextFieldValue('testFactsJson');
 
       if (learnerId.length === 0) {
@@ -124,15 +125,18 @@
           return;
         }
       } else {
-        const sampleFinalScore = Number(sampleFinalScoreText);
+        const exampleValueError = ruleBuilderExampleTestController.validationMessage({
+          score: sampleScoreText,
+          completion: sampleCompletionPercentText,
+        });
 
-        if (!Number.isFinite(sampleFinalScore) || sampleFinalScore < 0 || sampleFinalScore > 100) {
-          const message = 'Sample final score must be a number between 0 and 100.';
+        if (exampleValueError !== null) {
+          const message = exampleValueError;
           setStatus(ruleCreateStatus, message, true);
           if (ruleBuilderTestResult instanceof HTMLElement) {
             setStatus(ruleBuilderTestResult, message, true);
           }
-          ruleBuilderLastTestSummary = 'Sample score invalid';
+          ruleBuilderLastTestSummary = 'Example value invalid';
           syncRuleBuilderSummary(message);
           return;
         }

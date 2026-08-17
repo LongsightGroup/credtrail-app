@@ -169,6 +169,15 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).not.toContain('name="testCourseId"');
     expect(body).not.toContain('id="rule-builder-test-preset"');
     expect(body).not.toContain("Historical simulation");
+    expect(body).toMatch(
+      /id="rule-builder-example-score-field"[^>]*hidden[\s\S]*?id="rule-builder-example-score"[^>]*disabled[^>]*aria-describedby="rule-builder-example-score-hint"/,
+    );
+    expect(body).toMatch(
+      /id="rule-builder-example-completion-field"[^>]*hidden[\s\S]*?id="rule-builder-example-completion"[^>]*disabled[^>]*aria-describedby="rule-builder-example-completion-hint"/,
+    );
+    expect(body).toContain('id="rule-builder-example-test-guidance"');
+    expect(body).toContain('aria-live="polite"');
+    expect(body).toContain("There are no values to adjust; run the test or use advanced facts.");
   });
 
   it("asks for workflow decisions without exposing schema-oriented setup", async () => {
