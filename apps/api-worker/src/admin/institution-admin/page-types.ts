@@ -24,7 +24,6 @@ import type {
   TenantReportingOverviewRecord,
   TenantReportingTrendRecord,
   DelegatedIssuingAuthorityGrantRecord,
-  BadgeIssuanceRuleValueListRecord,
   BadgeRuleApproverGroupWithMembersRecord,
 } from "@credtrail/db";
 import type { LearnerRecordImportRowReport } from "@credtrail/validation";
@@ -119,10 +118,6 @@ export interface InstitutionAdminRulesWorkspace extends InstitutionAdminListFlas
   };
 }
 
-export interface InstitutionAdminRuleValueListsWorkspace extends InstitutionAdminListFlashWorkspace {
-  valueLists: readonly BadgeIssuanceRuleValueListRecord[];
-}
-
 export interface InstitutionAdminLmsConnectionsWorkspace extends InstitutionAdminListFlashWorkspace {
   ltiDynamicRegistrationUrl: string | null;
 }
@@ -144,8 +139,6 @@ export interface InstitutionAdminAccessAuthenticationWorkspace extends Instituti
 export interface InstitutionAdminAccessDelegationsNewWorkspace extends InstitutionAdminListFlashWorkspace {}
 
 export interface InstitutionAdminAccessOrgUnitsWorkspace extends InstitutionAdminListFlashWorkspace {}
-
-export interface InstitutionAdminOperationsWorkspace extends InstitutionAdminListFlashWorkspace {}
 
 export interface InstitutionAdminManualIssueWorkspace {
   listNotice: string | null;
@@ -229,7 +222,6 @@ export interface InstitutionAdminPageInput {
   issuedBadgesWorkspace?: InstitutionAdminIssuedBadgesWorkspace;
   reviewQueueWorkspace?: InstitutionAdminReviewQueueWorkspace;
   rulesWorkspace?: InstitutionAdminRulesWorkspace;
-  ruleValueListsWorkspace?: InstitutionAdminRuleValueListsWorkspace;
   lmsConnectionsWorkspace?: InstitutionAdminLmsConnectionsWorkspace;
   lmsConnectionSetupWorkspace?: InstitutionAdminLmsConnectionSetupWorkspace;
   lmsConnectionSetupFormValues?: {
@@ -249,7 +241,6 @@ export interface InstitutionAdminPageInput {
   accessDelegationsNewWorkspace?: InstitutionAdminAccessDelegationsNewWorkspace;
   accessAuthenticationWorkspace?: InstitutionAdminAccessAuthenticationWorkspace;
   accessOrgUnitsWorkspace?: InstitutionAdminAccessOrgUnitsWorkspace;
-  operationsWorkspace?: InstitutionAdminOperationsWorkspace;
   manualIssueWorkspace?: InstitutionAdminManualIssueWorkspace;
   switchOrganizationPath?: string | null;
 }

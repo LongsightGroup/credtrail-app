@@ -39,7 +39,6 @@ import { registerTenantOperationsAdminRoutes } from "./tenant-operations-admin-r
 import { registerTenantOrgUnitRoutes } from "./tenant-org-unit-routes";
 import { registerTenantOrgUnitsAdminRoutes } from "./tenant-org-units-admin-routes";
 import { registerTenantReviewQueueAdminRoutes } from "./tenant-review-queue-admin-routes";
-import { registerTenantRuleValueListsAdminRoutes } from "./tenant-rule-value-lists-admin-routes";
 
 export type { RegisterTenantGovernanceRoutesInput } from "./tenant-governance-routes.types";
 export {
@@ -120,12 +119,6 @@ export const registerTenantGovernanceRoutes = (
     resolveDatabase: input.resolveDatabase,
     resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
     issueBadgeForTenant: input.issueBadgeForTenant,
-  });
-
-  registerTenantRuleValueListsAdminRoutes({
-    app: input.app,
-    resolveDatabase: input.resolveDatabase,
-    resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
   });
 
   registerTenantAccessMembersAdminRoutes({

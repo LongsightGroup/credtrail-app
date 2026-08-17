@@ -45,7 +45,6 @@ import type { InstitutionAdminListFlashWorkspace } from "./institution-admin/lis
 import type { InstitutionAdminPageInput } from "./institution-admin/page-types";
 import { lmsConnectionsPageUrl } from "./lms-connection-admin-helpers";
 import { consumeAdminManualIssueFlash } from "./manual-issue-flash";
-import { loadTenantBadgeRuleValueLists } from "./rule-value-lists-presentation";
 import {
   badgeRuleRegistryPageUrl,
   buildBadgeRuleRegistryPath,
@@ -212,13 +211,10 @@ export const renderInstitutionAdminRulesWorkspace = async <
     workspace: "rules",
   });
   const db = deps.resolveDatabase(c.env);
-  const [valueLists, builderDrafts] = await Promise.all([
-    loadTenantBadgeRuleValueLists(db, tenantId),
-    listBadgeIssuanceRuleBuilderDraftsForUser(db, {
-      tenantId,
-      userId: principal.userId,
-    }),
-  ]);
+  const builderDrafts = await listBadgeIssuanceRuleBuilderDraftsForUser(db, {
+    tenantId,
+    userId: principal.userId,
+  });
 
   return await renderInstitutionAdminWorkspacePage(
     c,
@@ -251,11 +247,6 @@ export const renderInstitutionAdminRulesWorkspace = async <
                   boundary: registryPage.nextCursor,
                 }),
         },
-      },
-      ruleValueListsWorkspace: {
-        valueLists,
-        listNotice: null,
-        listError: null,
       },
     }),
   );

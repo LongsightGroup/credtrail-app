@@ -7,7 +7,6 @@ export type AdminListMessageWorkspace =
   | "rules"
   | "rule_approvals"
   | "operations_review_queue"
-  | "rule_value_lists"
   | "issued_badges"
   | "access_members"
   | "access_org_unit_access"

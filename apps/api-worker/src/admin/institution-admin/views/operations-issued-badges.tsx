@@ -4,8 +4,9 @@ import type { InstitutionAdminViewDefinition } from "../view-content";
 
 const issuedBadgesDataNeeds = {
   accessSectionBundles: false,
-  operationsSectionBundles: false,
+  badgeStatusPanel: false,
   reportingSectionBundles: false,
+  reviewQueuePanel: false,
   badgeRulesTable: false,
   learnerRecordSectionBundles: false,
   lmsConnectionRows: false,
@@ -19,7 +20,6 @@ const issuedBadgesDataNeeds = {
   delegationSelectOptions: false,
   accessMemberSelectOptions: false,
   accessOrgUnitSelectOptions: false,
-  ruleSelectOptions: false,
   orgUnitParentOptions: false,
   issuedBadgeFilters: true,
 } as const;

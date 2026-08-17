@@ -1,12 +1,6 @@
-import {
-  indexBadgeIssuanceRuleVersionsByRuleId,
-  latestBadgeIssuanceRuleVersion,
-  type BadgeIssuanceRuleRecord,
-  type TenantMembershipRole,
-} from "@credtrail/db";
+import type { TenantMembershipRole } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { badgeRuleApprovalPolicyFormState } from "../../badges/badge-rule-approval-policy-summary";
-import { badgeRuleDisplayName } from "../../badges/badge-rule-presentation";
 import type { InstitutionAdminPageInput } from "./page-types";
 import type {
   InstitutionAdminViewContentInput,
@@ -17,37 +11,10 @@ type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
 const emptyOptions = <></>;
 
-const formatRuleOption = (input: {
-  rule: BadgeIssuanceRuleRecord;
-  index: number;
-  versionsByRuleId: ReturnType<typeof indexBadgeIssuanceRuleVersionsByRuleId>;
-}): HonoElement => {
-  const versions = input.versionsByRuleId.get(input.rule.id) ?? [];
-  const latestVersion = latestBadgeIssuanceRuleVersion(versions);
-  const displayName = badgeRuleDisplayName(input.rule, versions);
-
-  return (
-    <option
-      value={input.rule.id}
-      selected={input.index === 0}
-      data-version-id={latestVersion?.id ?? ""}
-      data-version-status={latestVersion?.status ?? "none"}
-      data-rule-label={displayName}
-    >
-      {`${displayName} (${input.rule.id}) · latest ${
-        latestVersion === null
-          ? "none"
-          : `v${String(latestVersion.versionNumber)} ${latestVersion.status}`
-      }`}
-    </option>
-  );
-};
-
 const buildOrgUnitOptions = (
   page: InstitutionAdminPageInput,
   dataNeeds: InstitutionAdminViewDataNeeds,
 ): {
-  activeOrgUnitOptions: HonoElement[];
   activeOrgUnitSelectOptions: HonoElement;
   orgUnitParentOptions: HonoElement[];
 } => {
@@ -60,14 +27,11 @@ const buildOrgUnitOptions = (
           </option>
         ))
     : [];
-  const selectedOrgUnitFilterId = page.issuedBadgesWorkspace?.filters.orgUnitId ?? "";
   const activeOrgUnitOptions = dataNeeds.accessOrgUnitSelectOptions
     ? page.orgUnits
         .filter((orgUnit) => orgUnit.isActive)
         .map((orgUnit) => (
-          <option value={orgUnit.id} selected={orgUnit.id === selectedOrgUnitFilterId}>
-            {`${orgUnit.displayName} (${orgUnit.unitType})`}
-          </option>
+          <option value={orgUnit.id}>{`${orgUnit.displayName} (${orgUnit.unitType})`}</option>
         ))
     : [];
   const activeOrgUnitSelectOptions = !dataNeeds.accessOrgUnitSelectOptions ? (
@@ -78,7 +42,7 @@ const buildOrgUnitOptions = (
     <option value="">No active org units available</option>
   );
 
-  return { activeOrgUnitOptions, activeOrgUnitSelectOptions, orgUnitParentOptions };
+  return { activeOrgUnitSelectOptions, orgUnitParentOptions };
 };
 
 const buildTenantOptions = (
@@ -117,7 +81,6 @@ const buildTemplateOptions = (
   dataNeeds: InstitutionAdminViewDataNeeds,
 ): {
   optionalBadgeTemplateScopeOptions: HonoElement;
-  templateFilterOptions: HonoElement;
   templateSelectOptions: HonoElement;
 } => {
   const selectedPathwayTemplateId = page.manualIssueWorkspace?.pathwayIssuance?.badgeTemplateId;
@@ -142,21 +105,6 @@ const buildTemplateOptions = (
   ) : (
     <option value="">No badge templates available</option>
   );
-  const selectedFilterId = page.issuedBadgesWorkspace?.filters.badgeTemplateId ?? "";
-  const templateFilterOptions = dataNeeds.issuedBadgeFilters ? (
-    <>
-      <option value="" selected={selectedFilterId.length === 0}>
-        All templates
-      </option>
-      {page.badgeTemplates.map((template) => (
-        <option value={template.id} selected={template.id === selectedFilterId}>
-          {template.title}
-        </option>
-      ))}
-    </>
-  ) : (
-    emptyOptions
-  );
   const optionalBadgeTemplateScopeOptions = !dataNeeds.delegationSelectOptions ? (
     emptyOptions
   ) : (
@@ -168,23 +116,7 @@ const buildTemplateOptions = (
     </>
   );
 
-  return { optionalBadgeTemplateScopeOptions, templateFilterOptions, templateSelectOptions };
-};
-
-const buildRuleOptions = (
-  page: InstitutionAdminPageInput,
-  dataNeeds: InstitutionAdminViewDataNeeds,
-): HonoElement => {
-  if (!dataNeeds.ruleSelectOptions) {
-    return emptyOptions;
-  }
-
-  const versionsByRuleId = indexBadgeIssuanceRuleVersionsByRuleId(page.badgeRuleVersions);
-  const options = page.badgeRules.map((rule, index) =>
-    formatRuleOption({ rule, index, versionsByRuleId }),
-  );
-
-  return options.length > 0 ? <>{options}</> : <option value="">No rules available</option>;
+  return { optionalBadgeTemplateScopeOptions, templateSelectOptions };
 };
 
 const buildApprovalOptions = (
@@ -282,12 +214,6 @@ export interface InstitutionAdminViewOptionResources {
     tenantMemberRoleSelectOptions: HonoElement[];
     tenantMemberSelectOptions: HonoElement;
   };
-  operations: {
-    activeOrgUnitOptions: HonoElement[];
-    ruleSelectOptions: HonoElement;
-    templateFilterOptions: HonoElement;
-    templateSelectOptions: HonoElement;
-  };
 }
 
 export const buildInstitutionAdminViewOptionResources = (input: {
@@ -298,7 +224,6 @@ export const buildInstitutionAdminViewOptionResources = (input: {
   const tenants = buildTenantOptions(input.page, input.dataNeeds);
   const templates = buildTemplateOptions(input.page, input.dataNeeds);
   const approval = buildApprovalOptions(input.page, input.dataNeeds);
-  const ruleSelectOptions = buildRuleOptions(input.page, input.dataNeeds);
 
   return {
     controls: {
@@ -318,12 +243,6 @@ export const buildInstitutionAdminViewOptionResources = (input: {
       orgUnitParentOptions: orgUnits.orgUnitParentOptions,
       tenantMemberRoleSelectOptions: tenants.tenantMemberRoleSelectOptions,
       tenantMemberSelectOptions: tenants.tenantMemberSelectOptions,
-    },
-    operations: {
-      activeOrgUnitOptions: orgUnits.activeOrgUnitOptions,
-      ruleSelectOptions,
-      templateFilterOptions: templates.templateFilterOptions,
-      templateSelectOptions: templates.templateSelectOptions,
     },
   };
 };

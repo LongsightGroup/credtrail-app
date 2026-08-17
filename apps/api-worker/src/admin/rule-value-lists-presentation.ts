@@ -13,37 +13,6 @@ export interface RuleValueListBuilderContextEntry {
   values: readonly string[];
 }
 
-export const formatRuleValueListKind = (kind: BadgeIssuanceRuleValueListRecord["kind"]): string => {
-  if (kind === "course_ids") {
-    return "LMS courses";
-  }
-
-  if (kind === "badge_template_ids") {
-    return "Badge template IDs";
-  }
-
-  return "Unknown";
-};
-
-export const formatRuleValueListValuesSummary = (values: readonly string[]): string => {
-  if (values.length === 0) {
-    return "No values";
-  }
-
-  return values.join(", ");
-};
-
-export const parseCommaSeparatedAdminValues = (raw: unknown): string[] => {
-  if (typeof raw !== "string") {
-    return [];
-  }
-
-  return raw
-    .split(/[,\n]/)
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-};
-
 export const toRuleValueListBuilderContextEntries = (
   valueLists: readonly BadgeIssuanceRuleValueListRecord[],
 ): RuleValueListBuilderContextEntry[] => {

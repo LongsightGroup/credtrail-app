@@ -1,15 +1,11 @@
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
-import type { BadgeIssuanceRuleValueListRecord, TenantAssertionSummaryRecord } from "@credtrail/db";
+import type { TenantAssertionSummaryRecord } from "@credtrail/db";
 import type { BadgeRuleReviewQueueEntryView } from "../badge-rule-review-queue-workspace";
 import { formatBadgeRuleReviewQueueSummary } from "../badge-rule-review-queue-workspace";
 import type { CtDataAttributes } from "../ui/jsx-utils";
 import { CtCheckboxField, CtField, CtForm, CtInput, type CtCheckboxType } from "../ui/forms";
 import { AdminButton, AdminButtonLink, type AdminButtonVariant } from "./actions";
-import {
-  formatRuleValueListKind,
-  formatRuleValueListValuesSummary,
-} from "./rule-value-lists-presentation";
 import { adminStatusPillClass } from "./admin-status-pill-class";
 import { formatIsoTimestamp } from "../utils/display-format";
 export {
@@ -742,48 +738,6 @@ const IssuedBadgeRow = (input: {
         </div>
       </td>
     </tr>
-  );
-};
-
-const RuleValueListRow = (input: { valueList: BadgeIssuanceRuleValueListRecord }): HonoElement => {
-  const valueList = input.valueList;
-  const valueSummary = formatRuleValueListValuesSummary(valueList.values);
-
-  return (
-    <tr data-rule-value-list-row="true">
-      <td>
-        <strong>{valueList.label}</strong>
-        <AdminMeta>{valueList.id}</AdminMeta>
-      </td>
-      <td>{formatRuleValueListKind(valueList.kind)}</td>
-      <td>
-        {valueSummary}
-        <AdminMeta>
-          {String(valueList.values.length)} value{valueList.values.length === 1 ? "" : "s"}
-        </AdminMeta>
-      </td>
-    </tr>
-  );
-};
-
-export const RuleValueListRows = (input: {
-  valueLists: readonly BadgeIssuanceRuleValueListRecord[];
-  emptyMessage?: string;
-}): HonoElement => {
-  if (input.valueLists.length === 0) {
-    return (
-      <AdminEmptyTableRow colSpan={3}>
-        {input.emptyMessage ?? "No reusable value lists yet."}
-      </AdminEmptyTableRow>
-    );
-  }
-
-  return (
-    <>
-      {input.valueLists.map((valueList) => (
-        <RuleValueListRow valueList={valueList} />
-      ))}
-    </>
   );
 };
 

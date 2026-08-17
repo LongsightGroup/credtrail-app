@@ -1,63 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   createEnv,
-  mockedCreateBadgeIssuanceRuleValueList,
   mockedFindBadgeIssuanceRuleById,
   mockedFindBadgeIssuanceRuleEvaluationById,
   mockedListBadgeIssuanceRuleEvaluations,
   mockedResolveBadgeIssuanceRuleEvaluationReview,
 } from "./institution-admin-test-utils/rules-test-harness";
 import { app } from "./index";
-
-describe("POST /tenants/:tenantId/admin/rules/value-lists", () => {
-  it("creates a value list and redirects with a signed flash cookie", async () => {
-    const env = createEnv();
-
-    const response = await app.request(
-      "/tenants/tenant_123/admin/rules/value-lists",
-      {
-        method: "POST",
-        headers: {
-          Origin: "http://localhost",
-          "Content-Type": "application/x-www-form-urlencoded",
-          Cookie: "better-auth.session_token=session-token",
-        },
-        body: new URLSearchParams({
-          label: "Core CS sequence",
-          kind: "course_ids",
-          values: "CS101, CS102",
-        }).toString(),
-        redirect: "manual",
-      },
-      env,
-    );
-
-    expect(response.status).toBe(303);
-    const location = response.headers.get("location") ?? "";
-    expect(location).toBe("/tenants/tenant_123/admin/rules");
-    expect(location).not.toContain("listNotice=");
-    expect(mockedCreateBadgeIssuanceRuleValueList).toHaveBeenCalledTimes(1);
-
-    const flashCookie = response.headers.get("set-cookie") ?? "";
-    expect(flashCookie).toContain("ct_admin_flash_list_message_tenant_123");
-
-    const pageResponse = await app.request(
-      location,
-      {
-        headers: {
-          Cookie: `better-auth.session_token=session-token; ${flashCookie.split(";")[0]}`,
-        },
-      },
-      env,
-    );
-    const body = await pageResponse.text();
-
-    expect(pageResponse.status).toBe(200);
-    expect(body).not.toContain("Created reusable list");
-    expect(body).not.toContain("Core CS sequence");
-    expect(body).not.toContain('id="rule-value-list-form"');
-  });
-});
 
 describe("POST /tenants/:tenantId/admin/operations/review-queue/resolve", () => {
   it("dismisses a pending review entry and redirects with flash feedback", async () => {

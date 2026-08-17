@@ -106,7 +106,7 @@ const institutionAdminDatasetsForView = (
     datasets.add("lmsConnections");
   }
 
-  if (needs.badgeRulesTable || needs.ruleSelectOptions) {
+  if (needs.badgeRulesTable) {
     datasets.add("badgeRules");
     datasets.add("badgeRuleVersions");
   }

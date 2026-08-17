@@ -1,7 +1,7 @@
 import { renderBadgeRuleBuilderDraftRows } from "./badge-rule-builder-draft-rows";
 import { renderBadgeRulesTable } from "./badge-rules-table";
 import { renderInstitutionAdminLearnerRecordSections } from "./learner-record-sections";
-import { renderInstitutionAdminOperationsSections } from "./operations-sections";
+import { renderBadgeStatusPanel, renderRuleReviewQueuePanel } from "./operations-sections";
 import type { InstitutionAdminPageInput } from "./page-types";
 import { renderInstitutionAdminReportingSections } from "./reporting-sections";
 import type {
@@ -9,47 +9,25 @@ import type {
   InstitutionAdminViewDataNeeds,
 } from "./view-content";
 import type { buildInstitutionAdminViewPaths } from "./view-paths";
-import type { InstitutionAdminViewOptionResources } from "./view-option-resources";
 
 const emptySectionMarkup = <></>;
 
 export const buildInstitutionAdminOperationsViewResources = (input: {
   page: InstitutionAdminPageInput;
   dataNeeds: InstitutionAdminViewDataNeeds;
-  options: InstitutionAdminViewOptionResources["operations"];
 }): InstitutionAdminViewContentInput["operations"] => {
-  if (!input.dataNeeds.operationsSectionBundles) {
-    return {
-      badgeStatusPanelMarkup: emptySectionMarkup,
-      issuedBadgesPanelMarkup: emptySectionMarkup,
-      ruleReviewQueuePanelMarkup: emptySectionMarkup,
-    };
-  }
-
-  const sections = renderInstitutionAdminOperationsSections({
-    tenantId: input.page.tenant.id,
-    templateSelectOptions: input.options.templateSelectOptions,
-    ruleSelectOptions: input.options.ruleSelectOptions,
-    templateFilterOptions: input.options.templateFilterOptions,
-    activeOrgUnitOptions: input.options.activeOrgUnitOptions,
-    ...(input.page.issuedBadgesWorkspace === undefined
-      ? {}
-      : { issuedBadgesWorkspace: input.page.issuedBadgesWorkspace }),
-    ...(input.page.reviewQueueWorkspace === undefined
-      ? {}
-      : { reviewQueueWorkspace: input.page.reviewQueueWorkspace }),
-    ...(input.page.ruleValueListsWorkspace === undefined
-      ? {}
-      : { ruleValueListsWorkspace: input.page.ruleValueListsWorkspace }),
-    ...(input.page.operationsWorkspace === undefined
-      ? {}
-      : { operationsWorkspace: input.page.operationsWorkspace }),
-  });
-
   return {
-    badgeStatusPanelMarkup: sections.badgeStatusPanelMarkup,
-    issuedBadgesPanelMarkup: sections.issuedBadgesPanelMarkup,
-    ruleReviewQueuePanelMarkup: sections.ruleReviewQueuePanelMarkup,
+    badgeStatusPanelMarkup: input.dataNeeds.badgeStatusPanel
+      ? renderBadgeStatusPanel()
+      : emptySectionMarkup,
+    ruleReviewQueuePanelMarkup: input.dataNeeds.reviewQueuePanel
+      ? renderRuleReviewQueuePanel({
+          tenantId: input.page.tenant.id,
+          ...(input.page.reviewQueueWorkspace === undefined
+            ? {}
+            : { reviewQueueWorkspace: input.page.reviewQueueWorkspace }),
+        })
+      : emptySectionMarkup,
   };
 };
 

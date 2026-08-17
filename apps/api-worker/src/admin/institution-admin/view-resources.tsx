@@ -82,7 +82,6 @@ export const buildInstitutionAdminViewResources = (
     operations: buildInstitutionAdminOperationsViewResources({
       page: input,
       dataNeeds: viewDefinition.dataNeeds,
-      options: options.operations,
     }),
     reporting: buildInstitutionAdminReportingViewResources({
       page: input,

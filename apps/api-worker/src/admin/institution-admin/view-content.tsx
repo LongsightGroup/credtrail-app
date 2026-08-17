@@ -38,7 +38,6 @@ export interface InstitutionAdminViewContentInput {
   };
   operations: {
     badgeStatusPanelMarkup: RenderedNode;
-    issuedBadgesPanelMarkup: RenderedNode;
     ruleReviewQueuePanelMarkup: RenderedNode;
   };
   reporting: {
@@ -86,8 +85,9 @@ const renderPageHeader = (
 
 export interface InstitutionAdminViewDataNeeds {
   accessSectionBundles: boolean;
-  operationsSectionBundles: boolean;
+  badgeStatusPanel: boolean;
   reportingSectionBundles: boolean;
+  reviewQueuePanel: boolean;
   badgeRulesTable: boolean;
   learnerRecordSectionBundles: boolean;
   lmsConnectionRows: boolean;
@@ -101,7 +101,6 @@ export interface InstitutionAdminViewDataNeeds {
   delegationSelectOptions: boolean;
   accessMemberSelectOptions: boolean;
   accessOrgUnitSelectOptions: boolean;
-  ruleSelectOptions: boolean;
   orgUnitParentOptions: boolean;
   issuedBadgeFilters: boolean;
 }
@@ -127,8 +126,9 @@ export interface InstitutionAdminBuiltView {
 
 const DEFAULT_VIEW_DATA_NEEDS = {
   accessSectionBundles: false,
-  operationsSectionBundles: false,
+  badgeStatusPanel: false,
   reportingSectionBundles: false,
+  reviewQueuePanel: false,
   badgeRulesTable: false,
   learnerRecordSectionBundles: false,
   lmsConnectionRows: false,
@@ -142,7 +142,6 @@ const DEFAULT_VIEW_DATA_NEEDS = {
   delegationSelectOptions: false,
   accessMemberSelectOptions: false,
   accessOrgUnitSelectOptions: false,
-  ruleSelectOptions: false,
   orgUnitParentOptions: false,
   issuedBadgeFilters: false,
 } as const;
@@ -160,10 +159,7 @@ export const viewDataNeeds = (
     accessMemberSelectOptions:
       merged.governanceTableRows || merged.scopedRoleRows || merged.delegationSelectOptions,
     accessOrgUnitSelectOptions:
-      merged.operationsSectionBundles ||
-      merged.governanceTableRows ||
-      merged.scopedRoleRows ||
-      merged.delegationSelectOptions,
+      merged.governanceTableRows || merged.scopedRoleRows || merged.delegationSelectOptions,
   };
 };
 
@@ -213,10 +209,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
     titlePrefix: "Learner Records · Institution Admin",
     controller: "shell",
     dataNeeds: viewDataNeeds({
-      operationsSectionBundles: true,
       learnerRecordSectionBundles: true,
-      templateSelectOptions: true,
-      ruleSelectOptions: true,
     }),
     render: (content) => {
       return (
@@ -237,10 +230,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
     titlePrefix: "Learner Record Imports · Institution Admin",
     controller: "shell",
     dataNeeds: viewDataNeeds({
-      operationsSectionBundles: true,
       learnerRecordSectionBundles: true,
-      templateSelectOptions: true,
-      ruleSelectOptions: true,
     }),
     render: (content) => {
       return (
@@ -263,9 +253,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
     titlePrefix: "Rule Review Queue · Institution Admin",
     controller: "shell",
     dataNeeds: viewDataNeeds({
-      operationsSectionBundles: true,
-      templateSelectOptions: true,
-      ruleSelectOptions: true,
+      reviewQueuePanel: true,
     }),
     render: (content) => {
       return (
@@ -286,9 +274,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
     titlePrefix: "Badge Status · Institution Admin",
     controller: "shared",
     dataNeeds: viewDataNeeds({
-      operationsSectionBundles: true,
-      templateSelectOptions: true,
-      ruleSelectOptions: true,
+      badgeStatusPanel: true,
     }),
     render: (content) => {
       return (

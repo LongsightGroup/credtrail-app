@@ -11,9 +11,8 @@ import {
   AdminTable,
   IssuedBadgeRows,
   ReviewQueueRows,
-  RuleValueListRows,
 } from "../components";
-import { CtInput, CtSelect, CtTextarea } from "../../ui/forms";
+import { CtInput, CtSelect } from "../../ui/forms";
 import {
   buildIssuedBadgesPagePath,
   emptyIssuedBadgesPageFilterValues,
@@ -22,43 +21,28 @@ import {
   tenantIssuedBadgeAdminRevokePath,
 } from "../issued-badges-admin-helpers";
 import { tenantReviewQueueAdminResolvePath } from "../review-queue-admin-helpers";
-import { tenantRuleValueListsAdminCreatePath } from "../rule-value-lists-admin-helpers";
 import type {
   InstitutionAdminIssuedBadgesWorkspace,
-  InstitutionAdminOperationsWorkspace,
   InstitutionAdminReviewQueueWorkspace,
-  InstitutionAdminRuleValueListsWorkspace,
 } from "./page-types";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | HonoElement[];
 
-interface RenderInstitutionAdminOperationsSectionsInput {
-  tenantId: string;
-  templateSelectOptions: HonoElement;
-  ruleSelectOptions: HonoElement;
-  templateFilterOptions: HonoElement;
-  activeOrgUnitOptions: HonoElement;
-  issuedBadgesWorkspace?: InstitutionAdminIssuedBadgesWorkspace;
-  reviewQueueWorkspace?: InstitutionAdminReviewQueueWorkspace;
-  ruleValueListsWorkspace?: InstitutionAdminRuleValueListsWorkspace;
-  operationsWorkspace?: InstitutionAdminOperationsWorkspace;
+/** Input required to render the rule-review queue panel. */
+export interface RenderRuleReviewQueuePanelInput {
+  readonly tenantId: string;
+  readonly reviewQueueWorkspace?: InstitutionAdminReviewQueueWorkspace;
 }
 
-interface InstitutionAdminOperationsSections {
-  ruleValueListsPanelMarkup: HonoElement;
-  badgeStatusPanelMarkup: HonoElement;
-  ruleGovernancePanelMarkup: HonoElement;
-  ruleReviewQueuePanelMarkup: HonoElement;
-  issuedBadgesPanelMarkup: HonoElement;
-}
-
+/** Input required to render the issued-badge operations panel. */
 export interface RenderIssuedBadgesPanelInput {
-  tenantId: string;
-  templateFilterOptions: HonoElement;
-  activeOrgUnitOptions: HonoElement;
-  issuedBadgesWorkspace?: InstitutionAdminIssuedBadgesWorkspace;
+  readonly tenantId: string;
+  readonly templateFilterOptions: HonoElement;
+  readonly activeOrgUnitOptions: HonoElement;
+  readonly issuedBadgesWorkspace?: InstitutionAdminIssuedBadgesWorkspace;
 }
 
+/** Renders the issued-badge search, audit, and lifecycle-management panel. */
 export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): HonoElement => {
   const issuedBadgesFilters =
     input.issuedBadgesWorkspace?.filters ?? emptyIssuedBadgesPageFilterValues();
@@ -251,47 +235,9 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
   );
 };
 
-export const renderInstitutionAdminOperationsSections = (
-  input: RenderInstitutionAdminOperationsSectionsInput,
-): InstitutionAdminOperationsSections => {
-  const ruleValueListsCreatePath = tenantRuleValueListsAdminCreatePath(input.tenantId);
-  const ruleValueListsPanelMarkup = (
-    <AdminPanel id="rule-value-lists-panel">
-      <h2>Reusable Rule Lists</h2>
-      <p>
-        Optional shortcut for rules that check the same courses or badge templates. Skip this unless
-        you are repeating the same values across multiple rules.
-      </p>
-      {input.ruleValueListsWorkspace?.listError !== null &&
-      input.ruleValueListsWorkspace?.listError !== undefined &&
-      input.ruleValueListsWorkspace.listError.length > 0 ? (
-        <AdminStatus data-tone="error">{input.ruleValueListsWorkspace.listError}</AdminStatus>
-      ) : input.ruleValueListsWorkspace?.listNotice !== null &&
-        input.ruleValueListsWorkspace?.listNotice !== undefined &&
-        input.ruleValueListsWorkspace.listNotice.length > 0 ? (
-        <AdminStatus data-tone="success">{input.ruleValueListsWorkspace.listNotice}</AdminStatus>
-      ) : null}
-      <AdminForm id="rule-value-list-form" method="post" action={ruleValueListsCreatePath}>
-        <AdminField label="Label">
-          <CtInput name="label" type="text" required placeholder="Core CS sequence" />
-        </AdminField>
-        <AdminField label="List kind">
-          <CtSelect name="kind" required>
-            <option value="course_ids">Course IDs</option>
-            <option value="badge_template_ids">Badge template IDs</option>
-          </CtSelect>
-        </AdminField>
-        <AdminField label="Values (comma separated)">
-          <CtTextarea name="values" rows={4} required placeholder="CS101, CS102, CS103" />
-        </AdminField>
-        <AdminButton type="submit">Create value list</AdminButton>
-      </AdminForm>
-      <AdminTable headers={["Label", "Kind", "Values"]}>
-        <RuleValueListRows valueLists={input.ruleValueListsWorkspace?.valueLists ?? []} />
-      </AdminTable>
-    </AdminPanel>
-  );
-  const badgeStatusPanelMarkup = (
+/** Renders the focused badge lifecycle lookup and transition panel. */
+export const renderBadgeStatusPanel = (): HonoElement => {
+  return (
     <AdminPanel id="lifecycle-panel">
       <h2>Badge Status</h2>
       <p>
@@ -341,27 +287,12 @@ export const renderInstitutionAdminOperationsSections = (
       <AdminStatus id="assertion-lifecycle-transition-status"></AdminStatus>
     </AdminPanel>
   );
-  const ruleGovernancePanelMarkup = (
-    <AdminPanel>
-      <h2>Approval and Audit History</h2>
-      <p>Review the latest approval steps and audit events for a rule.</p>
-      <AdminForm id="rule-governance-form">
-        <AdminField label="Rule">
-          <CtSelect name="ruleId" required>
-            {input.ruleSelectOptions}
-          </CtSelect>
-        </AdminField>
-        <AdminField label="Audit log limit">
-          <CtInput name="auditLimit" type="number" min="1" max="100" step="1" value="20" />
-        </AdminField>
-        <AdminButton type="submit">Load history</AdminButton>
-      </AdminForm>
-      <AdminStatus id="rule-governance-status"></AdminStatus>
-      <pre id="rule-governance-output" class="ct-admin__code-output" hidden></pre>
-    </AdminPanel>
-  );
+};
+
+/** Renders pending rule evaluations that require an administrator decision. */
+export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInput): HonoElement => {
   const reviewQueueResolvePath = tenantReviewQueueAdminResolvePath(input.tenantId);
-  const ruleReviewQueuePanelMarkup = (
+  return (
     <AdminPanel id="rule-review-queue-panel" variant="table">
       <h2>Rule Review Queue</h2>
       <p>
@@ -389,20 +320,4 @@ export const renderInstitutionAdminOperationsSections = (
       </AdminTable>
     </AdminPanel>
   );
-  const issuedBadgesPanelMarkup = renderIssuedBadgesPanel({
-    tenantId: input.tenantId,
-    templateFilterOptions: input.templateFilterOptions,
-    activeOrgUnitOptions: input.activeOrgUnitOptions,
-    ...(input.issuedBadgesWorkspace === undefined
-      ? {}
-      : { issuedBadgesWorkspace: input.issuedBadgesWorkspace }),
-  });
-
-  return {
-    ruleValueListsPanelMarkup,
-    badgeStatusPanelMarkup,
-    ruleGovernancePanelMarkup,
-    ruleReviewQueuePanelMarkup,
-    issuedBadgesPanelMarkup,
-  };
 };
