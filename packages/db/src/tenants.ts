@@ -170,7 +170,7 @@ export const listActiveTenants = async (db: SqlDatabase): Promise<TenantRecord[]
         created_at AS createdAt,
         updated_at AS updatedAt
       FROM tenants
-      WHERE is_active = TRUE
+      WHERE is_active = 1
       ORDER BY created_at ASC, id ASC
     `,
     )
