@@ -9,9 +9,8 @@ vi.mock("@credtrail/db", async () => {
 
   return {
     ...actual,
+    applyLearnerRecordImport: vi.fn(),
     completeJobQueueMessage: vi.fn(),
-    createLearnerRecordEntry: vi.fn(),
-    createLearnerRecordImportContext: vi.fn(),
     createAuditLog: vi.fn(),
     enqueueJobQueueMessageOnce: vi.fn(),
     failJobQueueMessage: vi.fn(),
@@ -22,7 +21,6 @@ vi.mock("@credtrail/db", async () => {
     listBadgeIssuanceRuleVersionApprovalSteps: vi.fn(),
     recordAssertionRevocation: vi.fn(),
     reevaluateLearnerPathwaysForLearner: vi.fn(),
-    resolveLearnerProfileForIdentity: vi.fn(),
   };
 });
 
@@ -33,9 +31,8 @@ vi.mock("@credtrail/db/postgres", () => {
 });
 
 import {
+  applyLearnerRecordImport,
   completeJobQueueMessage,
-  createLearnerRecordEntry,
-  createLearnerRecordImportContext,
   createAuditLog,
   enqueueJobQueueMessageOnce,
   failJobQueueMessage,
@@ -46,11 +43,9 @@ import {
   listBadgeIssuanceRuleVersionApprovalSteps,
   recordAssertionRevocation,
   reevaluateLearnerPathwaysForLearner,
-  resolveLearnerProfileForIdentity,
   type AuditLogRecord,
   type BadgeIssuanceRuleVersionRecord,
   type JobQueueMessageRecord,
-  type LearnerProfileRecord,
   type SqlDatabase,
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
@@ -61,9 +56,8 @@ interface ErrorResponse {
   error: string;
 }
 
+const mockedApplyLearnerRecordImport = vi.mocked(applyLearnerRecordImport);
 const mockedCompleteJobQueueMessage = vi.mocked(completeJobQueueMessage);
-const mockedCreateLearnerRecordEntry = vi.mocked(createLearnerRecordEntry);
-const mockedCreateLearnerRecordImportContext = vi.mocked(createLearnerRecordImportContext);
 const mockedCreateAuditLog = vi.mocked(createAuditLog);
 const mockedEnqueueJobQueueMessageOnce = vi.mocked(enqueueJobQueueMessageOnce);
 const mockedFailJobQueueMessage = vi.mocked(failJobQueueMessage);
@@ -76,7 +70,6 @@ const mockedListBadgeIssuanceRuleVersionApprovalSteps = vi.mocked(
 );
 const mockedRecordAssertionRevocation = vi.mocked(recordAssertionRevocation);
 const mockedReevaluateLearnerPathwaysForLearner = vi.mocked(reevaluateLearnerPathwaysForLearner);
-const mockedResolveLearnerProfileForIdentity = vi.mocked(resolveLearnerProfileForIdentity);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 const fakeDb = {
   prepare: vi.fn(),
@@ -127,18 +120,6 @@ const sampleAuditLogRecord = (overrides?: Partial<AuditLogRecord>): AuditLogReco
     metadataJson: null,
     occurredAt: "2026-02-10T22:00:00.000Z",
     createdAt: "2026-02-10T22:00:00.000Z",
-  };
-};
-
-const sampleLearnerProfile = (overrides?: Partial<LearnerProfileRecord>): LearnerProfileRecord => {
-  return {
-    id: "lpr_123",
-    tenantId: "tenant_123",
-    subjectId: "did:key:z6Mkexample",
-    displayName: "Learner Example",
-    createdAt: "2026-02-10T22:00:00.000Z",
-    updatedAt: "2026-02-10T22:00:00.000Z",
-    ...overrides,
   };
 };
 
@@ -196,15 +177,13 @@ describe("POST /v1/jobs/process", () => {
   beforeEach(() => {
     mockedLeaseJobQueueMessages.mockReset();
     mockedCompleteJobQueueMessage.mockReset();
-    mockedCreateLearnerRecordEntry.mockReset();
-    mockedCreateLearnerRecordImportContext.mockReset();
+    mockedApplyLearnerRecordImport.mockReset();
     mockedFailJobQueueMessage.mockReset();
     mockedFindBadgeIssuanceRuleVersionById.mockReset();
     mockedFindTenantById.mockReset();
     mockedFindUserById.mockReset();
     mockedListBadgeIssuanceRuleVersionApprovalSteps.mockReset();
     mockedRecordAssertionRevocation.mockReset();
-    mockedResolveLearnerProfileForIdentity.mockReset();
     mockedCreateAuditLog.mockReset();
     mockedEnqueueJobQueueMessageOnce.mockReset();
     mockedReevaluateLearnerPathwaysForLearner.mockReset();
@@ -214,7 +193,11 @@ describe("POST /v1/jobs/process", () => {
       evaluations: [],
       nextEnrollmentId: null,
     });
-    mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
+    mockedApplyLearnerRecordImport.mockResolvedValue({
+      status: "applied",
+      learnerProfileId: "lpr_123",
+      learnerRecordEntryId: "lre_123",
+    });
     mockedFindBadgeIssuanceRuleVersionById.mockResolvedValue(sampleBadgeIssuanceRuleVersion());
     mockedFindTenantById.mockResolvedValue({
       id: "tenant_123",
@@ -229,37 +212,6 @@ describe("POST /v1/jobs/process", () => {
     });
     mockedFindUserById.mockResolvedValue(null);
     mockedListBadgeIssuanceRuleVersionApprovalSteps.mockResolvedValue([]);
-    mockedCreateLearnerRecordEntry.mockResolvedValue({
-      id: "lre_123",
-      tenantId: "tenant_123",
-      learnerProfileId: "lpr_123",
-      trustLevel: "issuer_verified",
-      recordType: "course",
-      status: "active",
-      title: "Clinical Placement Seminar",
-      description: null,
-      issuerName: "CredTrail University",
-      issuerUserId: "usr_issuer",
-      sourceSystem: "csv_import",
-      sourceRecordId: null,
-      issuedAt: "2026-02-10T22:00:00.000Z",
-      revisedAt: null,
-      revokedAt: null,
-      evidenceLinksJson: "[]",
-      detailsJson: null,
-      createdAt: "2026-02-10T22:00:00.000Z",
-      updatedAt: "2026-02-10T22:00:00.000Z",
-    });
-    mockedCreateLearnerRecordImportContext.mockResolvedValue({
-      entryId: "lre_123",
-      tenantId: "tenant_123",
-      orgUnitId: "tenant_123:org:department-health",
-      badgeTemplateId: "badge_template_001",
-      pathwayLabel: null,
-      inferredFromJson: '["row","badge_template"]',
-      createdAt: "2026-02-10T22:00:00.000Z",
-      updatedAt: "2026-02-10T22:00:00.000Z",
-    });
   });
 
   it("hides processor route when JOB_PROCESSOR_TOKEN is not configured", async () => {
@@ -555,30 +507,21 @@ describe("POST /v1/jobs/process", () => {
 
     expect(response.status).toBe(200);
     expect(body.succeeded).toBe(1);
-    expect(mockedResolveLearnerProfileForIdentity).toHaveBeenCalledWith(
+    expect(mockedApplyLearnerRecordImport).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
         tenantId: "tenant_123",
-        identityType: "email",
-        identityValue: "learner@example.edu",
-      }),
-    );
-    expect(mockedCreateLearnerRecordEntry).toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        tenantId: "tenant_123",
-        learnerProfileId: "lpr_123",
-        trustLevel: "issuer_verified",
-        sourceSystem: "csv_import",
-      }),
-    );
-    expect(mockedCreateLearnerRecordImportContext).toHaveBeenCalledWith(
-      fakeDb,
-      expect.objectContaining({
-        tenantId: "tenant_123",
-        entryId: "lre_123",
-        orgUnitId: "tenant_123:org:department-health",
-        badgeTemplateId: "badge_template_001",
+        batchId: "batch_123",
+        rowNumber: 1,
+        learnerEmail: "learner@example.edu",
+        entry: expect.objectContaining({
+          trustLevel: "issuer_verified",
+          sourceSystem: "csv_import",
+        }),
+        context: expect.objectContaining({
+          orgUnitId: "tenant_123:org:department-health",
+          badgeTemplateId: "badge_template_001",
+        }),
       }),
     );
   });

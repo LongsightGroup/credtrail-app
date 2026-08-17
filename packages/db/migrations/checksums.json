@@ -74,5 +74,6 @@
   "0072_preserve_unavailable_achievement_snapshots.sql": "fb85a18a5e08a098f8d4ed6891ecd47b79784c312c6a5c6034ca828f4f47a536",
   "0073_atomic_assertion_status_list_allocation.sql": "7abf834b80bd39c3adbea99c1a90f2f34d9e3e952df52782c5b3921212f2b141",
   "0074_remove_orphan_verification_cache_job.sql": "f8d78bf417966de05bc0abafb5a948e3a2eb95b8bf4085f617cb1738f89defd6",
-  "0075_allow_ownership_event_tenant_cascade.sql": "ede894b650e3fc333cb55149fac5552b62a0a60bbc2aefc12dfb61250578545f"
+  "0075_allow_ownership_event_tenant_cascade.sql": "ede894b650e3fc333cb55149fac5552b62a0a60bbc2aefc12dfb61250578545f",
+  "0076_atomic_learner_record_imports.sql": "d8a5bfd2d2966e743a1dcdee6bb9d9a7ba1f006f0e24046d5891332c06c0e5fc"
 }

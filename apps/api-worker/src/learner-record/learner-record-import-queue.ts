@@ -1,10 +1,9 @@
 import {
-  createLearnerRecordEntry,
-  createLearnerRecordImportContext,
-  enqueueJobQueueMessageOnce,
+  applyLearnerRecordImport,
+  enqueueJobQueueMessagesOnce,
   findActiveLearnerRecordImportPreview,
   markLearnerRecordImportPreviewQueued,
-  resolveLearnerProfileForIdentity,
+  runSqlTransaction,
   type LearnerRecordImportPreviewRecord,
   type SqlDatabase,
 } from "@credtrail/db";
@@ -38,22 +37,33 @@ export type QueueReviewedLearnerRecordImportPreviewResult =
       readonly queuedRows: number;
     };
 
+const enqueueLearnerRecordImportBatchWithinTransaction = async (
+  db: SqlDatabase,
+  tenantId: string,
+  queuePayloads: readonly LearnerRecordImportQueuePayload[],
+  nowIso: string,
+): Promise<number> => {
+  return enqueueJobQueueMessagesOnce(db, {
+    nowIso,
+    messages: queuePayloads.map((payload) => ({
+      tenantId,
+      jobType: "import_learner_record_batch",
+      payload,
+      idempotencyKey: `learner-record-import:${payload.batchId}:${String(payload.rowNumber)}`,
+    })),
+  });
+};
+
 /** Enqueues every valid row in a prepared learner-record import batch. */
 export const enqueueLearnerRecordImportBatch = async (
   db: SqlDatabase,
   tenantId: string,
   queuePayloads: readonly LearnerRecordImportQueuePayload[],
 ): Promise<number> => {
-  for (const payload of queuePayloads) {
-    await enqueueJobQueueMessageOnce(db, {
-      tenantId,
-      jobType: "import_learner_record_batch",
-      payload,
-      idempotencyKey: `learner-record-import:${payload.batchId}:${String(payload.rowNumber)}`,
-    });
-  }
-
-  return queuePayloads.length;
+  const nowIso = new Date().toISOString();
+  return runSqlTransaction(db, (transaction) =>
+    enqueueLearnerRecordImportBatchWithinTransaction(transaction, tenantId, queuePayloads, nowIso),
+  );
 };
 
 const learnerRecordImportBatchDefaultsFromJson = (
@@ -109,13 +119,26 @@ export const queueReviewedLearnerRecordImportPreview = async (
     };
   }
 
-  const claimed = await markLearnerRecordImportPreviewQueued(db, {
-    tenantId: input.tenantId,
-    batchId: preview.batchId,
-    queuedAt: input.queuedAt,
+  const queueResult = await runSqlTransaction(db, async (transaction) => {
+    const claimed = await markLearnerRecordImportPreviewQueued(transaction, {
+      tenantId: input.tenantId,
+      batchId: preview.batchId,
+      queuedAt: input.queuedAt,
+    });
+
+    if (!claimed) {
+      return null;
+    }
+
+    return enqueueLearnerRecordImportBatchWithinTransaction(
+      transaction,
+      input.tenantId,
+      queuePayloads,
+      input.queuedAt,
+    );
   });
 
-  if (!claimed) {
+  if (queueResult === null) {
     return {
       status: "already_queued",
       preview,
@@ -124,14 +147,12 @@ export const queueReviewedLearnerRecordImportPreview = async (
     };
   }
 
-  const queuedRows = await enqueueLearnerRecordImportBatch(db, input.tenantId, queuePayloads);
-
   return {
     status: "queued",
     preview,
     defaults,
     reports,
-    queuedRows,
+    queuedRows: queueResult,
   };
 };
 
@@ -201,48 +222,48 @@ export const applyLearnerRecordImportQueuePayload = async (
   readonly learnerProfileId: string;
   readonly learnerRecordEntryId: string;
 }> => {
-  const learnerProfile = await resolveLearnerProfileForIdentity(db, {
+  const detailsJson = buildImportDetailsJson(payload);
+  const result = await applyLearnerRecordImport(db, {
     tenantId,
-    identityType: "email",
-    identityValue: payload.row.learnerEmail,
+    batchId: payload.batchId,
+    rowNumber: payload.rowNumber,
+    learnerEmail: payload.row.learnerEmail,
     ...(payload.row.learnerDisplayName === null
       ? {}
-      : { displayName: payload.row.learnerDisplayName }),
-  });
-  const detailsJson = buildImportDetailsJson(payload);
-  const entry = await createLearnerRecordEntry(db, {
-    tenantId,
-    learnerProfileId: learnerProfile.id,
-    trustLevel: payload.row.effectiveTrustLevel,
-    recordType: payload.row.recordType,
-    title: payload.row.title,
-    ...(payload.row.description === null ? {} : { description: payload.row.description }),
-    issuerName: payload.row.effectiveIssuerName,
-    ...(payload.requestedByUserId === undefined ? {} : { issuerUserId: payload.requestedByUserId }),
-    sourceSystem: "csv_import",
-    ...(payload.row.sourceRecordId === null ? {} : { sourceRecordId: payload.row.sourceRecordId }),
-    issuedAt: payload.row.issuedAt,
-    evidenceLinks: payload.row.evidenceLinks,
-    ...(detailsJson === undefined ? {} : { detailsJson }),
-  });
-
-  await createLearnerRecordImportContext(db, {
-    tenantId,
-    entryId: entry.id,
-    ...(payload.row.smartContext.orgUnitId === null
-      ? {}
-      : { orgUnitId: payload.row.smartContext.orgUnitId }),
-    ...(payload.row.smartContext.badgeTemplateId === null
-      ? {}
-      : { badgeTemplateId: payload.row.smartContext.badgeTemplateId }),
-    ...(payload.row.smartContext.pathwayLabel === null
-      ? {}
-      : { pathwayLabel: payload.row.smartContext.pathwayLabel }),
-    inferredFrom: payload.row.smartContext.inferredFrom,
+      : { learnerDisplayName: payload.row.learnerDisplayName }),
+    entry: {
+      trustLevel: payload.row.effectiveTrustLevel,
+      recordType: payload.row.recordType,
+      title: payload.row.title,
+      ...(payload.row.description === null ? {} : { description: payload.row.description }),
+      issuerName: payload.row.effectiveIssuerName,
+      ...(payload.requestedByUserId === undefined
+        ? {}
+        : { issuerUserId: payload.requestedByUserId }),
+      sourceSystem: "csv_import",
+      ...(payload.row.sourceRecordId === null
+        ? {}
+        : { sourceRecordId: payload.row.sourceRecordId }),
+      issuedAt: payload.row.issuedAt,
+      evidenceLinks: payload.row.evidenceLinks,
+      ...(detailsJson === undefined ? {} : { detailsJson }),
+    },
+    context: {
+      ...(payload.row.smartContext.orgUnitId === null
+        ? {}
+        : { orgUnitId: payload.row.smartContext.orgUnitId }),
+      ...(payload.row.smartContext.badgeTemplateId === null
+        ? {}
+        : { badgeTemplateId: payload.row.smartContext.badgeTemplateId }),
+      ...(payload.row.smartContext.pathwayLabel === null
+        ? {}
+        : { pathwayLabel: payload.row.smartContext.pathwayLabel }),
+      inferredFrom: payload.row.smartContext.inferredFrom,
+    },
   });
 
   return {
-    learnerProfileId: learnerProfile.id,
-    learnerRecordEntryId: entry.id,
+    learnerProfileId: result.learnerProfileId,
+    learnerRecordEntryId: result.learnerRecordEntryId,
   };
 };

@@ -1,4 +1,9 @@
-import type { SqlDatabase } from "./tenant-scope";
+import {
+  createLearnerRecordEntryWithinTransaction,
+  type CreateLearnerRecordEntryInput,
+} from "./learner-records.js";
+import { resolveLearnerProfileForIdentity } from "./learner-profiles.js";
+import { runSqlTransaction, type SqlDatabase } from "./tenant-scope";
 
 export type LearnerRecordImportContextInferenceSource =
   | "row"
@@ -53,6 +58,22 @@ export interface CreateLearnerRecordImportPreviewInput {
   expiresAt: string;
 }
 
+export interface ApplyLearnerRecordImportInput {
+  tenantId: string;
+  batchId: string;
+  rowNumber: number;
+  learnerEmail: string;
+  learnerDisplayName?: string | undefined;
+  entry: Omit<CreateLearnerRecordEntryInput, "tenantId" | "learnerProfileId">;
+  context: Omit<CreateLearnerRecordImportContextInput, "tenantId" | "entryId">;
+}
+
+export interface ApplyLearnerRecordImportResult {
+  status: "applied" | "already_applied";
+  learnerProfileId: string;
+  learnerRecordEntryId: string;
+}
+
 export interface FindActiveLearnerRecordImportPreviewInput {
   tenantId: string;
   batchId: string;
@@ -88,6 +109,12 @@ interface LearnerRecordImportPreviewRow {
   createdAt: string;
   expiresAt: string;
   queuedAt: string | null;
+}
+
+interface LearnerRecordImportApplicationRow {
+  learnerProfileId: string | null;
+  learnerRecordEntryId: string | null;
+  appliedAt: string | null;
 }
 
 const normalizeOptionalLearnerRecordText = (value: string | null | undefined): string | null => {
@@ -231,6 +258,121 @@ export const createLearnerRecordImportContext = async (
   }
 
   return context;
+};
+
+/** Applies one import row atomically and returns the original result on every retry. */
+export const applyLearnerRecordImport = async (
+  db: SqlDatabase,
+  input: ApplyLearnerRecordImportInput,
+): Promise<ApplyLearnerRecordImportResult> => {
+  return runSqlTransaction(db, async (transaction) => {
+    const nowIso = new Date().toISOString();
+    await transaction
+      .prepare(
+        `
+        INSERT INTO learner_record_import_applications (
+          tenant_id,
+          batch_id,
+          row_number,
+          learner_profile_id,
+          learner_record_entry_id,
+          created_at,
+          applied_at
+        )
+        VALUES (?, ?, ?, NULL, NULL, ?, NULL)
+        ON CONFLICT (tenant_id, batch_id, row_number) DO NOTHING
+      `,
+      )
+      .bind(input.tenantId, input.batchId, input.rowNumber, nowIso)
+      .run();
+
+    const application = await transaction
+      .prepare(
+        `
+        SELECT
+          learner_profile_id AS learnerProfileId,
+          learner_record_entry_id AS learnerRecordEntryId,
+          applied_at AS appliedAt
+        FROM learner_record_import_applications
+        WHERE tenant_id = ?
+          AND batch_id = ?
+          AND row_number = ?
+        LIMIT 1
+        FOR UPDATE
+      `,
+      )
+      .bind(input.tenantId, input.batchId, input.rowNumber)
+      .first<LearnerRecordImportApplicationRow>();
+
+    if (application === null) {
+      throw new Error("Unable to claim learner-record import row");
+    }
+
+    if (
+      application.learnerProfileId !== null &&
+      application.learnerRecordEntryId !== null &&
+      application.appliedAt !== null
+    ) {
+      return {
+        status: "already_applied",
+        learnerProfileId: application.learnerProfileId,
+        learnerRecordEntryId: application.learnerRecordEntryId,
+      };
+    }
+
+    if (
+      application.learnerProfileId !== null ||
+      application.learnerRecordEntryId !== null ||
+      application.appliedAt !== null
+    ) {
+      throw new Error("Learner-record import application is incomplete");
+    }
+
+    const learnerProfile = await resolveLearnerProfileForIdentity(transaction, {
+      tenantId: input.tenantId,
+      identityType: "email",
+      identityValue: input.learnerEmail,
+      ...(input.learnerDisplayName === undefined ? {} : { displayName: input.learnerDisplayName }),
+    });
+    const entry = await createLearnerRecordEntryWithinTransaction(transaction, {
+      ...input.entry,
+      tenantId: input.tenantId,
+      learnerProfileId: learnerProfile.id,
+    });
+
+    await createLearnerRecordImportContext(transaction, {
+      ...input.context,
+      tenantId: input.tenantId,
+      entryId: entry.id,
+    });
+
+    const completed = await transaction
+      .prepare(
+        `
+        UPDATE learner_record_import_applications
+        SET learner_profile_id = ?,
+            learner_record_entry_id = ?,
+            applied_at = ?
+        WHERE tenant_id = ?
+          AND batch_id = ?
+          AND row_number = ?
+          AND learner_record_entry_id IS NULL
+        RETURNING learner_record_entry_id AS learnerRecordEntryId
+      `,
+      )
+      .bind(learnerProfile.id, entry.id, nowIso, input.tenantId, input.batchId, input.rowNumber)
+      .first<{ learnerRecordEntryId: string }>();
+
+    if (completed === null) {
+      throw new Error("Unable to complete learner-record import row");
+    }
+
+    return {
+      status: "applied",
+      learnerProfileId: learnerProfile.id,
+      learnerRecordEntryId: entry.id,
+    };
+  });
 };
 
 export const createLearnerRecordImportPreview = async (

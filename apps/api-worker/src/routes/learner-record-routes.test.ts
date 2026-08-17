@@ -3,13 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   BadgeTemplateRecord,
   ImportLearnerRecordBatchQueueMessageRecord,
+  SqlDatabase,
   TenantOrgUnitRecord,
 } from "@credtrail/db";
 
 const {
   mockedCreateLearnerRecordEntry,
   mockedEnqueueJobQueueMessage,
-  mockedEnqueueJobQueueMessageOnce,
+  mockedEnqueueJobQueueMessagesOnce,
   mockedFindTenantById,
   mockedListLearnerRecordEntries,
   mockedListBadgeTemplates,
@@ -24,7 +25,7 @@ const {
   return {
     mockedCreateLearnerRecordEntry: vi.fn(),
     mockedEnqueueJobQueueMessage: vi.fn(),
-    mockedEnqueueJobQueueMessageOnce: vi.fn(),
+    mockedEnqueueJobQueueMessagesOnce: vi.fn(),
     mockedFindTenantById: vi.fn(),
     mockedListLearnerRecordEntries: vi.fn(),
     mockedListBadgeTemplates: vi.fn(),
@@ -45,7 +46,7 @@ vi.mock("@credtrail/db", async () => {
     ...actual,
     createLearnerRecordEntry: mockedCreateLearnerRecordEntry,
     enqueueJobQueueMessage: mockedEnqueueJobQueueMessage,
-    enqueueJobQueueMessageOnce: mockedEnqueueJobQueueMessageOnce,
+    enqueueJobQueueMessagesOnce: mockedEnqueueJobQueueMessagesOnce,
     findTenantById: mockedFindTenantById,
     listLearnerRecordEntries: mockedListLearnerRecordEntries,
     listBadgeTemplates: mockedListBadgeTemplates,
@@ -60,9 +61,13 @@ vi.mock("@credtrail/db", async () => {
 
 vi.mock("@credtrail/db/postgres", () => {
   return {
-    createPostgresDatabase: vi.fn(() => ({
-      prepare: vi.fn(),
-    })),
+    createPostgresDatabase: vi.fn(() => {
+      const database = { prepare: vi.fn() } as unknown as SqlDatabase;
+      database.transaction = async <T>(
+        callback: (transaction: SqlDatabase) => Promise<T>,
+      ): Promise<T> => callback(database);
+      return database;
+    }),
   };
 });
 
@@ -202,7 +207,7 @@ const sampleImportQueueMessage = (
 beforeEach(() => {
   mockedCreateLearnerRecordEntry.mockReset();
   mockedEnqueueJobQueueMessage.mockReset();
-  mockedEnqueueJobQueueMessageOnce.mockReset();
+  mockedEnqueueJobQueueMessagesOnce.mockReset();
   mockedFindTenantById.mockReset();
   mockedListLearnerRecordEntries.mockReset();
   mockedListBadgeTemplates.mockReset();
@@ -249,7 +254,7 @@ beforeEach(() => {
     createdAt: "2026-03-24T15:00:00.000Z",
     updatedAt: "2026-03-24T15:00:00.000Z",
   });
-  mockedEnqueueJobQueueMessageOnce.mockResolvedValue(true);
+  mockedEnqueueJobQueueMessagesOnce.mockResolvedValue(1);
   mockedFindTenantById.mockResolvedValue({
     id: "tenant_123",
     slug: "tenant-123",
@@ -568,7 +573,7 @@ describe("learner-record import routes", () => {
     expect(body.validRows).toBe(1);
     expect(body.invalidRows).toBe(0);
     expect(body.queuedRows).toBe(0);
-    expect(mockedEnqueueJobQueueMessageOnce).not.toHaveBeenCalled();
+    expect(mockedEnqueueJobQueueMessagesOnce).not.toHaveBeenCalled();
 
     const rows = body.rows as Array<Record<string, unknown>>;
     expect(rows[0]?.preview).toEqual(
@@ -625,12 +630,16 @@ describe("learner-record import routes", () => {
     expect(response.status).toBe(200);
     expect(body.dryRun).toBe(false);
     expect(body.queuedRows).toBe(1);
-    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledTimes(1);
-    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledWith(
+    expect(mockedEnqueueJobQueueMessagesOnce).toHaveBeenCalledTimes(1);
+    expect(mockedEnqueueJobQueueMessagesOnce).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({
-        tenantId: "tenant_123",
-        jobType: "import_learner_record_batch",
+        messages: [
+          expect.objectContaining({
+            tenantId: "tenant_123",
+            jobType: "import_learner_record_batch",
+          }),
+        ],
       }),
     );
 

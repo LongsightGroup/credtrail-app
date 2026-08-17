@@ -240,7 +240,8 @@ const findLearnerRecordEntryById = async (
   return row === null ? null : mapLearnerRecordEntryRow(row);
 };
 
-const createLearnerRecordEntryInTransaction = async (
+/** Creates an entry and its evidence-change job inside a caller-owned SQL transaction. */
+export const createLearnerRecordEntryWithinTransaction = async (
   db: SqlDatabase,
   input: CreateLearnerRecordEntryInput,
 ): Promise<LearnerRecordEntryRecord> => {
@@ -347,7 +348,7 @@ export const createLearnerRecordEntry = async (
   input: CreateLearnerRecordEntryInput,
 ): Promise<LearnerRecordEntryRecord> => {
   return runSqlTransaction(db, (transaction) =>
-    createLearnerRecordEntryInTransaction(transaction, input),
+    createLearnerRecordEntryWithinTransaction(transaction, input),
   );
 };
 

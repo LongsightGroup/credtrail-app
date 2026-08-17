@@ -65,6 +65,10 @@ const COUNTABLE_TABLES = new Set([
   "badge_issuance_rule_versions",
   "badge_issuance_rules",
   "job_queue_messages",
+  "learner_profiles",
+  "learner_record_entries",
+  "learner_record_import_applications",
+  "learner_record_import_context",
   "users",
 ]);
 
