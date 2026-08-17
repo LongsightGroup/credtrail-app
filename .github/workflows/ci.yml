@@ -240,6 +240,7 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       postgres:
         image: postgres:17-alpine
@@ -286,6 +287,9 @@ jobs:
           pnpm db:migrate:postgres
           pnpm dev:seed
 
+      - name: Build page assets
+        run: pnpm build:page-assets
+
       - name: Run Playwright e2e
         env:
           CREDTRAIL_DEV_BASE_URL: http://127.0.0.1:8787
@@ -308,7 +312,19 @@ jobs:
 
           status=""
           for attempt in $(seq 1 60); do
-            status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/healthz/dependencies || true)"
+            if ! kill -0 "$wrangler_pid" >/dev/null 2>&1; then
+              echo "Wrangler exited before becoming ready."
+              cat output/wrangler-ci.log
+              exit 1
+            fi
+
+            status="$(curl \
+              --connect-timeout 2 \
+              --max-time 5 \
+              -sS \
+              -o /dev/null \
+              -w '%{http_code}' \
+              http://127.0.0.1:8787/healthz/dependencies || true)"
 
             if [ "$status" = "200" ]; then
               echo "Wrangler dependencies returned 200 on attempt $attempt."
@@ -324,13 +340,20 @@ jobs:
             sleep 1
           done
 
-          curl -fsS -X POST \
+          curl \
+            --connect-timeout 2 \
+            --max-time 15 \
+            --retry 5 \
+            --retry-all-errors \
+            --retry-delay 1 \
+            -fsS \
+            -X POST \
             http://127.0.0.1:8787/v1/dev/storage/seed-trusted-demo-credential
 
           pnpm test:e2e
 
       - name: Upload Playwright artifacts
-        if: failure()
+        if: ${{ failure() || cancelled() }}
         uses: actions/upload-artifact@v6
         with:
           name: playwright-artifacts
