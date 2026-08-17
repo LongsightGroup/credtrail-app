@@ -215,21 +215,6 @@ const buildMagicLinkAcceptedPayload = (input: {
   };
 };
 
-const tenantChoiceRoleLabel = (role: string): string => {
-  switch (role) {
-    case "owner":
-      return "Owner";
-    case "admin":
-      return "Admin";
-    case "issuer":
-      return "Issuer";
-    case "viewer":
-      return "Viewer";
-    default:
-      return role;
-  }
-};
-
 export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
   const {
     app,
@@ -778,9 +763,9 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
       );
     }
 
-    let tenantId = requestedTenantId;
+    let tenantId = requestedTenantId.length === 0 ? undefined : requestedTenantId;
 
-    if (tenantId.length > 0) {
+    if (tenantId !== undefined) {
       const membership = await findTenantMembership(db, tenantId, user.id);
 
       if (membership === null) {
@@ -804,46 +789,32 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
         );
       }
 
-      if (contexts.length > 1) {
-        return c.json(
-          {
-            status: "tenant_selection_required" as const,
-            email: request.email,
-            organizations: contexts.map((context) => ({
-              tenantId: context.tenantId,
-              label: context.tenantDisplayName,
-              roleLabel: tenantChoiceRoleLabel(context.membershipRole),
-            })),
-          },
-          200,
-        );
-      }
-
-      const [context] = contexts;
-
-      if (context === undefined) {
-        return c.json(
-          buildMagicLinkAcceptedPayload({
-            email: request.email,
-          }),
-          202,
-        );
-      }
-
-      tenantId = context.tenantId;
-
-      const localLoginBlocked = await enterpriseSso?.enforceLocalMagicLinkRequest(c, {
-        tenantId,
-        nextPath: request.nextPath,
+      const policyResponses =
+        enterpriseSso === undefined
+          ? contexts.map(() => null)
+          : await Promise.all(
+              contexts.map((context) =>
+                enterpriseSso.enforceLocalMagicLinkRequest(c, {
+                  tenantId: context.tenantId,
+                  nextPath: request.nextPath,
+                }),
+              ),
+            );
+      const localMagicLinkContexts = contexts.filter((_, index) => {
+        const policyResponse = policyResponses[index];
+        return policyResponse === null || policyResponse === undefined;
       });
 
-      if (localLoginBlocked !== null && localLoginBlocked !== undefined) {
-        return localLoginBlocked;
+      if (localMagicLinkContexts.length === 0) {
+        return c.json(buildMagicLinkAcceptedPayload({ email: request.email }), 202);
       }
+
+      const [context] = localMagicLinkContexts.length === 1 ? localMagicLinkContexts : [];
+      tenantId = context?.tenantId;
     }
 
     const magicLinkResult = await requestMagicLink(c, {
-      tenantId,
+      ...(tenantId === undefined ? {} : { tenantId }),
       email: request.email,
       nextPath: request.nextPath,
       preferredLocale: request.preferredLocale,
@@ -854,7 +825,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
       return c.json(
         buildMagicLinkAcceptedPayload({
           deliveryStatus: magicLinkResult.deliveryStatus,
-          tenantId: magicLinkResult.tenantId,
+          ...(magicLinkResult.tenantId === undefined ? {} : { tenantId: magicLinkResult.tenantId }),
           email: magicLinkResult.email,
           expiresAt: magicLinkResult.expiresAt,
           magicLinkToken: magicLinkResult.debugMagicLinkToken,
@@ -866,10 +837,8 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
 
     return c.json(
       buildMagicLinkAcceptedPayload({
-        deliveryStatus: magicLinkResult.deliveryStatus,
-        tenantId: magicLinkResult.tenantId,
-        email: magicLinkResult.email,
-        expiresAt: magicLinkResult.expiresAt,
+        email: request.email,
+        ...(requestedTenantId.length === 0 ? {} : { tenantId: requestedTenantId }),
       }),
       202,
     );
@@ -891,18 +860,9 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
 
     const requestedTenant = await resolveRequestedTenantContext(c);
 
-    if (requestedTenant === null) {
-      return c.json(
-        {
-          error: "Unable to resolve tenant context for authenticated session",
-        },
-        500,
-      );
-    }
-
     return c.json({
       status: "authenticated",
-      tenantId: requestedTenant.tenantId,
+      ...(requestedTenant === null ? {} : { tenantId: requestedTenant.tenantId }),
       userId: principal.userId,
       expiresAt: principal.expiresAt,
     });
@@ -911,7 +871,6 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
   registerMagicLinkBrowserRoutes({
     app,
     createMagicLinkSession,
-    resolveRequestedTenantContext,
   });
 
   app.get("/auth/resolve", async (c) => {
@@ -1118,18 +1077,9 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
 
     const requestedTenant = await resolveRequestedTenantContext(c);
 
-    if (requestedTenant === null) {
-      return c.json(
-        {
-          error: "Not authenticated",
-        },
-        401,
-      );
-    }
-
     return c.json({
       status: "authenticated",
-      tenantId: requestedTenant.tenantId,
+      ...(requestedTenant === null ? {} : { tenantId: requestedTenant.tenantId }),
       userId: principal.userId,
       expiresAt: principal.expiresAt,
     });

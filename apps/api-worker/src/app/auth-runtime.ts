@@ -428,7 +428,7 @@ export const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindin
             fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
             fromName: context.env.TRANSACTIONAL_EMAIL_FROM_NAME,
             recipientEmail: email,
-            tenantId: input.tenantId,
+            ...(input.tenantId === undefined ? {} : { tenantId: input.tenantId }),
             magicLinkUrl: debugMagicLinkUrl,
             expiresAtIso: expiresAt,
             preferredLocale: input.preferredLocale,
@@ -440,6 +440,10 @@ export const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindin
         }
       },
       sendResetPassword: async ({ email, url }) => {
+        if (input.tenantId === undefined) {
+          throw new Error("Password-reset email requires a tenant-scoped authentication request");
+        }
+
         await sendPasswordResetEmailNotification({
           emailBinding: context.env.EMAIL,
           fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
@@ -470,7 +474,7 @@ export const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindin
     }
 
     return {
-      tenantId: input.tenantId,
+      ...(input.tenantId === undefined ? {} : { tenantId: input.tenantId }),
       email: input.email,
       deliveryStatus,
       expiresAt,

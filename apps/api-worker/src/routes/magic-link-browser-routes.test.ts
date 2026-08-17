@@ -30,10 +30,6 @@ const createHarness = (input?: { rejectToken?: boolean }) => {
         expiresAt: "2026-02-18T22:00:00.000Z",
       });
     },
-    resolveRequestedTenantContext: () =>
-      Promise.resolve({
-        tenantId: "tenant_123",
-      }),
   });
   return { app, consumedTokens };
 };
@@ -67,7 +63,7 @@ describe("browser magic-link routes", () => {
     expect(consumedTokens).toEqual([]);
   });
 
-  it("consumes the token on POST and sets the session before redirect", async () => {
+  it("consumes an unscoped token and sets the session before organization resolution", async () => {
     const { app, consumedTokens } = createHarness();
 
     const response = await app.request("/auth/magic-link/verify", {

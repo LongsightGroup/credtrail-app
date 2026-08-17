@@ -72,6 +72,25 @@ describe("sendMagicLinkEmailNotification", () => {
     ).toBe("Feb 18, 2026, 1:00 AM UTC");
   });
 
+  it("keeps tenant details out of an unscoped sign-in email", async () => {
+    const { emailBinding, send } = createEmailBinding();
+
+    await sendMagicLinkEmailNotification({
+      emailBinding,
+      fromEmail: "no-reply@credtrail.org",
+      recipientEmail: "learner@example.edu",
+      magicLinkUrl: "https://credtrail.test/auth/magic-link/verify?token=test-token",
+      expiresAtIso: "2026-02-18T01:00:00.000Z",
+    });
+
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: "Sign in to CredTrail",
+        text: expect.not.stringContaining("Organization:"),
+      }),
+    );
+  });
+
   it("skips sending when the Cloudflare Email binding is missing", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
 

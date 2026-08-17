@@ -487,12 +487,8 @@ const decodeBase64Url = (value: string): string => {
   return new TextDecoder().decode(bytes);
 };
 
-export const buildHostedMagicLinkToken = (tenantId: string): string => {
-  const payload = encodeBase64Url(
-    JSON.stringify({
-      tenantId,
-    }),
-  );
+export const buildHostedMagicLinkToken = (tenantId?: string): string => {
+  const payload = encodeBase64Url(JSON.stringify(tenantId === undefined ? {} : { tenantId }));
   const nonce = crypto.randomUUID().replace(/-/g, "");
 
   return `${HOSTED_MAGIC_LINK_TOKEN_PREFIX}.${payload}.${nonce}`;

@@ -5,7 +5,7 @@ export interface SendMagicLinkEmailNotificationInput {
   fromEmail?: string | undefined;
   fromName?: string | undefined;
   recipientEmail: string;
-  tenantId: string;
+  tenantId?: string | undefined;
   magicLinkUrl: string;
   expiresAtIso: string;
   preferredLocale?: string | undefined;
@@ -57,7 +57,10 @@ export const formatMagicLinkExpiry = (input: {
 export const sendMagicLinkEmailNotification = async (
   input: SendMagicLinkEmailNotificationInput,
 ): Promise<void> => {
-  const subject = `Sign in to CredTrail (${input.tenantId})`;
+  const subject =
+    input.tenantId === undefined
+      ? "Sign in to CredTrail"
+      : `Sign in to CredTrail (${input.tenantId})`;
   const formattedExpiresAt = formatMagicLinkExpiry({
     expiresAtIso: input.expiresAtIso,
     preferredLocale: input.preferredLocale,
@@ -68,7 +71,7 @@ export const sendMagicLinkEmailNotification = async (
     "",
     input.magicLinkUrl,
     "",
-    `Organization: ${input.tenantId}`,
+    ...(input.tenantId === undefined ? [] : [`Organization: ${input.tenantId}`]),
     `Expires: ${formattedExpiresAt}`,
   ].join("\n");
 

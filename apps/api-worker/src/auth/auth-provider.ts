@@ -10,7 +10,7 @@ export interface LtiAuthenticatedPrincipal extends AuthenticatedPrincipal {
 }
 
 export interface RequestMagicLinkInput {
-  tenantId: string;
+  tenantId?: string | undefined;
   email: string;
   nextPath?: string | undefined;
   preferredLocale?: string | undefined;
@@ -18,7 +18,7 @@ export interface RequestMagicLinkInput {
 }
 
 export interface RequestMagicLinkResult {
-  tenantId: string;
+  tenantId?: string | undefined;
   email: string;
   deliveryStatus: "sent" | "skipped" | "failed";
   expiresAt?: string | undefined;

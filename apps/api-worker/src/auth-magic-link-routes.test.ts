@@ -917,7 +917,7 @@ describe("magic-link auth routes", () => {
     );
   });
 
-  it("asks email-only users to choose an organization when multiple memberships exist", async () => {
+  it("sends an unscoped link without exposing organizations when multiple memberships exist", async () => {
     mockedListAccessibleTenantContextsForUser.mockResolvedValue([
       {
         tenantId: "tenant_123",
@@ -949,32 +949,43 @@ describe("magic-link auth routes", () => {
       },
       createEnv("production"),
     );
-    const body = await response.json<{
-      status: string;
-      organizations: {
-        tenantId: string;
-        label: string;
-        roleLabel: string;
-      }[];
-    }>();
+    const body = await response.json<Record<string, unknown>>();
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(202);
     expect(body).toEqual({
-      status: "tenant_selection_required",
+      status: "sent",
+      deliveryStatus: "sent",
       email: "learner@example.edu",
-      organizations: [
-        {
-          tenantId: "tenant_123",
-          label: "Tenant 123",
-          roleLabel: "Viewer",
-        },
-        {
-          tenantId: "tenant_456",
-          label: "Tenant 456",
-          roleLabel: "Admin",
-        },
-      ],
     });
+    expect(body).not.toHaveProperty("organizations");
+    expect(body).not.toHaveProperty("tenantId");
+    expect(betterAuthProvider.requestMagicLink).toHaveBeenCalledWith(expect.anything(), {
+      email: "learner@example.edu",
+    });
+  });
+
+  it("keeps email-only SSO membership policy out of the response", async () => {
+    mockedEnforceLocalMagicLinkRequest.mockResolvedValue(
+      Response.json({ error: "Enterprise SSO is required" }, { status: 403 }),
+    );
+    const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
+
+    const response = await isolatedApp.request(
+      "/v1/auth/magic-link/request",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "learner@example.edu" }),
+      },
+      createEnv("production"),
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      status: "sent",
+      deliveryStatus: "sent",
+      email: "learner@example.edu",
+    });
+    expect(response.status).toBe(202);
     expect(betterAuthProvider.requestMagicLink).not.toHaveBeenCalled();
   });
 
@@ -1170,6 +1181,51 @@ describe("magic-link auth routes", () => {
       "better-auth.session_token=better-session",
     );
     expect(betterAuthProvider.createMagicLinkSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("authenticates an unscoped JSON magic link before organization selection", async () => {
+    const { app: isolatedApp } = await loadAppWithMockedHostedAuthProviders({
+      betterAuthRequestedTenant: null,
+    });
+
+    const response = await isolatedApp.request(
+      "/v1/auth/magic-link/verify",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token: "better-token-1234567890" }),
+      },
+      createEnv("production"),
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      status: "authenticated",
+      userId: "usr_better",
+      expiresAt: "2026-02-18T22:00:00.000Z",
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it("reports an authenticated session before organization selection", async () => {
+    const { app: isolatedApp } = await loadAppWithMockedHostedAuthProviders({
+      betterAuthInitiallyAuthenticated: true,
+      betterAuthRequestedTenant: null,
+    });
+
+    const response = await isolatedApp.request(
+      "/v1/auth/session",
+      {
+        headers: { Cookie: "better-auth.session_token=better-session" },
+      },
+      createEnv("production"),
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      status: "authenticated",
+      userId: "usr_better",
+      expiresAt: "2026-02-18T22:00:00.000Z",
+    });
+    expect(response.status).toBe(200);
   });
 
   it("uses Better Auth-backed session inspection without falling back to legacy session tables", async () => {

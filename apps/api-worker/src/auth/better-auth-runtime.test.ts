@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { SqlDatabase } from "@credtrail/db";
-import { createBetterAuthDatabaseAdapter } from "./better-auth-runtime";
+import {
+  buildHostedMagicLinkToken,
+  createBetterAuthDatabaseAdapter,
+  parseHostedMagicLinkToken,
+} from "./better-auth-runtime";
 
 interface FakeAdapter {
   create: (input: {
@@ -88,6 +92,14 @@ const createFakeDb = (
 };
 
 describe("better auth runtime adapter", () => {
+  it("creates both tenant-scoped and post-authentication-selection magic-link tokens", () => {
+    const scopedToken = buildHostedMagicLinkToken("tenant_123");
+    const unscopedToken = buildHostedMagicLinkToken();
+
+    expect(parseHostedMagicLinkToken(scopedToken)).toEqual({ tenantId: "tenant_123" });
+    expect(parseHostedMagicLinkToken(unscopedToken)).toBeNull();
+  });
+
   it("writes verification rows using the snake_case auth schema", async () => {
     const { adapter, statements } = createFakeDb();
 
