@@ -382,6 +382,17 @@ describe("page asset manifest", () => {
     }
   });
 
+  it("keeps authored JavaScript fragments from opening lexical scopes across files", () => {
+    const assetContentDir = new URL("./ui/page-assets/content/js/", import.meta.url);
+    const jsFiles = readdirSync(assetContentDir).filter((fileName) => fileName.endsWith(".js"));
+
+    for (const fileName of jsFiles) {
+      const source = readFileSync(new URL(fileName, assetContentDir), "utf8");
+
+      expect(() => new Script(`(() => {\n${source}\n})();`, { filename: fileName })).not.toThrow();
+    }
+  });
+
   it("keeps authored CSS files below giant-file size", () => {
     const assetContentDir = new URL("./ui/page-assets/content/", import.meta.url);
     const cssFiles = readdirSync(assetContentDir).filter((fileName) => fileName.endsWith(".css"));

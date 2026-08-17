@@ -60,9 +60,7 @@ const ruleBuilderLiveTestFields = document.getElementById("rule-builder-live-tes
 const ruleBuilderExampleTestFields = document.getElementById("rule-builder-example-test-fields");
 const ruleBuilderLearnerSelect = document.getElementById("rule-builder-learner-select");
 const ruleBuilderLearnerFilter = document.getElementById("rule-builder-learner-filter");
-const ruleBuilderLearnerFilterQuery = document.getElementById(
-  "rule-builder-learner-filter-query",
-);
+const ruleBuilderLearnerFilterQuery = document.getElementById("rule-builder-learner-filter-query");
 const ruleBuilderLearnerStatus = document.getElementById("rule-builder-learner-status");
 const ruleBuilderTestRecipientFields = document.getElementById(
   "rule-builder-test-recipient-fields",
@@ -77,9 +75,7 @@ const ruleBuilderStepNextButton = document.getElementById("rule-builder-step-nex
 const ruleBuilderStepProgress = document.getElementById("rule-builder-step-progress");
 const ruleBuilderStepCallout = document.getElementById("rule-builder-step-callout");
 const ruleBuilderSubmitButton = document.getElementById("rule-builder-submit");
-const ruleBuilderSaveFormalDraftButton = document.getElementById(
-  "rule-builder-save-formal-draft",
-);
+const ruleBuilderSaveFormalDraftButton = document.getElementById("rule-builder-save-formal-draft");
 const ruleBuilderAuthoringController = createRuleBuilderAuthoringController({
   request: fetch,
   parseResponse: parseJsonBody,
@@ -116,3 +112,13 @@ const initialRuleValueLists =
     ? ruleBuilderContext.valueLists
     : [];
 let ruleValueLists = initialRuleValueLists;
+
+if (
+  !(ruleCreateForm instanceof HTMLFormElement) ||
+  !(ruleCreateStatus instanceof HTMLElement) ||
+  !(ruleBuilderConditionList instanceof HTMLElement) ||
+  !(ruleBuilderRootLogic instanceof HTMLInputElement) ||
+  !(ruleBuilderDefinitionJson instanceof HTMLTextAreaElement)
+) {
+  return;
+}
