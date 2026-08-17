@@ -686,12 +686,18 @@ export const RuleBuilderTestStep = (): HonoElement => {
                 <p
                   id="rule-builder-example-test-guidance"
                   class="ct-admin__hint"
+                  data-rule-builder-example-guidance=""
                   aria-live="polite"
                   aria-atomic="true"
                 >
                   Generated values update with this rule's requirements.
                 </p>
-                <div id="rule-builder-example-score-field" class="ct-stack" hidden>
+                <div
+                  id="rule-builder-example-score-field"
+                  class="ct-stack"
+                  data-rule-builder-example-control="score"
+                  hidden
+                >
                   <AdminField label="Example score">
                     <CtInput
                       id="rule-builder-example-score"
@@ -707,7 +713,12 @@ export const RuleBuilderTestStep = (): HonoElement => {
                     <CtFieldHint id="rule-builder-example-score-hint" />
                   </AdminField>
                 </div>
-                <div id="rule-builder-example-completion-field" class="ct-stack" hidden>
+                <div
+                  id="rule-builder-example-completion-field"
+                  class="ct-stack"
+                  data-rule-builder-example-control="completion"
+                  hidden
+                >
                   <AdminField label="Example gradebook completion (%)">
                     <CtInput
                       id="rule-builder-example-completion"
@@ -723,10 +734,6 @@ export const RuleBuilderTestStep = (): HonoElement => {
                     <CtFieldHint id="rule-builder-example-completion-hint" />
                   </AdminField>
                 </div>
-                <p id="rule-builder-example-test-empty" class="ct-admin__hint">
-                  This rule's example facts come from its configured requirements. There are no
-                  values to adjust; run the test or use advanced facts.
-                </p>
               </div>
               <div class="ct-admin__builder-test-actions">
                 <AdminButton id="rule-builder-test" type="button" size="tiny">

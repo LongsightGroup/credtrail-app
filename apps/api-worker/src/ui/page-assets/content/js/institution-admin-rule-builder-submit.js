@@ -54,8 +54,6 @@
       const recipientIdentity = getTextFieldValue('testRecipientIdentity').toLowerCase();
       const requiresRecipientIdentity =
         testDataSource === 'lms' && ruleBuilderTestRequiresRecipientIdentity();
-      const sampleScoreText = getTextFieldValue('testScore');
-      const sampleCompletionPercentText = getTextFieldValue('testCompletionPercent');
       const testFactsJson = getTextFieldValue('testFactsJson');
 
       if (learnerId.length === 0) {
@@ -125,10 +123,7 @@
           return;
         }
       } else {
-        const exampleValueError = ruleBuilderExampleTestController.validationMessage({
-          score: sampleScoreText,
-          completion: sampleCompletionPercentText,
-        });
+        const exampleValueError = ruleBuilderExampleTestController.validate();
 
         if (exampleValueError !== null) {
           const message = exampleValueError;

@@ -177,7 +177,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     );
     expect(body).toContain('id="rule-builder-example-test-guidance"');
     expect(body).toContain('aria-live="polite"');
-    expect(body).toContain("There are no values to adjust; run the test or use advanced facts.");
+    expect(body).toContain('data-rule-builder-example-control="score"');
+    expect(body).toContain('data-rule-builder-example-control="completion"');
   });
 
   it("asks for workflow decisions without exposing schema-oriented setup", async () => {

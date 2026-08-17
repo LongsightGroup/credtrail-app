@@ -82,24 +82,6 @@ const ruleBuilderTestOutput = document.getElementById("rule-builder-test-output"
 const ruleBuilderTestResult = document.getElementById("rule-builder-test-result");
 const ruleBuilderLiveTestFields = document.getElementById("rule-builder-live-test-fields");
 const ruleBuilderExampleTestFields = document.getElementById("rule-builder-example-test-fields");
-const ruleBuilderExampleScoreField = document.getElementById(
-  "rule-builder-example-score-field",
-);
-const ruleBuilderExampleScoreInput = document.getElementById("rule-builder-example-score");
-const ruleBuilderExampleScoreHint = document.getElementById("rule-builder-example-score-hint");
-const ruleBuilderExampleCompletionField = document.getElementById(
-  "rule-builder-example-completion-field",
-);
-const ruleBuilderExampleCompletionInput = document.getElementById(
-  "rule-builder-example-completion",
-);
-const ruleBuilderExampleCompletionHint = document.getElementById(
-  "rule-builder-example-completion-hint",
-);
-const ruleBuilderExampleTestGuidance = document.getElementById(
-  "rule-builder-example-test-guidance",
-);
-const ruleBuilderExampleTestEmpty = document.getElementById("rule-builder-example-test-empty");
 const ruleBuilderLearnerSelect = document.getElementById("rule-builder-learner-select");
 const ruleBuilderLearnerFilter = document.getElementById("rule-builder-learner-filter");
 const ruleBuilderLearnerFilterQuery = document.getElementById(

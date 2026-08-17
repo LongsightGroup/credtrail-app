@@ -1,169 +1,240 @@
-const createRuleBuilderExampleTestController = ({
-  scoreField,
-  scoreInput,
-  scoreHint,
-  completionField,
-  completionInput,
-  completionHint,
-  guidance,
-  emptyMessage,
-}) => {
-  let scoreAdjustable = false;
-  let completionAdjustable = false;
+const ruleBuilderExampleTestControlDefinitions = {
+  score: {
+    key: "score",
+    name: "testScore",
+    invalidMessage: "Example score must be a number between 0 and 100.",
+  },
+  completion: {
+    key: "completion",
+    name: "testCompletionPercent",
+    invalidMessage: "Example completion must be a number between 0 and 100.",
+  },
+};
 
-  const leafCondition = (condition) => {
-    if (condition && typeof condition === "object" && "not" in condition) {
-      return condition.not;
-    }
+const configuredExampleNumber = (value) => {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
 
-    return condition;
-  };
+const scoreThresholdText = (condition) => {
+  const boundaries = [];
+  const minimum = configuredExampleNumber(condition.minScore);
+  const maximum = configuredExampleNumber(condition.maxScore);
 
-  const configuredNumber = (value) => {
-    return typeof value === "number" && Number.isFinite(value) ? value : null;
-  };
+  if (minimum !== null) {
+    boundaries.push("at least " + String(minimum) + "%");
+  }
 
-  const thresholdText = (condition) => {
-    const minimum = configuredNumber(condition.minScore);
-    const maximum = configuredNumber(condition.maxScore);
-    const boundaries = [];
+  if (maximum !== null) {
+    boundaries.push("no more than " + String(maximum) + "%");
+  }
 
-    if (minimum !== null) {
-      boundaries.push("at least " + String(minimum) + "%");
-    }
+  return boundaries.join(" and ");
+};
 
-    if (maximum !== null) {
-      boundaries.push("no more than " + String(maximum) + "%");
-    }
+const programCompletionRequirement = (condition) => {
+  const courseCount = Array.isArray(condition.courseIds) ? condition.courseIds.length : 0;
+  const minimum = configuredExampleNumber(condition.minimumCompleted);
+  const requiredCount = minimum ?? (courseCount > 0 ? courseCount : null);
 
-    return boundaries.join(" and ");
-  };
+  if (requiredCount === null) {
+    return "the configured course pathway complete";
+  }
 
-  const scoreRequirement = (condition) => {
-    if (condition.type === "grade_threshold") {
-      const scoreName = condition.scoreField === "current_score" ? "current score" : "final score";
-      const threshold = thresholdText(condition);
-      return threshold.length > 0 ? scoreName + " " + threshold : null;
-    }
-
-    if (condition.type === "assignment_submission") {
-      const minimum = configuredNumber(condition.minScore);
-      return minimum === null ? null : "gradebook item score of at least " + String(minimum) + "%";
-    }
-
-    return null;
-  };
-
-  const completionRequirement = (condition) => {
-    if (condition.type === "course_completion") {
-      const minimum = configuredNumber(condition.minCompletionPercent) ?? 100;
-      return "at least " + String(minimum) + "% of gradebook items complete";
-    }
-
-    if (condition.type === "program_completion") {
-      const courseCount = Array.isArray(condition.courseIds) ? condition.courseIds.length : 0;
-      const minimum = configuredNumber(condition.minimumCompleted);
-      const requiredCount = minimum ?? (courseCount > 0 ? courseCount : null);
-      const courseRequirement =
-        requiredCount === null
-          ? "the configured course pathway complete"
-          : courseCount > 0
-            ? String(requiredCount) +
-              " of " +
-              String(courseCount) +
-              " configured " +
-              (courseCount === 1 ? "course" : "courses") +
-              " complete"
-            : String(requiredCount) +
-              " configured " +
-              (requiredCount === 1 ? "course" : "courses") +
-              " complete";
-      return courseRequirement + "; generated courses count as complete at 100%";
-    }
-
-    return null;
-  };
-
-  const setFieldVisibility = (field, input, visible) => {
-    field.hidden = !visible;
-    input.disabled = !visible;
-    input.required = visible;
-  };
-
-  const requirementsHint = (requirements) => {
-    if (requirements.size === 0) {
-      return "";
-    }
-
+  if (courseCount > 0) {
     return (
-      "Configured requirement" +
-      (requirements.size === 1 ? ": " : "s: ") +
-      Array.from(requirements).join("; ") +
-      "."
+      String(requiredCount) +
+      " of " +
+      String(courseCount) +
+      " configured " +
+      (courseCount === 1 ? "course" : "courses") +
+      " complete"
     );
-  };
+  }
 
-  const validPercent = (value) => {
-    const normalized = value.trim();
-    const parsed = Number(normalized);
-    return normalized.length > 0 && Number.isFinite(parsed) && parsed >= 0 && parsed <= 100;
-  };
+  return (
+    String(requiredCount) +
+    " configured " +
+    (requiredCount === 1 ? "course" : "courses") +
+    " complete"
+  );
+};
 
-  const validationMessage = ({ score, completion }) => {
-    if (scoreAdjustable && !validPercent(score)) {
-      return "Example score must be a number between 0 and 100.";
-    }
+const exampleTestRequirement = (condition) => {
+  const leaf = leafConditionFromCondition(condition);
 
-    if (completionAdjustable && !validPercent(completion)) {
-      return "Example completion must be a number between 0 and 100.";
-    }
-
+  if (leaf === null || typeof leaf !== "object") {
     return null;
+  }
+
+  if (leaf.type === "grade_threshold") {
+    const threshold = scoreThresholdText(leaf);
+
+    if (threshold.length === 0) {
+      return null;
+    }
+
+    return {
+      key: "score",
+      text: (leaf.scoreField === "current_score" ? "current score " : "final score ") + threshold,
+    };
+  }
+
+  if (leaf.type === "assignment_submission") {
+    const minimum = configuredExampleNumber(leaf.minScore);
+    return minimum === null
+      ? null
+      : {
+          key: "score",
+          text: "gradebook item score of at least " + String(minimum) + "%",
+        };
+  }
+
+  if (leaf.type === "course_completion") {
+    const minimum = configuredExampleNumber(leaf.minCompletionPercent) ?? 100;
+    return {
+      key: "completion",
+      text: "at least " + String(minimum) + "% of gradebook items complete",
+    };
+  }
+
+  if (leaf.type === "program_completion") {
+    return {
+      key: "completion",
+      text: programCompletionRequirement(leaf) +
+        "; generated courses count as complete at 100%",
+    };
+  }
+
+  return null;
+};
+
+const exampleTestRequirements = (conditions) => {
+  const requirements = {
+    score: new Set(),
+    completion: new Set(),
   };
+
+  for (const condition of conditions) {
+    const requirement = exampleTestRequirement(condition);
+
+    if (requirement !== null) {
+      requirements[requirement.key].add(requirement.text);
+    }
+  }
+
+  return requirements;
+};
+
+const formattedExampleRequirements = (requirements) => {
+  if (requirements.size === 0) {
+    return "";
+  }
+
+  return (
+    "Configured requirement" +
+    (requirements.size === 1 ? ": " : "s: ") +
+    Array.from(requirements).join("; ") +
+    "."
+  );
+};
+
+const readExampleTestControl = (root, definition) => {
+  const field = root.querySelector(
+    '[data-rule-builder-example-control="' + definition.key + '"]',
+  );
+  const input = field?.querySelector('[name="' + definition.name + '"]');
+  const hint = field?.querySelector(".ct-field__hint");
+
+  if (
+    !(field instanceof HTMLElement) ||
+    !(input instanceof HTMLInputElement) ||
+    !(hint instanceof HTMLElement)
+  ) {
+    throw new Error("Generated-example " + definition.key + " control is missing.");
+  }
+
+  return {
+    ...definition,
+    field,
+    hint,
+    input,
+  };
+};
+
+const createRuleBuilderExampleTestController = (root) => {
+  if (!(root instanceof HTMLElement)) {
+    throw new Error("Generated-example test fields are missing.");
+  }
+
+  const guidance = root.querySelector("[data-rule-builder-example-guidance]");
+
+  if (!(guidance instanceof HTMLElement)) {
+    throw new Error("Generated-example guidance is missing.");
+  }
+
+  const controls = {
+    score: readExampleTestControl(root, ruleBuilderExampleTestControlDefinitions.score),
+    completion: readExampleTestControl(root, ruleBuilderExampleTestControlDefinitions.completion),
+  };
+  const orderedControls = [controls.score, controls.completion];
+
+  const clearValidation = (control) => {
+    control.input.setCustomValidity("");
+    control.input.removeAttribute("aria-invalid");
+  };
+
+  for (const control of orderedControls) {
+    control.input.addEventListener("input", () => {
+      clearValidation(control);
+    });
+  }
 
   const sync = (conditions) => {
-    const scoreRequirements = new Set();
-    const completionRequirements = new Set();
+    const requirements = exampleTestRequirements(conditions);
+    let adjustableCount = 0;
 
-    conditions.forEach((condition) => {
-      const leaf = leafCondition(condition);
+    for (const control of orderedControls) {
+      const controlRequirements = requirements[control.key];
+      const isAdjustable = controlRequirements.size > 0;
+      control.field.hidden = !isAdjustable;
+      control.input.disabled = !isAdjustable;
+      control.input.required = isAdjustable;
+      control.hint.textContent = formattedExampleRequirements(controlRequirements);
+      clearValidation(control);
 
-      if (leaf === null || typeof leaf !== "object") {
-        return;
+      if (isAdjustable) {
+        adjustableCount += 1;
       }
+    }
 
-      const score = scoreRequirement(leaf);
-      const completion = completionRequirement(leaf);
-
-      if (score !== null) {
-        scoreRequirements.add(score);
-      }
-
-      if (completion !== null) {
-        completionRequirements.add(completion);
-      }
-    });
-
-    scoreAdjustable = scoreRequirements.size > 0;
-    completionAdjustable = completionRequirements.size > 0;
-    setFieldVisibility(scoreField, scoreInput, scoreAdjustable);
-    setFieldVisibility(completionField, completionInput, completionAdjustable);
-
-    scoreHint.textContent = requirementsHint(scoreRequirements);
-    completionHint.textContent = requirementsHint(completionRequirements);
-
-    const adjustableCount = Number(scoreAdjustable) + Number(completionAdjustable);
     guidance.textContent =
       adjustableCount === 0
-        ? "No generated values need adjustment for this rule."
+        ? "This rule's example facts come from its configured requirements. There are no values to adjust; run the test or use advanced facts."
         : adjustableCount === 1
           ? "One generated value can affect this rule."
           : "Two generated values can affect this rule.";
-    emptyMessage.hidden = adjustableCount > 0;
   };
 
-  return {
-    sync,
-    validationMessage,
+  const validate = () => {
+    for (const control of orderedControls) {
+      clearValidation(control);
+
+      if (control.input.disabled || control.input.checkValidity()) {
+        continue;
+      }
+
+      control.input.setCustomValidity(control.invalidMessage);
+      control.input.setAttribute("aria-invalid", "true");
+      control.input.focus();
+      return control.invalidMessage;
+    }
+
+    return null;
   };
+
+  return { sync, validate };
 };
+
+const ruleBuilderExampleTestController = createRuleBuilderExampleTestController(
+  ruleBuilderExampleTestFields,
+);

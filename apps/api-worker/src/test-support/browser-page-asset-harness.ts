@@ -230,6 +230,32 @@ export class FakeInput extends FakeElement {
     super("INPUT");
   }
 
+  /** Evaluates the native constraints used by page-asset behavior tests. */
+  public checkValidity(): boolean {
+    if (this.validationMessage.length > 0) {
+      return false;
+    }
+
+    const normalized = this.value.trim();
+
+    if (this.required && normalized.length === 0) {
+      return false;
+    }
+
+    if (this.type !== "number" || normalized.length === 0) {
+      return true;
+    }
+
+    const parsed = Number(normalized);
+    const minimum = Number(this.getAttribute("min"));
+    const maximum = Number(this.getAttribute("max"));
+    return (
+      Number.isFinite(parsed) &&
+      (this.getAttribute("min") === null || parsed >= minimum) &&
+      (this.getAttribute("max") === null || parsed <= maximum)
+    );
+  }
+
   /** Stores the input's browser-native custom validation message. */
   public setCustomValidity(message: string): void {
     this.validationMessage = message;

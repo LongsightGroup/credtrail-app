@@ -410,17 +410,6 @@
       return field instanceof HTMLInputElement ? field.checked : false;
     };
 
-    const ruleBuilderExampleTestController = createRuleBuilderExampleTestController({
-      scoreField: ruleBuilderExampleScoreField,
-      scoreInput: ruleBuilderExampleScoreInput,
-      scoreHint: ruleBuilderExampleScoreHint,
-      completionField: ruleBuilderExampleCompletionField,
-      completionInput: ruleBuilderExampleCompletionInput,
-      completionHint: ruleBuilderExampleCompletionHint,
-      guidance: ruleBuilderExampleTestGuidance,
-      emptyMessage: ruleBuilderExampleTestEmpty,
-    });
-
     const setRuleCreateFieldValue = (fieldName, value) => {
       const field = getRuleCreateField(fieldName);
 

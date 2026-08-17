@@ -178,7 +178,6 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     sources: [
       "admin-browser-primitives.js",
       "institution-admin-rule-builder-authoring.js",
-      "institution-admin-rule-builder-example-test.js",
       "institution-admin-rule-builder-bootstrap.js",
       ADMIN_STATUS_PILL_CLASS_SCRIPT_SOURCE,
       "institution-admin-rule-builder-setup.js",
@@ -189,6 +188,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
       "lms-gradebook-picker-primitives.js",
       "institution-admin-rule-builder-lms-picker.js",
       "institution-admin-rule-builder-condition-model.js",
+      "institution-admin-rule-builder-example-test.js",
       "institution-admin-rule-builder-summary.js",
       "institution-admin-rule-builder-learner-picker.js",
       "institution-admin-rule-builder-presets.js",
