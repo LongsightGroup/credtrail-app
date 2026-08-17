@@ -1,13 +1,13 @@
 import { z } from "zod";
 import { jsonObjectSchema } from "./json.js";
 import {
-  badgeTemplateSlugSchema,
+  badgeTemplateSlugSchema as badgeTemplateUrlKeySchema,
   isoTimestampSchema,
   learnerRecordEntryTypeSchema,
   learnerRecordSourceSystemSchema,
   learnerRecordStatusSchema,
   learnerRecordTrustLevelSchema,
-  orgUnitSlugSchema,
+  orgUnitSlugSchema as orgUnitUrlKeySchema,
   resourceIdSchema,
   userIdSchema,
 } from "./primitives.js";
@@ -35,9 +35,9 @@ const learnerRecordImportRowBaseSchema = z.object({
   description: z.string().trim().min(1).max(4000).optional(),
   issuerName: z.string().trim().min(1).max(200).optional(),
   orgUnitId: resourceIdSchema.optional(),
-  orgUnitSlug: orgUnitSlugSchema.optional(),
+  orgUnitUrlKey: orgUnitUrlKeySchema.optional(),
   badgeTemplateId: resourceIdSchema.optional(),
-  badgeTemplateSlug: badgeTemplateSlugSchema.optional(),
+  badgeTemplateUrlKey: badgeTemplateUrlKeySchema.optional(),
   pathwayLabel: z.string().trim().min(1).max(200).optional(),
   sourceRecordId: z.string().trim().min(1).max(200).optional(),
   evidenceLinks: z.array(z.string().url().max(2048)).max(20).optional(),

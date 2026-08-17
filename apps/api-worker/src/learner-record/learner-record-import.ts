@@ -107,9 +107,9 @@ const LEARNER_RECORD_IMPORT_FIELDS = [
   "description",
   "issuerName",
   "orgUnitId",
-  "orgUnitSlug",
+  "orgUnitUrlKey",
   "badgeTemplateId",
-  "badgeTemplateSlug",
+  "badgeTemplateUrlKey",
   "pathwayLabel",
   "sourceRecordId",
   "evidenceLinks",
@@ -171,18 +171,12 @@ const canonicalFieldForHeader = (header: string): LearnerRecordImportField | nul
     case "orgunitid":
       return "orgUnitId";
     case "orguniturlkey":
-    case "orgunitkey":
-    case "orgunitslug":
-      return "orgUnitSlug";
+      return "orgUnitUrlKey";
     case "badgetemplateid":
     case "templateid":
       return "badgeTemplateId";
     case "badgetemplateurlkey":
-    case "templateurlkey":
-    case "templatekey":
-    case "badgetemplateslug":
-    case "templateslug":
-      return "badgeTemplateSlug";
+      return "badgeTemplateUrlKey";
     case "pathwaylabel":
     case "pathway":
       return "pathwayLabel";
@@ -310,6 +304,15 @@ export const parseLearnerRecordImportFile = (input: {
 
   const headerRow = rows[0] ?? [];
   const mappedHeaders = headerRow.map((value) => canonicalFieldForHeader(normalizeHeader(value)));
+  const unsupportedHeaders = headerRow.filter((value, index) => {
+    return value.trim().length > 0 && mappedHeaders[index] === null;
+  });
+
+  if (unsupportedHeaders.length > 0) {
+    throw new LearnerRecordImportFileParseError(
+      `CSV header contains unsupported columns: ${unsupportedHeaders.join(", ")}. Download the current template and use its column names.`,
+    );
+  }
 
   if (!mappedHeaders.some((header) => header !== null)) {
     throw new LearnerRecordImportFileParseError(
@@ -369,9 +372,9 @@ export const parseLearnerRecordImportFile = (input: {
 
 const learnerRecordImportFieldLabel = (field: string): string => {
   switch (field) {
-    case "orgUnitSlug":
+    case "orgUnitUrlKey":
       return "org unit URL key";
-    case "badgeTemplateSlug":
+    case "badgeTemplateUrlKey":
       return "badge template URL key";
     default:
       return field;
@@ -432,12 +435,12 @@ const resolveExplicitOrgUnit = (
     row.orgUnitId === undefined
       ? null
       : (orgUnits.find((orgUnit) => orgUnit.id === row.orgUnitId) ?? null);
-  const orgUnitBySlug =
-    row.orgUnitSlug === undefined
+  const orgUnitByUrlKey =
+    row.orgUnitUrlKey === undefined
       ? null
-      : (orgUnits.find((orgUnit) => orgUnit.slug === row.orgUnitSlug) ?? null);
+      : (orgUnits.find((orgUnit) => orgUnit.slug === row.orgUnitUrlKey) ?? null);
 
-  if (orgUnitById !== null && orgUnitBySlug !== null && orgUnitById.id !== orgUnitBySlug.id) {
+  if (orgUnitById !== null && orgUnitByUrlKey !== null && orgUnitById.id !== orgUnitByUrlKey.id) {
     return {
       orgUnit: null,
       errors: ["Org unit ID and org unit URL key refer to different org units"],
@@ -446,9 +449,9 @@ const resolveExplicitOrgUnit = (
     };
   }
 
-  const orgUnit = orgUnitById ?? orgUnitBySlug;
+  const orgUnit = orgUnitById ?? orgUnitByUrlKey;
 
-  if (orgUnit === null && (row.orgUnitId !== undefined || row.orgUnitSlug !== undefined)) {
+  if (orgUnit === null && (row.orgUnitId !== undefined || row.orgUnitUrlKey !== undefined)) {
     warnings.push(
       "Row org-unit reference did not match the current tenant structure. The record will import without explicit org-unit grouping metadata.",
     );
@@ -458,7 +461,7 @@ const resolveExplicitOrgUnit = (
     orgUnit,
     errors: [],
     warnings,
-    usedRowValue: row.orgUnitId !== undefined || row.orgUnitSlug !== undefined,
+    usedRowValue: row.orgUnitId !== undefined || row.orgUnitUrlKey !== undefined,
   };
 };
 
@@ -476,13 +479,17 @@ const resolveBadgeTemplate = (
     row.badgeTemplateId === undefined
       ? null
       : (badgeTemplates.find((badgeTemplate) => badgeTemplate.id === row.badgeTemplateId) ?? null);
-  const templateBySlug =
-    row.badgeTemplateSlug === undefined
+  const templateByUrlKey =
+    row.badgeTemplateUrlKey === undefined
       ? null
-      : (badgeTemplates.find((badgeTemplate) => badgeTemplate.slug === row.badgeTemplateSlug) ??
+      : (badgeTemplates.find((badgeTemplate) => badgeTemplate.slug === row.badgeTemplateUrlKey) ??
         null);
 
-  if (templateById !== null && templateBySlug !== null && templateById.id !== templateBySlug.id) {
+  if (
+    templateById !== null &&
+    templateByUrlKey !== null &&
+    templateById.id !== templateByUrlKey.id
+  ) {
     return {
       badgeTemplate: null,
       errors: ["Badge template ID and badge template URL key refer to different badge templates"],
@@ -491,11 +498,11 @@ const resolveBadgeTemplate = (
     };
   }
 
-  const badgeTemplate = templateById ?? templateBySlug;
+  const badgeTemplate = templateById ?? templateByUrlKey;
 
   if (
     badgeTemplate === null &&
-    (row.badgeTemplateId !== undefined || row.badgeTemplateSlug !== undefined)
+    (row.badgeTemplateId !== undefined || row.badgeTemplateUrlKey !== undefined)
   ) {
     warnings.push(
       "Row badge-template reference did not match the current tenant catalog. The record will import without badge-template grouping metadata.",
@@ -506,7 +513,7 @@ const resolveBadgeTemplate = (
     badgeTemplate,
     errors: [],
     warnings,
-    usedRowValue: row.badgeTemplateId !== undefined || row.badgeTemplateSlug !== undefined,
+    usedRowValue: row.badgeTemplateId !== undefined || row.badgeTemplateUrlKey !== undefined,
   };
 };
 

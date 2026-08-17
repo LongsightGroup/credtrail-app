@@ -86,10 +86,10 @@ describe("learner-record import contract", () => {
     ]);
   });
 
-  it("accepts URL key headers while keeping legacy slug headers compatible", () => {
+  it("maps current URL key headers without retaining legacy slug aliases", () => {
     const csv = [
-      "learnerEmail,title,recordType,issuedAt,badgeTemplateUrlKey",
-      "learner@example.edu,Clinical Placement Seminar,course,2026-03-26T12:00:00.000Z,clinical-placement-badge",
+      "learnerEmail,title,recordType,issuedAt,orgUnitUrlKey,badgeTemplateUrlKey",
+      "learner@example.edu,Clinical Placement Seminar,course,2026-03-26T12:00:00.000Z,department-health,clinical-placement-badge",
     ].join("\n");
     const legacyCsv = [
       "learnerEmail,title,recordType,issuedAt,badgeTemplateSlug",
@@ -103,17 +103,18 @@ describe("learner-record import contract", () => {
         content: csv,
       }).rows[0]?.candidate,
     ).toMatchObject({
-      badgeTemplateSlug: "clinical-placement-badge",
+      orgUnitUrlKey: "department-health",
+      badgeTemplateUrlKey: "clinical-placement-badge",
     });
-    expect(
+    expect(() =>
       parseLearnerRecordImportFile({
         fileName: "learner-records.csv",
         mimeType: "text/csv",
         content: legacyCsv,
-      }).rows[0]?.candidate,
-    ).toMatchObject({
-      badgeTemplateSlug: "clinical-placement-badge",
-    });
+      }),
+    ).toThrow(
+      "CSV header contains unsupported columns: badgeTemplateSlug. Download the current template and use its column names.",
+    );
   });
 
   it("uses smart defaults from badge-template ownership and preserves pathway as metadata", () => {
@@ -127,7 +128,7 @@ describe("learner-record import contract", () => {
             title: "Clinical Placement Seminar",
             recordType: "course",
             issuedAt: "2026-03-26T12:00:00.000Z",
-            badgeTemplateSlug: "clinical-placement-badge",
+            badgeTemplateUrlKey: "clinical-placement-badge",
             pathwayLabel: "Clinical readiness",
           },
         },
