@@ -15,6 +15,7 @@ const {
   mockedListImportLearnerRecordBatchQueueMessages,
   mockedCreateLearnerRecordImportPreview,
   mockedEnqueueJobQueueMessageOnce,
+  mockedEnqueueJobQueueMessagesOnce,
   mockedFindActiveLearnerRecordImportPreview,
   mockedMarkLearnerRecordImportPreviewQueued,
   mockedListAccessibleTenantContextsForUser,
@@ -65,6 +66,7 @@ const {
     mockedListImportLearnerRecordBatchQueueMessages: vi.fn(),
     mockedCreateLearnerRecordImportPreview: vi.fn(),
     mockedEnqueueJobQueueMessageOnce: vi.fn(),
+    mockedEnqueueJobQueueMessagesOnce: vi.fn(),
     mockedFindActiveLearnerRecordImportPreview: vi.fn(),
     mockedMarkLearnerRecordImportPreviewQueued: vi.fn(),
     mockedListAccessibleTenantContextsForUser: vi.fn(),
@@ -104,6 +106,7 @@ const {
 
 export {
   mockedEnqueueJobQueueMessageOnce,
+  mockedEnqueueJobQueueMessagesOnce,
   mockedFindTenantAuthPolicy,
   mockedListAccessibleTenantContextsForUser,
   mockedListTenantAuthProviders,
@@ -130,6 +133,7 @@ vi.mock("@credtrail/db", async () => {
     listLearnerProfilesForRecordLookup: mockedListLearnerProfilesForRecordLookup,
     createLearnerRecordImportPreview: mockedCreateLearnerRecordImportPreview,
     enqueueJobQueueMessageOnce: mockedEnqueueJobQueueMessageOnce,
+    enqueueJobQueueMessagesOnce: mockedEnqueueJobQueueMessagesOnce,
     findActiveLearnerRecordImportPreview: mockedFindActiveLearnerRecordImportPreview,
     findTenantAuthPolicy: mockedFindTenantAuthPolicy,
     findTenantById: vi.fn(),

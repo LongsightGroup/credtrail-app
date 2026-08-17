@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createNodePublicJsonNetwork } from "./node-public-json-network";
+import { createNodePublicResourceNetwork } from "./node-public-resource-network";
 
 describe("Node public JSON network", () => {
   it("returns addresses from the injected DNS resolver", async () => {
-    const network = createNodePublicJsonNetwork({
+    const network = createNodePublicResourceNetwork({
       lookupHostname: () => Promise.resolve([{ address: "93.184.216.34", family: 4 }]),
     });
 
@@ -13,7 +13,7 @@ describe("Node public JSON network", () => {
   });
 
   it("stops waiting for DNS when the caller cancels", async () => {
-    const network = createNodePublicJsonNetwork({
+    const network = createNodePublicResourceNetwork({
       lookupHostname: () => new Promise(() => undefined),
     });
     const abortController = new AbortController();
@@ -27,7 +27,7 @@ describe("Node public JSON network", () => {
   });
 
   it("revalidates supplied addresses before opening a connection", async () => {
-    const network = createNodePublicJsonNetwork();
+    const network = createNodePublicResourceNetwork();
 
     await expect(
       network.request({

@@ -16,10 +16,13 @@ import {
   storeBadgeTemplateImage,
 } from "../badges/template-image-storage";
 import { canonicalAppUrl } from "../http/canonical-app-url";
-import { loadPublicBytesFromUrl, type PublicJsonNetwork } from "../http/public-json-network";
+import {
+  loadPublicBytesFromUrl,
+  type PublicResourceNetwork,
+} from "../http/public-resource-network";
 
 const importedImageBytes = async (
-  network: PublicJsonNetwork,
+  network: PublicResourceNetwork,
   payload: ImportMigrationBatchQueueJob["payload"],
 ): Promise<Uint8Array> => {
   if (payload.bakedBadgeImage !== undefined) {
@@ -62,7 +65,7 @@ export const processMigrationBatchQueueJob = async <ContextType>(input: {
   idempotencyKey: string;
   store: ImmutableCredentialStore;
   publicAppOrigin: string;
-  publicJsonNetwork: PublicJsonNetwork;
+  publicResourceNetwork: PublicResourceNetwork;
   issueBadgeForTenant: (
     context: ContextType,
     tenantId: string,
@@ -120,7 +123,7 @@ export const processMigrationBatchQueueJob = async <ContextType>(input: {
     criteriaUri: requestedTemplate.criteriaUri,
     createdByUserId: input.payload.requestedByUserId,
   });
-  const bytes = await importedImageBytes(input.publicJsonNetwork, input.payload);
+  const bytes = await importedImageBytes(input.publicResourceNetwork, input.payload);
   const mimeType = badgeTemplateImageMimeTypeFromBytes(bytes);
 
   if (mimeType === null) {

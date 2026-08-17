@@ -23,4 +23,7 @@ export {
   sampleTenantAssertionSummary,
   stubAssertionEvidenceMocks,
 } from "./support";
-export { mockedEnqueueJobQueueMessageOnce } from "./register-mocks";
+export {
+  mockedEnqueueJobQueueMessageOnce,
+  mockedEnqueueJobQueueMessagesOnce,
+} from "./register-mocks";

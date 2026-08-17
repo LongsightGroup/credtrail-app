@@ -13,7 +13,7 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 5_000;
 const MAX_REDIRECTS = 4;
 
 /** One bounded HTTP response returned by a runtime-specific public-network adapter. */
-export type PublicJsonNetworkResponse =
+export type PublicResourceNetworkResponse =
   | {
       readonly status: "received";
       readonly statusCode: number;
@@ -23,7 +23,7 @@ export type PublicJsonNetworkResponse =
   | { readonly status: "response_too_large" };
 
 /** Runtime-specific outbound network operations used by public credential verification. */
-export interface PublicJsonNetwork {
+export interface PublicResourceNetwork {
   /** Resolves a hostname when the runtime must pin the subsequent connection to validated addresses. */
   resolveHostname(
     hostname: string,
@@ -36,7 +36,7 @@ export interface PublicJsonNetwork {
     readonly resolvedAddresses: readonly ResolvedNetworkAddress[];
     readonly maxResponseBytes: number;
     readonly signal: AbortSignal;
-  }): Promise<PublicJsonNetworkResponse>;
+  }): Promise<PublicResourceNetworkResponse>;
 }
 
 /** Typed outcome from loading untrusted public JSON for credential verification. */
@@ -95,7 +95,7 @@ const parseCandidateUrl = (
 };
 
 const resolvedAddressesForUrl = async (
-  network: PublicJsonNetwork,
+  network: PublicResourceNetwork,
   url: URL,
   signal: AbortSignal,
 ): Promise<readonly ResolvedNetworkAddress[] | null> => {
@@ -174,9 +174,9 @@ const readBoundedResponseBytes = async (
 };
 
 /** Creates a strict-public network adapter around a runtime fetch implementation. */
-export const createFetchPublicJsonNetwork = (
+export const createFetchPublicResourceNetwork = (
   fetchRequest: (url: string, init: RequestInit) => Promise<Response>,
-): PublicJsonNetwork => {
+): PublicResourceNetwork => {
   return {
     resolveHostname: async () => null,
     request: async (input) => {
@@ -211,13 +211,13 @@ export const createFetchPublicJsonNetwork = (
 };
 
 /** Public-internet adapter for the Cloudflare Worker runtime. */
-export const workerPublicJsonNetwork = createFetchPublicJsonNetwork((url, init) =>
+export const workerPublicResourceNetwork = createFetchPublicResourceNetwork((url, init) =>
   fetch(url, init),
 );
 
 /** Loads bounded bytes while rejecting private destinations and unsafe redirects. */
 export const loadPublicBytesFromUrl = async (
-  network: PublicJsonNetwork,
+  network: PublicResourceNetwork,
   input: {
     readonly resourceUrl: string;
     readonly headers: Headers;
@@ -250,7 +250,7 @@ export const loadPublicBytesFromUrl = async (
         return { status: "error", error: { kind: "blocked_destination" } };
       }
 
-      let response: PublicJsonNetworkResponse;
+      let response: PublicResourceNetworkResponse;
 
       try {
         response = await network.request({
@@ -303,7 +303,7 @@ export const loadPublicBytesFromUrl = async (
 
 /** Loads JSON through a runtime adapter while rejecting private destinations and unsafe redirects. */
 export const loadPublicJsonFromUrl = async (
-  network: PublicJsonNetwork,
+  network: PublicResourceNetwork,
   input: {
     readonly resourceUrl: string;
     readonly headers: Headers;

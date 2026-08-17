@@ -4,8 +4,8 @@ import { withCredTrailUserAgent } from "./outbound-user-agent";
 import {
   loadPublicJsonFromUrl,
   type PublicJsonLoadResult,
-  type PublicJsonNetwork,
-} from "./public-json-network";
+  type PublicResourceNetwork,
+} from "./public-resource-network";
 
 interface CreateJsonObjectLoaderInput<BindingsType> {
   appRequest: (
@@ -15,7 +15,7 @@ interface CreateJsonObjectLoaderInput<BindingsType> {
   ) => Promise<Response>;
   asJsonObject: (value: unknown) => JsonObject | null;
   publicAppOrigin: (bindings: BindingsType) => string;
-  publicJsonNetwork: (bindings: BindingsType) => PublicJsonNetwork;
+  publicResourceNetwork: (bindings: BindingsType) => PublicResourceNetwork;
 }
 
 type JsonObjectLoadResult =
@@ -86,7 +86,7 @@ export const createLoadJsonObjectFromUrl = <BindingsType>(
           context.env,
         );
       } else {
-        const loaded = await loadPublicJsonFromUrl(input.publicJsonNetwork(context.env), {
+        const loaded = await loadPublicJsonFromUrl(input.publicResourceNetwork(context.env), {
           resourceUrl,
           headers: withCredTrailUserAgent({ accept: acceptHeader }),
         });

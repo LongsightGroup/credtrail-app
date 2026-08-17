@@ -255,9 +255,13 @@ export const mockedListLearnerRecordAssertionExportsDb = vi.mocked(
 export const mockedListLearnerRecordEntriesDb = vi.mocked(listLearnerRecordEntries);
 export const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 export const fakeDbPrepare = vi.fn();
-export const fakeDb = {
+const runFakeTransaction = async <T>(
+  callback: (transaction: SqlDatabase) => Promise<T>,
+): Promise<T> => callback(fakeDb);
+export const fakeDb: SqlDatabase = {
   prepare: fakeDbPrepare,
-} as unknown as SqlDatabase;
+  transaction: runFakeTransaction,
+};
 
 export const createEnv = (): {
   APP_ENV: string;

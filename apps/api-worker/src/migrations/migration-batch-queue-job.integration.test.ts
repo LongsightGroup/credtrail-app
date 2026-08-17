@@ -9,7 +9,7 @@ import {
 } from "../../../../packages/db/src/postgres-test-support";
 import type { DirectIssueBadgeOptions, DirectIssueBadgeResult } from "../badges/direct-issue";
 import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
-import type { PublicJsonNetwork } from "../http/public-json-network";
+import type { PublicResourceNetwork } from "../http/public-resource-network";
 import { processMigrationBatchQueueJob } from "./migration-batch-queue-job";
 
 const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -37,7 +37,7 @@ const imageStore = (): { store: ImmutableCredentialStore; writtenKeys: string[] 
   };
 };
 
-const imageNetwork = (): PublicJsonNetwork => ({
+const imageNetwork = (): PublicResourceNetwork => ({
   resolveHostname: () => Promise.resolve([{ address: "93.184.216.34", family: 4 }]),
   request: () =>
     Promise.resolve({
@@ -134,7 +134,7 @@ describeDbIntegration("migration batch queue processing with Postgres", () => {
           idempotencyKey: job.idempotencyKey,
           store,
           publicAppOrigin: "https://credtrail.test",
-          publicJsonNetwork: imageNetwork(),
+          publicResourceNetwork: imageNetwork(),
           issueBadgeForTenant,
         });
 

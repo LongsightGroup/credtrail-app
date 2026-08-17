@@ -51,7 +51,7 @@ import {
 } from "./credentials/verification-checks";
 import { createCredentialProofVerificationHelpers } from "./credentials/proof-verification";
 import { createLoadJsonObjectFromUrl } from "./http/json-object-loader";
-import { workerPublicJsonNetwork } from "./http/public-json-network";
+import { workerPublicResourceNetwork } from "./http/public-resource-network";
 import { processMigrationBatchQueueJob } from "./migrations/migration-batch-queue-job";
 import { createSignCredentialForDid } from "./signing/credential-signer";
 import {
@@ -177,7 +177,8 @@ const loadJsonObjectFromUrl = createLoadJsonObjectFromUrl<AppBindings>({
   },
   asJsonObject,
   publicAppOrigin: (bindings) => bindings.PUBLIC_APP_ORIGIN,
-  publicJsonNetwork: (bindings) => bindings.VERIFIER_PUBLIC_JSON_NETWORK ?? workerPublicJsonNetwork,
+  publicResourceNetwork: (bindings) =>
+    bindings.PUBLIC_RESOURCE_NETWORK ?? workerPublicResourceNetwork,
 });
 
 const {
@@ -280,7 +281,7 @@ const processQueuedJobs = createProcessQueuedJobs({
       idempotencyKey,
       store: c.env.BADGE_OBJECTS,
       publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
-      publicJsonNetwork: c.env.VERIFIER_PUBLIC_JSON_NETWORK ?? workerPublicJsonNetwork,
+      publicResourceNetwork: c.env.PUBLIC_RESOURCE_NETWORK ?? workerPublicResourceNetwork,
       issueBadgeForTenant,
     });
   },

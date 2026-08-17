@@ -2,7 +2,10 @@ import { lookup } from "node:dns/promises";
 import type { LookupFunction } from "node:net";
 import { Agent, request } from "undici";
 import { isPublicNetworkAddress } from "../http/public-network-address";
-import type { PublicJsonNetwork, PublicJsonNetworkResponse } from "../http/public-json-network";
+import type {
+  PublicResourceNetwork,
+  PublicResourceNetworkResponse,
+} from "../http/public-resource-network";
 import type { ResolvedNetworkAddress } from "../http/public-network-address";
 
 const NODE_PUBLIC_JSON_CONNECT_TIMEOUT_MS = 3_000;
@@ -88,7 +91,7 @@ const requestWithPinnedAddresses = async (input: {
   readonly resolvedAddresses: readonly ResolvedNetworkAddress[];
   readonly maxResponseBytes: number;
   readonly signal: AbortSignal;
-}): Promise<PublicJsonNetworkResponse> => {
+}): Promise<PublicResourceNetworkResponse> => {
   if (input.resolvedAddresses.length === 0) {
     throw new Error("Node verifier requests require a validated public address");
   }
@@ -158,9 +161,9 @@ const requestWithPinnedAddresses = async (input: {
 };
 
 /** Creates the DNS-pinning public-network adapter for the Node self-host runtime. */
-export const createNodePublicJsonNetwork = (input?: {
+export const createNodePublicResourceNetwork = (input?: {
   readonly lookupHostname?: (hostname: string) => Promise<readonly ResolvedNetworkAddress[]>;
-}): PublicJsonNetwork => {
+}): PublicResourceNetwork => {
   const lookupHostname =
     input?.lookupHostname ??
     (async (hostname: string): Promise<readonly ResolvedNetworkAddress[]> => {

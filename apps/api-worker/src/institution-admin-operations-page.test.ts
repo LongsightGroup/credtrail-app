@@ -4,7 +4,7 @@ import {
   fakeDb,
   fakeDbPrepare,
   mockedCreateLearnerRecordImportPreviewDb,
-  mockedEnqueueJobQueueMessageOnce,
+  mockedEnqueueJobQueueMessagesOnce,
   mockedFindActiveLearnerRecordImportPreviewDb,
   mockedFindAssertionById,
   mockedFindBadgeTemplateById,
@@ -583,12 +583,16 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
     expect(body).toContain("Queued 1 valid rows from learner-records.csv");
     expect(body).toContain('data-learner-record-import-state="apply"');
     expect(body).not.toContain("Queue reviewed import");
-    expect(mockedEnqueueJobQueueMessageOnce).toHaveBeenCalledWith(
+    expect(mockedEnqueueJobQueueMessagesOnce).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
-        tenantId: "tenant_123",
-        jobType: "import_learner_record_batch",
-        idempotencyKey: `learner-record-import:${batchId}:1`,
+        messages: [
+          expect.objectContaining({
+            tenantId: "tenant_123",
+            jobType: "import_learner_record_batch",
+            idempotencyKey: `learner-record-import:${batchId}:1`,
+          }),
+        ],
       }),
     );
     expect(mockedMarkLearnerRecordImportPreviewQueuedDb).toHaveBeenCalledWith(
@@ -600,7 +604,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
     );
     expect(
       mockedMarkLearnerRecordImportPreviewQueuedDb.mock.invocationCallOrder[0] ?? 0,
-    ).toBeLessThan(mockedEnqueueJobQueueMessageOnce.mock.invocationCallOrder[0] ?? 0);
+    ).toBeLessThan(mockedEnqueueJobQueueMessagesOnce.mock.invocationCallOrder[0] ?? 0);
   });
 
   it("does not enqueue reviewed learner-record imports when the preview was already claimed", async () => {
@@ -697,7 +701,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
 
     expect(response.status).toBe(200);
     expect(body).toContain("Reviewed preview was already queued");
-    expect(mockedEnqueueJobQueueMessageOnce).not.toHaveBeenCalled();
+    expect(mockedEnqueueJobQueueMessagesOnce).not.toHaveBeenCalled();
   });
 
   it("reports queue insertion failures after the reviewed learner-record preview is claimed", async () => {
@@ -781,7 +785,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
       expiresAt: "2026-03-27T12:00:00.000Z",
       queuedAt: null,
     });
-    mockedEnqueueJobQueueMessageOnce.mockRejectedValueOnce(new Error("queue unavailable"));
+    mockedEnqueueJobQueueMessagesOnce.mockRejectedValueOnce(new Error("queue unavailable"));
 
     const response = await app.request(
       "/tenants/tenant_123/admin/operations/learner-record-imports/apply",

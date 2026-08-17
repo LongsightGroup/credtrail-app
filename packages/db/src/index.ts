@@ -9,6 +9,7 @@ export type {
 export * from "./finalize-assertion-issuance";
 export * from "./auth-magic-link-rate-limit";
 export * from "./badge-templates";
+export * from "./badge-template-imports";
 export * from "./badge-template-images";
 export * from "./badge-issuance-rules";
 export * from "./badge-rule-lifecycle-governance";

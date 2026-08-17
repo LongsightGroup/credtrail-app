@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
-  createFetchPublicJsonNetwork,
+  createFetchPublicResourceNetwork,
   loadPublicJsonFromUrl,
-  type PublicJsonNetwork,
-  type PublicJsonNetworkResponse,
+  type PublicResourceNetwork,
+  type PublicResourceNetworkResponse,
   type ResolvedNetworkAddress,
-} from "./public-json-network";
+} from "./public-resource-network";
 
 const PUBLIC_IPV4: ResolvedNetworkAddress = { address: "93.184.216.34", family: 4 };
 
-class RecordingPublicJsonNetwork implements PublicJsonNetwork {
+class RecordingPublicResourceNetwork implements PublicResourceNetwork {
   readonly requestedUrls: string[] = [];
 
   constructor(
-    private readonly responses: PublicJsonNetworkResponse[],
+    private readonly responses: PublicResourceNetworkResponse[],
     private readonly addressesByHostname = new Map<string, readonly ResolvedNetworkAddress[]>(),
   ) {}
 
@@ -21,7 +21,7 @@ class RecordingPublicJsonNetwork implements PublicJsonNetwork {
     return Promise.resolve(this.addressesByHostname.get(hostname) ?? [PUBLIC_IPV4]);
   }
 
-  request(input: { readonly url: URL }): Promise<PublicJsonNetworkResponse> {
+  request(input: { readonly url: URL }): Promise<PublicResourceNetworkResponse> {
     this.requestedUrls.push(input.url.toString());
     const response = this.responses.shift();
 
@@ -33,14 +33,14 @@ class RecordingPublicJsonNetwork implements PublicJsonNetwork {
   }
 }
 
-const jsonResponse = (value: unknown): PublicJsonNetworkResponse => ({
+const jsonResponse = (value: unknown): PublicResourceNetworkResponse => ({
   status: "received",
   statusCode: 200,
   location: null,
   bodyBytes: new TextEncoder().encode(JSON.stringify(value)),
 });
 
-const load = (network: PublicJsonNetwork, resourceUrl: string) => {
+const load = (network: PublicResourceNetwork, resourceUrl: string) => {
   return loadPublicJsonFromUrl(network, {
     resourceUrl,
     headers: new Headers({ accept: "application/json" }),
@@ -63,7 +63,7 @@ describe("public verifier JSON loading", () => {
     "ftp://example.com/file.json",
     "https://user:password@example.com/schema.json",
   ])("rejects non-public destination %s before requesting it", async (resourceUrl) => {
-    const network = new RecordingPublicJsonNetwork([jsonResponse({ ok: true })]);
+    const network = new RecordingPublicResourceNetwork([jsonResponse({ ok: true })]);
 
     await expect(load(network, resourceUrl)).resolves.toEqual({
       status: "error",
@@ -75,7 +75,7 @@ describe("public verifier JSON loading", () => {
   });
 
   it("rejects a public hostname when DNS returns any private address", async () => {
-    const network = new RecordingPublicJsonNetwork(
+    const network = new RecordingPublicResourceNetwork(
       [jsonResponse({ ok: true })],
       new Map([
         [
@@ -93,7 +93,7 @@ describe("public verifier JSON loading", () => {
   });
 
   it("revalidates redirect destinations", async () => {
-    const network = new RecordingPublicJsonNetwork([
+    const network = new RecordingPublicResourceNetwork([
       {
         status: "received",
         statusCode: 302,
@@ -110,7 +110,9 @@ describe("public verifier JSON loading", () => {
   });
 
   it("returns parsed JSON from a valid public destination", async () => {
-    const network = new RecordingPublicJsonNetwork([jsonResponse({ title: "Credential schema" })]);
+    const network = new RecordingPublicResourceNetwork([
+      jsonResponse({ title: "Credential schema" }),
+    ]);
 
     await expect(load(network, "https://schemas.example.edu/credential.json")).resolves.toEqual({
       status: "ok",
@@ -120,7 +122,7 @@ describe("public verifier JSON loading", () => {
 
   it("enforces the response byte limit in the fetch adapter", async () => {
     const requestedUrls: string[] = [];
-    const network = createFetchPublicJsonNetwork((url) => {
+    const network = createFetchPublicResourceNetwork((url) => {
       requestedUrls.push(url);
       return Promise.resolve(
         new Response(JSON.stringify({ payload: "x".repeat(64) }), {

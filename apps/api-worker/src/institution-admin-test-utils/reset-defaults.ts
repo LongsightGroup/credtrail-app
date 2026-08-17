@@ -2,6 +2,7 @@ import type { DelegatedIssuingAuthorityGrantRecord } from "@credtrail/db";
 import { vi } from "vitest";
 import {
   mockedEnqueueJobQueueMessageOnce,
+  mockedEnqueueJobQueueMessagesOnce,
   mockedFindLtiResourceLinkPlacementForRule,
   mockedFindTenantAuthPolicy,
   mockedListAccessibleTenantContextsForUser,
@@ -611,6 +612,7 @@ export const resetInstitutionAdminTestDefaults = (): void => {
     queuedAt: null,
   }));
   mockedEnqueueJobQueueMessageOnce.mockResolvedValue(true);
+  mockedEnqueueJobQueueMessagesOnce.mockResolvedValue(1);
   mockedFindActiveLearnerRecordImportPreviewDb.mockResolvedValue(null);
   mockedMarkLearnerRecordImportPreviewQueuedDb.mockResolvedValue(true);
   mockedFindLearnerProfileByIdDb.mockResolvedValue(sampleLearnerProfile());
