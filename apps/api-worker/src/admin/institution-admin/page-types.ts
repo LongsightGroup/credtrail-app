@@ -28,7 +28,7 @@ import type {
   BadgeRuleApproverGroupWithMembersRecord,
 } from "@credtrail/db";
 import type { LearnerRecordImportRowReport } from "@credtrail/validation";
-import type { LearnerRecordImportBatchProgressSummary } from "../../learner-record/learner-record-import";
+import type { LearnerRecordImportBatchProgressSummary } from "../../learner-record/learner-record-import-progress";
 import type { LearnerRecordPresentationModel } from "../../learner-record/learner-record-presentation";
 import type { ReportingMetricEntry } from "../../reporting/metric-definitions";
 import type { BadgeRuleReviewQueueEntryView } from "../../badge-rule-review-queue-workspace";

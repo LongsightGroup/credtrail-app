@@ -18,7 +18,7 @@ import {
   type QueueJob,
   type SendBadgeRuleApprovalNotificationQueueJob,
 } from "@credtrail/validation";
-import { applyLearnerRecordImportQueuePayload } from "../learner-record/learner-record-import";
+import { applyLearnerRecordImportQueuePayload } from "../learner-record/learner-record-import-queue";
 import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
 
 const DEFAULT_JOB_PROCESS_LIMIT = 10;

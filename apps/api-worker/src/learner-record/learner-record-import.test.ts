@@ -4,11 +4,13 @@ import type { BadgeTemplateRecord, TenantOrgUnitRecord } from "@credtrail/db";
 
 import {
   buildLearnerRecordImportTemplateCsv,
+  parseLearnerRecordImportFile,
+} from "./learner-record-import-file";
+import { prepareLearnerRecordImportBatch } from "./learner-record-import-preparation";
+import {
   learnerRecordImportQueuePayloadsFromJson,
   learnerRecordImportRowReportsFromJson,
-  parseLearnerRecordImportFile,
-  prepareLearnerRecordImportBatch,
-} from "./learner-record-import";
+} from "./learner-record-import-queue";
 
 const sampleOrgUnits = (): TenantOrgUnitRecord[] => {
   return [
@@ -67,8 +69,6 @@ describe("learner-record import contract", () => {
     ].join("\n");
 
     const result = parseLearnerRecordImportFile({
-      fileName: "learner-records.csv",
-      mimeType: "text/csv",
       content: csv,
     });
 
@@ -86,6 +86,14 @@ describe("learner-record import contract", () => {
     ]);
   });
 
+  it("rejects CSV files that omit required import columns", () => {
+    const csv = ["learnerEmail,title", "learner@example.edu,Clinical Placement Seminar"].join("\n");
+
+    expect(() => parseLearnerRecordImportFile({ content: csv })).toThrow(
+      "CSV header is missing required columns: recordType, issuedAt",
+    );
+  });
+
   it("maps current URL key headers without retaining legacy slug aliases", () => {
     const csv = [
       "learnerEmail,title,recordType,issuedAt,orgUnitUrlKey,badgeTemplateUrlKey",
@@ -98,8 +106,6 @@ describe("learner-record import contract", () => {
 
     expect(
       parseLearnerRecordImportFile({
-        fileName: "learner-records.csv",
-        mimeType: "text/csv",
         content: csv,
       }).rows[0]?.candidate,
     ).toMatchObject({
@@ -108,8 +114,6 @@ describe("learner-record import contract", () => {
     });
     expect(() =>
       parseLearnerRecordImportFile({
-        fileName: "learner-records.csv",
-        mimeType: "text/csv",
         content: legacyCsv,
       }),
     ).toThrow(

@@ -8,11 +8,9 @@ import { parseLearnerRecordImportBatchDefaults } from "@credtrail/validation";
 import { institutionAdminLearnerRecordImportsPage } from "../../admin/institution-admin/page";
 import type { AppContext } from "../../app/types";
 import type { ResolveDatabase } from "../../app/route-deps";
-import {
-  prepareLearnerRecordImportSubmission,
-  queueReviewedLearnerRecordImportPreview,
-  summarizeLearnerRecordImportProgress,
-} from "../../learner-record/learner-record-import";
+import { prepareLearnerRecordImportSubmission } from "../../learner-record/learner-record-import-preparation";
+import { summarizeLearnerRecordImportProgress } from "../../learner-record/learner-record-import-progress";
+import { queueReviewedLearnerRecordImportPreview } from "../../learner-record/learner-record-import-queue";
 import { renderAppPage } from "../../ui/render-page";
 import type { InstitutionAdminPageData } from "../institution-admin-page-data-loader";
 import type { TenantGovernanceAdminPageDataLoaders } from "./page-data";
@@ -360,12 +358,10 @@ export const createTenantGovernanceLearnerRecordImportAdmin = (input: {
 
     let fileContent: string;
     let fileName: string;
-    let mimeType: string;
 
     if (upload instanceof File && upload.size > 0) {
       fileContent = await upload.text();
       fileName = upload.name;
-      mimeType = upload.type;
     } else {
       return renderLearnerRecordImportWorkspace(
         input.c,
@@ -415,7 +411,6 @@ export const createTenantGovernanceLearnerRecordImportAdmin = (input: {
       prepared = await prepareLearnerRecordImportSubmission(db, {
         tenantId: input.tenantId,
         fileName,
-        mimeType,
         content: fileContent,
         defaults,
         requestedAt,

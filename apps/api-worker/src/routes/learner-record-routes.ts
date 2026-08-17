@@ -23,12 +23,10 @@ import type { Hono } from "hono";
 import type { AppEnv } from "../app/types";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { mapLearnerRecordEntryToCanonicalLearnerRecordItem } from "../learner-record/learner-record-contract";
-import {
-  buildLearnerRecordImportTemplateCsv,
-  enqueueLearnerRecordImportBatch,
-  prepareLearnerRecordImportSubmission,
-  summarizeLearnerRecordImportProgress,
-} from "../learner-record/learner-record-import";
+import { buildLearnerRecordImportTemplateCsv } from "../learner-record/learner-record-import-file";
+import { prepareLearnerRecordImportSubmission } from "../learner-record/learner-record-import-preparation";
+import { summarizeLearnerRecordImportProgress } from "../learner-record/learner-record-import-progress";
+import { enqueueLearnerRecordImportBatch } from "../learner-record/learner-record-import-queue";
 
 interface RegisterLearnerRecordRoutesInput {
   app: Hono<AppEnv>;
@@ -164,7 +162,6 @@ export const registerLearnerRecordRoutes = (input: RegisterLearnerRecordRoutesIn
       prepared = await prepareLearnerRecordImportSubmission(db, {
         tenantId: pathParams.tenantId,
         fileName: upload.name,
-        mimeType: upload.type,
         content: fileContent,
         defaults,
         requestedAt: new Date().toISOString(),
