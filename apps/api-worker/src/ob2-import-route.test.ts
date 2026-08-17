@@ -575,6 +575,92 @@ describe("POST /v1/tenants/:tenantId/migrations/ob2/batch-upload", () => {
   });
 });
 
+describe("migration file ingest request validation", () => {
+  it.each([
+    [
+      "/v1/tenants/tenant_123/migrations/ob2/batch-upload",
+      "Invalid batch upload query parameters",
+      "Batch upload",
+    ],
+    [
+      "/v1/tenants/tenant_123/migrations/credly/ingest",
+      "Invalid credly ingest query parameters",
+      "Credly ingest",
+    ],
+    [
+      "/v1/tenants/tenant_123/migrations/parchment/ingest",
+      "Invalid parchment ingest query parameters",
+      "Parchment ingest",
+    ],
+  ])("preserves the request contract for %s", async (path, queryError, requestLabel) => {
+    const env = createEnv();
+    const authenticatedHeaders = {
+      Origin: "http://localhost",
+      cookie: "better-auth.session_token=test-session-token",
+    };
+    const invalidQueryResponse = await app.request(
+      `${path}?dryRun=not-a-boolean`,
+      {
+        method: "POST",
+        headers: authenticatedHeaders,
+      },
+      env,
+    );
+    expect(invalidQueryResponse.status).toBe(400);
+    await expect(invalidQueryResponse.json()).resolves.toEqual({ error: queryError });
+
+    const unsupportedMediaResponse = await app.request(
+      path,
+      {
+        method: "POST",
+        headers: {
+          ...authenticatedHeaders,
+          "content-type": "application/json",
+        },
+        body: "{}",
+      },
+      env,
+    );
+    expect(unsupportedMediaResponse.status).toBe(415);
+    await expect(unsupportedMediaResponse.json()).resolves.toEqual({
+      error: `${requestLabel} requires multipart/form-data with a file field named "file"`,
+    });
+
+    const missingFileResponse = await app.request(
+      path,
+      {
+        method: "POST",
+        headers: authenticatedHeaders,
+        body: new FormData(),
+      },
+      env,
+    );
+    expect(missingFileResponse.status).toBe(400);
+    await expect(missingFileResponse.json()).resolves.toEqual({
+      error: `${requestLabel} file is required in form field "file"`,
+    });
+
+    const malformedFileData = new FormData();
+    malformedFileData.append(
+      "file",
+      new Blob(["not-json"], { type: "application/json" }),
+      "malformed.json",
+    );
+    const malformedFileResponse = await app.request(
+      path,
+      {
+        method: "POST",
+        headers: authenticatedHeaders,
+        body: malformedFileData,
+      },
+      env,
+    );
+    const malformedFileBody = await malformedFileResponse.json<Record<string, unknown>>();
+    expect(malformedFileResponse.status).toBe(422);
+    expect(malformedFileBody.error).toEqual(expect.any(String));
+  });
+});
+
 describe("POST /v1/tenants/:tenantId/migrations/credly/ingest", () => {
   it("parses Credly JSON export payloads in dry-run mode", async () => {
     const env = createEnv();

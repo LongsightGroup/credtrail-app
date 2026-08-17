@@ -44,6 +44,63 @@ interface RegisterMigrationRoutesInput {
   ISSUER_ROLES: readonly TenantMembershipRole[];
 }
 
+type MigrationBatchSource = "file_upload" | "credly_export" | "parchment_export";
+
+interface ParsedMigrationUploadFile {
+  format: MigrationBatchFileFormat;
+  rows: readonly {
+    rowNumber: number;
+    candidate: Record<string, unknown>;
+  }[];
+}
+
+interface MigrationFileIngestRoute {
+  path: string;
+  requestLabel: string;
+  queryErrorSubject: string;
+  source: MigrationBatchSource;
+  includeSourceInResponse: boolean;
+  parseFile: (input: {
+    fileName: string;
+    mimeType: string;
+    content: string;
+  }) => ParsedMigrationUploadFile;
+  parseErrorMessage: (error: unknown) => string | null;
+}
+
+const MIGRATION_FILE_INGEST_ROUTES = [
+  {
+    path: "/v1/tenants/:tenantId/migrations/ob2/batch-upload",
+    requestLabel: "Batch upload",
+    queryErrorSubject: "batch upload",
+    source: "file_upload",
+    includeSourceInResponse: false,
+    parseFile: parseMigrationBatchUploadFile,
+    parseErrorMessage: (error: unknown): string | null =>
+      error instanceof MigrationBatchFileParseError ? error.message : null,
+  },
+  {
+    path: "/v1/tenants/:tenantId/migrations/credly/ingest",
+    requestLabel: "Credly ingest",
+    queryErrorSubject: "credly ingest",
+    source: "credly_export",
+    includeSourceInResponse: true,
+    parseFile: parseCredlyExportFile,
+    parseErrorMessage: (error: unknown): string | null =>
+      error instanceof CredlyExportFileParseError ? error.message : null,
+  },
+  {
+    path: "/v1/tenants/:tenantId/migrations/parchment/ingest",
+    requestLabel: "Parchment ingest",
+    queryErrorSubject: "parchment ingest",
+    source: "parchment_export",
+    includeSourceInResponse: true,
+    parseFile: parseParchmentExportFile,
+    parseErrorMessage: (error: unknown): string | null =>
+      error instanceof ParchmentExportFileParseError ? error.message : null,
+  },
+] as const satisfies readonly MigrationFileIngestRoute[];
+
 interface DryRunDiffPreview {
   badgeTemplate: {
     operation: "create" | "update";
@@ -78,7 +135,7 @@ interface BatchUploadRowValidationResult {
 
 interface MigrationBatchProgressSummary {
   batchId: string;
-  source: "file_upload" | "credly_export" | "parchment_export" | "unknown";
+  source: MigrationBatchSource | "unknown";
   fileName: string | null;
   format: string | null;
   totalRows: number;
@@ -207,11 +264,11 @@ const runBatchRowValidation = async (input: {
   db: SqlDatabase;
   tenantId: string;
   dryRun: boolean;
-  source: "file_upload" | "credly_export" | "parchment_export";
+  source: MigrationBatchSource;
   fileName: string;
   format: MigrationBatchFileFormat;
   batchId: string;
-  rows: {
+  rows: readonly {
     rowNumber: number;
     candidate: Record<string, unknown>;
   }[];
@@ -311,6 +368,125 @@ const runBatchRowValidation = async (input: {
     reports,
     queuedRows,
   };
+};
+
+const registerMigrationFileIngestRoutes = (input: RegisterMigrationRoutesInput): void => {
+  for (const route of MIGRATION_FILE_INGEST_ROUTES) {
+    input.app.post(route.path, async (c) => {
+      const pathParams = parseTenantPathParams(c.req.param());
+      const roleCheck = await input.requireTenantRole(
+        c,
+        pathParams.tenantId,
+        input.ISSUER_ROLES,
+      );
+
+      if (roleCheck instanceof Response) {
+        return roleCheck;
+      }
+
+      let query;
+
+      try {
+        query = parseMigrationBatchUploadQuery({
+          dryRun: c.req.query("dryRun"),
+        });
+      } catch {
+        return c.json(
+          {
+            error: `Invalid ${route.queryErrorSubject} query parameters`,
+          },
+          400,
+        );
+      }
+
+      const contentType = c.req.header("content-type")?.toLowerCase() ?? "";
+
+      if (!contentType.includes("multipart/form-data")) {
+        return c.json(
+          {
+            error: `${route.requestLabel} requires multipart/form-data with a file field named "file"`,
+          },
+          415,
+        );
+      }
+
+      const formData = await c.req.formData();
+      const upload = formData.get("file");
+
+      if (!(upload instanceof File)) {
+        return c.json(
+          {
+            error: `${route.requestLabel} file is required in form field "file"`,
+          },
+          400,
+        );
+      }
+
+      const fileContent = await upload.text();
+
+      if (fileContent.trim().length === 0) {
+        return c.json(
+          {
+            error: "Uploaded file is empty",
+          },
+          422,
+        );
+      }
+
+      let parsedFile;
+
+      try {
+        parsedFile = route.parseFile({
+          fileName: upload.name,
+          mimeType: upload.type,
+          content: fileContent,
+        });
+      } catch (error: unknown) {
+        const message = route.parseErrorMessage(error);
+
+        if (message !== null) {
+          return c.json(
+            {
+              error: message,
+            },
+            422,
+          );
+        }
+
+        throw error;
+      }
+
+      const batchId = crypto.randomUUID();
+      const { reports, queuedRows } = await runBatchRowValidation({
+        db: input.resolveDatabase(c.env),
+        tenantId: pathParams.tenantId,
+        dryRun: query.dryRun,
+        source: route.source,
+        fileName: upload.name,
+        format: parsedFile.format,
+        batchId,
+        rows: parsedFile.rows,
+      });
+      const validRows = reports.filter((report) => report.status === "valid").length;
+
+      return c.json(
+        {
+          tenantId: pathParams.tenantId,
+          batchId,
+          fileName: upload.name,
+          format: parsedFile.format,
+          dryRun: query.dryRun,
+          ...(route.includeSourceInResponse ? { source: route.source } : {}),
+          totalRows: reports.length,
+          validRows,
+          invalidRows: reports.length - validRows,
+          queuedRows,
+          rows: reports,
+        },
+        200,
+      );
+    });
+  }
 };
 
 const summarizeMigrationBatchProgress = (
@@ -565,337 +741,7 @@ export const registerMigrationRoutes = (input: RegisterMigrationRoutesInput): vo
     }
   });
 
-  app.post("/v1/tenants/:tenantId/migrations/ob2/batch-upload", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    let query;
-
-    try {
-      query = parseMigrationBatchUploadQuery({
-        dryRun: c.req.query("dryRun"),
-      });
-    } catch {
-      return c.json(
-        {
-          error: "Invalid batch upload query parameters",
-        },
-        400,
-      );
-    }
-
-    const contentType = c.req.header("content-type")?.toLowerCase() ?? "";
-
-    if (!contentType.includes("multipart/form-data")) {
-      return c.json(
-        {
-          error: 'Batch upload requires multipart/form-data with a file field named "file"',
-        },
-        415,
-      );
-    }
-
-    const formData = await c.req.formData();
-    const upload = formData.get("file");
-
-    if (!(upload instanceof File)) {
-      return c.json(
-        {
-          error: 'Batch upload file is required in form field "file"',
-        },
-        400,
-      );
-    }
-
-    const fileContent = await upload.text();
-
-    if (fileContent.trim().length === 0) {
-      return c.json(
-        {
-          error: "Uploaded file is empty",
-        },
-        422,
-      );
-    }
-
-    let parsedFile;
-
-    try {
-      parsedFile = parseMigrationBatchUploadFile({
-        fileName: upload.name,
-        mimeType: upload.type,
-        content: fileContent,
-      });
-    } catch (error: unknown) {
-      if (error instanceof MigrationBatchFileParseError) {
-        return c.json(
-          {
-            error: error.message,
-          },
-          422,
-        );
-      }
-
-      throw error;
-    }
-
-    const batchId = crypto.randomUUID();
-    const db = resolveDatabase(c.env);
-    const { reports, queuedRows } = await runBatchRowValidation({
-      db,
-      tenantId: pathParams.tenantId,
-      dryRun: query.dryRun,
-      source: "file_upload",
-      fileName: upload.name,
-      format: parsedFile.format,
-      batchId,
-      rows: parsedFile.rows,
-    });
-    const validRows = reports.filter((report) => report.status === "valid").length;
-    const invalidRows = reports.length - validRows;
-
-    return c.json(
-      {
-        tenantId: pathParams.tenantId,
-        batchId,
-        fileName: upload.name,
-        format: parsedFile.format,
-        dryRun: query.dryRun,
-        totalRows: reports.length,
-        validRows,
-        invalidRows,
-        queuedRows,
-        rows: reports,
-      },
-      200,
-    );
-  });
-
-  app.post("/v1/tenants/:tenantId/migrations/credly/ingest", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    let query;
-
-    try {
-      query = parseMigrationBatchUploadQuery({
-        dryRun: c.req.query("dryRun"),
-      });
-    } catch {
-      return c.json(
-        {
-          error: "Invalid credly ingest query parameters",
-        },
-        400,
-      );
-    }
-
-    const contentType = c.req.header("content-type")?.toLowerCase() ?? "";
-
-    if (!contentType.includes("multipart/form-data")) {
-      return c.json(
-        {
-          error: 'Credly ingest requires multipart/form-data with a file field named "file"',
-        },
-        415,
-      );
-    }
-
-    const formData = await c.req.formData();
-    const upload = formData.get("file");
-
-    if (!(upload instanceof File)) {
-      return c.json(
-        {
-          error: 'Credly ingest file is required in form field "file"',
-        },
-        400,
-      );
-    }
-
-    const fileContent = await upload.text();
-
-    if (fileContent.trim().length === 0) {
-      return c.json(
-        {
-          error: "Uploaded file is empty",
-        },
-        422,
-      );
-    }
-
-    let parsedFile;
-
-    try {
-      parsedFile = parseCredlyExportFile({
-        fileName: upload.name,
-        mimeType: upload.type,
-        content: fileContent,
-      });
-    } catch (error: unknown) {
-      if (error instanceof CredlyExportFileParseError) {
-        return c.json(
-          {
-            error: error.message,
-          },
-          422,
-        );
-      }
-
-      throw error;
-    }
-
-    const batchId = crypto.randomUUID();
-    const db = resolveDatabase(c.env);
-    const { reports, queuedRows } = await runBatchRowValidation({
-      db,
-      tenantId: pathParams.tenantId,
-      dryRun: query.dryRun,
-      source: "credly_export",
-      fileName: upload.name,
-      format: parsedFile.format,
-      batchId,
-      rows: parsedFile.rows,
-    });
-    const validRows = reports.filter((report) => report.status === "valid").length;
-    const invalidRows = reports.length - validRows;
-
-    return c.json(
-      {
-        tenantId: pathParams.tenantId,
-        batchId,
-        fileName: upload.name,
-        format: parsedFile.format,
-        dryRun: query.dryRun,
-        source: "credly_export",
-        totalRows: reports.length,
-        validRows,
-        invalidRows,
-        queuedRows,
-        rows: reports,
-      },
-      200,
-    );
-  });
-
-  app.post("/v1/tenants/:tenantId/migrations/parchment/ingest", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
-
-    if (roleCheck instanceof Response) {
-      return roleCheck;
-    }
-
-    let query;
-
-    try {
-      query = parseMigrationBatchUploadQuery({
-        dryRun: c.req.query("dryRun"),
-      });
-    } catch {
-      return c.json(
-        {
-          error: "Invalid parchment ingest query parameters",
-        },
-        400,
-      );
-    }
-
-    const contentType = c.req.header("content-type")?.toLowerCase() ?? "";
-
-    if (!contentType.includes("multipart/form-data")) {
-      return c.json(
-        {
-          error: 'Parchment ingest requires multipart/form-data with a file field named "file"',
-        },
-        415,
-      );
-    }
-
-    const formData = await c.req.formData();
-    const upload = formData.get("file");
-
-    if (!(upload instanceof File)) {
-      return c.json(
-        {
-          error: 'Parchment ingest file is required in form field "file"',
-        },
-        400,
-      );
-    }
-
-    const fileContent = await upload.text();
-
-    if (fileContent.trim().length === 0) {
-      return c.json(
-        {
-          error: "Uploaded file is empty",
-        },
-        422,
-      );
-    }
-
-    let parsedFile;
-
-    try {
-      parsedFile = parseParchmentExportFile({
-        fileName: upload.name,
-        mimeType: upload.type,
-        content: fileContent,
-      });
-    } catch (error: unknown) {
-      if (error instanceof ParchmentExportFileParseError) {
-        return c.json(
-          {
-            error: error.message,
-          },
-          422,
-        );
-      }
-
-      throw error;
-    }
-
-    const batchId = crypto.randomUUID();
-    const db = resolveDatabase(c.env);
-    const { reports, queuedRows } = await runBatchRowValidation({
-      db,
-      tenantId: pathParams.tenantId,
-      dryRun: query.dryRun,
-      source: "parchment_export",
-      fileName: upload.name,
-      format: parsedFile.format,
-      batchId,
-      rows: parsedFile.rows,
-    });
-    const validRows = reports.filter((report) => report.status === "valid").length;
-    const invalidRows = reports.length - validRows;
-
-    return c.json(
-      {
-        tenantId: pathParams.tenantId,
-        batchId,
-        fileName: upload.name,
-        format: parsedFile.format,
-        dryRun: query.dryRun,
-        source: "parchment_export",
-        totalRows: reports.length,
-        validRows,
-        invalidRows,
-        queuedRows,
-        rows: reports,
-      },
-      200,
-    );
-  });
+  registerMigrationFileIngestRoutes(input);
 
   app.get("/v1/tenants/:tenantId/migrations/progress", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
