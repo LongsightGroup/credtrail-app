@@ -262,6 +262,8 @@ const runBatchRowValidation = async (input: {
   fileName: string;
   format: MigrationBatchFileFormat;
   batchId: string;
+  requestedAt: string;
+  requestedByUserId: string;
   rows: readonly {
     rowNumber: number;
     candidate: Record<string, unknown>;
@@ -335,7 +337,11 @@ const runBatchRowValidation = async (input: {
           rowNumber: row.rowNumber,
           fileName: input.fileName,
           format: input.format,
-          request,
+          requestedAt: input.requestedAt,
+          requestedByUserId: input.requestedByUserId,
+          ...(request.bakedBadgeImage === undefined
+            ? {}
+            : { bakedBadgeImage: request.bakedBadgeImage }),
           conversion: conversionResult.conversion,
         },
         idempotencyKey: `migration-batch:${input.batchId}:${String(row.rowNumber)}`,
@@ -453,6 +459,8 @@ const registerMigrationFileIngestRoutes = (input: RegisterMigrationRoutesInput):
         fileName: upload.name,
         format: parsedFile.format,
         batchId,
+        requestedAt: new Date().toISOString(),
+        requestedByUserId: roleCheck.principal.userId,
         rows: parsedFile.rows,
       });
       const validRows = reports.filter((report) => report.status === "valid").length;

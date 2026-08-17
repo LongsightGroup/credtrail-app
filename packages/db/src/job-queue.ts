@@ -7,7 +7,6 @@ type LearnerRecordTrustLevel = "issuer_verified" | "learner_supplemental";
 export type JobQueueMessageType =
   | "issue_badge"
   | "revoke_badge"
-  | "rebuild_verification_cache"
   | "import_migration_batch"
   | "import_learner_record_batch"
   | "generate_badge_template_image"

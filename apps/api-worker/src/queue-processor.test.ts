@@ -165,8 +165,12 @@ const sampleLeasedQueueMessage = (
   return {
     id: "job_123",
     tenantId: "tenant_123",
-    jobType: "rebuild_verification_cache",
-    payloadJson: "{}",
+    jobType: "process_learner_evidence_change",
+    payloadJson: JSON.stringify({
+      learnerProfileId: "lpr_123",
+      trigger: "assertion_issued",
+      requestedAt: "2026-02-10T22:00:00.000Z",
+    }),
     idempotencyKey: "idem_job_123",
     attemptCount: 1,
     maxAttempts: 8,

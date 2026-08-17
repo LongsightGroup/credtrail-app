@@ -1,4 +1,4 @@
-import { logError, logInfo, type ObservabilityContext } from "@credtrail/core-domain";
+import { logError, type ObservabilityContext } from "@credtrail/core-domain";
 import {
   completeJobQueueMessage,
   createAuditLog,
@@ -12,6 +12,7 @@ import {
 import {
   parseQueueJob,
   type GenerateBadgeTemplateImageQueueJob,
+  type ImportMigrationBatchQueueJob,
   type ProcessAutomatedBadgeRuleQueueJob,
   type ProcessBadgeRuleLifecycleQueueJob,
   type ProcessQueueRequest,
@@ -107,6 +108,12 @@ interface ProcessQueuedJobsDependencies<TBindings, TContext extends { env: TBind
     tenantId: string,
     payload: GenerateBadgeTemplateImageQueueJob["payload"],
   ) => Promise<void>;
+  processMigrationBatchJob: (
+    context: TContext,
+    tenantId: string,
+    payload: ImportMigrationBatchQueueJob["payload"],
+    idempotencyKey: string,
+  ) => Promise<void>;
   processBadgeRuleLifecycleJob: (
     context: TContext,
     tenantId: string,
@@ -193,13 +200,8 @@ const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
       });
       return;
     }
-    case "rebuild_verification_cache":
     case "import_migration_batch":
-      logInfo(dependencies.observabilityContext(c.env), "queue_job_received", {
-        jobType: job.jobType,
-        tenantId: job.tenantId,
-        idempotencyKey: job.idempotencyKey,
-      });
+      await dependencies.processMigrationBatchJob(c, job.tenantId, job.payload, job.idempotencyKey);
       return;
     case "import_learner_record_batch":
       await applyLearnerRecordImportQueuePayload(

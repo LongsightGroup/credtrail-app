@@ -52,6 +52,7 @@ import {
 import { createCredentialProofVerificationHelpers } from "./credentials/proof-verification";
 import { createLoadJsonObjectFromUrl } from "./http/json-object-loader";
 import { workerPublicJsonNetwork } from "./http/public-json-network";
+import { processMigrationBatchQueueJob } from "./migrations/migration-batch-queue-job";
 import { createSignCredentialForDid } from "./signing/credential-signer";
 import {
   didDocumentForSigningEntry,
@@ -270,6 +271,19 @@ const processQueuedJobs = createProcessQueuedJobs({
   resolveDatabase,
   observabilityContext,
   issueBadgeForTenant,
+  processMigrationBatchJob: async (c, tenantId, payload, idempotencyKey) => {
+    await processMigrationBatchQueueJob({
+      context: c,
+      db: resolveDatabase(c.env),
+      tenantId,
+      payload,
+      idempotencyKey,
+      store: c.env.BADGE_OBJECTS,
+      publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
+      publicJsonNetwork: c.env.VERIFIER_PUBLIC_JSON_NETWORK ?? workerPublicJsonNetwork,
+      issueBadgeForTenant,
+    });
+  },
   processBadgeTemplateImageGenerationJob: (c, tenantId, payload) => {
     return processBadgeTemplateImageGenerationJob({
       db: resolveDatabase(c.env),

@@ -37,7 +37,7 @@ const jsonResponse = (value: unknown): PublicJsonNetworkResponse => ({
   status: "received",
   statusCode: 200,
   location: null,
-  bodyText: JSON.stringify(value),
+  bodyBytes: new TextEncoder().encode(JSON.stringify(value)),
 });
 
 const load = (network: PublicJsonNetwork, resourceUrl: string) => {
@@ -98,7 +98,7 @@ describe("public verifier JSON loading", () => {
         status: "received",
         statusCode: 302,
         location: "http://127.0.0.1/admin",
-        bodyText: "",
+        bodyBytes: new Uint8Array(),
       },
     ]);
 

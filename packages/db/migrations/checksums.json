@@ -72,5 +72,7 @@
   "0070_drop_dedicated_db_provisioning.sql": "01e69ba03d4450d3664ba55598a6ce92b749b0fe112511555093e62d3a22c465",
   "0071_drop_superseded_canvas_integration.sql": "9b47c3d3f42e05838bf88eea58caea6968e5f4fe22baf02ab3a295f6c7ac4707",
   "0072_preserve_unavailable_achievement_snapshots.sql": "fb85a18a5e08a098f8d4ed6891ecd47b79784c312c6a5c6034ca828f4f47a536",
-  "0073_atomic_assertion_status_list_allocation.sql": "7abf834b80bd39c3adbea99c1a90f2f34d9e3e952df52782c5b3921212f2b141"
+  "0073_atomic_assertion_status_list_allocation.sql": "7abf834b80bd39c3adbea99c1a90f2f34d9e3e952df52782c5b3921212f2b141",
+  "0074_remove_orphan_verification_cache_job.sql": "f8d78bf417966de05bc0abafb5a948e3a2eb95b8bf4085f617cb1738f89defd6",
+  "0075_allow_ownership_event_tenant_cascade.sql": "ede894b650e3fc333cb55149fac5552b62a0a60bbc2aefc12dfb61250578545f"
 }

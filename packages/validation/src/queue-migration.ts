@@ -2,6 +2,10 @@ import { z } from "zod";
 import { jsonObjectSchema, idempotencyKeySchema } from "./json.js";
 import { issuanceAchievementSourceSchema } from "./credentials.js";
 import {
+  badgeTemplateDescriptionSchema,
+  badgeTemplateSlugSchema,
+  badgeTemplateTitleSchema,
+  badgeTemplateUriSchema,
   isoTimestampSchema,
   recipientIdentityTypeSchema,
   recipientIdentifierSchema,
@@ -165,17 +169,59 @@ export const revokeBadgeQueueJobSchema = z.strictObject({
   idempotencyKey: idempotencyKeySchema,
 });
 
-export const rebuildVerificationCacheQueueJobSchema = z.strictObject({
-  jobType: z.literal("rebuild_verification_cache"),
-  tenantId: tenantIdSchema,
-  payload: z.record(z.string(), z.unknown()),
-  idempotencyKey: idempotencyKeySchema,
+const migrationBadgeTemplateSchema = z.strictObject({
+  slug: badgeTemplateSlugSchema,
+  title: badgeTemplateTitleSchema,
+  description: badgeTemplateDescriptionSchema.optional(),
+  criteriaUri: badgeTemplateUriSchema.optional(),
+  imageUri: badgeTemplateUriSchema.optional(),
+});
+
+const migrationManualIssueSchema = z.strictObject({
+  recipientIdentity: z.string().trim().min(1).max(2048),
+  recipientIdentityType: recipientIdentityTypeSchema,
+});
+
+const migrationIssueOptionsSchema = z.strictObject({
+  recipientDisplayName: z.string().trim().min(1).max(200).optional(),
+  issuerName: z.string().trim().min(1).max(200).optional(),
+  issuerUrl: z.string().trim().url().max(2048).optional(),
+});
+
+const migrationSourceMetadataSchema = z.strictObject({
+  assertionId: z.string().trim().min(1).max(2048).optional(),
+  badgeClassId: z.string().trim().min(1).max(2048).optional(),
+  issuerId: z.string().trim().min(1).max(2048).optional(),
+  issuedOn: isoTimestampSchema,
+  evidenceUrls: z.array(z.string().trim().url().max(2048)).max(100),
+  narrative: z.string().max(10_000).optional(),
+  recipientType: z.string().trim().min(1).max(256).optional(),
+  recipientHashed: z.boolean(),
+  recipientSalt: z.string().max(4096).optional(),
+});
+
+export const migrationBatchQueuePayloadSchema = z.strictObject({
+  source: z.enum(["file_upload", "credly_export", "parchment_export"]),
+  batchId: z.string().trim().min(1).max(128),
+  rowNumber: z.number().int().min(1),
+  fileName: z.string().trim().min(1).max(255),
+  format: z.enum(["csv", "json"]),
+  requestedAt: isoTimestampSchema,
+  requestedByUserId: userIdSchema.optional(),
+  bakedBadgeImage: z.string().max(3_000_000).optional(),
+  conversion: z.strictObject({
+    createBadgeTemplateRequest: migrationBadgeTemplateSchema,
+    manualIssueRequest: migrationManualIssueSchema,
+    issueOptions: migrationIssueOptionsSchema,
+    sourceMetadata: migrationSourceMetadataSchema,
+    warnings: z.array(z.string().max(2000)).max(100),
+  }),
 });
 
 export const importMigrationBatchQueueJobSchema = z.strictObject({
   jobType: z.literal("import_migration_batch"),
   tenantId: tenantIdSchema,
-  payload: z.record(z.string(), z.unknown()),
+  payload: migrationBatchQueuePayloadSchema,
   idempotencyKey: idempotencyKeySchema,
 });
 
@@ -299,7 +345,6 @@ export const processLearnerEvidenceChangeQueueJobSchema = z.strictObject({
 export const queueJobSchema = z.discriminatedUnion("jobType", [
   issueBadgeQueueJobSchema,
   revokeBadgeQueueJobSchema,
-  rebuildVerificationCacheQueueJobSchema,
   importMigrationBatchQueueJobSchema,
   learnerRecordImportBatchQueueJobSchema,
   generateBadgeTemplateImageQueueJobSchema,
@@ -335,6 +380,8 @@ export type Ob2ImportConversionRequest = z.infer<typeof ob2ImportConversionReque
 export type IssueBadgeQueueJob = z.infer<typeof issueBadgeQueueJobSchema>;
 
 export type RevokeBadgeQueueJob = z.infer<typeof revokeBadgeQueueJobSchema>;
+
+export type ImportMigrationBatchQueueJob = z.infer<typeof importMigrationBatchQueueJobSchema>;
 
 export type GenerateBadgeTemplateImageQueueJob = z.infer<
   typeof generateBadgeTemplateImageQueueJobSchema

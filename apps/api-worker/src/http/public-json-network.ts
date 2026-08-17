@@ -18,7 +18,7 @@ export type PublicJsonNetworkResponse =
       readonly status: "received";
       readonly statusCode: number;
       readonly location: string | null;
-      readonly bodyText: string;
+      readonly bodyBytes: Uint8Array;
     }
   | { readonly status: "response_too_large" };
 
@@ -40,19 +40,25 @@ export interface PublicJsonNetwork {
 }
 
 /** Typed outcome from loading untrusted public JSON for credential verification. */
+export type PublicNetworkLoadError =
+  | { readonly kind: "invalid_url" }
+  | { readonly kind: "blocked_destination" }
+  | { readonly kind: "request_failed" }
+  | { readonly kind: "response_too_large" }
+  | { readonly kind: "too_many_redirects" }
+  | { readonly kind: "http_error"; readonly statusCode: number };
+
 export type PublicJsonLoadResult =
   | { readonly status: "ok"; readonly value: unknown }
   | {
       readonly status: "error";
-      readonly error:
-        | { readonly kind: "invalid_url" }
-        | { readonly kind: "blocked_destination" }
-        | { readonly kind: "request_failed" }
-        | { readonly kind: "response_too_large" }
-        | { readonly kind: "too_many_redirects" }
-        | { readonly kind: "http_error"; readonly statusCode: number }
-        | { readonly kind: "invalid_json" };
+      readonly error: PublicNetworkLoadError | { readonly kind: "invalid_json" };
     };
+
+/** Typed outcome from loading untrusted bytes from a public URL. */
+export type PublicBytesLoadResult =
+  | { readonly status: "ok"; readonly bodyBytes: Uint8Array }
+  | { readonly status: "error"; readonly error: PublicNetworkLoadError };
 
 const redirectStatus = (statusCode: number): boolean => {
   return (
@@ -114,11 +120,11 @@ const resolvedAddressesForUrl = async (
   return resolved;
 };
 
-const readBoundedResponseText = async (
+const readBoundedResponseBytes = async (
   response: Response,
   maxResponseBytes: number,
 ): Promise<
-  { readonly status: "ok"; readonly bodyText: string } | { readonly status: "too_large" }
+  { readonly status: "ok"; readonly bodyBytes: Uint8Array } | { readonly status: "too_large" }
 > => {
   const contentLength = response.headers.get("content-length");
 
@@ -132,7 +138,7 @@ const readBoundedResponseText = async (
   }
 
   if (response.body === null) {
-    return { status: "ok", bodyText: "" };
+    return { status: "ok", bodyBytes: new Uint8Array() };
   }
 
   const reader = response.body.getReader();
@@ -164,7 +170,7 @@ const readBoundedResponseText = async (
     offset += chunk.byteLength;
   }
 
-  return { status: "ok", bodyText: new TextDecoder().decode(bytes) };
+  return { status: "ok", bodyBytes: bytes };
 };
 
 /** Creates a strict-public network adapter around a runtime fetch implementation. */
@@ -187,18 +193,18 @@ export const createFetchPublicJsonNetwork = (
           status: "received",
           statusCode: response.status,
           location: response.headers.get("location"),
-          bodyText: "",
+          bodyBytes: new Uint8Array(),
         };
       }
 
-      const body = await readBoundedResponseText(response, input.maxResponseBytes);
+      const body = await readBoundedResponseBytes(response, input.maxResponseBytes);
       return body.status === "too_large"
         ? { status: "response_too_large" }
         : {
             status: "received",
             statusCode: response.status,
             location: response.headers.get("location"),
-            bodyText: body.bodyText,
+            bodyBytes: body.bodyBytes,
           };
     },
   };
@@ -209,8 +215,8 @@ export const workerPublicJsonNetwork = createFetchPublicJsonNetwork((url, init) 
   fetch(url, init),
 );
 
-/** Loads JSON through a runtime adapter while rejecting private destinations and unsafe redirects. */
-export const loadPublicJsonFromUrl = async (
+/** Loads bounded bytes while rejecting private destinations and unsafe redirects. */
+export const loadPublicBytesFromUrl = async (
   network: PublicJsonNetwork,
   input: {
     readonly resourceUrl: string;
@@ -218,7 +224,7 @@ export const loadPublicJsonFromUrl = async (
     readonly maxResponseBytes?: number;
     readonly timeoutMs?: number;
   },
-): Promise<PublicJsonLoadResult> => {
+): Promise<PublicBytesLoadResult> => {
   const initial = parseCandidateUrl(input.resourceUrl);
 
   if (initial.status === "error") {
@@ -284,15 +290,7 @@ export const loadPublicJsonFromUrl = async (
         };
       }
 
-      let value: unknown;
-
-      try {
-        value = JSON.parse(response.bodyText) as unknown;
-      } catch {
-        return { status: "error", error: { kind: "invalid_json" } };
-      }
-
-      return { status: "ok", value };
+      return { status: "ok", bodyBytes: response.bodyBytes };
     }
 
     return { status: "error", error: { kind: "too_many_redirects" } };
@@ -300,5 +298,31 @@ export const loadPublicJsonFromUrl = async (
     return { status: "error", error: { kind: "request_failed" } };
   } finally {
     clearTimeout(timeoutHandle);
+  }
+};
+
+/** Loads JSON through a runtime adapter while rejecting private destinations and unsafe redirects. */
+export const loadPublicJsonFromUrl = async (
+  network: PublicJsonNetwork,
+  input: {
+    readonly resourceUrl: string;
+    readonly headers: Headers;
+    readonly maxResponseBytes?: number;
+    readonly timeoutMs?: number;
+  },
+): Promise<PublicJsonLoadResult> => {
+  const loaded = await loadPublicBytesFromUrl(network, input);
+
+  if (loaded.status === "error") {
+    return loaded;
+  }
+
+  try {
+    return {
+      status: "ok",
+      value: JSON.parse(new TextDecoder().decode(loaded.bodyBytes)) as unknown,
+    };
+  } catch {
+    return { status: "error", error: { kind: "invalid_json" } };
   }
 };

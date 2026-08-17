@@ -51,11 +51,11 @@ const responseHeader = (
   return value ?? null;
 };
 
-const readBoundedBodyText = async (
+const readBoundedBodyBytes = async (
   body: Awaited<ReturnType<typeof request>>["body"],
   maxResponseBytes: number,
 ): Promise<
-  { readonly status: "ok"; readonly bodyText: string } | { readonly status: "too_large" }
+  { readonly status: "ok"; readonly bodyBytes: Uint8Array } | { readonly status: "too_large" }
 > => {
   const chunks: Uint8Array[] = [];
   let totalBytes = 0;
@@ -79,7 +79,7 @@ const readBoundedBodyText = async (
     offset += chunk.byteLength;
   }
 
-  return { status: "ok", bodyText: new TextDecoder().decode(bytes) };
+  return { status: "ok", bodyBytes: bytes };
 };
 
 const requestWithPinnedAddresses = async (input: {
@@ -128,7 +128,7 @@ const requestWithPinnedAddresses = async (input: {
         status: "received",
         statusCode: response.statusCode,
         location,
-        bodyText: "",
+        bodyBytes: new Uint8Array(),
       };
     }
 
@@ -143,14 +143,14 @@ const requestWithPinnedAddresses = async (input: {
       }
     }
 
-    const body = await readBoundedBodyText(response.body, input.maxResponseBytes);
+    const body = await readBoundedBodyBytes(response.body, input.maxResponseBytes);
     return body.status === "too_large"
       ? { status: "response_too_large" }
       : {
           status: "received",
           statusCode: response.statusCode,
           location,
-          bodyText: body.bodyText,
+          bodyBytes: body.bodyBytes,
         };
   } finally {
     await dispatcher.close();

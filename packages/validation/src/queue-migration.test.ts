@@ -26,6 +26,67 @@ const sampleTemplateAchievementSource = {
 } as const;
 
 describe("parseQueueJob", () => {
+  it("accepts a strict migration row payload", () => {
+    const job = parseQueueJob({
+      jobType: "import_migration_batch",
+      tenantId: "tenant_123",
+      payload: {
+        source: "file_upload",
+        batchId: "batch_123",
+        rowNumber: 1,
+        fileName: "badges.json",
+        format: "json",
+        requestedAt: "2026-02-10T15:00:00.000Z",
+        requestedByUserId: "usr_123",
+        conversion: {
+          createBadgeTemplateRequest: {
+            slug: "migration-foundations",
+            title: "Migration Foundations",
+            imageUri: "https://issuer.example.edu/badges/migration.png",
+          },
+          manualIssueRequest: {
+            recipientIdentity: "learner@example.edu",
+            recipientIdentityType: "email",
+          },
+          issueOptions: {
+            recipientDisplayName: "Learner Example",
+            issuerName: "Example University",
+            issuerUrl: "https://issuer.example.edu",
+          },
+          sourceMetadata: {
+            assertionId: "https://issuer.example.edu/assertions/123",
+            issuedOn: "2026-02-10T14:00:00.000Z",
+            evidenceUrls: [],
+            recipientHashed: false,
+          },
+          warnings: [],
+        },
+      },
+      idempotencyKey: "migration-batch:batch_123:1",
+    });
+
+    expect(job.jobType).toBe("import_migration_batch");
+  });
+
+  it("rejects malformed migration rows and the removed cache job", () => {
+    expect(() =>
+      parseQueueJob({
+        jobType: "import_migration_batch",
+        tenantId: "tenant_123",
+        payload: { batchId: "batch_123" },
+        idempotencyKey: "migration-batch:batch_123:1",
+      }),
+    ).toThrow("Invalid input");
+    expect(() =>
+      parseQueueJob({
+        jobType: "rebuild_verification_cache",
+        tenantId: "tenant_123",
+        payload: {},
+        idempotencyKey: "cache:tenant_123",
+      }),
+    ).toThrow("Invalid discriminator value");
+  });
+
   it("accepts a valid issue_badge queue payload", () => {
     const job = parseQueueJob({
       jobType: "issue_badge",

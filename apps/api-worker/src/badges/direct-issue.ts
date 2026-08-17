@@ -123,6 +123,8 @@ export interface DirectIssueBadgeOptions {
   issuerName?: string;
   issuerUrl?: string;
   issuerImageUri?: string;
+  issuedAt?: string;
+  sendEmailNotification?: boolean;
 }
 
 export interface DirectIssueBadgeResult {
@@ -358,7 +360,7 @@ export const createIssueBadgeForTenant = <
       identityValue: request.recipientIdentity,
       ...(recipientDisplayName === undefined ? {} : { displayName: recipientDisplayName }),
     });
-    const issuedAt = new Date().toISOString();
+    const issuedAt = options?.issuedAt ?? new Date().toISOString();
     const assertionId = createTenantScopedId(tenantId);
     const statusListIndex = await reserveAssertionStatusListIndex(db, tenantId);
     const statusListCredentialUrl = revocationStatusListUrlForTenant(credentialBaseUrl, tenantId);
@@ -542,6 +544,7 @@ export const createIssueBadgeForTenant = <
 
     if (
       request.recipientIdentityType === "email" &&
+      options?.sendEmailNotification !== false &&
       issuanceEmailNotificationsEnabled(context.env)
     ) {
       const recipientEmail = request.recipientIdentity.trim().toLowerCase();
