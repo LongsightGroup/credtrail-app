@@ -16,7 +16,7 @@ import {
 } from "@credtrail/db";
 import { parseTenantPathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import { badgeNameFromCredential, issuerNameFromCredential } from "../badges/credential-display";
 import type {

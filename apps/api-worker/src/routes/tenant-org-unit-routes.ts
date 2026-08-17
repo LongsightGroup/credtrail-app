@@ -10,7 +10,7 @@ import {
   parseTenantPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppEnv } from "../app";
+import type { AppEnv } from "../app/types";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 
 interface RegisterTenantOrgUnitRoutesInput {

@@ -2,7 +2,7 @@ import type { TenantMembershipRole } from "@credtrail/db";
 import { parseBadgeTemplatePathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
 import { badgeTemplateAdminEditorHref } from "../admin/badge-template-admin-helpers";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { RequireScopedOrgUnitPermission, ResolveDatabase } from "../app/route-deps";
 import {
   applyBadgeTemplateGeneratedImage,

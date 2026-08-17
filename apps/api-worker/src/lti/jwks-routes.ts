@@ -1,7 +1,7 @@
 import type { JWKS } from "@longsightgroup/lti-tool";
 import { jwksRouteHandler } from "@longsightgroup/lti-tool/hono";
 import type { Hono } from "hono";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import { LTI_JWKS_PATH } from "./constants";
 import { getCredTrailLtiToolJwks } from "./credtrail-lti-tool";

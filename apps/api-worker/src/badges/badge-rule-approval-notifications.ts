@@ -6,7 +6,7 @@ import {
   type BadgeIssuanceRuleVersionRecord,
   type SqlDatabase,
 } from "@credtrail/db";
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 import {
   sendBadgeRuleApprovalDecisionEmail,
   sendBadgeRuleApprovalSubmittedNotifications,

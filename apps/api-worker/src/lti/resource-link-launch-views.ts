@@ -1,5 +1,5 @@
 import type { SqlDatabase } from "@credtrail/db";
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 import type { AppLogger } from "../app/observability";
 import { resolveInstructorResourceLinkViews } from "./instructor-launch-views";
 import { resolveLearnerResourceLinkView } from "./learner-launch-views";

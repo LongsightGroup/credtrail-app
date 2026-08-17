@@ -10,7 +10,7 @@ import {
   parsePresentationVerifyRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "../auth/auth-context";
 

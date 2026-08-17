@@ -1,6 +1,6 @@
 import { normalizeLtiIssuer } from "@credtrail/db";
 import { LTI_CLAIM_LIS, type LTI13JwtPayload as LtiLaunchClaims } from "@longsightgroup/lti-tool";
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
 
 const isLikelyEmailAddress = (value: string): boolean => {

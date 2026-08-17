@@ -8,7 +8,7 @@ import {
   parseTenantLmsConnectionPathParams,
   safeParseLearnerPathwayIssuanceQuery,
 } from "@credtrail/validation";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import { loadBadgeRuleReviewQueueEntries } from "../badge-rule-review-queue-workspace";
 import { buildTenantLtiDynamicRegistrationInviteUrl } from "../lti/dynamic-registration-service";

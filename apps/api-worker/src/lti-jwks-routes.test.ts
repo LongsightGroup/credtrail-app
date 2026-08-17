@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "@credtrail/db";
-import type { AppBindings, AppEnv } from "./app";
+import type { AppBindings, AppEnv } from "./app/types";
 import { createAppLogger } from "./app/observability";
 import { LTI_JWKS_PATH } from "./lti/constants";
 import { registerLtiRoutes } from "./routes/lti-routes";

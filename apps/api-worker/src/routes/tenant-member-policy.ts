@@ -3,7 +3,7 @@ import {
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 
 export type MembershipAuditAction =
   | "membership.role_assigned"

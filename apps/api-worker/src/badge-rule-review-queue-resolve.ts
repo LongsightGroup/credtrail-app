@@ -8,7 +8,7 @@ import {
 } from "@credtrail/db";
 import type { ResolveBadgeIssuanceRuleReviewRequest } from "@credtrail/validation";
 import { buildIssuanceProvenanceSnapshotFromEvaluationJson } from "@credtrail/validation";
-import type { AppContext } from "./app";
+import type { AppContext } from "./app/types";
 import type { IssueBadgeForTenant } from "./app/route-deps";
 import { isIssueBadgeHttpError } from "./badges/direct-issue";
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 import {
   createLtiDynamicRegistrationInviteToken,
   ltiDynamicRegistrationPath,

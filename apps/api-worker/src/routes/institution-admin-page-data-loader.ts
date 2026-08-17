@@ -24,7 +24,7 @@ import {
 import { institutionAdminDashboardPage } from "../admin/institution-admin/page";
 import type { InstitutionAdminView } from "../admin/institution-admin/page-types";
 import { INSTITUTION_ADMIN_VIEW_REGISTRY } from "../admin/institution-admin/view-content";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";
 

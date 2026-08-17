@@ -10,7 +10,7 @@ import {
   buildBadgeRuleVersionDetailPath,
 } from "../admin/access-admin-helpers";
 import { badgeRuleVersionPage } from "../admin/badge-rule-version-page";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import { renderAppPage } from "../ui/render-page";
 import {

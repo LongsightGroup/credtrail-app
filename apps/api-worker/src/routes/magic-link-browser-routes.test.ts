@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
 import { describe, expect, it } from "vitest";
-import type { AppEnv } from "../app";
+import type { AppEnv } from "../app/types";
 import { registerAppPageRenderer } from "../ui/render-page";
 import { registerMagicLinkBrowserRoutes } from "./magic-link-browser-routes";
 

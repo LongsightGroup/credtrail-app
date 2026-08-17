@@ -7,7 +7,7 @@ import {
   type RevokeBadgeRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppBindings, AppContext, AppEnv } from "../app/types";
 import { badgeArtworkIssuanceHttpFailure } from "../badges/badge-artwork-issuance-http";
 import {
   issueQueueIngressCommand,

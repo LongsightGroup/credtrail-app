@@ -1,4 +1,4 @@
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 
 type JsonErrorStatus = 400 | 401 | 403 | 404 | 408 | 409 | 422 | 500 | 501 | 502 | 503;
 

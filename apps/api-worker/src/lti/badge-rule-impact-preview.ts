@@ -4,7 +4,7 @@ import {
   listActiveLtiLaunchSessionsForPlatform,
   type SqlDatabase,
 } from "@credtrail/db";
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 import {
   resolveBadgeIssuanceRuleDefinitionValueLists,
   resolveRuleDefinition,

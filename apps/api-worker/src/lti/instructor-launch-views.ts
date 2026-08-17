@@ -6,7 +6,7 @@ import {
   type LTISession,
   type LtiToolPort,
 } from "@longsightgroup/lti-tool";
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 import type { AppLogger } from "../app/observability";
 import { asJsonObject, asNonEmptyString } from "../utils/value-parsers";
 import { ltiBadgeSummaryCardFromTemplate } from "./badge-summary-helpers";

@@ -12,7 +12,7 @@ import {
   parseBadgeIssuanceRuleDefinitionJson,
   type BadgeIssuanceRuleDefinition,
 } from "@credtrail/validation";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import type { AuthenticatedPrincipal } from "../auth/auth-context";
 import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";

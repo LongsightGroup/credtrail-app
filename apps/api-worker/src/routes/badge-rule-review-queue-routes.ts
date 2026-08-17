@@ -6,7 +6,7 @@ import {
   parseTenantPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppEnv } from "../app";
+import type { AppEnv } from "../app/types";
 import type { IssueBadgeForTenant, RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import type { DirectIssueBadgeResult } from "../badges/direct-issue";
 import { resolveBadgeRuleReviewQueueEntry } from "../badge-rule-review-queue-resolve";

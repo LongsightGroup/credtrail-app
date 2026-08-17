@@ -1,7 +1,7 @@
 import type { ObservabilityFields } from "@credtrail/core-domain";
 import type { LtiLogger } from "@longsightgroup/lti-tool";
 import type { AppLogger } from "../app/observability";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import { ltiLogger } from "./log";
 import { ltiErrorDetail } from "./redaction";
 

@@ -1,6 +1,6 @@
 import { findBadgeTemplateById, type SqlDatabase } from "@credtrail/db";
 import { LTI_CLAIM_DEPLOYMENT_ID } from "@longsightgroup/lti-tool";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import type { AppLogger } from "../app/observability";
 import { renderAppPage } from "../ui/render-page";
 import { LTI_SESSION_HANDOFF_TTL_SECONDS } from "./constants";

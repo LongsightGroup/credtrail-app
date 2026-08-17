@@ -14,7 +14,7 @@ import {
 import { ltiStateSigningSecret } from "./lti-helpers";
 import { CredTrailLtiStorage } from "./credtrail-lti-storage";
 import { LTI_STATE_TTL_SECONDS } from "./constants";
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 
 const LTI_TOOL_KEY_ID = "credtrail-lti-main";
 

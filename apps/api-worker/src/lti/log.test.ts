@@ -5,7 +5,7 @@ import type {
 } from "@credtrail/core-domain";
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
-import type { AppBindings, AppEnv } from "../app";
+import type { AppBindings, AppEnv } from "../app/types";
 import { createAppLogger } from "../app/observability";
 import { ltiLogger } from "./log";
 

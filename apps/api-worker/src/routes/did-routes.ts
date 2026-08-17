@@ -1,7 +1,7 @@
 import type { JsonObject } from "@credtrail/core-domain";
 import type { Hono } from "hono";
 import type { TenantSigningRegistryEntry } from "@credtrail/validation";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 
 interface SigningKeyLike {
   keyId: string;

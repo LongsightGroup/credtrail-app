@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ImmutableCredentialStore } from "@credtrail/core-domain";
 import worker, { app } from "./index";
-import type { AppBindings } from "./app";
+import type { AppBindings } from "./app/types";
 import type { WorkerRuntimeBindings } from "./worker/create-worker";
 
 const createNoopStore = (): ImmutableCredentialStore => {

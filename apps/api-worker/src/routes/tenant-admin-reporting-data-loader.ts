@@ -13,7 +13,7 @@ import {
   type TenantReportingLifecycleFilter,
 } from "@credtrail/db";
 import { institutionAdminDashboardPage } from "../admin/institution-admin/page";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import { resolveTenantReportingAccess } from "../auth/tenant-access";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";

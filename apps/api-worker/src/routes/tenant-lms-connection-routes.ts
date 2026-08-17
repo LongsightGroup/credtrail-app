@@ -14,7 +14,7 @@ import {
   parseUpsertTenantLmsConnectionRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppEnv } from "../app";
+import type { AppEnv } from "../app/types";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { jsonError } from "../http/json-responses";
 import { publicTenantLmsConnection } from "../lms/gradebook-provider-resolution";

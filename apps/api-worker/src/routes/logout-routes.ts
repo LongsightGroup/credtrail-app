@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import { buildLoginPath } from "../auth/login-path";
 
 /** Registers the browser and JSON logout protocol adapters. */

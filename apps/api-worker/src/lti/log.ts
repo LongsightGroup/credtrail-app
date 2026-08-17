@@ -1,4 +1,4 @@
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import { optionalAppLogger, type AppLogger } from "../app/observability";
 
 export const ltiLogger = (c: AppContext): AppLogger | undefined => {

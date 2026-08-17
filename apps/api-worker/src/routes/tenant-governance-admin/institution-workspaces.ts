@@ -39,7 +39,7 @@ import {
 } from "../../admin/issued-badges-admin-helpers";
 import { buildAssertionEvidencePresentation } from "../../badges/assertion-evidence-presentation";
 import { loadAssertionEvidencePayload } from "../../badges/assertion-evidence-payload";
-import type { AppContext } from "../../app";
+import type { AppContext } from "../../app/types";
 import type { ResolveDatabase } from "../../app/route-deps";
 import { renderAppPage, type AppPage } from "../../ui/render-page";
 import { tenantAssertionListDbInput } from "../assertion-list-query";

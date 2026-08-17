@@ -5,7 +5,7 @@ import { applyBetterAuthResponseHeaders } from "../auth/better-auth-bridge";
 import type { EnterpriseSsoAdapter } from "../auth/enterprise-sso-adapter";
 import { buildLoginPath } from "../auth/login-path";
 import { isSafeRedirectPath, normalizeSafeRedirectPath } from "../auth/redirect-paths";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppBindings, AppContext, AppEnv } from "../app/types";
 
 interface RegisterGoogleAuthRoutesInput {
   app: Hono<AppEnv>;

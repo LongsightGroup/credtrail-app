@@ -1,5 +1,5 @@
 import { findBadgeTemplateById } from "@credtrail/db";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import type { DirectIssueBadgeResult } from "../badges/direct-issue";
 import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";

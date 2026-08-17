@@ -21,7 +21,7 @@ import {
   serializeBadgeIssuanceRuleBuilderDraftPayload,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppEnv } from "../app";
+import type { AppEnv } from "../app/types";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { badgeRuleAuthoringHttpFailure } from "../badges/badge-rule-authoring-http";
 import {

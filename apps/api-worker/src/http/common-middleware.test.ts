@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AppBindings, AppEnv } from "../app";
+import type { AppBindings, AppEnv } from "../app/types";
 import { observabilityContext } from "../app/observability";
 import { registerCommonMiddleware } from "./common-middleware";
 

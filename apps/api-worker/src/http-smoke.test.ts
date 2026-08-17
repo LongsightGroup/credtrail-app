@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { app } from "./index";
-import type { AppBindings } from "./app";
+import type { AppBindings } from "./app/types";
 import type { JsonObject } from "@credtrail/core-domain";
 
 const asJsonObject = (value: unknown): JsonObject | null => {

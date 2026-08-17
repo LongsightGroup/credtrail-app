@@ -16,7 +16,7 @@ import {
   buildLmsConnectionsPagePath,
   lmsConnectionsPageUrl,
 } from "../admin/lms-connection-admin-helpers";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 
 interface RegisterTenantLmsConnectionAdminRoutesInput {

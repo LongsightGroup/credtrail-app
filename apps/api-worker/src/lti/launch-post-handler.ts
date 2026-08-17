@@ -10,7 +10,7 @@ import type {
 import { LtiLaunchMessageResolutionError } from "@longsightgroup/lti-tool";
 import { customLaunchRouteHandler } from "@longsightgroup/lti-tool/hono";
 import { decodeJwt } from "jose";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
 import { jsonError } from "../http/json-responses";

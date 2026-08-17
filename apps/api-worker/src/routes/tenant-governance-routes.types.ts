@@ -1,6 +1,6 @@
 import type { TenantMembershipRole } from "@credtrail/db";
 import type { Hono } from "hono";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type {
   IssueBadgeForTenant,
   RequireDelegatedIssuingAuthorityPermission,

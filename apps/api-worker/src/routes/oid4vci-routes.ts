@@ -9,7 +9,7 @@ import {
 } from "@credtrail/db";
 import type { Hono } from "hono";
 import { z } from "zod";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import type { PublicBadgeViewModel, VerificationViewModel } from "../badges/public-badge-model";
 import { VC_DATA_MODEL_CONTEXT_URL } from "../credentials/verification-checks";

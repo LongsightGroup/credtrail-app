@@ -15,7 +15,7 @@ import {
   type SqlDatabase,
 } from "@credtrail/db";
 import type { Hono } from "hono";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppBindings, AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "../auth/auth-context";
 import { canonicalAppRequestUrl } from "../http/canonical-app-url";

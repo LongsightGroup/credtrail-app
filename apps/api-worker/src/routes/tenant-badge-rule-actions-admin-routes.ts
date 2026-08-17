@@ -30,7 +30,7 @@ import {
 } from "../admin/access-admin-helpers";
 import { readOptionalFormField } from "../admin/admin-form-helpers";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import type { AuthenticatedPrincipal } from "../auth/auth-context";
 import {

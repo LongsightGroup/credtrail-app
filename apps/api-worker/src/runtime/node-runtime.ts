@@ -1,4 +1,4 @@
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 import { canonicalAppOrigin } from "../http/canonical-app-url";
 import { canonicalPlatformDomain } from "../http/platform-domain";
 import { createSesEmailBinding } from "../notifications/ses-email";

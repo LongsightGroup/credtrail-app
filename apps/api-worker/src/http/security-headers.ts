@@ -1,4 +1,4 @@
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 
 const CLOUDFLARE_TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 const CLOUDFLARE_WEB_ANALYTICS_SCRIPT_ORIGIN = "https://static.cloudflareinsights.com";

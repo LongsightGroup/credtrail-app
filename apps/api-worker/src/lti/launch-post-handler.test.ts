@@ -15,7 +15,7 @@ import {
 } from "@longsightgroup/lti-tool/testing";
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
-import type { AppBindings, AppEnv } from "../app";
+import type { AppBindings, AppEnv } from "../app/types";
 import type { LtiAuthenticatedPrincipal } from "../auth/auth-provider";
 import { handleLtiLaunchPost, renderLtiLaunchError } from "./launch-post-handler";
 import type { LtiIssuerRegistry, LtiIssuerRegistryEntry } from "./lti-issuer-registry";

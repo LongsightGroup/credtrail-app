@@ -6,7 +6,7 @@ import {
 } from "@credtrail/db";
 import { parseLearnerRecordImportBatchDefaults } from "@credtrail/validation";
 import { institutionAdminLearnerRecordImportsPage } from "../../admin/institution-admin/page";
-import type { AppContext } from "../../app";
+import type { AppContext } from "../../app/types";
 import type { ResolveDatabase } from "../../app/route-deps";
 import {
   prepareLearnerRecordImportSubmission,

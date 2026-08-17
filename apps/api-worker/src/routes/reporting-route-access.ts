@@ -1,6 +1,6 @@
 import type { SqlDatabase } from "@credtrail/db";
 import { parseTenantPathParams } from "@credtrail/validation";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { ISSUER_ROLES, resolveTenantReportingAccess } from "../auth/tenant-access";
 

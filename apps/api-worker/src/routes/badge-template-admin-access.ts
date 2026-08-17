@@ -4,7 +4,7 @@ import {
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import type { RequireScopedOrgUnitPermission, ResolveDatabase } from "../app/route-deps";
 
 export interface BadgeTemplateIssuerAccessInput {

@@ -1,5 +1,5 @@
 import type { SqlDatabase, TenantMembershipRole } from "@credtrail/db";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-provider";
 import type { LinkedLtiLaunchAccount } from "./launch-account-linking";
 import type { ResolvedLtiLaunchMessage } from "./launch-message";

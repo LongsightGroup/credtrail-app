@@ -4,7 +4,7 @@ import {
   parseLtiLoginInitiation,
 } from "@longsightgroup/lti-tool";
 import type { Hono } from "hono";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import { canonicalAppUrl } from "../http/canonical-app-url";
 import { renderAppPage } from "../ui/render-page";

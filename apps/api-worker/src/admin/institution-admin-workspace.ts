@@ -1,6 +1,6 @@
 import type { ListBadgeIssuanceRuleRegistryPageInput, TenantMembershipRole } from "@credtrail/db";
 import type { AppPage, renderAppPage } from "../ui/render-page";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 
 export type InstitutionAdminWorkspaceRoleCheck =
   | Response

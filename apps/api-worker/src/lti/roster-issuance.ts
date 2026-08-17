@@ -1,5 +1,5 @@
 import type { LTISession, LtiToolPort } from "@longsightgroup/lti-tool";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
 import type { DirectIssueBadgeResult } from "../badges/direct-issue";
 import type { SqlDatabase } from "@credtrail/db";

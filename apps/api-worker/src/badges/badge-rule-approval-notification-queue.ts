@@ -1,7 +1,7 @@
 import { findBadgeIssuanceRuleVersionById, type SqlDatabase } from "@credtrail/db";
 import type { SendBadgeRuleApprovalNotificationQueueJob } from "@credtrail/validation";
 import { buildBadgeRuleVersionReviewPath } from "../admin/access-admin-helpers";
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 import { canonicalAppUrl } from "../http/canonical-app-url";
 import {
   notifyBadgeRuleApprovalDecision,

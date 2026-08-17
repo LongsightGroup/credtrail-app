@@ -26,7 +26,7 @@ import {
   buildBadgeRuleVersionReviewPath,
 } from "../admin/access-admin-helpers";
 import { consumeAdminListMessageFlash } from "../admin/admin-list-message-flash";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import {
   actorCanDecideBadgeRuleVersionApproval,

@@ -18,7 +18,7 @@ import {
   type BadgeRuleLifecycleDueVersionRecord,
   type SqlDatabase,
 } from "@credtrail/db";
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 import { sendBadgeRuleLifecycleReminderNotifications } from "../notifications/send-badge-rule-lifecycle-email";
 import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
 import { planAutomatedBadgeRuleLifecycle } from "./automated-badge-rule-schedule";

@@ -1,7 +1,7 @@
 import type { ObservabilityContext } from "@credtrail/core-domain";
 import { logWarn } from "@credtrail/core-domain";
 import type { Hono } from "hono";
-import type { AppBindings, AppEnv } from "../app";
+import type { AppBindings, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 
 interface RegisterHealthRoutesInput {

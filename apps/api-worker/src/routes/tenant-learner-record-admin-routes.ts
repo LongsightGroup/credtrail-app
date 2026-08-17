@@ -9,7 +9,7 @@ import {
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import { institutionAdminLearnerRecordsPage } from "../admin/institution-admin/page";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import type { AppPage } from "../ui/render-page";
 import { renderAppPage } from "../ui/render-page";

@@ -15,7 +15,7 @@ import {
 } from "../admin/access-admin-helpers";
 import { readOptionalFormField } from "../admin/admin-form-helpers";
 import { redirectWithAdminListFlash } from "../admin/admin-list-flash-redirect";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import type { TenantAccessAdminRouteDeps } from "./tenant-access-admin-route-deps";
 
 const redirectToDelegations = (

@@ -1,6 +1,6 @@
 import { logError, logInfo, type ObservabilityContext } from "@credtrail/core-domain";
 import type { Hono } from "hono";
-import type { AppBindings, AppEnv } from "../app";
+import type { AppBindings, AppEnv } from "../app/types";
 import { canonicalAppOrigin } from "../http/canonical-app-url";
 import { canonicalPlatformDomain } from "../http/platform-domain";
 import type { ProcessQueueRunResult } from "../queue/processing";

@@ -19,7 +19,7 @@ import {
   parseTenantPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { RequireTenantRole } from "../app/route-deps";
 import {
   MigrationBatchFileParseError,

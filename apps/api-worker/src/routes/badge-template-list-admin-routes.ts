@@ -21,7 +21,7 @@ import {
   deriveUniqueBadgeTemplateSlug,
   parseBadgeTemplateListPageQuery,
 } from "../admin/badge-template-admin-helpers";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { RequireScopedOrgUnitPermission, ResolveDatabase } from "../app/route-deps";
 import { restoreBadgeTemplateImageRevision } from "../badges/badge-template-image-revision-restore";
 import {

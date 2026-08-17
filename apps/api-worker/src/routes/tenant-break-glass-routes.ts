@@ -15,7 +15,7 @@ import {
   parseTenantUserPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import { breakGlassPasswordResetEnrollmentStatus } from "../auth/break-glass-policy";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 

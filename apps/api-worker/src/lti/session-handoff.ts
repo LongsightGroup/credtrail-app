@@ -1,4 +1,4 @@
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 import {
   createSignedJsonToken,
   signedJsonTokenExpiry,

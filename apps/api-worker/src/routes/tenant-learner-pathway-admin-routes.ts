@@ -39,7 +39,7 @@ import {
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import { z } from "zod";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import {
   learnerPathwayBuilderPage,

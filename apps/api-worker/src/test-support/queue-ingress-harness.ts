@@ -6,7 +6,7 @@ import type {
   TenantApiKeyRecord,
 } from "@credtrail/db";
 import { Hono } from "hono";
-import type { AppEnv } from "../app";
+import type { AppEnv } from "../app/types";
 import type { QueueIngressStore } from "../queue/ingress-store";
 import { processQueueInputWithDefaults, readJsonBodyOrEmptyObject } from "../queue/processing";
 import { registerQueueRoutes } from "../routes/queue-routes";

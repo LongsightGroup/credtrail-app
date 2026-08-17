@@ -7,7 +7,7 @@ import {
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import type { AppBindings, AppContext } from "../app";
+import type { AppBindings, AppContext } from "../app/types";
 import { canonicalAppUrl } from "../http/canonical-app-url";
 import { buildBadgeTemplateImageUriChange } from "./badge-template-audit-metadata";
 import { recordBadgeTemplateImageRevisionIfChanged } from "./badge-template-image-revision-recording";

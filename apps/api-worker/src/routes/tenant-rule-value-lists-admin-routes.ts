@@ -15,7 +15,7 @@ import {
   tenantRuleValueListsAdminCreatePath,
 } from "../admin/rule-value-lists-admin-helpers";
 import { parseCommaSeparatedAdminValues } from "../admin/rule-value-lists-presentation";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import type { AuthenticatedPrincipal } from "../auth/auth-context";
 

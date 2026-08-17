@@ -13,7 +13,7 @@ import type { Hono } from "hono";
 import { setAdminFlashCookie } from "../admin/admin-flash";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import { buildApiKeysPagePath, tenantApiKeyAdminRevokePath } from "../admin/api-key-admin-helpers";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 
 interface RegisterTenantApiKeyAdminRoutesInput {

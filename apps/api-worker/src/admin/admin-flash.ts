@@ -1,5 +1,5 @@
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import type { AppBindings, AppContext } from "../app";
+import type { AppBindings, AppContext } from "../app/types";
 
 export type AdminFlashKind = "api_key_secret" | "list_message";
 

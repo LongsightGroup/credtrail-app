@@ -11,7 +11,7 @@ import {
 import { parseMagicLinkRequest, parseMagicLinkVerifyRequest } from "@credtrail/validation";
 import type { Hono } from "hono";
 import { deleteCookie, setCookie } from "hono/cookie";
-import type { AppBindings, AppContext, AppEnv } from "../app";
+import type { AppBindings, AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import type { AuthenticatedPrincipal, RequestedTenantContext } from "../auth/auth-context";
 import type { RequestMagicLinkInput, RequestMagicLinkResult } from "../auth/auth-provider";

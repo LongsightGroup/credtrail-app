@@ -1,7 +1,7 @@
 import type { TenantMembershipRole } from "@credtrail/db";
 import { parseBadgeIssuanceRuleVersionPathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppEnv } from "../app";
+import type { AppEnv } from "../app/types";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import type { LoadBadgeRuleVersionReferenceLabels } from "../lms/badge-rule-version-reference-label-service";
 

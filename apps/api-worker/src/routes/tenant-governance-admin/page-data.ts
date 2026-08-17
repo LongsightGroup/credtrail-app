@@ -3,7 +3,7 @@ import type {
   TenantMembershipRole,
   TenantReportingLifecycleFilter,
 } from "@credtrail/db";
-import type { AppContext } from "../../app";
+import type { AppContext } from "../../app/types";
 import { loadInstitutionAdminReportingPageData } from "../tenant-admin-reporting-data-loader";
 import {
   loadInstitutionAdminPageData as loadInstitutionAdminPageDataFromLoader,

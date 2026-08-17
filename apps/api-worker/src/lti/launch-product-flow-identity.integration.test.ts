@@ -32,7 +32,7 @@ import {
   describeDbIntegration,
   uniqueTestId,
 } from "../../../../packages/db/src/postgres-test-support";
-import type { AppBindings, AppEnv } from "../app";
+import type { AppBindings, AppEnv } from "../app/types";
 import { linkInstructorLmsIdentity } from "./instructor-lms-identity";
 import type { ResolvedLtiLaunchMessage } from "./launch-message";
 import { handleVerifiedLtiLaunch } from "./launch-product-flow";

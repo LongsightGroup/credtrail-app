@@ -1,6 +1,6 @@
 import { listBadgeTemplates, type SqlDatabase } from "@credtrail/db";
 import { LTI_CLAIM_DEPLOYMENT_ID } from "@longsightgroup/lti-tool";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import { canonicalAppRequestUrl } from "../http/canonical-app-url";
 import { renderAppPage } from "../ui/render-page";
 import { listLtiInstructorPlaceableBadgeTemplates } from "./course-badge-governance";

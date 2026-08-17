@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 import { Hono } from "hono";
 import { LtiServiceError, type LTIConfig } from "@longsightgroup/lti-tool";
 import type { SqlDatabase } from "@credtrail/db";
-import type { AppBindings, AppEnv } from "./app";
+import type { AppBindings, AppEnv } from "./app/types";
 import { registerLtiRoutes } from "./routes/lti-routes";
 import {
   createLtiDynamicRegistrationInviteToken,

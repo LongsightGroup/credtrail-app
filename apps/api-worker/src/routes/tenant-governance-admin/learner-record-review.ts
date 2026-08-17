@@ -1,5 +1,5 @@
 import type { TenantMembershipRole } from "@credtrail/db";
-import type { AppContext } from "../../app";
+import type { AppContext } from "../../app/types";
 import type { ResolveDatabase } from "../../app/route-deps";
 import { loadLearnerRecordReviewLookup } from "../../learner-record/learner-record-review-lookup";
 import type { InstitutionAdminLearnerRecordReview } from "../../admin/institution-admin/page-types";

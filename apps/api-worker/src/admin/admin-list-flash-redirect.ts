@@ -1,6 +1,6 @@
 import type { AdminListMessageWorkspace } from "./admin-list-message-flash";
 import { setAdminListMessageFlash } from "./admin-list-message-flash";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 
 export const redirectWithAdminListFlash = async (
   c: AppContext,

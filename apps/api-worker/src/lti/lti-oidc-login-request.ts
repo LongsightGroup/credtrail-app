@@ -1,4 +1,4 @@
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 
 const optionalLtiLoginField = (
   value: string | null | undefined,

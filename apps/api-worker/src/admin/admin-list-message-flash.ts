@@ -1,4 +1,4 @@
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import { consumeAdminFlashCookie, setAdminFlashCookie, type AdminFlashKind } from "./admin-flash";
 
 export const ADMIN_LIST_MESSAGE_MAX_LENGTH = 200;

@@ -15,7 +15,7 @@ import {
   institutionAdminRuleTemplatesPage,
 } from "../../admin/institution-admin/page";
 import type { BadgeTemplateHistoryPanel } from "../../admin/institution-admin-templates-page";
-import type { AppContext } from "../../app";
+import type { AppContext } from "../../app/types";
 import type { ResolveDatabase } from "../../app/route-deps";
 import { loadBadgeTemplateHistoryPayload } from "../../badges/badge-template-history-payload";
 import { resolveExpectedBadgeTemplateRevision } from "../../badges/badge-achievement-snapshot";

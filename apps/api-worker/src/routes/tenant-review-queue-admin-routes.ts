@@ -10,7 +10,7 @@ import {
   buildReviewQueuePagePath,
   tenantReviewQueueAdminResolvePath,
 } from "../admin/review-queue-admin-helpers";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { IssueBadgeForTenant, ResolveDatabase } from "../app/route-deps";
 import type { AuthenticatedPrincipal } from "../auth/auth-context";
 import { resolveBadgeRuleReviewQueueEntry } from "../badge-rule-review-queue-resolve";

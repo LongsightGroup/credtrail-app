@@ -2,7 +2,7 @@ import type { Context, Hono } from "hono";
 import { jsxRenderer } from "hono/jsx-renderer";
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
-import type { AppEnv } from "../app";
+import type { AppEnv } from "../app/types";
 import { PageAssets, type PageAssetKey } from "./page-assets";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;

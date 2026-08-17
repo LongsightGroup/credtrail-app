@@ -1,6 +1,6 @@
 import { findTenantById, type SqlDatabase, type TenantMembershipRole } from "@credtrail/db";
 import { renderAppPage } from "../../ui/render-page";
-import type { AppContext } from "../../app";
+import type { AppContext } from "../../app/types";
 import type { AuthenticatedPrincipal } from "../../auth/auth-context";
 import { buildLocalTwoFactorPath } from "../../auth/break-glass-policy";
 import { buildLoginPath } from "../../auth/login-path";

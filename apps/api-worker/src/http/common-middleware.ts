@@ -1,6 +1,6 @@
 import type { ObservabilityContext } from "@credtrail/core-domain";
 import type { Hono } from "hono";
-import type { AppBindings, AppEnv } from "../app";
+import type { AppBindings, AppEnv } from "../app/types";
 import {
   createAppLogger,
   observabilityContext as defaultObservabilityContext,

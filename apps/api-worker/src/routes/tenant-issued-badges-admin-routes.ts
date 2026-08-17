@@ -16,7 +16,7 @@ import {
   parseIssuedBadgesPageQuery,
   tenantIssuedBadgeAdminRevokePath,
 } from "../admin/issued-badges-admin-helpers";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type {
   RequireDelegatedIssuingAuthorityPermission,
   ResolveDatabase,

@@ -4,7 +4,7 @@ import {
   parsePersistedLtiSession,
   resolveLtiServiceCapabilities,
 } from "@longsightgroup/lti-tool";
-import type { AppContext } from "../app";
+import type { AppContext } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import { asNonEmptyString, normalizeUniqueStringList } from "../utils/value-parsers";
 import { resolveLtiCourseBadgeAuthority } from "./course-badge-governance";

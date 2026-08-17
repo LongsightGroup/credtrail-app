@@ -4,7 +4,7 @@ import {
   type LTI13JwtPayload as LtiLaunchClaims,
   type LTISession,
 } from "@longsightgroup/lti-tool";
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 import type { AppLogger } from "../app/observability";
 import { LTI_RESOURCE_LINK_ISSUE_PATH } from "./constants";
 import { createLtiIssuanceActionToken } from "./issuance-action-token";

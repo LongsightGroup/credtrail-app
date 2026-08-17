@@ -10,7 +10,7 @@ import {
   parseKeyGenerationRequest,
   parseSignCredentialRequest,
 } from "@credtrail/validation";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 
 type SupportedCredentialProofType = "DataIntegrityProof";
 

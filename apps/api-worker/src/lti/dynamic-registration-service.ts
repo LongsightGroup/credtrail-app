@@ -6,7 +6,7 @@ import {
 } from "@longsightgroup/lti-tool";
 import type { SqlDatabase } from "@credtrail/db";
 import { parseLtiDynamicRegistrationPathParams } from "@credtrail/validation";
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 import { canonicalAppUrl } from "../http/canonical-app-url";
 import { LTI_JWKS_PATH, LTI_LAUNCH_PATH, LTI_OIDC_LOGIN_PATH } from "./constants";
 import {

@@ -4,7 +4,7 @@ import {
   processBadgeRuleLifecycleForTenant,
   type ProcessBadgeRuleLifecycleInput,
 } from "./badge-rule-lifecycle-processor";
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 import { sampleBadgeRuleVersionSnapshot } from "../test-support/badge-rule-version";
 
 vi.mock("@credtrail/db", async (importOriginal) => {

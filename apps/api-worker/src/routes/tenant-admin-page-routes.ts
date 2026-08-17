@@ -42,7 +42,7 @@ import {
   loadTenantBadgeRuleValueLists,
   toRuleValueListBuilderContextEntries,
 } from "../admin/rule-value-lists-presentation";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { buildLocalTwoFactorPath } from "../auth/break-glass-policy";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";

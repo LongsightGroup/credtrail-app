@@ -1,7 +1,7 @@
 import type { SqlDatabase } from "@credtrail/db";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
-import type { AppEnv } from "../app";
+import type { AppEnv } from "../app/types";
 import type { RequireTenantRole } from "../app/route-deps";
 import type { LoadBadgeRuleVersionReferenceLabels } from "../lms/badge-rule-version-reference-label-service";
 import { registerBadgeRuleVersionReferenceRoutes } from "./badge-rule-version-reference-routes";

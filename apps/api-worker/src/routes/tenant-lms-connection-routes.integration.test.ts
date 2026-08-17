@@ -13,7 +13,7 @@ import {
   describeDbIntegration,
   type TestTenantFixture,
 } from "../../../../packages/db/src/postgres-test-support";
-import type { AppEnv } from "../app";
+import type { AppEnv } from "../app/types";
 import type { RequireTenantRole } from "../app/route-deps";
 import { createLmsCourseAuthoringService } from "../lms/lms-course-authoring-service";
 import { registerTenantLmsConnectionRoutes } from "./tenant-lms-connection-routes";

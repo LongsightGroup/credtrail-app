@@ -1,7 +1,7 @@
 import { logError } from "@credtrail/core-domain";
 import { resolveDatabase } from "../app/database";
 import { enqueueBadgeRuleLifecycleJobsForActiveTenants } from "../badges/badge-rule-lifecycle-processor";
-import type { AppBindings } from "../app";
+import type { AppBindings } from "../app/types";
 import { observabilityContext } from "../app/observability";
 
 export const runScheduledBadgeRuleLifecycleEnqueue = async (env: AppBindings): Promise<void> => {

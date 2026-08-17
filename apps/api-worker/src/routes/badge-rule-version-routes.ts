@@ -22,7 +22,7 @@ import {
   parseDecideBadgeIssuanceRuleVersionRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppEnv } from "../app";
+import type { AppEnv } from "../app/types";
 import type { RequireTenantRole, ResolveDatabase } from "../app/route-deps";
 import { buildBadgeRuleVersionDefinitionDiff } from "../badges/badge-rule-version-diff";
 

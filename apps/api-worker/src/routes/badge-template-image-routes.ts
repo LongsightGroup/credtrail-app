@@ -10,7 +10,7 @@ import {
   parseGenerateBadgeTemplateImageRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppEnv } from "../app";
+import type { AppEnv } from "../app/types";
 import type {
   RequireScopedOrgUnitPermission,
   RequireTenantRole,

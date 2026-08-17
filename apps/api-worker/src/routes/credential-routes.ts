@@ -10,7 +10,7 @@ import {
 } from "@credtrail/db";
 import { parseCredentialPathParams, parseTenantPathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import { canonicalAppRequestUrl } from "../http/canonical-app-url";
 import { VC_JSON_LD_CONTENT_TYPE } from "../http/vc-media-types";

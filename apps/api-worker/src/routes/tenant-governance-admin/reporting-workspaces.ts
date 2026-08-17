@@ -1,6 +1,6 @@
 import { parseTenantReportingOverviewQuery } from "@credtrail/validation";
 import { renderAppPage, type AppPage } from "../../ui/render-page";
-import type { AppContext } from "../../app";
+import type { AppContext } from "../../app/types";
 import { buildLocalTwoFactorPath } from "../../auth/break-glass-policy";
 import { applySmartReportingDefaults } from "../../reporting/reporting-defaults";
 import type { InstitutionAdminPageData } from "../institution-admin-page-data-loader";

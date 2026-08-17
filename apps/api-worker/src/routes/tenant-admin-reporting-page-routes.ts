@@ -5,7 +5,7 @@ import {
   institutionAdminReportingReportsPage,
   institutionAdminReportingTrendsPage,
 } from "../admin/institution-admin/page";
-import type { AppContext, AppEnv } from "../app";
+import type { AppContext, AppEnv } from "../app/types";
 import type { AppPage } from "../ui/render-page";
 
 type InstitutionAdminPageData = Parameters<typeof institutionAdminReportingPage>[0];

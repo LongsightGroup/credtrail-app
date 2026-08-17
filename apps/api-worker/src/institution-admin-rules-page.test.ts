@@ -8,7 +8,7 @@ import { buildCompleteTrustEdCredentialMetadata } from "@credtrail/validation/te
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { setAdminListMessageFlash } from "./admin/admin-list-message-flash";
-import type { AppEnv } from "./app";
+import type { AppEnv } from "./app/types";
 import {
   createEnv,
   fakeDb,

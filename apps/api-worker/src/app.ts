@@ -120,8 +120,6 @@ import { HttpErrorResponse } from "./http/http-error-response";
 import { canonicalAppUrl } from "./http/canonical-app-url";
 import { walletCredentialOfferPayload } from "./oid4vci/wallet-credential-offer-payload";
 
-export type { AppBindings, AppContext, AppEnv } from "./app/types";
-
 export const app = new Hono<AppEnv>();
 const LEARNER_IDENTITY_LINK_TTL_SECONDS = 10 * 60;
 const OID4VCI_PRE_AUTH_CODE_TTL_SECONDS = 10 * 60;
