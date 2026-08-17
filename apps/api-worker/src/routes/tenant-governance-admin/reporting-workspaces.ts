@@ -4,6 +4,7 @@ import type { AppContext } from "../../app/types";
 import { buildLocalTwoFactorPath } from "../../auth/break-glass-policy";
 import { applySmartReportingDefaults } from "../../reporting/reporting-defaults";
 import type { InstitutionAdminPageData } from "../institution-admin-page-data-loader";
+import type { InstitutionAdminReportingView } from "../../admin/institution-admin/page-types";
 import { reportingAccessRequiredPage } from "../tenant-governance-shared-pages";
 import type { RegisterTenantGovernanceRoutesInput } from "../tenant-governance-routes.types";
 import type { TenantGovernanceAdminAuth } from "./auth";
@@ -21,6 +22,7 @@ export const createTenantGovernanceReportingAdminWorkspaces = (input: {
     c: AppContext,
     tenantId: string,
     pagePath: string,
+    view: InstitutionAdminReportingView,
     renderPage: (pageData: InstitutionAdminPageData) => AppPage,
   ): Promise<Response> => {
     const roleCheck = await requireTenantRole(c, tenantId, ISSUER_ROLES);
@@ -71,6 +73,7 @@ export const createTenantGovernanceReportingAdminWorkspaces = (input: {
       tenantId,
       sessionUserId: principal.userId,
       membershipRole,
+      view,
       issuedFrom: reportingQuery.issuedFrom,
       issuedTo: reportingQuery.issuedTo,
       badgeTemplateId: reportingQuery.badgeTemplateId,

@@ -4,6 +4,7 @@ import type {
   TenantReportingLifecycleFilter,
 } from "@credtrail/db";
 import type { AppContext } from "../../app/types";
+import type { InstitutionAdminReportingView } from "../../admin/institution-admin/page-types";
 import { loadInstitutionAdminReportingPageData } from "../tenant-admin-reporting-data-loader";
 import {
   loadInstitutionAdminPageData as loadInstitutionAdminPageDataFromLoader,
@@ -75,6 +76,7 @@ export const createTenantGovernanceAdminPageDataLoaders = (
     tenantId: string;
     sessionUserId: string;
     membershipRole: TenantMembershipRole;
+    view: InstitutionAdminReportingView;
     issuedFrom?: string | undefined;
     issuedTo?: string | undefined;
     badgeTemplateId?: string | undefined;

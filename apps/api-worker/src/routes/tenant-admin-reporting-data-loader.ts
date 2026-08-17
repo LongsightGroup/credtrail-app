@@ -13,12 +13,17 @@ import {
   type TenantReportingLifecycleFilter,
 } from "@credtrail/db";
 import { institutionAdminDashboardPage } from "../admin/institution-admin/page";
+import type {
+  InstitutionAdminReportingView,
+  InstitutionAdminView,
+} from "../admin/institution-admin/page-types";
 import type { AppContext } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import { resolveTenantReportingAccess } from "../auth/tenant-access";
 import { buildOrganizationsPath } from "../auth/tenant-context-selection";
 import { buildReportingMetricEntries } from "../reporting/metric-definitions";
 import {
+  type ReportingPageFilters,
   toReportingComparisonFilters,
   toReportingEngagementFilters,
   toReportingOverviewFilters,
@@ -29,12 +34,14 @@ import { renderAppPage, type AppPage } from "../ui/render-page";
 type InstitutionAdminPageData = Parameters<typeof institutionAdminDashboardPage>[0];
 type ReportingComparisonRow = Awaited<ReturnType<typeof listTenantReportingComparisons>>[number];
 type BadgeTemplateRecord = InstitutionAdminPageData["badgeTemplates"][number];
+type ReportingFilterValues = NonNullable<InstitutionAdminPageData["reportingFilters"]>;
 
 interface LoadInstitutionAdminReportingPageDataInput {
   c: AppContext;
   tenantId: string;
   sessionUserId: string;
   membershipRole: TenantMembershipRole;
+  view: InstitutionAdminReportingView;
   issuedFrom?: string | undefined;
   issuedTo?: string | undefined;
   badgeTemplateId?: string | undefined;
@@ -46,9 +53,119 @@ interface LoadInstitutionAdminReportingPageDataInput {
     tenantId: string,
     sessionUserId: string,
     membershipRole: TenantMembershipRole,
+    options?: { view?: InstitutionAdminView },
   ) => Promise<InstitutionAdminPageData | Response>;
   reportingAccessRequiredPage: (tenantId: string) => AppPage;
 }
+
+interface ReportingDataRequirements {
+  readonly overview: boolean;
+  readonly engagement: boolean;
+  readonly trends: boolean;
+  readonly templateComparisons: boolean;
+  readonly orgUnitComparisons: boolean;
+}
+
+interface ReportingDatasets {
+  readonly overview: Awaited<ReturnType<typeof getTenantReportingOverview>> | null;
+  readonly engagement: Awaited<ReturnType<typeof getTenantReportingEngagementCounts>> | null;
+  readonly trends: Awaited<ReturnType<typeof getTenantReportingTrends>> | null;
+  readonly templateComparisons: ReportingComparisonRow[];
+  readonly orgUnitComparisons: ReportingComparisonRow[];
+}
+
+const reportingDataRequirements = (
+  view: InstitutionAdminReportingView,
+): ReportingDataRequirements => {
+  switch (view) {
+    case "reporting":
+      return {
+        overview: true,
+        engagement: true,
+        trends: false,
+        templateComparisons: true,
+        orgUnitComparisons: true,
+      };
+    case "reportingExplore":
+      return {
+        overview: true,
+        engagement: true,
+        trends: true,
+        templateComparisons: true,
+        orgUnitComparisons: true,
+      };
+    case "reportingTrends":
+      return {
+        overview: false,
+        engagement: false,
+        trends: true,
+        templateComparisons: false,
+        orgUnitComparisons: false,
+      };
+    case "reportingReports":
+      return {
+        overview: false,
+        engagement: false,
+        trends: false,
+        templateComparisons: false,
+        orgUnitComparisons: false,
+      };
+  }
+};
+
+const reportingFilterValues = (filters: ReportingPageFilters): ReportingFilterValues => ({
+  issuedFrom: filters.issuedFrom ?? null,
+  issuedTo: filters.issuedTo ?? null,
+  badgeTemplateId: filters.badgeTemplateId ?? null,
+  orgUnitId: filters.orgUnitId ?? null,
+  state: filters.state ?? null,
+});
+
+const loadReportingDatasets = async (input: {
+  readonly db: ReturnType<ResolveDatabase>;
+  readonly tenantId: string;
+  readonly filters: ReportingPageFilters;
+  readonly orgUnitComparisonFilters: ReportingPageFilters;
+  readonly requirements: ReportingDataRequirements;
+  readonly loadTemplateComparisonsForVisibility: boolean;
+}): Promise<ReportingDatasets> => {
+  const [overview, engagement, trends, templateComparisons, orgUnitComparisons] = await Promise.all(
+    [
+      input.requirements.overview
+        ? getTenantReportingOverview(input.db, {
+            tenantId: input.tenantId,
+            ...toReportingOverviewFilters(input.filters),
+          })
+        : Promise.resolve(null),
+      input.requirements.engagement
+        ? getTenantReportingEngagementCounts(input.db, {
+            tenantId: input.tenantId,
+            ...toReportingEngagementFilters(input.filters),
+          })
+        : Promise.resolve(null),
+      input.requirements.trends
+        ? getTenantReportingTrends(input.db, {
+            tenantId: input.tenantId,
+            ...toReportingTrendFilters(input.filters),
+          })
+        : Promise.resolve(null),
+      input.requirements.templateComparisons || input.loadTemplateComparisonsForVisibility
+        ? listTenantReportingComparisons(input.db, {
+            tenantId: input.tenantId,
+            ...toReportingComparisonFilters(input.filters, "badgeTemplate"),
+          })
+        : Promise.resolve([]),
+      input.requirements.orgUnitComparisons
+        ? listTenantReportingComparisons(input.db, {
+            tenantId: input.tenantId,
+            ...toReportingComparisonFilters(input.orgUnitComparisonFilters, "orgUnit"),
+          })
+        : Promise.resolve([]),
+    ],
+  );
+
+  return { overview, engagement, trends, templateComparisons, orgUnitComparisons };
+};
 
 const buildOrgUnitMap = (orgUnits: InstitutionAdminPageData["orgUnits"]) => {
   return new Map(orgUnits.map((orgUnit) => [orgUnit.id, orgUnit] as const));
@@ -118,12 +235,15 @@ const filterBadgeTemplatesToIds = (
 export const loadInstitutionAdminReportingPageData = async (
   input: LoadInstitutionAdminReportingPageDataInput,
 ): Promise<InstitutionAdminPageData | Response> => {
+  const requirements = reportingDataRequirements(input.view);
+
   if (input.membershipRole === "owner" || input.membershipRole === "admin") {
     const pageData = await input.loadInstitutionAdminPageData(
       input.c,
       input.tenantId,
       input.sessionUserId,
       input.membershipRole,
+      { view: input.view },
     );
 
     if (pageData instanceof Response) {
@@ -131,50 +251,34 @@ export const loadInstitutionAdminReportingPageData = async (
     }
 
     const db = input.resolveDatabase(input.c.env);
-    const reportingPageFilters = {
+    const reportingPageFilters: ReportingPageFilters = {
       issuedFrom: input.issuedFrom,
       issuedTo: input.issuedTo,
       badgeTemplateId: input.badgeTemplateId,
       orgUnitId: input.orgUnitId,
       state: input.state,
     };
-    const [
-      reportingOverview,
-      reportingEngagementCounts,
-      reportingTrends,
-      reportingTemplateComparisons,
-      reportingOrgUnitComparisons,
-    ] = await Promise.all([
-      getTenantReportingOverview(db, {
-        tenantId: input.tenantId,
-        ...toReportingOverviewFilters(reportingPageFilters),
-      }),
-      getTenantReportingEngagementCounts(db, {
-        tenantId: input.tenantId,
-        ...toReportingEngagementFilters(reportingPageFilters),
-      }),
-      getTenantReportingTrends(db, {
-        tenantId: input.tenantId,
-        ...toReportingTrendFilters(reportingPageFilters),
-      }),
-      listTenantReportingComparisons(db, {
-        tenantId: input.tenantId,
-        ...toReportingComparisonFilters(reportingPageFilters, "badgeTemplate"),
-      }),
-      listTenantReportingComparisons(db, {
-        tenantId: input.tenantId,
-        ...toReportingComparisonFilters(reportingPageFilters, "orgUnit"),
-      }),
-    ]);
+    const reportingDatasets = await loadReportingDatasets({
+      db,
+      tenantId: input.tenantId,
+      filters: reportingPageFilters,
+      orgUnitComparisonFilters: reportingPageFilters,
+      requirements,
+      loadTemplateComparisonsForVisibility: false,
+    });
 
     return {
       ...pageData,
-      reportingOverview,
-      reportingEngagementCounts,
-      reportingMetrics: buildReportingMetricEntries(reportingOverview.counts),
-      reportingOrgUnitComparisons,
-      reportingTemplateComparisons,
-      reportingTrends,
+      reportingOverview: reportingDatasets.overview,
+      reportingEngagementCounts: reportingDatasets.engagement,
+      reportingFilters: reportingFilterValues(reportingPageFilters),
+      reportingMetrics:
+        reportingDatasets.overview === null
+          ? []
+          : buildReportingMetricEntries(reportingDatasets.overview.counts),
+      reportingOrgUnitComparisons: reportingDatasets.orgUnitComparisons,
+      reportingTemplateComparisons: reportingDatasets.templateComparisons,
+      reportingTrends: reportingDatasets.trends,
     };
   }
 
@@ -243,60 +347,40 @@ export const loadInstitutionAdminReportingPageData = async (
     return renderAppPage(input.c, input.reportingAccessRequiredPage(input.tenantId), 403);
   }
 
-  const reportingOrgUnitComparisonsRaw = await listTenantReportingComparisons(db, {
-    tenantId: input.tenantId,
-    ...toReportingComparisonFilters(
-      {
-        issuedFrom: input.issuedFrom,
-        issuedTo: input.issuedTo,
-        badgeTemplateId: input.badgeTemplateId,
-        state: input.state,
-      },
-      "orgUnit",
-    ),
-    groupBy: "orgUnit",
-  });
-  const reportingOrgUnitComparisons =
-    scopedRootOrgUnitIds.length === 0
-      ? reportingOrgUnitComparisonsRaw
-      : filterComparisonRowsToScope(
-          reportingOrgUnitComparisonsRaw,
-          orgUnitsById,
-          scopedRootOrgUnitIds,
-        );
   const selectedOrgUnitId =
     input.orgUnitId ?? (scopedRootOrgUnitIds.length === 0 ? undefined : scopedRootOrgUnitIds[0]);
-  const reportingPageFilters = {
+  const reportingPageFilters: ReportingPageFilters = {
     issuedFrom: input.issuedFrom,
     issuedTo: input.issuedTo,
     badgeTemplateId: input.badgeTemplateId,
     orgUnitId: selectedOrgUnitId,
     state: input.state,
   };
-  const [
-    reportingOverview,
-    reportingEngagementCounts,
-    reportingTrends,
-    reportingTemplateComparisons,
-  ] = await Promise.all([
-    getTenantReportingOverview(db, {
-      tenantId: input.tenantId,
-      ...toReportingOverviewFilters(reportingPageFilters),
-    }),
-    getTenantReportingEngagementCounts(db, {
-      tenantId: input.tenantId,
-      ...toReportingEngagementFilters(reportingPageFilters),
-    }),
-    getTenantReportingTrends(db, {
-      tenantId: input.tenantId,
-      ...toReportingTrendFilters(reportingPageFilters),
-    }),
-    listTenantReportingComparisons(db, {
-      tenantId: input.tenantId,
-      ...toReportingComparisonFilters(reportingPageFilters, "badgeTemplate"),
-    }),
-  ]);
-  const visibleBadgeTemplateIds = new Set(reportingTemplateComparisons.map((row) => row.groupId));
+  const orgUnitComparisonFilters: ReportingPageFilters = {
+    issuedFrom: input.issuedFrom,
+    issuedTo: input.issuedTo,
+    badgeTemplateId: input.badgeTemplateId,
+    state: input.state,
+  };
+  const reportingDatasets = await loadReportingDatasets({
+    db,
+    tenantId: input.tenantId,
+    filters: reportingPageFilters,
+    orgUnitComparisonFilters,
+    requirements,
+    loadTemplateComparisonsForVisibility: scopedRootOrgUnitIds.length > 0,
+  });
+  const reportingOrgUnitComparisons =
+    scopedRootOrgUnitIds.length === 0
+      ? reportingDatasets.orgUnitComparisons
+      : filterComparisonRowsToScope(
+          reportingDatasets.orgUnitComparisons,
+          orgUnitsById,
+          scopedRootOrgUnitIds,
+        );
+  const visibleBadgeTemplateIds = new Set(
+    reportingDatasets.templateComparisons.map((row) => row.groupId),
+  );
 
   if (input.badgeTemplateId !== undefined) {
     visibleBadgeTemplateIds.add(input.badgeTemplateId);
@@ -331,11 +415,15 @@ export const loadInstitutionAdminReportingPageData = async (
     enterpriseAuthProviders: [],
     breakGlassAccounts: [],
     switchOrganizationPath,
-    reportingOverview,
-    reportingEngagementCounts,
-    reportingMetrics: buildReportingMetricEntries(reportingOverview.counts),
+    reportingOverview: reportingDatasets.overview,
+    reportingEngagementCounts: reportingDatasets.engagement,
+    reportingFilters: reportingFilterValues(reportingPageFilters),
+    reportingMetrics:
+      reportingDatasets.overview === null
+        ? []
+        : buildReportingMetricEntries(reportingDatasets.overview.counts),
     reportingOrgUnitComparisons,
-    reportingTemplateComparisons,
-    reportingTrends,
+    reportingTemplateComparisons: reportingDatasets.templateComparisons,
+    reportingTrends: reportingDatasets.trends,
   };
 };

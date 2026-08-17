@@ -6,6 +6,7 @@ import {
   institutionAdminReportingTrendsPage,
 } from "../admin/institution-admin/page";
 import type { AppContext, AppEnv } from "../app/types";
+import type { InstitutionAdminReportingView } from "../admin/institution-admin/page-types";
 import type { AppPage } from "../ui/render-page";
 
 type InstitutionAdminPageData = Parameters<typeof institutionAdminReportingPage>[0];
@@ -16,6 +17,7 @@ interface RegisterTenantAdminReportingPageRoutesInput {
     c: AppContext,
     tenantId: string,
     pagePath: string,
+    view: InstitutionAdminReportingView,
     renderPage: (pageData: InstitutionAdminPageData) => AppPage,
   ) => Promise<Response>;
 }
@@ -31,6 +33,7 @@ export const registerTenantAdminReportingPageRoutes = (
       c,
       tenantId,
       `/tenants/${encodeURIComponent(tenantId)}/admin/reporting`,
+      "reporting",
       institutionAdminReportingPage,
     );
   });
@@ -41,6 +44,7 @@ export const registerTenantAdminReportingPageRoutes = (
       c,
       tenantId,
       `/tenants/${encodeURIComponent(tenantId)}/admin/reporting/explore`,
+      "reportingExplore",
       institutionAdminReportingExplorePage,
     );
   });
@@ -51,6 +55,7 @@ export const registerTenantAdminReportingPageRoutes = (
       c,
       tenantId,
       `/tenants/${encodeURIComponent(tenantId)}/admin/reporting/trends`,
+      "reportingTrends",
       institutionAdminReportingTrendsPage,
     );
   });
@@ -61,6 +66,7 @@ export const registerTenantAdminReportingPageRoutes = (
       c,
       tenantId,
       `/tenants/${encodeURIComponent(tenantId)}/admin/reporting/reports`,
+      "reportingReports",
       institutionAdminReportingReportsPage,
     );
   });

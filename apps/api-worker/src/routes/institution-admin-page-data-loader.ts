@@ -68,6 +68,11 @@ const institutionAdminDatasetsForView = (
   const datasets = new Set<InstitutionAdminDataset>();
   const needs = INSTITUTION_ADMIN_VIEW_REGISTRY[view].dataNeeds;
 
+  if (needs.reportingSectionBundles) {
+    datasets.add("badgeTemplates");
+    datasets.add("orgUnits");
+  }
+
   if (needs.templateSelectOptions || needs.issuedBadgeFilters || needs.delegationSelectOptions) {
     datasets.add("badgeTemplates");
   }

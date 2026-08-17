@@ -41,21 +41,7 @@ export interface InstitutionAdminViewContentInput {
     ruleReviewQueuePanelMarkup: RenderedNode;
   };
   reporting: {
-    renderReportingTrendPanelMarkup: (input: { includeDetailedTable: boolean }) => RenderedNode;
-    reportingDeepLinksMarkup: RenderedNode;
-    reportingDeferredPanelMarkup: RenderedNode;
-    reportingDefinitionsPanelMarkup: RenderedNode;
-    reportingEngagementPanelMarkup: RenderedNode;
-    reportingExecutiveSummaryMarkup: RenderedNode;
-    reportingExportFiltersPanelMarkup: RenderedNode;
-    reportingExploreSliceSummaryMarkup: RenderedNode;
-    reportingExportsPanelMarkup: RenderedNode;
-    reportingFocusAreaPanelMarkup: RenderedNode;
-    reportingLowerStoryMarkup: RenderedNode;
-    reportingOverviewPanelMarkup: RenderedNode;
-    reportingRankedChartsMarkup: RenderedNode;
-    reportingReportsLibraryMarkup: RenderedNode;
-    reportingTrendFiltersPanelMarkup: RenderedNode;
+    viewMarkup: RenderedNode;
   };
   rules: {
     badgeRulesTableMarkup: RenderedNode;
@@ -303,14 +289,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
           )}
           <section class="ct-admin ct-stack">
             <section class="ct-admin__reporting-presentation-shell ct-admin__reporting-presentation-shell--highlights ct-stack">
-              <section class="ct-admin__reporting-primary-story ct-stack">
-                <section class="ct-admin__reporting-first-screen ct-stack">
-                  {content.reporting.reportingExecutiveSummaryMarkup}
-                </section>
-                {content.reporting.reportingFocusAreaPanelMarkup}
-                {content.reporting.reportingRankedChartsMarkup}
-                {content.reporting.reportingDeepLinksMarkup}
-              </section>
+              {content.reporting.viewMarkup}
             </section>
           </section>
         </>
@@ -330,17 +309,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             "Reporting Explore",
             "Filter the report, scan concise previews, and open exact detail only when needed.",
           )}
-          <section class="ct-admin ct-stack">
-            {content.reporting.reportingExploreSliceSummaryMarkup}
-            <section class="ct-admin__reporting-explore-workspace ct-stack">
-              {content.reporting.reportingOverviewPanelMarkup}
-              {content.reporting.renderReportingTrendPanelMarkup({ includeDetailedTable: false })}
-              {content.reporting.reportingEngagementPanelMarkup}
-              {content.reporting.reportingLowerStoryMarkup}
-              {content.reporting.reportingDefinitionsPanelMarkup}
-              {content.reporting.reportingDeferredPanelMarkup}
-            </section>
-          </section>
+          <section class="ct-admin ct-stack">{content.reporting.viewMarkup}</section>
         </>
       );
     },
@@ -358,10 +327,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             "Trend Detail",
             "Use the focused trend page for exact daily counts behind the overview chart.",
           )}
-          <section class="ct-admin ct-stack">
-            {content.reporting.reportingTrendFiltersPanelMarkup}
-            {content.reporting.renderReportingTrendPanelMarkup({ includeDetailedTable: true })}
-          </section>
+          <section class="ct-admin ct-stack">{content.reporting.viewMarkup}</section>
         </>
       );
     },
@@ -379,11 +345,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             "Report Library",
             "Use one focused page for saved report shortcuts, custom report setup, and CSV exports.",
           )}
-          <section class="ct-admin ct-stack">
-            {content.reporting.reportingReportsLibraryMarkup}
-            {content.reporting.reportingExportFiltersPanelMarkup}
-            {content.reporting.reportingExportsPanelMarkup}
-          </section>
+          <section class="ct-admin ct-stack">{content.reporting.viewMarkup}</section>
         </>
       );
     },

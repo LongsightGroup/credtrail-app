@@ -21,6 +21,7 @@ import type {
   TenantRecord,
   TenantReportingComparisonRowRecord,
   TenantReportingEngagementCounts,
+  TenantReportingLifecycleFilter,
   TenantReportingOverviewRecord,
   TenantReportingTrendRecord,
   DelegatedIssuingAuthorityGrantRecord,
@@ -34,6 +35,13 @@ import type { BadgeRuleReviewQueueEntryView } from "../../badge-rule-review-queu
 import type { AdminManualIssueSuccessLinks } from "../manual-issue-flash";
 import type { InstitutionAdminListFlashWorkspace } from "./list-flash-workspace";
 
+/** Reporting workspace views that select a focused data-loading profile. */
+export type InstitutionAdminReportingView =
+  | "reporting"
+  | "reportingExplore"
+  | "reportingTrends"
+  | "reportingReports";
+
 export type InstitutionAdminView =
   | "home"
   | "operationsLearnerRecords"
@@ -41,10 +49,7 @@ export type InstitutionAdminView =
   | "operationsReviewQueue"
   | "operationsIssuedBadges"
   | "operationsBadgeStatus"
-  | "reporting"
-  | "reportingExplore"
-  | "reportingTrends"
-  | "reportingReports"
+  | InstitutionAdminReportingView
   | "rules"
   | "accessMembers"
   | "accessOrgUnitAccess"
@@ -208,6 +213,13 @@ export interface InstitutionAdminPageInput {
   badgeRuleRegistryPage?: BadgeIssuanceRuleRegistryPage | undefined;
   badgeRuleApprovalPolicy?: BadgeRuleApprovalPolicyRecord | null;
   reportingEngagementCounts?: TenantReportingEngagementCounts | null;
+  reportingFilters?: {
+    readonly issuedFrom: string | null;
+    readonly issuedTo: string | null;
+    readonly badgeTemplateId: string | null;
+    readonly orgUnitId: string | null;
+    readonly state: TenantReportingLifecycleFilter | null;
+  };
   reportingOverview?: TenantReportingOverviewRecord | null;
   reportingMetrics?: readonly ReportingMetricEntry[];
   reportingOrgUnitComparisons?: readonly TenantReportingComparisonRowRecord[];

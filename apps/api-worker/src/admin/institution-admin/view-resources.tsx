@@ -86,6 +86,7 @@ export const buildInstitutionAdminViewResources = (
     reporting: buildInstitutionAdminReportingViewResources({
       page: input,
       paths,
+      view,
       dataNeeds: viewDefinition.dataNeeds,
     }),
     rules: buildInstitutionAdminRulesViewResources({

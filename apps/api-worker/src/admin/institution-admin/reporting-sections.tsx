@@ -8,17 +8,17 @@ import {
 import { formatIsoTimestamp } from "../../utils/display-format";
 import {
   AdminActions,
-  AdminButton,
   AdminButtonLink,
   AdminEmptyTableRow,
-  AdminField,
-  AdminForm,
   AdminPanel,
   AdminStatusPill,
   AdminTable,
 } from "../components";
-import { CtInput, CtSelect } from "../../ui/forms";
 import type { InstitutionAdminPageInput } from "./page-types";
+import {
+  renderInstitutionAdminReportingFiltersForm,
+  reportingFilterValuesFromPage,
+} from "./reporting-filter-form";
 import {
   REPORTING_RATE_MIN_ISSUED,
   buildPathWithQuery,
@@ -37,7 +37,6 @@ type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
 interface RenderInstitutionAdminReportingSectionsInput {
   input: InstitutionAdminPageInput;
-  reportingPath: string;
   reportingExplorePath: string;
   reportingTrendsPath: string;
   reportingReportsPath: string;
@@ -55,17 +54,12 @@ interface InstitutionAdminReportingSections {
   reportingLowerStoryMarkup: HonoElement;
   reportingDefinitionsPanelMarkup: HonoElement;
   reportingDeferredPanelMarkup: HonoElement | null;
-  reportingTrendFiltersPanelMarkup: HonoElement;
-  reportingReportsLibraryMarkup: HonoElement;
-  reportingExportFiltersPanelMarkup: HonoElement;
-  reportingExportsPanelMarkup: HonoElement;
 }
 
 export const renderInstitutionAdminReportingSections = (
   source: RenderInstitutionAdminReportingSectionsInput,
 ): InstitutionAdminReportingSections => {
-  const { input, reportingPath, reportingExplorePath, reportingTrendsPath, reportingReportsPath } =
-    source;
+  const { input, reportingExplorePath, reportingTrendsPath, reportingReportsPath } = source;
   const templateById = new Map(input.badgeTemplates.map((template) => [template.id, template]));
   const orgUnitById = new Map(input.orgUnits.map((orgUnit) => [orgUnit.id, orgUnit]));
   const reportingEngagementCounts = input.reportingEngagementCounts ?? null;
@@ -104,27 +98,12 @@ export const renderInstitutionAdminReportingSections = (
     renderReportingVisualModule,
   } = reportingRenderHelpers;
 
-  const reportingState = reportingOverview?.filters.state ?? null;
-  const reportingIssuedFromValue = reportingOverview?.filters.issuedFrom ?? "";
-  const reportingIssuedToValue = reportingOverview?.filters.issuedTo ?? "";
-  const reportingBadgeTemplateIdValue = reportingOverview?.filters.badgeTemplateId ?? "";
-  const reportingOrgUnitIdValue = reportingOverview?.filters.orgUnitId ?? "";
-  const reportingTemplateFilterOptions = input.badgeTemplates.map((template) => {
-    return (
-      <option value={template.id} selected={reportingBadgeTemplateIdValue === template.id}>
-        {template.title}
-      </option>
-    );
-  });
-  const reportingOrgUnitOptions = input.orgUnits
-    .filter((orgUnit) => orgUnit.isActive)
-    .map((orgUnit) => {
-      return (
-        <option value={orgUnit.id} selected={reportingOrgUnitIdValue === orgUnit.id}>
-          {`${orgUnit.displayName} (${orgUnit.unitType})`}
-        </option>
-      );
-    });
+  const reportingFilters = reportingFilterValuesFromPage(input);
+  const reportingState = reportingFilters.state;
+  const reportingIssuedFromValue = reportingFilters.issuedFrom;
+  const reportingIssuedToValue = reportingFilters.issuedTo;
+  const reportingBadgeTemplateIdValue = reportingFilters.badgeTemplateId;
+  const reportingOrgUnitIdValue = reportingFilters.orgUnitId;
   const reportingPageQueryEntries = buildReportingPageQueryEntries({
     issuedFrom: reportingIssuedFromValue,
     issuedTo: reportingIssuedToValue,
@@ -137,18 +116,6 @@ export const renderInstitutionAdminReportingSections = (
   const reportingTrendsHref = buildPathWithQuery(reportingTrendsPath, reportingPageQueryEntries);
   const reportingReportsHref = buildPathWithQuery(reportingReportsPath, reportingPageQueryEntries);
   const reportingReportsExportsHref = `${reportingReportsHref}#reporting-reports-exports`;
-  const reportingOverviewExportHref = buildPathWithQuery(
-    `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/overview/export.csv`,
-    reportingAggregateExportEntries,
-  );
-  const reportingEngagementExportHref = buildPathWithQuery(
-    `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/engagement/export.csv`,
-    reportingAggregateExportEntries,
-  );
-  const reportingTrendsExportHref = buildPathWithQuery(
-    `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/trends/export.csv`,
-    [...reportingAggregateExportEntries, ["bucket", "day"]] as const,
-  );
   const reportingTemplateComparisonExportHref = buildPathWithQuery(
     `/v1/tenants/${encodeURIComponent(input.tenant.id)}/reporting/comparisons/export.csv`,
     [...reportingAggregateExportEntries, ["groupBy", "badgeTemplate"]] as const,
@@ -174,39 +141,6 @@ export const renderInstitutionAdminReportingSections = (
       }),
     );
   };
-  const reportingExportsPanelMarkup = (
-    <article id="reporting-reports-exports" class="ct-admin__panel ct-stack">
-      <div class="ct-cluster">
-        <h2>Export CSV</h2>
-        <span class="ct-admin__status-pill">Supporting operations</span>
-      </div>
-      <p>
-        Download CSV files for the selected filters. These links preserve issue date, badge,
-        organization, and lifecycle state selections.
-      </p>
-      <AdminActions>
-        <AdminButtonLink href={reportingOverviewExportHref} variant="secondary">
-          Overview CSV
-        </AdminButtonLink>
-        <AdminButtonLink href={reportingEngagementExportHref} variant="secondary">
-          Engagement CSV
-        </AdminButtonLink>
-        <AdminButtonLink href={reportingTrendsExportHref} variant="secondary">
-          Trends CSV
-        </AdminButtonLink>
-        <AdminButtonLink href={reportingTemplateComparisonExportHref} variant="secondary">
-          Template comparisons CSV
-        </AdminButtonLink>
-        <AdminButtonLink href={reportingOrgUnitComparisonExportHref} variant="secondary">
-          Org-unit comparisons CSV
-        </AdminButtonLink>
-      </AdminActions>
-      <p class="ct-admin__hint">
-        Recipient-level ledger export stays in Operations for owner/admin users and does not appear
-        in the reporting workspace.
-      </p>
-    </article>
-  );
   const reportingGeneratedAtLabel =
     reportingOverview === null
       ? "Generated just now"
@@ -742,84 +676,16 @@ export const renderInstitutionAdminReportingSections = (
       renderOrgUnitSummary,
       helpers: reportingRenderHelpers,
     });
-  const renderReportingFiltersForm = (
-    actionPath: string,
-    formClass = "ct-admin__form ct-admin__form--inline ct-grid",
-    resetPath = actionPath,
-  ): HonoElement => (
-    <>
-      <AdminForm
-        id="reporting-filters-form"
-        method="get"
-        action={actionPath}
-        className={formClass}
-        dataAttributes={{
-          "data-reporting-submit-state": "idle",
-        }}
-      >
-        <AdminField label="Issued from">
-          <CtInput name="issuedFrom" type="date" value={reportingIssuedFromValue} />
-        </AdminField>
-        <AdminField label="Issued to">
-          <CtInput name="issuedTo" type="date" value={reportingIssuedToValue} />
-        </AdminField>
-        <AdminField label="Badge template">
-          <CtSelect name="badgeTemplateId">
-            <option value="">All templates</option>
-            {reportingTemplateFilterOptions}
-          </CtSelect>
-        </AdminField>
-        <AdminField label="Org unit">
-          <CtSelect name="orgUnitId">
-            <option value="">All org units</option>
-            {reportingOrgUnitOptions}
-          </CtSelect>
-        </AdminField>
-        <AdminField label="Lifecycle state">
-          <CtSelect name="state">
-            <option value="">All current states</option>
-            <option value="active" selected={reportingState === "active"}>
-              active
-            </option>
-            <option value="suspended" selected={reportingState === "suspended"}>
-              suspended
-            </option>
-            <option value="revoked" selected={reportingState === "revoked"}>
-              revoked
-            </option>
-            <option value="expired" selected={reportingState === "expired"}>
-              expired
-            </option>
-            <option value="pending_review" selected={reportingState === "pending_review"}>
-              pending review
-            </option>
-          </CtSelect>
-        </AdminField>
-        <AdminActions>
-          <AdminButton type="submit">Apply filters</AdminButton>
-          <AdminButtonLink href={resetPath} variant="secondary">
-            Reset
-          </AdminButtonLink>
-        </AdminActions>
-      </AdminForm>
-      <p
-        id="reporting-filters-status"
-        class="ct-admin__hint"
-        data-reporting-submit-status
-        aria-live="polite"
-      >
-        Applying filters refreshes this page with your current selection.
-      </p>
-    </>
-  );
-
   const reportingOverviewPanelMarkup = (
     <AdminPanel id="reporting-overview-panel" className="ct-admin__reporting-overview-panel">
       <div class="ct-cluster">
         <h2>Reporting Overview</h2>
         <AdminStatusPill>Filters</AdminStatusPill>
       </div>
-      {renderReportingFiltersForm(reportingExplorePath)}
+      {renderInstitutionAdminReportingFiltersForm({
+        page: input,
+        actionPath: reportingExplorePath,
+      })}
       <p class="ct-admin__hint">
         Need CSV downloads for this view?{" "}
         <a href={reportingReportsExportsHref}>Open export options</a>.
@@ -831,31 +697,6 @@ export const renderInstitutionAdminReportingSections = (
           ? "just now"
           : formatIsoTimestamp(reportingOverview.generatedAt)}
       </p>
-    </AdminPanel>
-  );
-
-  const reportingTrendFiltersPanelMarkup = (
-    <details id="reporting-trend-filters-panel" class="ct-admin__panel ct-admin__add-disclosure">
-      <summary class="ct-admin__add-disclosure-summary">
-        <span>
-          <strong>Filter trend data</strong>
-          <small>Change date, badge, org unit, or state only when you need a narrower view.</small>
-        </span>
-      </summary>
-      {renderReportingFiltersForm(
-        reportingTrendsPath,
-        "ct-admin__form ct-admin__add-disclosure-form ct-grid",
-      )}
-    </details>
-  );
-
-  const reportingExportFiltersPanelMarkup = (
-    <AdminPanel id="reporting-export-filters-panel">
-      <div class="ct-cluster">
-        <h2>Export filters</h2>
-      </div>
-      <p>Choose filters before downloading CSV files.</p>
-      {renderReportingFiltersForm(reportingReportsPath)}
     </AdminPanel>
   );
 
@@ -1116,58 +957,6 @@ export const renderInstitutionAdminReportingSections = (
       </a>
     </section>
   );
-  const reportingSavedReportsPanelMarkup = (
-    <AdminPanel id="reporting-reports-saved" className="ct-admin__reporting-placeholder-panel">
-      <div class="ct-cluster">
-        <div class="ct-stack">
-          <p class="ct-admin__eyebrow">Saved reports</p>
-          <h2>Saved report shortcuts will live here.</h2>
-        </div>
-        <AdminStatusPill>Planned</AdminStatusPill>
-      </div>
-      <p>
-        Reserved for named reports that preserve filters, audience, and export intent. For now, use
-        Highlights for the default read and Explore for the exact table workspace.
-      </p>
-      <AdminActions>
-        <AdminButtonLink href={reportingPath} variant="secondary">
-          Open Highlights
-        </AdminButtonLink>
-        <AdminButtonLink href={reportingExploreHref} variant="quiet">
-          Open Explore
-        </AdminButtonLink>
-      </AdminActions>
-    </AdminPanel>
-  );
-  const reportingCustomReportsPanelMarkup = (
-    <AdminPanel id="reporting-reports-custom" className="ct-admin__reporting-placeholder-panel">
-      <div class="ct-cluster">
-        <div class="ct-stack">
-          <p class="ct-admin__eyebrow">Custom reports</p>
-          <h2>Custom report setup will live here.</h2>
-        </div>
-        <AdminStatusPill>Planned</AdminStatusPill>
-      </div>
-      <p>
-        Custom report builders and reusable export profiles are planned. Current filters still
-        travel through Explore, Trends, and Reports.
-      </p>
-      <AdminActions>
-        <AdminButtonLink href={reportingExploreHref} variant="secondary">
-          Build from Explore
-        </AdminButtonLink>
-        <AdminButtonLink href={reportingReportsExportsHref} variant="quiet">
-          Export current view
-        </AdminButtonLink>
-      </AdminActions>
-    </AdminPanel>
-  );
-  const reportingReportsLibraryMarkup = (
-    <section class="ct-admin__reporting-highlight-grid">
-      {reportingSavedReportsPanelMarkup}
-      {reportingCustomReportsPanelMarkup}
-    </section>
-  );
   const reportingAdvancedDrilldownsMarkup = (
     <details id="reporting-advanced-drilldowns" class="ct-admin__reporting-advanced-drilldowns">
       <summary class="ct-admin__reporting-advanced-summary">
@@ -1202,9 +991,5 @@ export const renderInstitutionAdminReportingSections = (
     reportingLowerStoryMarkup,
     reportingDefinitionsPanelMarkup,
     reportingDeferredPanelMarkup,
-    reportingTrendFiltersPanelMarkup,
-    reportingReportsLibraryMarkup,
-    reportingExportFiltersPanelMarkup,
-    reportingExportsPanelMarkup,
   };
 };

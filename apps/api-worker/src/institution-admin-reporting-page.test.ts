@@ -124,14 +124,7 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
       badgeTemplateId: undefined,
       orgUnitId: undefined,
     });
-    expect(mockedGetTenantReportingTrendsDb).toHaveBeenCalledWith(fakeDb, {
-      tenantId: "tenant_123",
-      from: "2026-03-01",
-      to: "2026-03-31",
-      badgeTemplateId: undefined,
-      orgUnitId: undefined,
-      bucket: "day",
-    });
+    expect(mockedGetTenantReportingTrendsDb).not.toHaveBeenCalled();
     expect(mockedGetTenantReportingComparisonsDb).toHaveBeenNthCalledWith(1, fakeDb, {
       tenantId: "tenant_123",
       from: "2026-03-01",
@@ -326,6 +319,10 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
       'href="/v1/tenants/tenant_123/reporting/comparisons/export.csv?issuedFrom=2026-03-01&amp;issuedTo=2026-03-31&amp;badgeTemplateId=badge_template_001&amp;orgUnitId=tenant_123%3Aorg%3Adepartment-cs&amp;state=active&amp;groupBy=orgUnit"',
     );
     expect(body).not.toContain('href="/v1/tenants/tenant_123/assertions/ledger-export.csv"');
+    expect(mockedGetTenantReportingOverviewDb).not.toHaveBeenCalled();
+    expect(mockedGetTenantReportingEngagementCountsDb).not.toHaveBeenCalled();
+    expect(mockedGetTenantReportingTrendsDb).not.toHaveBeenCalled();
+    expect(mockedGetTenantReportingComparisonsDb).not.toHaveBeenCalled();
   });
 
   it("keeps the reporting home distilled with ranked charts behind disclosure", async () => {
@@ -502,6 +499,17 @@ describe("GET /tenants/:tenantId/admin/reporting", () => {
     expect(body).not.toContain("Back to overview");
     expect(body).not.toContain("Export CSV");
     expect(body).toContain('href="/tenants/tenant_123/admin/reporting"');
+    expect(mockedGetTenantReportingTrendsDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      from: "2026-03-01",
+      to: "2026-03-31",
+      badgeTemplateId: undefined,
+      orgUnitId: undefined,
+      bucket: "day",
+    });
+    expect(mockedGetTenantReportingOverviewDb).not.toHaveBeenCalled();
+    expect(mockedGetTenantReportingEngagementCountsDb).not.toHaveBeenCalled();
+    expect(mockedGetTenantReportingComparisonsDb).not.toHaveBeenCalled();
   });
 
   it("renders deliberate empty shells for trend, comparison, hierarchy, and performer panels", async () => {

@@ -2,7 +2,11 @@ import { renderBadgeRuleBuilderDraftRows } from "./badge-rule-builder-draft-rows
 import { renderBadgeRulesTable } from "./badge-rules-table";
 import { renderInstitutionAdminLearnerRecordSections } from "./learner-record-sections";
 import { renderBadgeStatusPanel, renderRuleReviewQueuePanel } from "./operations-sections";
-import type { InstitutionAdminPageInput } from "./page-types";
+import type { InstitutionAdminPageInput, InstitutionAdminView } from "./page-types";
+import {
+  renderInstitutionAdminReportingReportsView,
+  renderInstitutionAdminReportingTrendsView,
+} from "./reporting-focused-sections";
 import { renderInstitutionAdminReportingSections } from "./reporting-sections";
 import type {
   InstitutionAdminViewContentInput,
@@ -34,35 +38,73 @@ export const buildInstitutionAdminOperationsViewResources = (input: {
 export const buildInstitutionAdminReportingViewResources = (input: {
   page: InstitutionAdminPageInput;
   paths: ReturnType<typeof buildInstitutionAdminViewPaths>;
+  view: InstitutionAdminView;
   dataNeeds: InstitutionAdminViewDataNeeds;
 }): InstitutionAdminViewContentInput["reporting"] => {
   if (!input.dataNeeds.reportingSectionBundles) {
-    return {
-      reportingExecutiveSummaryMarkup: emptySectionMarkup,
-      reportingFocusAreaPanelMarkup: emptySectionMarkup,
-      reportingRankedChartsMarkup: emptySectionMarkup,
-      reportingDeepLinksMarkup: emptySectionMarkup,
-      reportingExploreSliceSummaryMarkup: emptySectionMarkup,
-      reportingOverviewPanelMarkup: emptySectionMarkup,
-      renderReportingTrendPanelMarkup: () => emptySectionMarkup,
-      reportingEngagementPanelMarkup: emptySectionMarkup,
-      reportingLowerStoryMarkup: emptySectionMarkup,
-      reportingDefinitionsPanelMarkup: emptySectionMarkup,
-      reportingDeferredPanelMarkup: emptySectionMarkup,
-      reportingTrendFiltersPanelMarkup: emptySectionMarkup,
-      reportingReportsLibraryMarkup: emptySectionMarkup,
-      reportingExportFiltersPanelMarkup: emptySectionMarkup,
-      reportingExportsPanelMarkup: emptySectionMarkup,
-    };
+    return { viewMarkup: emptySectionMarkup };
   }
 
-  return renderInstitutionAdminReportingSections({
+  const sectionInput = {
     input: input.page,
-    reportingPath: input.paths.reportingPath,
     reportingExplorePath: input.paths.reportingExplorePath,
     reportingTrendsPath: input.paths.reportingTrendsPath,
     reportingReportsPath: input.paths.reportingReportsPath,
-  });
+  };
+
+  if (input.view === "reportingTrends") {
+    return {
+      viewMarkup: renderInstitutionAdminReportingTrendsView({
+        page: input.page,
+        reportingExplorePath: input.paths.reportingExplorePath,
+        reportingTrendsPath: input.paths.reportingTrendsPath,
+      }),
+    };
+  }
+
+  if (input.view === "reportingReports") {
+    return {
+      viewMarkup: renderInstitutionAdminReportingReportsView({
+        page: input.page,
+        reportingPath: input.paths.reportingPath,
+        reportingExplorePath: input.paths.reportingExplorePath,
+        reportingReportsPath: input.paths.reportingReportsPath,
+      }),
+    };
+  }
+
+  const sections = renderInstitutionAdminReportingSections(sectionInput);
+
+  if (input.view === "reporting") {
+    return {
+      viewMarkup: (
+        <section class="ct-admin__reporting-primary-story ct-stack">
+          <section class="ct-admin__reporting-first-screen ct-stack">
+            {sections.reportingExecutiveSummaryMarkup}
+          </section>
+          {sections.reportingFocusAreaPanelMarkup}
+          {sections.reportingRankedChartsMarkup}
+          {sections.reportingDeepLinksMarkup}
+        </section>
+      ),
+    };
+  }
+
+  return {
+    viewMarkup: (
+      <>
+        {sections.reportingExploreSliceSummaryMarkup}
+        <section class="ct-admin__reporting-explore-workspace ct-stack">
+          {sections.reportingOverviewPanelMarkup}
+          {sections.renderReportingTrendPanelMarkup({ includeDetailedTable: false })}
+          {sections.reportingEngagementPanelMarkup}
+          {sections.reportingLowerStoryMarkup}
+          {sections.reportingDefinitionsPanelMarkup}
+          {sections.reportingDeferredPanelMarkup}
+        </section>
+      </>
+    ),
+  };
 };
 
 export const buildInstitutionAdminRulesViewResources = (input: {
