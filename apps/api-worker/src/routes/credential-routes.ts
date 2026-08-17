@@ -10,9 +10,10 @@ import {
 } from "@credtrail/db";
 import { parseCredentialPathParams, parseTenantPathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
-import type { AppContext, AppEnv } from "../app/types";
+import type { AppBindings, AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import { canonicalAppRequestUrl } from "../http/canonical-app-url";
+import type { PublicResourceNetwork } from "../http/public-resource-network";
 import { VC_JSON_LD_CONTENT_TYPE } from "../http/vc-media-types";
 
 interface VerificationAssertion {
@@ -182,7 +183,14 @@ interface RegisterCredentialRoutesInput<
   badgeNameFromCredential: (credential: CredentialValue) => string;
   issuerNameFromCredential: (credential: CredentialValue) => string;
   formatIsoTimestamp: (timestampIso: string) => string;
-  renderBadgePdfDocument: (input: BadgePdfDocumentInput) => Promise<Uint8Array>;
+  renderBadgePdfDocument: (
+    input: BadgePdfDocumentInput,
+    options: {
+      readonly publicResourceNetwork: PublicResourceNetwork;
+      readonly signal?: AbortSignal;
+    },
+  ) => Promise<Uint8Array>;
+  resolvePublicResourceNetwork: (bindings: AppBindings) => PublicResourceNetwork;
   credentialPdfDownloadFilename: (assertionId: string) => string;
   resolveSigningEntryForDid: (context: AppContext, did: string) => Promise<SigningEntry | null>;
   resolveRemoteSignerRegistryEntryForDid: (context: AppContext, did: string) => object | null;
@@ -334,6 +342,7 @@ export const registerCredentialRoutes = <
     issuerNameFromCredential,
     formatIsoTimestamp,
     renderBadgePdfDocument,
+    resolvePublicResourceNetwork,
     credentialPdfDownloadFilename,
     resolveSigningEntryForDid,
     resolveRemoteSignerRegistryEntryForDid,
@@ -506,25 +515,31 @@ export const registerCredentialRoutes = <
       model.recipientDisplayName ??
       recipientDisplayNameFromAssertion(model.assertion) ??
       "Badge recipient";
-    const pdfDocument = await renderBadgePdfDocument({
-      badgeName: badgeNameFromCredential(model.credential),
-      recipientName,
-      recipientIdentifier: recipientFromCredential(model.credential),
-      issuerName: issuerNameFromCredential(model.credential),
-      issuedAt: `${formatIsoTimestamp(model.assertion.issuedAt)} UTC`,
-      status: credentialLifecycleLabel(pdfEffectiveLifecycle.state),
-      assertionId: model.assertion.id,
-      credentialId,
-      publicBadgeUrl: new URL(publicBadgePath, publicRequestUrl(c)).toString(),
-      verificationUrl: new URL(verificationPath, publicRequestUrl(c)).toString(),
-      ob3JsonUrl: new URL(ob3JsonPath, publicRequestUrl(c)).toString(),
-      badgeImageUrl: achievementDetails.imageUri,
-      ...(pdfEffectiveLifecycle.revokedAt === null
-        ? {}
-        : {
-            revokedAt: `${formatIsoTimestamp(pdfEffectiveLifecycle.revokedAt)} UTC`,
-          }),
-    });
+    const pdfDocument = await renderBadgePdfDocument(
+      {
+        badgeName: badgeNameFromCredential(model.credential),
+        recipientName,
+        recipientIdentifier: recipientFromCredential(model.credential),
+        issuerName: issuerNameFromCredential(model.credential),
+        issuedAt: `${formatIsoTimestamp(model.assertion.issuedAt)} UTC`,
+        status: credentialLifecycleLabel(pdfEffectiveLifecycle.state),
+        assertionId: model.assertion.id,
+        credentialId,
+        publicBadgeUrl: new URL(publicBadgePath, publicRequestUrl(c)).toString(),
+        verificationUrl: new URL(verificationPath, publicRequestUrl(c)).toString(),
+        ob3JsonUrl: new URL(ob3JsonPath, publicRequestUrl(c)).toString(),
+        badgeImageUrl: achievementDetails.imageUri,
+        ...(pdfEffectiveLifecycle.revokedAt === null
+          ? {}
+          : {
+              revokedAt: `${formatIsoTimestamp(pdfEffectiveLifecycle.revokedAt)} UTC`,
+            }),
+      },
+      {
+        publicResourceNetwork: resolvePublicResourceNetwork(c.env),
+        signal: c.req.raw.signal,
+      },
+    );
     const pdfBody = Uint8Array.from(pdfDocument).buffer;
 
     return new Response(pdfBody, {

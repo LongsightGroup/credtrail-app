@@ -1,54 +1,97 @@
+import { z } from "zod";
 import { withCredTrailUserAgent } from "../http/outbound-user-agent";
 
 const TURNSTILE_SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+const DEFAULT_TURNSTILE_TIMEOUT_MS = 2_500;
 
-interface TurnstileSiteverifyResponse {
-  success?: boolean;
-  challenge_ts?: string;
-  hostname?: string;
-  "error-codes"?: string[];
-  action?: string;
-  cdata?: string;
-}
+const turnstileSiteverifyResponseSchema = z.object({
+  success: z.boolean(),
+});
 
+/** Values required to verify one Cloudflare Turnstile challenge token. */
 export interface VerifyTurnstileTokenInput {
-  secretKey?: string | undefined;
-  token?: string | undefined;
-  remoteIp?: string | undefined;
-  idempotencyKey: string;
+  readonly secretKey?: string | undefined;
+  readonly token?: string | undefined;
+  readonly remoteIp?: string | undefined;
+  readonly idempotencyKey: string;
 }
 
+/** Cancellation options for one Turnstile verification request. */
+export interface VerifyTurnstileTokenOptions {
+  readonly signal?: AbortSignal;
+}
+
+/** Narrow capability used by authentication routes to verify Turnstile tokens. */
+export interface TurnstileVerifier {
+  verify(input: VerifyTurnstileTokenInput, options?: VerifyTurnstileTokenOptions): Promise<boolean>;
+}
+
+/** Returns whether a non-empty Turnstile secret is configured. */
 export const turnstileConfigured = (secretKey?: string): boolean => {
   return secretKey !== undefined && secretKey.trim().length > 0;
 };
 
-export const verifyTurnstileToken = async (input: VerifyTurnstileTokenInput): Promise<boolean> => {
-  const secret = input.secretKey?.trim();
-  const token = input.token?.trim();
+/** Creates a bounded Turnstile verifier around an injected HTTP request function. */
+export const createTurnstileVerifier = (input: {
+  readonly fetchRequest: (url: string, init: RequestInit) => Promise<Response>;
+  readonly timeoutMs?: number;
+}): TurnstileVerifier => {
+  const timeoutMs = input.timeoutMs ?? DEFAULT_TURNSTILE_TIMEOUT_MS;
 
-  if (secret === undefined || secret.length === 0 || token === undefined || token.length === 0) {
-    return false;
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+    throw new Error("Turnstile request timeout must be a positive integer");
   }
 
-  const response = await fetch(TURNSTILE_SITEVERIFY_URL, {
-    method: "POST",
-    headers: withCredTrailUserAgent({
-      "content-type": "application/json",
-    }),
-    body: JSON.stringify({
-      secret,
-      response: token,
-      idempotency_key: input.idempotencyKey,
-      ...(input.remoteIp === undefined || input.remoteIp.length === 0
-        ? {}
-        : { remoteip: input.remoteIp }),
-    }),
-  });
+  return {
+    verify: async (verificationInput, options = {}) => {
+      const secret = verificationInput.secretKey?.trim();
+      const token = verificationInput.token?.trim();
 
-  if (!response.ok) {
-    return false;
-  }
+      if (
+        secret === undefined ||
+        secret.length === 0 ||
+        token === undefined ||
+        token.length === 0
+      ) {
+        return false;
+      }
 
-  const result = (await response.json()) as TurnstileSiteverifyResponse;
-  return result.success === true;
+      const timeoutController = new AbortController();
+      const timeoutHandle = setTimeout(() => timeoutController.abort(), timeoutMs);
+      const signal =
+        options.signal === undefined
+          ? timeoutController.signal
+          : AbortSignal.any([options.signal, timeoutController.signal]);
+
+      try {
+        const response = await input.fetchRequest(TURNSTILE_SITEVERIFY_URL, {
+          method: "POST",
+          headers: withCredTrailUserAgent({
+            "content-type": "application/json",
+          }),
+          body: JSON.stringify({
+            secret,
+            response: token,
+            idempotency_key: verificationInput.idempotencyKey,
+            ...(verificationInput.remoteIp === undefined || verificationInput.remoteIp.length === 0
+              ? {}
+              : { remoteip: verificationInput.remoteIp }),
+          }),
+          signal,
+        });
+
+        if (!response.ok) {
+          return false;
+        }
+
+        const responseBody: unknown = await response.json();
+        const parsedResponse = turnstileSiteverifyResponseSchema.safeParse(responseBody);
+        return parsedResponse.success && parsedResponse.data.success;
+      } catch {
+        return false;
+      } finally {
+        clearTimeout(timeoutHandle);
+      }
+    },
+  };
 };

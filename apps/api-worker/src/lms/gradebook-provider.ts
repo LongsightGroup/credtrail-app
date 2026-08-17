@@ -85,7 +85,5 @@ export const createGradebookProvider = (
           ? {}
           : { refreshSession: input.sakaiRefreshSession }),
       });
-    default:
-      throw new Error(`Gradebook provider "${input.config.kind}" is not implemented yet`);
   }
 };

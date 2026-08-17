@@ -1,6 +1,7 @@
 import type { JsonObject } from "@credtrail/core-domain";
 import { findTenantSigningRegistrationByDid, listAllLtiIssuerRegistrations } from "@credtrail/db";
 import { Hono } from "hono";
+import { createTurnstileVerifier } from "./auth/turnstile";
 import {
   credentialDownloadFilename,
   credentialPdfDownloadFilename,
@@ -339,6 +340,9 @@ const lmsCourseAuthoring = createLmsCourseAuthoringService({
 });
 const loadBadgeRuleVersionReferenceLabels =
   createProductionBadgeRuleVersionReferenceLabelService(lmsCourseAuthoring);
+const turnstileVerifier = createTurnstileVerifier({
+  fetchRequest: (url, init) => fetch(url, init),
+});
 
 const appDeps: AppDeps = {
   observabilityContext,
@@ -350,6 +354,7 @@ const appDeps: AppDeps = {
   createBetterAuthRequest,
   createBetterAuthRuntime,
   createConfiguredSocialProviders,
+  resolveTurnstileVerifier: (bindings) => bindings.TURNSTILE_VERIFIER ?? turnstileVerifier,
   enterpriseSso: enterpriseSsoAdapter,
   rememberRequestedTenant,
   resolveAuthenticatedPrincipal,
@@ -389,6 +394,8 @@ const appDeps: AppDeps = {
   issuerNameFromCredential,
   formatIsoTimestamp,
   renderBadgePdfDocument,
+  resolvePublicResourceNetwork: (bindings) =>
+    bindings.PUBLIC_RESOURCE_NETWORK ?? workerPublicResourceNetwork,
   credentialPdfDownloadFilename,
   resolveRemoteSignerRegistryEntryForDid,
   buildRevocationStatusListCredential,

@@ -37,7 +37,7 @@ import {
   resolveTenantContextSelection,
   toAccessibleTenantContextViews,
 } from "../auth/tenant-context-selection";
-import { turnstileConfigured, verifyTurnstileToken } from "../auth/turnstile";
+import { turnstileConfigured, type TurnstileVerifier } from "../auth/turnstile";
 import { getSeededDemoTrustEdCredentialFixture } from "../badges/seeded-demo-trusted-credential-fixture";
 import { appPage, renderAppPage } from "../ui/render-page";
 import { sessionCookieSecure, sha256Hex } from "../utils/crypto";
@@ -123,6 +123,7 @@ interface RegisterAuthRoutesInput {
   resolveRequestedTenantContext: (c: AppContext) => Promise<RequestedTenantContext | null>;
   rememberRequestedTenant: (c: AppContext, tenantId: string) => RequestedTenantContext;
   revokeCurrentSession: (c: AppContext) => Promise<void>;
+  resolveTurnstileVerifier: (bindings: AppBindings) => TurnstileVerifier;
   enterpriseSso?: EnterpriseSsoAdapter<AppContext, AppBindings> | undefined;
   breakGlassPolicy?: BreakGlassPolicyAdapter<AppContext, AppBindings> | undefined;
 }
@@ -226,6 +227,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     resolveRequestedTenantContext,
     rememberRequestedTenant,
     revokeCurrentSession,
+    resolveTurnstileVerifier,
     enterpriseSso,
     breakGlassPolicy,
   } = input;
@@ -728,12 +730,15 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
     });
 
     if (turnstileRequired) {
-      const turnstileAccepted = await verifyTurnstileToken({
-        secretKey: c.env.TURNSTILE_SECRET_KEY,
-        token: request.turnstileToken,
-        remoteIp: clientIp === "unknown" ? undefined : clientIp,
-        idempotencyKey: crypto.randomUUID(),
-      });
+      const turnstileAccepted = await resolveTurnstileVerifier(c.env).verify(
+        {
+          secretKey: c.env.TURNSTILE_SECRET_KEY,
+          token: request.turnstileToken,
+          remoteIp: clientIp === "unknown" ? undefined : clientIp,
+          idempotencyKey: crypto.randomUUID(),
+        },
+        { signal: c.req.raw.signal },
+      );
 
       if (!turnstileAccepted) {
         await recordMagicLinkAttempts(db, dimensions, nowIso);

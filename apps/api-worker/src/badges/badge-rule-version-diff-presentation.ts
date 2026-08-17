@@ -57,9 +57,6 @@ const formatSnapshotDiffValue = (
   if (field === "lms_provider") {
     switch (value) {
       case "canvas":
-      case "moodle":
-      case "blackboard_ultra":
-      case "d2l_brightspace":
       case "sakai":
         return badgeRuleLmsProviderLabel(value);
       default:

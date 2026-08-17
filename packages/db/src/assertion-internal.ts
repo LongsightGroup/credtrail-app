@@ -68,28 +68,6 @@ export interface AssertionEngagementEventRow {
   createdAt: string;
 }
 
-export interface TenantReportingOverviewRow {
-  assertionId: string;
-  issuedAt: string;
-  badgeTemplateId: string;
-  orgUnitId: string;
-  revokedAt: string | null;
-  latestToState: AssertionLifecycleState | null;
-  latestReasonCode: AssertionLifecycleReasonCode | null;
-}
-
-export interface TenantReportingEngagementRow {
-  assertionId: string;
-  badgeTemplateId: string;
-  orgUnitId: string;
-  issuedAt: string;
-  revokedAt: string | null;
-  latestToState: AssertionLifecycleState | null;
-  latestReasonCode: AssertionLifecycleReasonCode | null;
-  eventType: AssertionEngagementEventType | null;
-  occurredAt: string | null;
-}
-
 export interface AssertionLifecycleEventRow {
   id: string;
   tenantId: string;

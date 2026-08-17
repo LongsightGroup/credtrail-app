@@ -1,12 +1,7 @@
 import type { BadgeAchievementSnapshot } from "@credtrail/validation";
 import type { TenantMembershipRole } from "./tenant-memberships";
 
-export type BadgeIssuanceRuleLmsProviderKind =
-  | "canvas"
-  | "moodle"
-  | "blackboard_ultra"
-  | "d2l_brightspace"
-  | "sakai";
+export type BadgeIssuanceRuleLmsProviderKind = "canvas" | "sakai";
 
 export type BadgeIssuanceRuleVersionStatus =
   | "draft"

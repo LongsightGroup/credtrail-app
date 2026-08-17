@@ -308,15 +308,6 @@ export interface TenantReportingHierarchyQuery {
   level: OrgUnitType;
 }
 
-export interface TenantReportingHierarchySourceRow {
-  assertionId: string;
-  badgeTemplateId: string;
-  orgUnitId: string;
-  issuedAt: string;
-  eventType: AssertionEngagementEventType | null;
-  occurredAt: string | null;
-}
-
 export interface TenantReportingHierarchyOrgUnitRecord {
   id: string;
   unitType: OrgUnitType;

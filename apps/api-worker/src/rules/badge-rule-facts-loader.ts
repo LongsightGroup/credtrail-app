@@ -115,12 +115,6 @@ export const loadRuleFacts = async (
     };
   }
 
-  if (input.lmsProviderKind !== "canvas" && input.lmsProviderKind !== "sakai") {
-    throw new Error(
-      `Automated rule evaluation is not implemented for LMS provider "${input.lmsProviderKind}"`,
-    );
-  }
-
   const earnedBadgeTemplateIds = await loadEarnedBadgeTemplateIds(undefined);
 
   const provider =

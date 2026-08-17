@@ -2,13 +2,7 @@ import { z } from "zod";
 import { isoTimestampSchema, recipientIdentityTypeSchema, resourceIdSchema } from "./primitives.js";
 import { tenantPathParamsSchema } from "./path-params.js";
 
-export const badgeIssuanceRuleLmsProviderKindSchema = z.enum([
-  "canvas",
-  "moodle",
-  "blackboard_ultra",
-  "d2l_brightspace",
-  "sakai",
-]);
+export const badgeIssuanceRuleLmsProviderKindSchema = z.enum(["canvas", "sakai"]);
 
 export const badgeIssuanceRuleValueListKindSchema = z.enum(["course_ids", "badge_template_ids"]);
 

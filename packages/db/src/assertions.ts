@@ -42,10 +42,6 @@ export {
   SYNCHRONOUS_EXPORT_ROW_LIMIT,
 } from "./assertion-types.js";
 export {
-  resolveAssertionReportingAttribution,
-  summarizeTenantReportingOverviewRows,
-  summarizeTenantReportingTrendRows,
-  summarizeTenantReportingComparisonRows,
   summarizeTenantReportingHierarchyRows,
   summarizeTenantExecutiveRollup,
 } from "./assertion-reporting-summaries.js";
@@ -58,7 +54,6 @@ export type {
   TenantReportingOverviewRecord,
   TenantReportingEngagementFilters,
   TenantReportingHierarchyQuery,
-  TenantReportingHierarchySourceRow,
   TenantReportingHierarchyOrgUnitRecord,
   TenantReportingHierarchyGroupRecord,
   TenantExecutiveRollupQuery,

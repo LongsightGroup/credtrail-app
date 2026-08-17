@@ -8,6 +8,10 @@ import {
 } from "pdf-lib";
 
 import { withCredTrailUserAgent } from "../http/outbound-user-agent";
+import {
+  loadPublicBytesFromUrl,
+  type PublicResourceNetwork,
+} from "../http/public-resource-network";
 import { createQrCodeMatrix } from "./qr-code";
 
 export const badgeInitialsFromName = (badgeName: string): string => {
@@ -64,6 +68,12 @@ export interface BadgePdfDocumentInput {
   revokedAt?: string;
 }
 
+/** Runtime dependencies used while rendering a downloadable badge PDF. */
+export interface BadgePdfDocumentOptions {
+  readonly publicResourceNetwork: PublicResourceNetwork;
+  readonly signal?: AbortSignal;
+}
+
 interface BadgePdfImageAsset {
   bytes: Uint8Array;
   mimeType: "image/png" | "image/jpeg";
@@ -71,6 +81,38 @@ interface BadgePdfImageAsset {
 
 const BADGE_PDF_IMAGE_FETCH_TIMEOUT_MS = 2_500;
 const BADGE_PDF_MAX_IMAGE_BYTES = 2_500_000;
+
+const badgePdfImageMimeTypeFromBytes = (
+  bytes: Uint8Array,
+): BadgePdfImageAsset["mimeType"] | null => {
+  const isPng =
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a;
+
+  if (isPng) {
+    return "image/png";
+  }
+
+  const isJpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+
+  return isJpeg ? "image/jpeg" : null;
+};
+
+const badgePdfImageAssetFromBytes = (bytes: Uint8Array): BadgePdfImageAsset | null => {
+  if (bytes.length === 0 || bytes.length > BADGE_PDF_MAX_IMAGE_BYTES) {
+    return null;
+  }
+
+  const mimeType = badgePdfImageMimeTypeFromBytes(bytes);
+  return mimeType === null ? null : { bytes, mimeType };
+};
 
 const parseBadgePdfDataUrl = (imageUrl: string): BadgePdfImageAsset | null => {
   const match = /^data:(image\/(?:png|jpeg|jpg));base64,([A-Za-z0-9+/=\s]+)$/i.exec(
@@ -97,107 +139,46 @@ const parseBadgePdfDataUrl = (imageUrl: string): BadgePdfImageAsset | null => {
 
     const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
 
-    if (mimeType === "image/png") {
-      return {
-        bytes,
-        mimeType: "image/png",
-      };
+    const asset = badgePdfImageAssetFromBytes(bytes);
+
+    const declaredMimeType = mimeType === "image/png" ? "image/png" : "image/jpeg";
+
+    if (asset === null || asset.mimeType !== declaredMimeType) {
+      return null;
     }
 
-    return {
-      bytes,
-      mimeType: "image/jpeg",
-    };
+    return asset;
   } catch {
     return null;
   }
 };
 
-const inferBadgePdfImageMimeType = (
-  imageUrl: URL,
-  contentTypeHeader: string | null,
-): BadgePdfImageAsset["mimeType"] | null => {
-  const contentType = contentTypeHeader?.split(";")[0]?.trim().toLowerCase() ?? null;
-
-  if (contentType === "image/png") {
-    return "image/png";
-  }
-
-  if (contentType === "image/jpeg" || contentType === "image/jpg") {
-    return "image/jpeg";
-  }
-
-  const pathname = imageUrl.pathname.toLowerCase();
-
-  if (pathname.endsWith(".png")) {
-    return "image/png";
-  }
-
-  if (pathname.endsWith(".jpg") || pathname.endsWith(".jpeg")) {
-    return "image/jpeg";
-  }
-
-  return null;
-};
-
-const loadBadgePdfImageAsset = async (imageUrl: string): Promise<BadgePdfImageAsset | null> => {
+const loadBadgePdfImageAsset = async (
+  imageUrl: string,
+  network: PublicResourceNetwork,
+  signal?: AbortSignal,
+): Promise<BadgePdfImageAsset | null> => {
   const dataUrlAsset = parseBadgePdfDataUrl(imageUrl);
 
   if (dataUrlAsset !== null) {
     return dataUrlAsset;
   }
 
-  let parsedUrl: URL;
+  const loaded = await loadPublicBytesFromUrl(network, {
+    resourceUrl: imageUrl,
+    headers: withCredTrailUserAgent({
+      Accept: "image/png,image/jpeg,image/*;q=0.8,*/*;q=0.5",
+    }),
+    maxResponseBytes: BADGE_PDF_MAX_IMAGE_BYTES,
+    timeoutMs: BADGE_PDF_IMAGE_FETCH_TIMEOUT_MS,
+    ...(signal === undefined ? {} : { signal }),
+  });
 
-  try {
-    parsedUrl = new URL(imageUrl);
-  } catch {
+  if (loaded.status === "error") {
     return null;
   }
 
-  if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-    return null;
-  }
-
-  const abortController = new AbortController();
-  const timeoutId = setTimeout(() => {
-    abortController.abort();
-  }, BADGE_PDF_IMAGE_FETCH_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(parsedUrl.toString(), {
-      method: "GET",
-      headers: withCredTrailUserAgent({
-        Accept: "image/png,image/jpeg,image/*;q=0.8,*/*;q=0.5",
-      }),
-      signal: abortController.signal,
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const mimeType = inferBadgePdfImageMimeType(parsedUrl, response.headers.get("content-type"));
-
-    if (mimeType === null) {
-      return null;
-    }
-
-    const imageBuffer = await response.arrayBuffer();
-
-    if (imageBuffer.byteLength === 0 || imageBuffer.byteLength > BADGE_PDF_MAX_IMAGE_BYTES) {
-      return null;
-    }
-
-    return {
-      bytes: new Uint8Array(imageBuffer),
-      mimeType,
-    };
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  return badgePdfImageAssetFromBytes(loaded.bodyBytes);
 };
 
 const splitPdfWordToWidth = (
@@ -583,7 +564,10 @@ const drawPdfQrCode = (
   }
 };
 
-export const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Promise<Uint8Array> => {
+export const renderBadgePdfDocument = async (
+  input: BadgePdfDocumentInput,
+  options: BadgePdfDocumentOptions,
+): Promise<Uint8Array> => {
   const pdfDocument = await PDFDocument.create();
   const page = pdfDocument.addPage([612, 792]);
   const regularFont = await pdfDocument.embedFont(StandardFonts.Helvetica);
@@ -742,7 +726,11 @@ export const renderBadgePdfDocument = async (input: BadgePdfDocumentInput): Prom
   let embeddedBadgeImage: PDFImage | null = null;
 
   if (input.badgeImageUrl !== null) {
-    const imageAsset = await loadBadgePdfImageAsset(input.badgeImageUrl);
+    const imageAsset = await loadBadgePdfImageAsset(
+      input.badgeImageUrl,
+      options.publicResourceNetwork,
+      options.signal,
+    );
     embeddedBadgeImage =
       imageAsset === null ? null : await embedBadgePdfImage(pdfDocument, imageAsset);
   }

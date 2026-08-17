@@ -26,7 +26,6 @@ import type {
   TenantAssertionLedgerExportRow,
   TenantAssertionSummaryRow,
 } from "./assertion-internal.js";
-import { backfillAssertionReportingAttributionsForTenant } from "./assertion-reporting-attribution.js";
 import {
   assertionReportingAttributionJoinSql,
   buildAssertionRecordFilterSql,
@@ -92,10 +91,6 @@ export const listTenantAssertions = async (
   db: SqlDatabase,
   input: ListTenantAssertionsInput,
 ): Promise<TenantAssertionSummaryRecord[]> => {
-  if (input.orgUnitId !== undefined) {
-    await backfillAssertionReportingAttributionsForTenant(db, input.tenantId);
-  }
-
   const queryLimit = Math.max(1, Math.min(input.limit ?? 100, 500));
   const { whereClauses, params } = buildAssertionRecordFilterSql(input, {
     context: "ledger",
@@ -148,8 +143,6 @@ export const listTenantAssertionLedgerExportRows = async (
   db: SqlDatabase,
   input: ListTenantAssertionLedgerExportRowsInput,
 ): Promise<TenantAssertionLedgerExportResult> => {
-  await backfillAssertionReportingAttributionsForTenant(db, input.tenantId);
-
   const { whereClauses, params } = buildAssertionRecordFilterSql(input, {
     context: "ledger",
   });

@@ -1,6 +1,7 @@
 import type { ImmutableCredentialStore } from "@credtrail/core-domain";
 import type { Context } from "hono";
 import type { AuthContextVariables } from "../auth/auth-context";
+import type { TurnstileVerifier } from "../auth/turnstile";
 import type { BadgeTemplateImageGenerationAiBinding } from "../badges/badge-template-image-generation";
 import type { PublicResourceNetwork } from "../http/public-resource-network";
 import type { ObservabilityContextVariables } from "./observability";
@@ -21,6 +22,7 @@ export interface AppBindings {
   TRANSACTIONAL_EMAIL_FROM_NAME?: string;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
+  TURNSTILE_VERIFIER?: TurnstileVerifier;
   BETTER_AUTH_SECRET?: string;
   BETTER_AUTH_TRUSTED_ORIGINS?: string;
   GOOGLE_OAUTH_CLIENT_ID?: string;

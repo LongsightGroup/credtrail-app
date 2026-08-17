@@ -173,6 +173,19 @@ describe("badge rule review queue schema", () => {
     );
   });
 
+  it("constrains badge rules and snapshots to implemented LMS providers", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0078_narrow_badge_rule_lms_providers.sql", import.meta.url),
+      "utf8",
+    );
+
+    expect(sql).toContain("DELETE FROM badge_issuance_rules");
+    expect(sql).toContain("lms_provider_kind NOT IN ('canvas', 'sakai')");
+    expect(sql).toContain("badge_issuance_rules_lms_provider_kind_check");
+    expect(sql).toContain("badge_rule_version_snapshot_lms_provider_kind_check");
+    expect(sql).toContain("badge_rule_registry_projection_lms_provider_kind_check");
+  });
+
   it("snapshots every credential-bearing badge template field for governed versions", () => {
     const sql = readFileSync(
       new URL("../migrations/0063_badge_rule_achievement_snapshots.sql", import.meta.url),

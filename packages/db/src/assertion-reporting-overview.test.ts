@@ -1,100 +1,66 @@
 import { readFileSync } from "node:fs";
-
 import { describe, expect, it } from "vitest";
-
+import { REPORTING_METRIC_DEFINITIONS } from "../../../apps/api-worker/src/reporting/metric-definitions";
 import {
   ASSERTION_ENGAGEMENT_EVENT_TYPES,
-  resolveAssertionReportingAttribution,
-  summarizeTenantReportingComparisonRows,
-  summarizeTenantReportingOverviewRows,
-  summarizeTenantReportingTrendRows,
+  getTenantReportingEngagementCounts,
+  getTenantReportingOverview,
+  getTenantReportingTrends,
+  findAssertionReportingAttributionByAssertionId,
+  listTenantReportingComparisons,
+  recordAssertionEngagementEvent,
+  transferBadgeTemplateOwnership,
 } from "./index";
-import { REPORTING_METRIC_DEFINITIONS } from "../../../apps/api-worker/src/reporting/metric-definitions";
+import {
+  cleanupTestResources,
+  createTestTenantFixture,
+  describeDbIntegration,
+  seedAssertion,
+  seedAssertionAttribution,
+  seedBadgeTemplate,
+  seedLifecycleEvent,
+  seedTenantOrgUnit,
+} from "./postgres-test-support";
 
 describe("reporting foundation", () => {
-  it("adds a reporting attribution migration with tenant and org indexes", () => {
-    const sql = readFileSync(
+  it("adds reporting attribution storage and a one-time historical repair", () => {
+    const foundationSql = readFileSync(
       new URL("../migrations/0033_reporting_foundation.sql", import.meta.url),
       "utf8",
     );
+    const backfillSql = readFileSync(
+      new URL("../migrations/0077_backfill_assertion_reporting_attributions.sql", import.meta.url),
+      "utf8",
+    );
 
-    expect(sql).toContain("CREATE TABLE IF NOT EXISTS assertion_reporting_attributions");
-    expect(sql).toContain("attribution_source");
-    expect(sql).toContain("historical_backfill");
-    expect(sql).toContain("idx_assertion_reporting_attributions_tenant_org");
-    expect(sql).toContain("idx_assertion_reporting_attributions_tenant_template");
+    expect(foundationSql).toContain("CREATE TABLE IF NOT EXISTS assertion_reporting_attributions");
+    expect(foundationSql).toContain("idx_assertion_reporting_attributions_tenant_org");
+    expect(foundationSql).toContain("idx_assertion_reporting_attributions_tenant_template");
+    expect(backfillSql).toContain("INSERT INTO assertion_reporting_attributions");
+    expect(backfillSql).toContain("LEFT JOIN LATERAL");
+    expect(backfillSql).toContain(
+      "ownership_events.transferred_at::timestamptz <= assertions.issued_at::timestamptz",
+    );
+    expect(backfillSql).toContain("historical_backfill");
+    expect(backfillSql).toContain("current_owner_fallback");
+    expect(backfillSql).toContain("ON CONFLICT (assertion_id) DO NOTHING");
   });
 
-  it("keeps historical reporting attribution stable when template ownership changes later", () => {
-    const attribution = resolveAssertionReportingAttribution({
-      issuedAt: "2026-03-05T15:00:00.000Z",
-      currentOwnerOrgUnitId: "org_program",
-      ownershipEvents: [
-        {
-          toOrgUnitId: "org_department",
-          transferredAt: "2026-03-01T12:00:00.000Z",
-        },
-        {
-          toOrgUnitId: "org_program",
-          transferredAt: "2026-03-10T12:00:00.000Z",
-        },
-      ],
-    });
+  it("keeps the engagement taxonomy and product-backed rate definitions explicit", () => {
+    const sql = readFileSync(
+      new URL("../migrations/0034_reporting_engagement_events.sql", import.meta.url),
+      "utf8",
+    );
 
-    expect(attribution).toEqual({
-      orgUnitId: "org_department",
-      attributionSource: "historical_backfill",
-      attributedAt: "2026-03-05T15:00:00.000Z",
-    });
-  });
-
-  it("summarizes product-backed overview counts and marks engagement rate metrics as Phase 10-backed", () => {
-    const rows = [
-      {
-        assertionId: "assertion_active",
-        issuedAt: "2026-03-01T00:00:00.000Z",
-        badgeTemplateId: "bt_1",
-        orgUnitId: "org_1",
-        revokedAt: null,
-        latestToState: null,
-        latestReasonCode: null,
-      },
-      {
-        assertionId: "assertion_suspended_review",
-        issuedAt: "2026-03-02T00:00:00.000Z",
-        badgeTemplateId: "bt_1",
-        orgUnitId: "org_1",
-        revokedAt: null,
-        latestToState: "suspended" as const,
-        latestReasonCode: "appeal_pending" as const,
-      },
-      {
-        assertionId: "assertion_revoked",
-        issuedAt: "2026-03-03T00:00:00.000Z",
-        badgeTemplateId: "bt_2",
-        orgUnitId: "org_2",
-        revokedAt: "2026-03-04T00:00:00.000Z",
-        latestToState: "revoked" as const,
-        latestReasonCode: "issuer_requested" as const,
-      },
-    ];
-
-    expect(summarizeTenantReportingOverviewRows(rows)).toEqual({
-      issued: 3,
-      active: 1,
-      suspended: 1,
-      revoked: 1,
-      pendingReview: 1,
-    });
-
-    expect(summarizeTenantReportingOverviewRows(rows, "pending_review")).toEqual({
-      issued: 1,
-      active: 0,
-      suspended: 1,
-      revoked: 0,
-      pendingReview: 1,
-    });
-
+    expect(ASSERTION_ENGAGEMENT_EVENT_TYPES).toEqual([
+      "public_badge_view",
+      "verification_view",
+      "share_click",
+      "learner_claim",
+      "wallet_accept",
+    ]);
+    expect(sql).toContain("CREATE TABLE IF NOT EXISTS assertion_engagement_events");
+    expect(sql).toContain("idx_assertion_engagement_events_tenant_occurred_at");
     expect(REPORTING_METRIC_DEFINITIONS).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -112,230 +78,283 @@ describe("reporting foundation", () => {
   });
 });
 
-describe("engagement reporting foundation", () => {
-  it("adds an engagement event migration with a narrow product-owned taxonomy", () => {
-    const sql = readFileSync(
-      new URL("../migrations/0034_reporting_engagement_events.sql", import.meta.url),
-      "utf8",
-    );
+describeDbIntegration("reporting aggregates with Postgres", () => {
+  it("repairs missing attribution from ownership history without a reporting read", async () => {
+    const fixture = await createTestTenantFixture({ displayName: "Reporting Repair Tenant" });
+    const badgeTemplateId = await seedBadgeTemplate(fixture.db, {
+      tenantId: fixture.tenantId,
+      title: "Historical ownership badge",
+    });
+    const institutionOrgUnitId = `${fixture.tenantId}:org:institution`;
+    const collegeOrgUnitId = `${fixture.tenantId}:org:college`;
 
-    expect(ASSERTION_ENGAGEMENT_EVENT_TYPES).toEqual([
-      "public_badge_view",
-      "verification_view",
-      "share_click",
-      "learner_claim",
-      "wallet_accept",
-    ]);
-    expect(sql).toContain("CREATE TABLE IF NOT EXISTS assertion_engagement_events");
-    expect(sql).toContain("CHECK (event_type IN");
-    expect(sql).toContain("'public_badge_view'");
-    expect(sql).toContain("'verification_view'");
-    expect(sql).toContain("'share_click'");
-    expect(sql).toContain("'learner_claim'");
-    expect(sql).toContain("'wallet_accept'");
-    expect(sql).toContain(
-      "FOREIGN KEY (assertion_id) REFERENCES assertions (id) ON DELETE CASCADE",
-    );
-    expect(sql).toContain("idx_assertion_engagement_events_tenant_occurred_at");
-    expect(sql).toContain("idx_assertion_engagement_events_assertion_type");
+    try {
+      await seedTenantOrgUnit(fixture.db, {
+        tenantId: fixture.tenantId,
+        id: collegeOrgUnitId,
+        unitType: "college",
+        slug: "college",
+        displayName: "Test College",
+        parentOrgUnitId: institutionOrgUnitId,
+      });
+      await transferBadgeTemplateOwnership(fixture.db, {
+        tenantId: fixture.tenantId,
+        badgeTemplateId,
+        toOrgUnitId: collegeOrgUnitId,
+        reasonCode: "administrative_transfer",
+        transferredAt: "2026-03-02T00:00:00.000Z",
+      });
+      const assertionId = await seedAssertion(fixture.db, {
+        tenantId: fixture.tenantId,
+        badgeTemplateId,
+        recipientIdentity: "historical@example.edu",
+        issuedAt: "2026-03-03T00:00:00.000Z",
+      });
+      await transferBadgeTemplateOwnership(fixture.db, {
+        tenantId: fixture.tenantId,
+        badgeTemplateId,
+        toOrgUnitId: institutionOrgUnitId,
+        reasonCode: "administrative_transfer",
+        transferredAt: "2026-03-04T00:00:00.000Z",
+      });
+
+      expect(
+        await findAssertionReportingAttributionByAssertionId(fixture.db, assertionId),
+      ).toBeNull();
+
+      const backfillSql = readFileSync(
+        new URL(
+          "../migrations/0077_backfill_assertion_reporting_attributions.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      );
+      await fixture.db.prepare(backfillSql).run();
+
+      expect(
+        await findAssertionReportingAttributionByAssertionId(fixture.db, assertionId),
+      ).toMatchObject({
+        assertionId,
+        tenantId: fixture.tenantId,
+        badgeTemplateId,
+        orgUnitId: collegeOrgUnitId,
+        attributionSource: "historical_backfill",
+        attributedAt: "2026-03-03T00:00:00.000Z",
+      });
+    } finally {
+      await cleanupTestResources(fixture.db, { tenantIds: [fixture.tenantId] });
+    }
   });
 
-  it("buckets issued assertions and engagement event counts over time for selected filters", () => {
-    const rows = [
-      {
-        assertionId: "assertion_1",
-        badgeTemplateId: "bt_blue",
-        orgUnitId: "org_program",
-        issuedAt: "2026-03-01T08:00:00.000Z",
-        revokedAt: null,
-        latestToState: null,
-        latestReasonCode: null,
-        eventType: null,
-        occurredAt: null,
-      },
-      {
-        assertionId: "assertion_2",
-        badgeTemplateId: "bt_blue",
-        orgUnitId: "org_program",
-        issuedAt: "2026-03-01T10:00:00.000Z",
-        revokedAt: null,
-        latestToState: null,
-        latestReasonCode: null,
-        eventType: "public_badge_view" as const,
-        occurredAt: "2026-03-02T09:00:00.000Z",
-      },
-      {
-        assertionId: "assertion_2",
-        badgeTemplateId: "bt_blue",
-        orgUnitId: "org_program",
-        issuedAt: "2026-03-01T10:00:00.000Z",
-        revokedAt: null,
-        latestToState: null,
-        latestReasonCode: null,
-        eventType: "verification_view" as const,
-        occurredAt: "2026-03-02T10:00:00.000Z",
-      },
-      {
-        assertionId: "assertion_3",
-        badgeTemplateId: "bt_blue",
-        orgUnitId: "org_program",
-        issuedAt: "2026-03-02T11:00:00.000Z",
-        revokedAt: null,
-        latestToState: null,
-        latestReasonCode: null,
-        eventType: "share_click" as const,
-        occurredAt: "2026-03-03T12:00:00.000Z",
-      },
-      {
-        assertionId: "assertion_4",
-        badgeTemplateId: "bt_other",
-        orgUnitId: "org_program",
-        issuedAt: "2026-03-02T12:00:00.000Z",
-        revokedAt: null,
-        latestToState: null,
-        latestReasonCode: null,
-        eventType: "public_badge_view" as const,
-        occurredAt: "2026-03-02T13:00:00.000Z",
-      },
-    ];
+  it("returns lifecycle, engagement, trend, and comparison aggregates without raw event rows", async () => {
+    const fixture = await createTestTenantFixture({ displayName: "Reporting Aggregate Tenant" });
+    const primaryTemplateId = await seedBadgeTemplate(fixture.db, {
+      tenantId: fixture.tenantId,
+      title: "Primary badge",
+    });
+    const secondaryTemplateId = await seedBadgeTemplate(fixture.db, {
+      tenantId: fixture.tenantId,
+      title: "Secondary badge",
+    });
+    const orgUnitId = `${fixture.tenantId}:org:institution`;
 
-    expect(
-      summarizeTenantReportingTrendRows(rows, {
-        from: "2026-03-01",
-        to: "2026-03-03",
-        bucket: "day",
-        badgeTemplateId: "bt_blue",
-      }),
-    ).toEqual([
-      {
-        bucketStart: "2026-03-01",
-        issuedCount: 2,
-        publicBadgeViewCount: 0,
-        verificationViewCount: 0,
-        shareClickCount: 0,
-        learnerClaimCount: 0,
-        walletAcceptCount: 0,
-      },
-      {
-        bucketStart: "2026-03-02",
-        issuedCount: 1,
+    try {
+      const firstAssertionId = await seedAssertion(fixture.db, {
+        tenantId: fixture.tenantId,
+        badgeTemplateId: primaryTemplateId,
+        recipientIdentity: "first@example.edu",
+        issuedAt: "2026-03-01T00:30:00.000Z",
+      });
+      const secondAssertionId = await seedAssertion(fixture.db, {
+        tenantId: fixture.tenantId,
+        badgeTemplateId: primaryTemplateId,
+        recipientIdentity: "second@example.edu",
+        issuedAt: "2026-03-01T09:00:00.000Z",
+      });
+      const pendingAssertionId = await seedAssertion(fixture.db, {
+        tenantId: fixture.tenantId,
+        badgeTemplateId: secondaryTemplateId,
+        recipientIdentity: "pending@example.edu",
+        issuedAt: "2026-03-02T10:00:00.000Z",
+      });
+
+      await Promise.all(
+        [
+          {
+            assertionId: firstAssertionId,
+            badgeTemplateId: primaryTemplateId,
+            attributedAt: "2026-03-01T00:30:00.000Z",
+          },
+          {
+            assertionId: secondAssertionId,
+            badgeTemplateId: primaryTemplateId,
+            attributedAt: "2026-03-01T09:00:00.000Z",
+          },
+          {
+            assertionId: pendingAssertionId,
+            badgeTemplateId: secondaryTemplateId,
+            attributedAt: "2026-03-02T10:00:00.000Z",
+          },
+        ].map(({ assertionId, badgeTemplateId, attributedAt }) =>
+          seedAssertionAttribution(fixture.db, {
+            assertionId,
+            tenantId: fixture.tenantId,
+            badgeTemplateId,
+            orgUnitId,
+            attributionSource: "issuance_snapshot",
+            attributedAt,
+          }),
+        ),
+      );
+      await seedLifecycleEvent(fixture.db, {
+        tenantId: fixture.tenantId,
+        assertionId: pendingAssertionId,
+        fromState: "active",
+        toState: "suspended",
+        reasonCode: "appeal_pending",
+        reason: "Manual review requested",
+        transitionedAt: "2026-03-02T12:00:00.000Z",
+      });
+
+      for (const event of [
+        {
+          assertionId: secondAssertionId,
+          eventType: "public_badge_view" as const,
+          occurredAt: "2026-03-02T13:00:00.000Z",
+        },
+        {
+          assertionId: secondAssertionId,
+          eventType: "verification_view" as const,
+          occurredAt: "2026-03-02T14:00:00.000Z",
+        },
+        {
+          assertionId: secondAssertionId,
+          eventType: "share_click" as const,
+          occurredAt: "2026-03-03T08:00:00.000Z",
+        },
+        {
+          assertionId: secondAssertionId,
+          eventType: "share_click" as const,
+          occurredAt: "2026-03-03T09:00:00.000Z",
+        },
+        {
+          assertionId: secondAssertionId,
+          eventType: "learner_claim" as const,
+          occurredAt: "2026-03-03T10:00:00.000Z",
+        },
+        {
+          assertionId: secondAssertionId,
+          eventType: "wallet_accept" as const,
+          occurredAt: "2026-03-03T11:00:00.000Z",
+        },
+      ]) {
+        await recordAssertionEngagementEvent(fixture.db, {
+          tenantId: fixture.tenantId,
+          assertionId: event.assertionId,
+          eventType: event.eventType,
+          actorType: "learner",
+          occurredAt: event.occurredAt,
+        });
+      }
+
+      const range = { from: "2026-03-01", to: "2026-03-03" } as const;
+      const [overview, engagement, trends, comparisons, pendingOverview] = await Promise.all([
+        getTenantReportingOverview(fixture.db, {
+          tenantId: fixture.tenantId,
+          issuedFrom: range.from,
+          issuedTo: range.to,
+        }),
+        getTenantReportingEngagementCounts(fixture.db, {
+          tenantId: fixture.tenantId,
+          ...range,
+        }),
+        getTenantReportingTrends(fixture.db, {
+          tenantId: fixture.tenantId,
+          ...range,
+          bucket: "day",
+        }),
+        listTenantReportingComparisons(fixture.db, {
+          tenantId: fixture.tenantId,
+          ...range,
+          groupBy: "badgeTemplate",
+        }),
+        getTenantReportingOverview(fixture.db, {
+          tenantId: fixture.tenantId,
+          issuedFrom: range.from,
+          issuedTo: range.to,
+          state: "pending_review",
+        }),
+      ]);
+
+      expect(overview.counts).toEqual({
+        issued: 3,
+        active: 2,
+        suspended: 1,
+        revoked: 0,
+        pendingReview: 1,
+        claimRate: 1 / 3,
+        shareRate: 1 / 3,
+      });
+      expect(engagement).toEqual({
+        issuedCount: 3,
         publicBadgeViewCount: 1,
         verificationViewCount: 1,
-        shareClickCount: 0,
-        learnerClaimCount: 0,
-        walletAcceptCount: 0,
-      },
-      {
-        bucketStart: "2026-03-03",
-        issuedCount: 0,
-        publicBadgeViewCount: 0,
-        verificationViewCount: 0,
-        shareClickCount: 1,
-        learnerClaimCount: 0,
-        walletAcceptCount: 0,
-      },
-    ]);
-  });
-
-  it("computes comparison rates from distinct engaged assertions instead of raw event totals", () => {
-    const rows = [
-      {
-        assertionId: "assertion_1",
-        badgeTemplateId: "bt_science",
-        orgUnitId: "org_science",
-        issuedAt: "2026-03-01T08:00:00.000Z",
-        revokedAt: null,
-        latestToState: null,
-        latestReasonCode: null,
-        eventType: null,
-        occurredAt: null,
-      },
-      {
-        assertionId: "assertion_2",
-        badgeTemplateId: "bt_science",
-        orgUnitId: "org_science",
-        issuedAt: "2026-03-01T09:00:00.000Z",
-        revokedAt: null,
-        latestToState: null,
-        latestReasonCode: null,
-        eventType: "share_click" as const,
-        occurredAt: "2026-03-02T08:00:00.000Z",
-      },
-      {
-        assertionId: "assertion_2",
-        badgeTemplateId: "bt_science",
-        orgUnitId: "org_science",
-        issuedAt: "2026-03-01T09:00:00.000Z",
-        revokedAt: null,
-        latestToState: null,
-        latestReasonCode: null,
-        eventType: "share_click" as const,
-        occurredAt: "2026-03-02T09:00:00.000Z",
-      },
-      {
-        assertionId: "assertion_3",
-        badgeTemplateId: "bt_science",
-        orgUnitId: "org_science",
-        issuedAt: "2026-03-01T10:00:00.000Z",
-        revokedAt: null,
-        latestToState: null,
-        latestReasonCode: null,
-        eventType: "learner_claim" as const,
-        occurredAt: "2026-03-03T08:00:00.000Z",
-      },
-      {
-        assertionId: "assertion_3",
-        badgeTemplateId: "bt_science",
-        orgUnitId: "org_science",
-        issuedAt: "2026-03-01T10:00:00.000Z",
-        revokedAt: null,
-        latestToState: null,
-        latestReasonCode: null,
-        eventType: "wallet_accept" as const,
-        occurredAt: "2026-03-03T09:00:00.000Z",
-      },
-      {
-        assertionId: "assertion_4",
-        badgeTemplateId: "bt_arts",
-        orgUnitId: "org_arts",
-        issuedAt: "2026-03-02T10:00:00.000Z",
-        revokedAt: null,
-        latestToState: null,
-        latestReasonCode: null,
-        eventType: "share_click" as const,
-        occurredAt: "2026-03-04T08:00:00.000Z",
-      },
-    ];
-
-    expect(
-      summarizeTenantReportingComparisonRows(rows, {
-        groupBy: "badgeTemplate",
-      }),
-    ).toEqual([
-      {
-        groupBy: "badgeTemplate",
-        groupId: "bt_science",
-        issuedCount: 3,
-        publicBadgeViewCount: 0,
-        verificationViewCount: 0,
         shareClickCount: 2,
         learnerClaimCount: 1,
         walletAcceptCount: 1,
-        shareRate: 1 / 3,
         claimRate: 1 / 3,
-      },
-      {
-        groupBy: "badgeTemplate",
-        groupId: "bt_arts",
-        issuedCount: 1,
-        publicBadgeViewCount: 0,
-        verificationViewCount: 0,
-        shareClickCount: 1,
-        learnerClaimCount: 0,
-        walletAcceptCount: 0,
-        shareRate: 1,
-        claimRate: 0,
-      },
-    ]);
+        shareRate: 1 / 3,
+      });
+      expect(trends.series).toEqual([
+        expect.objectContaining({ bucketStart: "2026-03-01", issuedCount: 2 }),
+        expect.objectContaining({
+          bucketStart: "2026-03-02",
+          issuedCount: 1,
+          publicBadgeViewCount: 1,
+          verificationViewCount: 1,
+        }),
+        expect.objectContaining({
+          bucketStart: "2026-03-03",
+          issuedCount: 0,
+          shareClickCount: 2,
+          learnerClaimCount: 1,
+          walletAcceptCount: 1,
+        }),
+      ]);
+      expect(comparisons).toEqual([
+        expect.objectContaining({
+          groupId: primaryTemplateId,
+          issuedCount: 2,
+          shareClickCount: 2,
+          claimRate: 1 / 2,
+          shareRate: 1 / 2,
+        }),
+        expect.objectContaining({
+          groupId: secondaryTemplateId,
+          issuedCount: 1,
+          claimRate: 0,
+          shareRate: 0,
+        }),
+      ]);
+      expect(pendingOverview.counts).toMatchObject({
+        issued: 1,
+        active: 0,
+        suspended: 1,
+        pendingReview: 1,
+      });
+
+      const nonUtcSessionTrends = await fixture.db.transaction?.(async (transaction) => {
+        await transaction.prepare("SET LOCAL TIME ZONE 'America/Los_Angeles'").run();
+        return getTenantReportingTrends(transaction, {
+          tenantId: fixture.tenantId,
+          ...range,
+          bucket: "day",
+        });
+      });
+
+      expect(nonUtcSessionTrends?.series).toEqual(trends.series);
+    } finally {
+      await cleanupTestResources(fixture.db, { tenantIds: [fixture.tenantId] });
+    }
   });
 });

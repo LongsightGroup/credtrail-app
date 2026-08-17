@@ -13,10 +13,6 @@ import {
 } from "./assertion-internal.js";
 import type { AssertionEngagementEventRow } from "./assertion-internal.js";
 import { findAssertionById } from "./assertion-reads.js";
-import {
-  backfillAssertionReportingAttributionsForTenant,
-  findAssertionReportingAttributionByAssertionId,
-} from "./assertion-reporting-attribution.js";
 
 export const findAssertionEngagementEventById = async (
   db: SqlDatabase,
@@ -124,15 +120,6 @@ export const recordAssertionEngagementEvent = async (
 
   if (assertion === null) {
     throw new Error(`Assertion ${input.assertionId} not found for tenant ${input.tenantId}`);
-  }
-
-  const existingAttribution = await findAssertionReportingAttributionByAssertionId(
-    db,
-    input.assertionId,
-  );
-
-  if (existingAttribution === null) {
-    await backfillAssertionReportingAttributionsForTenant(db, input.tenantId);
   }
 
   if (ONE_SHOT_ASSERTION_ENGAGEMENT_EVENT_TYPES.has(input.eventType)) {

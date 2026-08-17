@@ -97,10 +97,20 @@ describeDbIntegration("assertion evidence DB helpers with Postgres", () => {
         tenantId: fixture.tenantId,
         assertionId,
       });
+      const attribution = await dbModule.findAssertionReportingAttributionByAssertionId(
+        fixture.db,
+        assertionId,
+      );
 
       expect(loaded?.source).toBe("lti_roster");
       expect(loaded?.ruleId).toBe(createdRule.rule.id);
       expect(loaded?.versionId).toBe(version.id);
+      expect(attribution).toMatchObject({
+        assertionId,
+        tenantId: fixture.tenantId,
+        badgeTemplateId: fixture.badgeTemplateId,
+        attributionSource: "issuance_snapshot",
+      });
       expect(finalized.status).toBe("issued");
     } finally {
       await cleanupTestResources(fixture.db, {

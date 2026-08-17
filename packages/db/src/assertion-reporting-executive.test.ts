@@ -60,45 +60,49 @@ describe("executive rollup foundation", () => {
     },
   ];
 
-  const rows = [
+  const comparisonRows = [
     {
-      assertionId: "assertion_1",
-      badgeTemplateId: "bt_science",
-      orgUnitId: "org_program_microbiology",
-      issuedAt: "2026-03-01T08:00:00.000Z",
-      eventType: null,
-      occurredAt: null,
+      groupBy: "orgUnit" as const,
+      groupId: "org_program_microbiology",
+      issuedCount: 2,
+      publicBadgeViewCount: 0,
+      verificationViewCount: 0,
+      shareClickCount: 1,
+      learnerClaimCount: 0,
+      walletAcceptCount: 0,
+      shareEngagedCount: 1,
+      claimEngagedCount: 0,
     },
     {
-      assertionId: "assertion_2",
-      badgeTemplateId: "bt_science",
-      orgUnitId: "org_program_microbiology",
-      issuedAt: "2026-03-01T09:00:00.000Z",
-      eventType: "share_click" as const,
-      occurredAt: "2026-03-03T08:00:00.000Z",
+      groupBy: "orgUnit" as const,
+      groupId: "org_program_biochemistry",
+      issuedCount: 1,
+      publicBadgeViewCount: 0,
+      verificationViewCount: 0,
+      shareClickCount: 0,
+      learnerClaimCount: 1,
+      walletAcceptCount: 0,
+      shareEngagedCount: 0,
+      claimEngagedCount: 1,
     },
     {
-      assertionId: "assertion_3",
-      badgeTemplateId: "bt_science",
-      orgUnitId: "org_program_biochemistry",
-      issuedAt: "2026-03-02T09:00:00.000Z",
-      eventType: "learner_claim" as const,
-      occurredAt: "2026-03-04T08:00:00.000Z",
-    },
-    {
-      assertionId: "assertion_4",
-      badgeTemplateId: "bt_arts",
-      orgUnitId: "org_program_music_theory",
-      issuedAt: "2026-03-02T10:00:00.000Z",
-      eventType: "public_badge_view" as const,
-      occurredAt: "2026-03-04T09:00:00.000Z",
+      groupBy: "orgUnit" as const,
+      groupId: "org_program_music_theory",
+      issuedCount: 1,
+      publicBadgeViewCount: 1,
+      verificationViewCount: 0,
+      shareClickCount: 0,
+      learnerClaimCount: 0,
+      walletAcceptCount: 0,
+      shareEngagedCount: 0,
+      claimEngagedCount: 0,
     },
   ];
 
   it("rolls institution-focused executive views into top-level child rows", () => {
     expect(
       summarizeTenantExecutiveRollup({
-        rows,
+        comparisonRows,
         orgUnits,
         query: {
           focusOrgUnitId: "org_institution",
@@ -144,7 +148,7 @@ describe("executive rollup foundation", () => {
   it("keeps scoped college executive views at the direct-child level", () => {
     expect(
       summarizeTenantExecutiveRollup({
-        rows,
+        comparisonRows,
         orgUnits,
         query: {
           focusOrgUnitId: "org_college_science",
@@ -178,7 +182,7 @@ describe("executive rollup foundation", () => {
   it("falls back honestly to the focused program when no deeper comparison level exists", () => {
     expect(
       summarizeTenantExecutiveRollup({
-        rows,
+        comparisonRows,
         orgUnits,
         query: {
           focusOrgUnitId: "org_program_microbiology",

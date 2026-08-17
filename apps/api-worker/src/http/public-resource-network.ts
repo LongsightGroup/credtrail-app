@@ -60,6 +60,15 @@ export type PublicBytesLoadResult =
   | { readonly status: "ok"; readonly bodyBytes: Uint8Array }
   | { readonly status: "error"; readonly error: PublicNetworkLoadError };
 
+/** Bounds and cancellation inherited by one public-resource load. */
+export interface PublicResourceLoadInput {
+  readonly resourceUrl: string;
+  readonly headers: Headers;
+  readonly maxResponseBytes?: number;
+  readonly timeoutMs?: number;
+  readonly signal?: AbortSignal;
+}
+
 const redirectStatus = (statusCode: number): boolean => {
   return (
     statusCode === 301 ||
@@ -218,12 +227,7 @@ export const workerPublicResourceNetwork = createFetchPublicResourceNetwork((url
 /** Loads bounded bytes while rejecting private destinations and unsafe redirects. */
 export const loadPublicBytesFromUrl = async (
   network: PublicResourceNetwork,
-  input: {
-    readonly resourceUrl: string;
-    readonly headers: Headers;
-    readonly maxResponseBytes?: number;
-    readonly timeoutMs?: number;
-  },
+  input: PublicResourceLoadInput,
 ): Promise<PublicBytesLoadResult> => {
   const initial = parseCandidateUrl(input.resourceUrl);
 
@@ -231,20 +235,20 @@ export const loadPublicBytesFromUrl = async (
     return { status: "error", error: { kind: "invalid_url" } };
   }
 
-  const abortController = new AbortController();
+  const timeoutController = new AbortController();
   const timeoutHandle = setTimeout(
-    () => abortController.abort("public-json-request-timeout"),
+    () => timeoutController.abort(),
     input.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
   );
+  const signal =
+    input.signal === undefined
+      ? timeoutController.signal
+      : AbortSignal.any([input.signal, timeoutController.signal]);
   let currentUrl = initial.url;
 
   try {
     for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
-      const resolvedAddresses = await resolvedAddressesForUrl(
-        network,
-        currentUrl,
-        abortController.signal,
-      );
+      const resolvedAddresses = await resolvedAddressesForUrl(network, currentUrl, signal);
 
       if (resolvedAddresses !== null && resolvedAddresses.length === 0) {
         return { status: "error", error: { kind: "blocked_destination" } };
@@ -258,7 +262,7 @@ export const loadPublicBytesFromUrl = async (
           headers: input.headers,
           resolvedAddresses: resolvedAddresses ?? [],
           maxResponseBytes: input.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES,
-          signal: abortController.signal,
+          signal,
         });
       } catch {
         return { status: "error", error: { kind: "request_failed" } };
@@ -304,12 +308,7 @@ export const loadPublicBytesFromUrl = async (
 /** Loads JSON through a runtime adapter while rejecting private destinations and unsafe redirects. */
 export const loadPublicJsonFromUrl = async (
   network: PublicResourceNetwork,
-  input: {
-    readonly resourceUrl: string;
-    readonly headers: Headers;
-    readonly maxResponseBytes?: number;
-    readonly timeoutMs?: number;
-  },
+  input: PublicResourceLoadInput,
 ): Promise<PublicJsonLoadResult> => {
   const loaded = await loadPublicBytesFromUrl(network, input);
 

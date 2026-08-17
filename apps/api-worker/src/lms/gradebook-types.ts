@@ -1,10 +1,4 @@
-export const GRADEBOOK_PROVIDER_KINDS = [
-  "canvas",
-  "moodle",
-  "blackboard_ultra",
-  "d2l_brightspace",
-  "sakai",
-] as const;
+export const GRADEBOOK_PROVIDER_KINDS = ["canvas", "sakai"] as const;
 
 export type GradebookProviderKind = (typeof GRADEBOOK_PROVIDER_KINDS)[number];
 
@@ -205,25 +199,8 @@ export interface CanvasGradebookProviderConfig extends GradebookProviderConfigBa
   kind: "canvas";
 }
 
-export interface MoodleGradebookProviderConfig extends GradebookProviderConfigBase {
-  kind: "moodle";
-}
-
-export interface BlackboardUltraGradebookProviderConfig extends GradebookProviderConfigBase {
-  kind: "blackboard_ultra";
-}
-
-export interface D2LBrightspaceGradebookProviderConfig extends GradebookProviderConfigBase {
-  kind: "d2l_brightspace";
-}
-
 export interface SakaiGradebookProviderConfig extends GradebookProviderConfigBase {
   kind: "sakai";
 }
 
-export type GradebookProviderConfig =
-  | CanvasGradebookProviderConfig
-  | MoodleGradebookProviderConfig
-  | BlackboardUltraGradebookProviderConfig
-  | D2LBrightspaceGradebookProviderConfig
-  | SakaiGradebookProviderConfig;
+export type GradebookProviderConfig = CanvasGradebookProviderConfig | SakaiGradebookProviderConfig;

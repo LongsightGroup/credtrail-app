@@ -64,48 +64,50 @@ describe("hierarchy reporting foundation", () => {
   ];
 
   it("rolls leaf-attributed reporting rows into institution, college, department, and program groupings", () => {
-    const rows = [
+    const comparisonRows = [
       {
-        assertionId: "assertion_1",
-        badgeTemplateId: "bt_science",
-        orgUnitId: "org_program_microbiology",
-        issuedAt: "2026-03-01T08:00:00.000Z",
-        eventType: null,
-        occurredAt: null,
+        groupBy: "orgUnit" as const,
+        groupId: "org_program_microbiology",
+        issuedCount: 2,
+        publicBadgeViewCount: 0,
+        verificationViewCount: 0,
+        shareClickCount: 1,
+        learnerClaimCount: 0,
+        walletAcceptCount: 0,
+        shareEngagedCount: 1,
+        claimEngagedCount: 0,
       },
       {
-        assertionId: "assertion_2",
-        badgeTemplateId: "bt_science",
-        orgUnitId: "org_program_microbiology",
-        issuedAt: "2026-03-01T09:00:00.000Z",
-        eventType: "share_click" as const,
-        occurredAt: "2026-03-03T08:00:00.000Z",
+        groupBy: "orgUnit" as const,
+        groupId: "org_program_biochemistry",
+        issuedCount: 1,
+        publicBadgeViewCount: 0,
+        verificationViewCount: 0,
+        shareClickCount: 0,
+        learnerClaimCount: 1,
+        walletAcceptCount: 0,
+        shareEngagedCount: 0,
+        claimEngagedCount: 1,
       },
       {
-        assertionId: "assertion_3",
-        badgeTemplateId: "bt_science",
-        orgUnitId: "org_program_biochemistry",
-        issuedAt: "2026-03-02T09:00:00.000Z",
-        eventType: "learner_claim" as const,
-        occurredAt: "2026-03-04T08:00:00.000Z",
-      },
-      {
-        assertionId: "assertion_4",
-        badgeTemplateId: "bt_arts",
-        orgUnitId: "org_program_music_theory",
-        issuedAt: "2026-03-02T10:00:00.000Z",
-        eventType: "public_badge_view" as const,
-        occurredAt: "2026-03-04T09:00:00.000Z",
+        groupBy: "orgUnit" as const,
+        groupId: "org_program_music_theory",
+        issuedCount: 1,
+        publicBadgeViewCount: 1,
+        verificationViewCount: 0,
+        shareClickCount: 0,
+        learnerClaimCount: 0,
+        walletAcceptCount: 0,
+        shareEngagedCount: 0,
+        claimEngagedCount: 0,
       },
     ];
 
     expect(
       summarizeTenantReportingHierarchyRows({
-        rows,
+        comparisonRows,
         orgUnits,
-        query: {
-          level: "institution",
-        },
+        level: "institution",
       }),
     ).toEqual([
       expect.objectContaining({
@@ -117,11 +119,9 @@ describe("hierarchy reporting foundation", () => {
 
     expect(
       summarizeTenantReportingHierarchyRows({
-        rows,
+        comparisonRows,
         orgUnits,
-        query: {
-          level: "college",
-        },
+        level: "college",
       }),
     ).toEqual([
       expect.objectContaining({
@@ -138,11 +138,9 @@ describe("hierarchy reporting foundation", () => {
 
     expect(
       summarizeTenantReportingHierarchyRows({
-        rows,
+        comparisonRows,
         orgUnits,
-        query: {
-          level: "department",
-        },
+        level: "department",
       }),
     ).toEqual([
       expect.objectContaining({
@@ -164,11 +162,9 @@ describe("hierarchy reporting foundation", () => {
 
     expect(
       summarizeTenantReportingHierarchyRows({
-        rows,
+        comparisonRows,
         orgUnits,
-        query: {
-          level: "program",
-        },
+        level: "program",
       }),
     ).toEqual([
       expect.objectContaining({
@@ -220,57 +216,51 @@ describe("hierarchy reporting foundation", () => {
   });
 
   it("keeps Phase 10 raw counts and distinct-assertion rates intact after subtree filtering", () => {
-    const rows = [
+    const comparisonRows = [
       {
-        assertionId: "assertion_1",
-        badgeTemplateId: "bt_science",
-        orgUnitId: "org_program_microbiology",
-        issuedAt: "2026-03-01T08:00:00.000Z",
-        eventType: "share_click" as const,
-        occurredAt: "2026-03-02T08:00:00.000Z",
+        groupBy: "orgUnit" as const,
+        groupId: "org_program_microbiology",
+        issuedCount: 1,
+        publicBadgeViewCount: 0,
+        verificationViewCount: 0,
+        shareClickCount: 2,
+        learnerClaimCount: 0,
+        walletAcceptCount: 0,
+        shareEngagedCount: 1,
+        claimEngagedCount: 0,
       },
       {
-        assertionId: "assertion_1",
-        badgeTemplateId: "bt_science",
-        orgUnitId: "org_program_microbiology",
-        issuedAt: "2026-03-01T08:00:00.000Z",
-        eventType: "share_click" as const,
-        occurredAt: "2026-03-02T09:00:00.000Z",
+        groupBy: "orgUnit" as const,
+        groupId: "org_program_biochemistry",
+        issuedCount: 1,
+        publicBadgeViewCount: 0,
+        verificationViewCount: 0,
+        shareClickCount: 0,
+        learnerClaimCount: 1,
+        walletAcceptCount: 1,
+        shareEngagedCount: 0,
+        claimEngagedCount: 1,
       },
       {
-        assertionId: "assertion_2",
-        badgeTemplateId: "bt_science",
-        orgUnitId: "org_program_biochemistry",
-        issuedAt: "2026-03-01T09:00:00.000Z",
-        eventType: "learner_claim" as const,
-        occurredAt: "2026-03-03T08:00:00.000Z",
-      },
-      {
-        assertionId: "assertion_2",
-        badgeTemplateId: "bt_science",
-        orgUnitId: "org_program_biochemistry",
-        issuedAt: "2026-03-01T09:00:00.000Z",
-        eventType: "wallet_accept" as const,
-        occurredAt: "2026-03-03T09:00:00.000Z",
-      },
-      {
-        assertionId: "assertion_3",
-        badgeTemplateId: "bt_arts",
-        orgUnitId: "org_program_music_theory",
-        issuedAt: "2026-03-01T10:00:00.000Z",
-        eventType: "share_click" as const,
-        occurredAt: "2026-03-03T10:00:00.000Z",
+        groupBy: "orgUnit" as const,
+        groupId: "org_program_music_theory",
+        issuedCount: 1,
+        publicBadgeViewCount: 0,
+        verificationViewCount: 0,
+        shareClickCount: 1,
+        learnerClaimCount: 0,
+        walletAcceptCount: 0,
+        shareEngagedCount: 1,
+        claimEngagedCount: 0,
       },
     ];
 
     expect(
       summarizeTenantReportingHierarchyRows({
-        rows,
+        comparisonRows,
         orgUnits,
-        query: {
-          focusOrgUnitId: "org_college_science",
-          level: "department",
-        },
+        focusOrgUnitId: "org_college_science",
+        level: "department",
         scopedRootOrgUnitIds: ["org_college_science"],
       }),
     ).toEqual([

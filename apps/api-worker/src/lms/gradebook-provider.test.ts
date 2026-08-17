@@ -27,6 +27,16 @@ describe("parseGradebookProviderConfig", () => {
       }),
     ).toThrowError("Gradebook provider kind must be one of");
   });
+
+  it("rejects provider variants that the product cannot evaluate", () => {
+    expect(() =>
+      parseGradebookProviderConfig({
+        kind: "moodle",
+        apiBaseUrl: "https://moodle.example.edu",
+        accessToken: "secret-token",
+      }),
+    ).toThrowError("Gradebook provider kind must be one of: canvas, sakai");
+  });
 });
 
 describe("parseGradebookProviderConfigJson", () => {
@@ -94,17 +104,5 @@ describe("createGradebookProvider", () => {
     });
 
     expect(provider.kind).toBe("sakai");
-  });
-
-  it("throws for providers that are not implemented yet", () => {
-    expect(() =>
-      createGradebookProvider({
-        config: {
-          kind: "moodle",
-          apiBaseUrl: "https://moodle.example.edu",
-          accessToken: "secret-token",
-        },
-      }),
-    ).toThrowError('Gradebook provider "moodle" is not implemented yet');
   });
 });

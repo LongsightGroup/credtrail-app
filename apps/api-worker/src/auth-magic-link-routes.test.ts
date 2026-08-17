@@ -92,6 +92,7 @@ import {
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
+import type { TurnstileVerifier, VerifyTurnstileTokenInput } from "./auth/turnstile";
 
 const mockedCountAuthMagicLinkRateLimitAttempts = vi.mocked(countAuthMagicLinkRateLimitAttempts);
 const mockedFindTenantMembership = vi.mocked(findTenantMembership);
@@ -1102,11 +1103,13 @@ describe("magic-link auth routes", () => {
 
   it("accepts valid Turnstile tokens after rate thresholds are exceeded", async () => {
     mockedCountAuthMagicLinkRateLimitAttempts.mockResolvedValue(3);
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      Response.json({
-        success: true,
-      }),
-    );
+    const verifiedInputs: VerifyTurnstileTokenInput[] = [];
+    const turnstileVerifier: TurnstileVerifier = {
+      verify: (input) => {
+        verifiedInputs.push(input);
+        return Promise.resolve(true);
+      },
+    };
     const { app: isolatedApp, betterAuthProvider } = await loadAppWithMockedHostedAuthProviders();
 
     const response = await isolatedApp.request(
@@ -1127,16 +1130,18 @@ describe("magic-link auth routes", () => {
         ...createEnv("production"),
         TURNSTILE_SITE_KEY: "turnstile-site-key",
         TURNSTILE_SECRET_KEY: "turnstile-secret-key",
+        TURNSTILE_VERIFIER: turnstileVerifier,
       },
     );
 
     expect(response.status).toBe(202);
-    expect(fetchSpy).toHaveBeenCalledWith(
-      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+    expect(verifiedInputs).toEqual([
       expect.objectContaining({
-        method: "POST",
+        secretKey: "turnstile-secret-key",
+        token: "valid-turnstile-token",
+        remoteIp: "203.0.113.10",
       }),
-    );
+    ]);
     expect(mockedRecordAuthMagicLinkRateLimitAttempt).toHaveBeenCalledTimes(4);
     expect(betterAuthProvider.requestMagicLink).toHaveBeenCalledWith(
       expect.anything(),
