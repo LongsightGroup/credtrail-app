@@ -2,6 +2,7 @@ import type { ImmutableCredentialStore } from "@credtrail/core-domain";
 import type { Context } from "hono";
 import type { AuthContextVariables } from "../auth/auth-context";
 import type { BadgeTemplateImageGenerationAiBinding } from "../badges/badge-template-image-generation";
+import type { PublicJsonNetwork } from "../http/public-json-network";
 import type { ObservabilityContextVariables } from "./observability";
 
 export interface AppBindings {
@@ -39,6 +40,7 @@ export interface AppBindings {
   OB3_OAUTH_TOKEN_URL?: string;
   OB3_OAUTH_REFRESH_URL?: string;
   BADGE_IMAGE_GENERATION_MODEL?: string;
+  VERIFIER_PUBLIC_JSON_NETWORK?: PublicJsonNetwork;
 }
 
 export interface AppEnv {

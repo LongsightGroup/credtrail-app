@@ -51,6 +51,7 @@ import {
 } from "./credentials/verification-checks";
 import { createCredentialProofVerificationHelpers } from "./credentials/proof-verification";
 import { createLoadJsonObjectFromUrl } from "./http/json-object-loader";
+import { workerPublicJsonNetwork } from "./http/public-json-network";
 import { createSignCredentialForDid } from "./signing/credential-signer";
 import {
   didDocumentForSigningEntry,
@@ -175,6 +176,7 @@ const loadJsonObjectFromUrl = createLoadJsonObjectFromUrl<AppBindings>({
   },
   asJsonObject,
   publicAppOrigin: (bindings) => bindings.PUBLIC_APP_ORIGIN,
+  publicJsonNetwork: (bindings) => bindings.VERIFIER_PUBLIC_JSON_NETWORK ?? workerPublicJsonNetwork,
 });
 
 const {

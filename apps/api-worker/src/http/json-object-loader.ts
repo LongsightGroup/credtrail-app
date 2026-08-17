@@ -1,6 +1,11 @@
 import type { JsonObject } from "@credtrail/core-domain";
 import { canonicalAppOrigin } from "./canonical-app-url";
 import { withCredTrailUserAgent } from "./outbound-user-agent";
+import {
+  loadPublicJsonFromUrl,
+  type PublicJsonLoadResult,
+  type PublicJsonNetwork,
+} from "./public-json-network";
 
 interface CreateJsonObjectLoaderInput<BindingsType> {
   appRequest: (
@@ -10,6 +15,7 @@ interface CreateJsonObjectLoaderInput<BindingsType> {
   ) => Promise<Response>;
   asJsonObject: (value: unknown) => JsonObject | null;
   publicAppOrigin: (bindings: BindingsType) => string;
+  publicJsonNetwork: (bindings: BindingsType) => PublicJsonNetwork;
 }
 
 type JsonObjectLoadResult =
@@ -21,6 +27,27 @@ type JsonObjectLoadResult =
       status: "error";
       reason: string;
     };
+
+const publicJsonLoadErrorReason = (
+  result: Extract<PublicJsonLoadResult, { status: "error" }>,
+): string => {
+  switch (result.error.kind) {
+    case "invalid_url":
+      return "URL is invalid or unsupported";
+    case "blocked_destination":
+      return "URL destination is not public";
+    case "request_failed":
+      return "request failed";
+    case "response_too_large":
+      return "response exceeds the verification size limit";
+    case "too_many_redirects":
+      return "request exceeded the redirect limit";
+    case "http_error":
+      return `HTTP ${String(result.error.statusCode)}`;
+    case "invalid_json":
+      return "response is not valid JSON";
+  }
+};
 
 export const createLoadJsonObjectFromUrl = <BindingsType>(
   input: CreateJsonObjectLoaderInput<BindingsType>,
@@ -59,11 +86,31 @@ export const createLoadJsonObjectFromUrl = <BindingsType>(
           context.env,
         );
       } else {
-        response = await fetch(resourceUrl, {
-          headers: withCredTrailUserAgent({
-            accept: acceptHeader,
-          }),
+        const loaded = await loadPublicJsonFromUrl(input.publicJsonNetwork(context.env), {
+          resourceUrl,
+          headers: withCredTrailUserAgent({ accept: acceptHeader }),
         });
+
+        if (loaded.status === "error") {
+          return {
+            status: "error",
+            reason: publicJsonLoadErrorReason(loaded),
+          };
+        }
+
+        const responseObject = input.asJsonObject(loaded.value);
+
+        if (responseObject === null) {
+          return {
+            status: "error",
+            reason: "response is not a JSON object",
+          };
+        }
+
+        return {
+          status: "ok",
+          value: responseObject,
+        };
       }
     } catch {
       return {

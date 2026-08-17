@@ -3,7 +3,7 @@
   "name": "credtrail-app-local",
   "main": "apps/api-worker/src/index.ts",
   "compatibility_date": "2026-05-14",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": "./apps/api-worker/public"
   },

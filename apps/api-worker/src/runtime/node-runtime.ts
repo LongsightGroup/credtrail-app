@@ -3,6 +3,7 @@ import { canonicalAppOrigin } from "../http/canonical-app-url";
 import { canonicalPlatformDomain } from "../http/platform-domain";
 import { createSesEmailBinding } from "../notifications/ses-email";
 import { createS3ImmutableCredentialStore } from "../storage/s3-immutable-credential-store";
+import { createNodePublicJsonNetwork } from "./node-public-json-network";
 
 type EnvSource = Record<string, string | undefined>;
 
@@ -178,6 +179,7 @@ export const createNodeRuntimeBindings = (envSource: EnvSource = process.env): A
     PLATFORM_DOMAIN: platformDomain,
     PUBLIC_APP_ORIGIN: publicAppOrigin,
     BADGE_OBJECTS: badgeObjectsBinding,
+    VERIFIER_PUBLIC_JSON_NETWORK: createNodePublicJsonNetwork(),
     ...(emailBinding === undefined ? {} : { EMAIL: emailBinding }),
     ...optionalBindingsFromEnv(envSource),
   };
