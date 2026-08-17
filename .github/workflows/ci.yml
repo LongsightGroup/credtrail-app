@@ -9,6 +9,7 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:17-alpine
@@ -150,8 +151,26 @@ jobs:
           deps_status=""
 
           for attempt in $(seq 1 40); do
-            discovery_status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/ims/ob/v3p0/discovery || true)"
-            deps_status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/healthz/dependencies || true)"
+            if [ "$(docker inspect -f '{{.State.Running}}' credtrail-ci-app 2>/dev/null || true)" != "true" ]; then
+              echo "App container exited before becoming ready."
+              docker logs credtrail-ci-app || true
+              exit 1
+            fi
+
+            discovery_status="$(curl \
+              --connect-timeout 2 \
+              --max-time 5 \
+              -sS \
+              -o /dev/null \
+              -w '%{http_code}' \
+              http://127.0.0.1:8787/ims/ob/v3p0/discovery || true)"
+            deps_status="$(curl \
+              --connect-timeout 2 \
+              --max-time 5 \
+              -sS \
+              -o /dev/null \
+              -w '%{http_code}' \
+              http://127.0.0.1:8787/healthz/dependencies || true)"
 
             if [ "$discovery_status" = "200" ] && [ "$deps_status" = "200" ]; then
               echo "App endpoints returned 200 on attempt $attempt."
