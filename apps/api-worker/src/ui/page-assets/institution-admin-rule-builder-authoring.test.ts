@@ -141,6 +141,29 @@ describe("rule builder browser authoring controller", () => {
     expect(controller.state()).toBe("completed");
   });
 
+  it("invokes the injected browser request without rebinding its receiver", async () => {
+    const request = async function (
+      this: unknown,
+      _path: string,
+      _init: BrowserRequestInit,
+    ): Promise<BrowserResponse> {
+      if (this !== undefined) {
+        throw new TypeError("Illegal invocation");
+      }
+
+      return { ok: true, payload: { outcome: "draft_saved" } };
+    };
+    const controller = createTestController({ request });
+
+    await expect(
+      controller.execute({
+        apiPath: "/author",
+        delivery: singleAttempt,
+        payload: { action: "save_draft" },
+      }),
+    ).resolves.toEqual({ status: "completed", outcome: "draft_saved" });
+  });
+
   it("allows another submission if navigation does not follow a completed command", async () => {
     let requestCount = 0;
     const controller = createTestController({

@@ -2,10 +2,11 @@ const RULE_BUILDER_AUTHORING_REQUEST_TIMEOUT_MS = 15_000;
 
 const attemptRuleBuilderAuthoringCommand = async (dependencies, input) => {
   const requestId = dependencies.createRequestId();
+  const request = dependencies.request;
   let response;
 
   try {
-    response = await dependencies.request(input.apiPath, {
+    response = await request(input.apiPath, {
       method: "POST",
       headers: {
         "content-type": "application/json",
