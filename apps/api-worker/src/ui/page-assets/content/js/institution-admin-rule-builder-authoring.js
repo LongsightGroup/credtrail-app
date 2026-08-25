@@ -16,7 +16,8 @@ const attemptRuleBuilderAuthoringCommand = async (dependencies, input) => {
         dependencies.requestTimeoutMs ?? RULE_BUILDER_AUTHORING_REQUEST_TIMEOUT_MS,
       ),
     });
-  } catch {
+  } catch (error) {
+    dependencies.reportUnexpectedError(error);
     return {
       status: "unknown",
       requestId,
@@ -28,7 +29,8 @@ const attemptRuleBuilderAuthoringCommand = async (dependencies, input) => {
 
   try {
     payload = await dependencies.parseResponse(response);
-  } catch {
+  } catch (error) {
+    dependencies.reportUnexpectedError(error);
     return {
       status: "unknown",
       requestId,
@@ -116,6 +118,7 @@ const ruleBuilderUnconfirmedAuthoringMessage = (input) => {
 };
 
 const createRuleBuilderAuthoringController = (dependencies) => {
+  const replayDelayMs = 250;
   let state = "idle";
 
   const execute = async (input) => {
@@ -155,6 +158,7 @@ const createRuleBuilderAuthoringController = (dependencies) => {
           return result;
         }
 
+        await dependencies.waitBeforeReplay(replayDelayMs);
         attemptCount += 1;
       }
     } finally {

@@ -134,11 +134,6 @@ const failCourseLookup = (
   selectedValues,
   selectedOptionSnapshots,
 ) => {
-  const outcome = {
-    status: "failed",
-    source: "courses",
-    message,
-  };
   setCourseSelectOptions(
     select,
     [],
@@ -146,7 +141,13 @@ const failCourseLookup = (
     selectedValues,
     selectedOptionSnapshots,
   );
-  select.disabled = false;
+  const outcome = lmsFailSelectLookup(
+    select,
+    "Courses unavailable",
+    "courses",
+    message,
+    "Unable to load LMS courses.",
+  );
   setCourseLookupStatus(card, select, outcome.message, true);
   return outcome;
 };

@@ -18,7 +18,11 @@ const lmsLookupComplete = () => ({ status: "complete" });
 const lmsLookupSuperseded = () => ({ status: "superseded" });
 
 const lmsLookupFailureMessage = (error, fallbackMessage) => {
-  return error instanceof Error ? error.message : fallbackMessage;
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return typeof error === "string" && error.length > 0 ? error : fallbackMessage;
 };
 
 const lmsLookupFailed = (source, error, fallbackMessage) => ({
@@ -179,6 +183,12 @@ const lmsSetLookupSelectFailureState = (select, label) => {
   select.disabled = false;
 };
 
+const lmsFailSelectLookup = (select, label, source, error, fallbackMessage) => {
+  const outcome = lmsLookupFailed(source, error, fallbackMessage);
+  lmsSetLookupSelectFailureState(select, label);
+  return outcome;
+};
+
 const lmsPreselectedWorkflowValues = (states, selectedValues) => {
   if (selectedValues.length > 0) {
     return selectedValues;
@@ -230,24 +240,25 @@ const lmsHydrateWorkflowStateSelect = async (input) => {
   }
 
   if (result.status === "failed") {
-    lmsSetLookupSelectFailureState(stateSelect, "Workflow states unavailable");
-    return {
-      status: "failed",
-      source: "workflow-states",
-      message: result.message,
-    };
+    return lmsFailSelectLookup(
+      stateSelect,
+      "Workflow states unavailable",
+      "workflow-states",
+      result.message,
+      fallbackMessage ?? "Unable to load workflow states.",
+    );
   }
 
   const states = lmsParseWorkflowStates(result.payload);
 
   if (states === null) {
-    const failed = lmsLookupFailed(
+    return lmsFailSelectLookup(
+      stateSelect,
+      "Workflow states unavailable",
       "workflow-states",
       null,
       fallbackMessage ?? "Unable to load workflow states.",
     );
-    lmsSetLookupSelectFailureState(stateSelect, "Workflow states unavailable");
-    return failed;
   }
 
   const defaults = lmsPreselectedWorkflowValues(states, preserved);
@@ -305,24 +316,25 @@ const lmsHydrateGradebookItemSelect = async (input) => {
   }
 
   if (result.status === "failed") {
-    lmsSetLookupSelectFailureState(itemSelect, "Gradebook items unavailable");
-    return {
-      status: "failed",
-      source: "gradebook-items",
-      message: result.message,
-    };
+    return lmsFailSelectLookup(
+      itemSelect,
+      "Gradebook items unavailable",
+      "gradebook-items",
+      result.message,
+      fallbackMessage ?? "Unable to load gradebook items.",
+    );
   }
 
   const items = lmsParseGradebookItems(result.payload);
 
   if (items === null) {
-    const failed = lmsLookupFailed(
+    return lmsFailSelectLookup(
+      itemSelect,
+      "Gradebook items unavailable",
       "gradebook-items",
       null,
       fallbackMessage ?? "Unable to load gradebook items.",
     );
-    lmsSetLookupSelectFailureState(itemSelect, "Gradebook items unavailable");
-    return failed;
   }
 
   lmsSetSelectOptions(

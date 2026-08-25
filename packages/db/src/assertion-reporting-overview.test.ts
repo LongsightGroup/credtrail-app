@@ -224,6 +224,71 @@ describeDbIntegration("reporting aggregates with Postgres", () => {
     }
   });
 
+  it("keeps backfilled reporting filters isolated to the requested tenant", async () => {
+    const tenantA = await createTestTenantFixture({ displayName: "Reporting Tenant A" });
+    const tenantB = await createTestTenantFixture({ displayName: "Reporting Tenant B" });
+    const tenantATemplateId = await seedBadgeTemplate(tenantA.db, {
+      tenantId: tenantA.tenantId,
+      title: "Tenant A badge",
+    });
+    const tenantBTemplateId = await seedBadgeTemplate(tenantB.db, {
+      tenantId: tenantB.tenantId,
+      title: "Tenant B badge",
+    });
+    const tenantAOrgUnitId = `${tenantA.tenantId}:org:institution`;
+    const tenantBOrgUnitId = `${tenantB.tenantId}:org:institution`;
+
+    try {
+      await seedAssertion(tenantA.db, {
+        tenantId: tenantA.tenantId,
+        badgeTemplateId: tenantATemplateId,
+        recipientIdentity: "tenant-a@example.edu",
+        issuedAt: "2026-03-03T00:00:00.000Z",
+      });
+      await seedAssertion(tenantB.db, {
+        tenantId: tenantB.tenantId,
+        badgeTemplateId: tenantBTemplateId,
+        recipientIdentity: "tenant-b@example.edu",
+        issuedAt: "2026-03-03T00:00:00.000Z",
+      });
+
+      const backfillSql = readFileSync(
+        new URL(
+          "../migrations/0077_backfill_assertion_reporting_attributions.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      );
+      await tenantA.db.prepare(backfillSql).run();
+
+      const [tenantAReport, tenantAWithTenantBFilters, tenantBReport] = await Promise.all([
+        getTenantReportingOverview(tenantA.db, {
+          tenantId: tenantA.tenantId,
+          badgeTemplateId: tenantATemplateId,
+          orgUnitId: tenantAOrgUnitId,
+        }),
+        getTenantReportingOverview(tenantA.db, {
+          tenantId: tenantA.tenantId,
+          badgeTemplateId: tenantBTemplateId,
+          orgUnitId: tenantBOrgUnitId,
+        }),
+        getTenantReportingOverview(tenantB.db, {
+          tenantId: tenantB.tenantId,
+          badgeTemplateId: tenantBTemplateId,
+          orgUnitId: tenantBOrgUnitId,
+        }),
+      ]);
+
+      expect(tenantAReport.counts.issued).toBe(1);
+      expect(tenantAWithTenantBFilters.counts.issued).toBe(0);
+      expect(tenantBReport.counts.issued).toBe(1);
+    } finally {
+      await cleanupTestResources(tenantA.db, {
+        tenantIds: [tenantA.tenantId, tenantB.tenantId],
+      });
+    }
+  });
+
   it("returns lifecycle, engagement, trend, and comparison aggregates without raw event rows", async () => {
     const fixture = await createTestTenantFixture({ displayName: "Reporting Aggregate Tenant" });
     const primaryTemplateId = await seedBadgeTemplate(fixture.db, {

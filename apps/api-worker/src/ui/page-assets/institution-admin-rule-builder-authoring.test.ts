@@ -207,6 +207,47 @@ describe("rule builder browser authoring controller", () => {
     expect(controller.state()).toBe("idle");
   });
 
+  it("reports request failures before returning an unknown outcome", async () => {
+    const defect = new Error("connection unavailable");
+    const reportedErrors: unknown[] = [];
+    const controller = createTestController({
+      request: () => Promise.reject(defect),
+      reportUnexpectedError: (error) => {
+        reportedErrors.push(error);
+      },
+    });
+
+    await expect(
+      controller.execute({
+        apiPath: "/author",
+        delivery: singleAttempt,
+        payload: { action: "save_draft" },
+      }),
+    ).resolves.toMatchObject({ status: "unknown" });
+    expect(reportedErrors).toEqual([defect]);
+  });
+
+  it("reports response parsing failures before returning an unknown outcome", async () => {
+    const defect = new Error("response body unavailable");
+    const reportedErrors: unknown[] = [];
+    const controller = createTestController({
+      request: async () => ({ ok: true, payload: { outcome: "draft_saved" } }),
+      parseResponse: () => Promise.reject(defect),
+      reportUnexpectedError: (error) => {
+        reportedErrors.push(error);
+      },
+    });
+
+    await expect(
+      controller.execute({
+        apiPath: "/author",
+        delivery: singleAttempt,
+        payload: { action: "save_draft" },
+      }),
+    ).resolves.toMatchObject({ status: "unknown" });
+    expect(reportedErrors).toEqual([defect]);
+  });
+
   it("times out a request that never returns and makes the controller retryable", async () => {
     const controller = createTestController({
       request: (_path, init) => {
@@ -282,6 +323,32 @@ describe("rule builder browser authoring controller", () => {
       },
     ]);
     expect(controller.state()).toBe("completed");
+  });
+
+  it("waits briefly before replaying an unconfirmed create", async () => {
+    let requestCount = 0;
+    const operationOrder: string[] = [];
+    const controller = createTestController({
+      request: async () => {
+        requestCount += 1;
+        operationOrder.push(`request:${requestCount}`);
+        return requestCount === 1
+          ? { ok: true, payload: null }
+          : { ok: true, payload: { outcome: "draft_saved" } };
+      },
+      waitBeforeReplay: async (delayMs) => {
+        operationOrder.push(`wait:${delayMs}`);
+      },
+    });
+
+    await expect(
+      controller.execute({
+        apiPath: "/author",
+        delivery: { kind: "replay_safe_create", builderDraftId: "brd-123" },
+        payload: { action: "save_draft" },
+      }),
+    ).resolves.toEqual({ status: "completed", outcome: "draft_saved" });
+    expect(operationOrder).toEqual(["request:1", "wait:250", "request:2"]);
   });
 
   it("retries a replay-safe create when a successful response body is malformed", async () => {

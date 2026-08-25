@@ -19,7 +19,12 @@ import { normalizeReportingDateBoundary } from "./assertion-internal.js";
 import { buildAssertionRecordFilterSql } from "./assertion-record-filter-sql.js";
 import { summarizeTenantExecutiveRollup } from "./assertion-reporting-summaries.js";
 
-type SqlCount = number | string;
+type SqlCount = number | string | null;
+
+interface SqlFragment {
+  readonly sql: string;
+  readonly params: readonly unknown[];
+}
 
 interface ReportingAggregateRow {
   issuedCount: SqlCount;
@@ -125,6 +130,10 @@ const REPORTING_AGGREGATE_SELECT_SQL = `
             AS claimEngagedCount`;
 
 const parseSqlCount = (value: SqlCount, fieldName: string): number => {
+  if (value === null) {
+    throw new Error(`Reporting query returned an invalid ${fieldName}`);
+  }
+
   const parsed = typeof value === "number" ? value : Number(value);
 
   if (!Number.isSafeInteger(parsed) || parsed < 0) {
@@ -134,9 +143,7 @@ const parseSqlCount = (value: SqlCount, fieldName: string): number => {
   return parsed;
 };
 
-const buildFilteredAssertionsCte = (
-  input: ReportingFilterInput,
-): { readonly sql: string; readonly params: readonly unknown[] } => {
+const buildFilteredAssertionsCte = (input: ReportingFilterInput): SqlFragment => {
   const { whereClauses, params } = buildAssertionRecordFilterSql(
     {
       tenantId: input.tenantId,
@@ -180,36 +187,31 @@ const buildFilteredAssertionsCte = (
   };
 };
 
-const buildEngagementEventJoin = (input: Pick<ReportingFilterInput, "from" | "to">): string => {
+const buildEngagementEventJoin = (
+  input: Pick<ReportingFilterInput, "tenantId" | "from" | "to">,
+): SqlFragment => {
   const joinClauses = [
     "events.tenant_id = ?",
     "events.assertion_id = filtered_assertions.assertion_id",
   ];
-  if (input.from !== undefined) {
-    joinClauses.push("events.occurred_at >= ?");
-  }
-
-  if (input.to !== undefined) {
-    joinClauses.push("events.occurred_at <= ?");
-  }
-
-  return `
-        LEFT JOIN assertion_engagement_events events
-          ON ${joinClauses.join("\n          AND ")}`;
-};
-
-const engagementEventParams = (input: ReportingFilterInput): readonly unknown[] => {
   const params: unknown[] = [input.tenantId];
 
   if (input.from !== undefined) {
+    joinClauses.push("events.occurred_at >= ?");
     params.push(normalizeReportingDateBoundary(input.from, "start"));
   }
 
   if (input.to !== undefined) {
+    joinClauses.push("events.occurred_at <= ?");
     params.push(normalizeReportingDateBoundary(input.to, "end"));
   }
 
-  return params;
+  return {
+    sql: `
+        LEFT JOIN assertion_engagement_events events
+          ON ${joinClauses.join("\n          AND ")}`,
+    params,
+  };
 };
 
 const loadReportingAggregate = async (
@@ -224,10 +226,10 @@ const loadReportingAggregate = async (
         SELECT
           ${REPORTING_AGGREGATE_SELECT_SQL}
         FROM filtered_assertions
-        ${eventJoin}
+        ${eventJoin.sql}
       `,
     )
-    .bind(...filteredAssertions.params, ...engagementEventParams(input))
+    .bind(...filteredAssertions.params, ...eventJoin.params)
     .first<ReportingAggregateRow>();
 
   if (row === null) {
@@ -294,7 +296,6 @@ export const getTenantReportingTrends = async (
       : normalizeReportingDateBoundary(input.from, "start").slice(0, 10);
   const requestedTo =
     input.to === undefined ? null : normalizeReportingDateBoundary(input.to, "end").slice(0, 10);
-  const eventParams = engagementEventParams(input);
   const result = await db
     .prepare(
       `${filteredAssertions.sql},
@@ -305,7 +306,7 @@ export const getTenantReportingTrends = async (
         UNION ALL
         SELECT (events.occurred_at::timestamptz AT TIME ZONE 'UTC')::date AS activity_date
         FROM filtered_assertions
-        ${activityEventJoin}
+        ${activityEventJoin.sql}
         WHERE events.id IS NOT NULL
       ),
       requested_range AS (
@@ -349,7 +350,7 @@ export const getTenantReportingTrends = async (
           COUNT(events.id) FILTER (WHERE events.event_type = 'wallet_accept')
             AS wallet_accept_count
         FROM filtered_assertions
-        ${aggregateEventJoin}
+        ${aggregateEventJoin.sql}
         WHERE events.id IS NOT NULL
         GROUP BY (events.occurred_at::timestamptz AT TIME ZONE 'UTC')::date
       )
@@ -367,7 +368,13 @@ export const getTenantReportingTrends = async (
       ORDER BY buckets.bucket_start ASC
       `,
     )
-    .bind(...filteredAssertions.params, ...eventParams, requestedFrom, requestedTo, ...eventParams)
+    .bind(
+      ...filteredAssertions.params,
+      ...activityEventJoin.params,
+      requestedFrom,
+      requestedTo,
+      ...aggregateEventJoin.params,
+    )
     .all<ReportingTrendAggregateRow>();
 
   const series: TenantReportingTrendBucketRecord[] = result.results.map((row) => ({
@@ -412,14 +419,14 @@ const loadTenantReportingComparisonAggregates = async (
           filtered_assertions.${groupColumn} AS groupId,
           ${REPORTING_AGGREGATE_SELECT_SQL}
         FROM filtered_assertions
-        ${eventJoin}
+        ${eventJoin.sql}
         GROUP BY filtered_assertions.${groupColumn}
         ORDER BY
           COUNT(DISTINCT filtered_assertions.assertion_id) DESC,
           filtered_assertions.${groupColumn} ASC
       `,
     )
-    .bind(...filteredAssertions.params, ...engagementEventParams(input))
+    .bind(...filteredAssertions.params, ...eventJoin.params)
     .all<ReportingComparisonAggregateRow>();
 
   return result.results.map((row) => {

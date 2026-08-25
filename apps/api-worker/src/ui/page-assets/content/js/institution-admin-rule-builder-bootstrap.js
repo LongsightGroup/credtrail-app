@@ -79,6 +79,20 @@ const ruleBuilderAuthoringController = createRuleBuilderAuthoringController({
   request: fetch,
   parseResponse: parseJsonBody,
   createRequestId: () => crypto.randomUUID(),
+  reportUnexpectedError: (error) => {
+    if (typeof globalThis.reportError === "function") {
+      globalThis.reportError(error);
+      return;
+    }
+
+    window.setTimeout(() => {
+      throw error;
+    }, 0);
+  },
+  waitBeforeReplay: (delayMs) =>
+    new Promise((resolve) => {
+      window.setTimeout(resolve, delayMs);
+    }),
 });
 const ruleBuilderSaveDraftButton = document.getElementById("rule-builder-save-draft");
 const ruleBuilderDraftStatus = document.getElementById("rule-builder-draft-status");
