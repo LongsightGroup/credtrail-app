@@ -19,21 +19,75 @@ const lmsLookupErrorMessage = (error, fallback) => {
   return error instanceof Error ? error.message : fallback;
 };
 
-const setLmsLookupStatus = (message, isError) => {
-  if (!(ruleBuilderLmsStatus instanceof HTMLElement)) {
+const setConditionLookupStatus = (card, selector, message, isError) => {
+  if (!(card instanceof HTMLElement)) {
     return;
   }
 
-  const messageElement = ruleBuilderLmsStatus.querySelector(
-    "[data-rule-builder-lms-status-message]",
-  );
+  const status = card.querySelector(selector);
 
-  ruleBuilderLmsStatus.hidden = message.length === 0;
-  ruleBuilderLmsStatus.dataset.tone = isError ? "error" : "info";
-
-  if (messageElement instanceof HTMLElement) {
-    messageElement.textContent = message;
+  if (!(status instanceof HTMLElement)) {
+    return;
   }
+
+  status.hidden = message.length === 0;
+  status.dataset.tone = isError ? "error" : "info";
+  status.textContent = message;
+};
+
+const setCourseLookupStatus = (card, select, message, isError) => {
+  const fieldName = select.dataset.field ?? "";
+
+  if (fieldName.length === 0) {
+    return;
+  }
+
+  setConditionLookupStatus(
+    card,
+    '[data-lms-course-status="' + fieldName + '"]',
+    message,
+    isError,
+  );
+};
+
+const setGradebookLookupStatus = (card, message, isError) => {
+  setConditionLookupStatus(card, "[data-lms-gradebook-status]", message, isError);
+};
+
+const courseLookupStatusMessage = (courseCount, hasMore, query) => {
+  const normalizedQuery = query.trim();
+
+  if (courseCount === 0) {
+    return normalizedQuery.length === 0
+      ? "No courses are available through this LMS connection."
+      : "No courses match this search.";
+  }
+
+  if (!hasMore) {
+    return "";
+  }
+
+  return normalizedQuery.length === 0
+    ? "Showing " +
+        String(courseCount) +
+        " courses. Search by title, code, or ID to narrow the list."
+    : "Showing " +
+        String(courseCount) +
+        " matches. Refine your search to narrow the list.";
+};
+
+const setLookupSelectFailureState = (select, label) => {
+  if (!(select instanceof HTMLSelectElement)) {
+    return;
+  }
+
+  const placeholder = select.options.item(0);
+
+  if (placeholder !== null) {
+    placeholder.textContent = label;
+  }
+
+  select.disabled = false;
 };
 
 const courseLookupAbortControllerByCard = new WeakMap();
@@ -152,6 +206,7 @@ const hydrateCourseSelect = async (card, select, query) => {
 
   if (path.length === 0) {
     courseLookupAbortControllerByCard.delete(card);
+    setCourseLookupStatus(card, select, "", false);
     setCourseSelectOptions(
       select,
       [],
@@ -165,7 +220,7 @@ const hydrateCourseSelect = async (card, select, query) => {
 
   const abortController = new AbortController();
   courseLookupAbortControllerByCard.set(card, abortController);
-  setLmsLookupStatus("Loading courses...", false);
+  setCourseLookupStatus(card, select, "", false);
   select.disabled = true;
   setCourseSelectOptions(select, [], "Loading courses...", selectedValues, selectedOptionSnapshots);
   let payload;
@@ -188,7 +243,13 @@ const hydrateCourseSelect = async (card, select, query) => {
       selectedOptionSnapshots,
     );
     select.disabled = false;
-    throw error;
+    setCourseLookupStatus(
+      card,
+      select,
+      lmsLookupErrorMessage(error, "Unable to load LMS courses."),
+      true,
+    );
+    return false;
   }
 
   if (courseLookupAbortControllerByCard.get(card) !== abortController) {
@@ -206,25 +267,12 @@ const hydrateCourseSelect = async (card, select, query) => {
     selectedOptionSnapshots,
   );
   select.disabled = false;
-  const normalizedQuery = query.trim();
-
-  if (courses.length === 0) {
-    setLmsLookupStatus(
-      normalizedQuery.length === 0
-        ? "No courses are available to the saved LMS account."
-        : "No courses matched your search.",
-      false,
-    );
-  } else if (hasMore) {
-    setLmsLookupStatus(
-      normalizedQuery.length === 0
-        ? "Showing the first 100 courses. Search to narrow the list."
-        : "Showing the first 100 matches. Refine your search to narrow the list.",
-      false,
-    );
-  } else {
-    setLmsLookupStatus("", false);
-  }
+  setCourseLookupStatus(
+    card,
+    select,
+    courseLookupStatusMessage(courses.length, hasMore, query),
+    false,
+  );
 
   return true;
 };
@@ -234,11 +282,23 @@ const hydrateWorkflowStateSelect = async (card) => {
   const assignmentId = readFieldFromCard(card, "assignmentId");
   const stateSelect = card.querySelector("[data-lms-workflow-state-select]");
 
-  await lmsHydrateWorkflowStateSelect({
-    stateSelect,
-    workflowStatesUrl: workflowStatesPath(courseId, assignmentId),
-    fallbackMessage: "Unable to load workflow states.",
-  });
+  setGradebookLookupStatus(card, "", false);
+
+  try {
+    return await lmsHydrateWorkflowStateSelect({
+      stateSelect,
+      workflowStatesUrl: workflowStatesPath(courseId, assignmentId),
+      fallbackMessage: "Unable to load workflow states.",
+    });
+  } catch (error) {
+    setLookupSelectFailureState(stateSelect, "Workflow states unavailable");
+    setGradebookLookupStatus(
+      card,
+      lmsLookupErrorMessage(error, "Unable to load workflow states."),
+      true,
+    );
+    return false;
+  }
 };
 
 const hydrateGradebookItemSelect = async (card, query) => {
@@ -247,22 +307,33 @@ const hydrateGradebookItemSelect = async (card, query) => {
   const stateSelect = card.querySelector("[data-lms-workflow-state-select]");
 
   if (!(itemSelect instanceof HTMLSelectElement)) {
-    return;
+    return false;
   }
 
   const path = gradebookItemsPath(courseId, query);
 
-  setLmsLookupStatus("", false);
-  await lmsHydrateGradebookItemWorkflowSelects({
-    itemSelect,
-    stateSelect,
-    itemsUrl: path,
-    query: "",
-    itemFallbackMessage: "Unable to load gradebook items.",
-    workflowFallbackMessage: "Unable to load workflow states.",
-    workflowStatesUrlForAssignment: (assignmentId) =>
-      workflowStatesPath(courseId, assignmentId),
-  });
+  setGradebookLookupStatus(card, "", false);
+
+  try {
+    return await lmsHydrateGradebookItemWorkflowSelects({
+      itemSelect,
+      stateSelect,
+      itemsUrl: path,
+      query: "",
+      itemFallbackMessage: "Unable to load gradebook items.",
+      workflowFallbackMessage: "Unable to load workflow states.",
+      workflowStatesUrlForAssignment: (assignmentId) =>
+        workflowStatesPath(courseId, assignmentId),
+    });
+  } catch (error) {
+    setLookupSelectFailureState(itemSelect, "Gradebook items unavailable");
+    setGradebookLookupStatus(
+      card,
+      lmsLookupErrorMessage(error, "Unable to load gradebook items."),
+      true,
+    );
+    return false;
+  }
 };
 
 const bindSearchableCourseSelect = (card, fieldName) => {
@@ -292,11 +363,6 @@ const bindSearchableCourseSelect = (card, fieldName) => {
           if (fieldName === "courseId") {
             void hydrateGradebookItemSelect(card, "");
           }
-        })
-        .catch((error) => {
-          const message = lmsLookupErrorMessage(error, "Unable to load LMS courses.");
-          setLmsLookupStatus(message, true);
-          setStatus(ruleCreateStatus, message, true);
         }),
   });
 
@@ -327,21 +393,19 @@ const bindSearchableGradebookItemSelect = (card) => {
       hydrateGradebookItemSelect(
         card,
         itemSearch instanceof HTMLInputElement ? itemSearch.value : "",
-      )
-        .then(() => {
+      ).then((didHydrate) => {
+        if (didHydrate) {
           syncDefinitionJsonFromBuilder();
-        })
-        .catch((error) => {
-          const message = lmsLookupErrorMessage(error, "Unable to load gradebook items.");
-          setLmsLookupStatus(message, true);
-          setStatus(ruleCreateStatus, message, true);
-        }),
+        }
+      }),
   });
 
   itemSelect.addEventListener("change", () => {
     itemSelect.dataset.selectedValue = itemSelect.value;
-    void hydrateWorkflowStateSelect(card).then(() => {
-      syncDefinitionJsonFromBuilder();
+    void hydrateWorkflowStateSelect(card).then((didHydrate) => {
+      if (didHydrate) {
+        syncDefinitionJsonFromBuilder();
+      }
     });
   });
 };

@@ -113,6 +113,26 @@ const createCourseSelectField = (labelText, fieldName, selectedValue, multiple) 
   );
 };
 
+const createConditionLookupStatus = (attributeName, attributeValue) => {
+  const status = document.createElement("p");
+  status.className = "ct-admin__status ct-admin__condition-lookup-status";
+  status.hidden = true;
+  status.dataset.tone = "info";
+  status.setAttribute(attributeName, attributeValue);
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  status.setAttribute("aria-atomic", "true");
+  return status;
+};
+
+const createCoursePickerFields = (labelText, fieldName, selectedValue, multiple) => {
+  return [
+    createCourseSearchField(fieldName),
+    createCourseSelectField(labelText, fieldName, selectedValue, multiple),
+    createConditionLookupStatus("data-lms-course-status", fieldName),
+  ];
+};
+
 const createListSelectField = (labelText, fieldName, kind, selectedValue, emptyLabel) => {
   const options = [
     createConditionOption("", emptyLabel, selectedValue.length === 0),
@@ -144,8 +164,7 @@ const createListSelectField = (labelText, fieldName, kind, selectedValue, emptyL
 const renderCourseCompletionFields = (card, fieldsContainer, seed) => {
   const selectedCourseId = typeof seed.courseId === "string" ? seed.courseId : "";
   replaceConditionFields(fieldsContainer, [
-    createCourseSearchField("courseId"),
-    createCourseSelectField("LMS course", "courseId", selectedCourseId, false),
+    ...createCoursePickerFields("LMS course", "courseId", selectedCourseId, false),
     createConditionField(
       "Gradebook completion at least %",
       createConditionInput("number", {
@@ -175,8 +194,7 @@ const renderCourseCompletionFields = (card, fieldsContainer, seed) => {
 const renderGradeThresholdFields = (card, fieldsContainer, seed) => {
   const selectedCourseId = typeof seed.courseId === "string" ? seed.courseId : "";
   replaceConditionFields(fieldsContainer, [
-    createCourseSearchField("courseId"),
-    createCourseSelectField("LMS course", "courseId", selectedCourseId, false),
+    ...createCoursePickerFields("LMS course", "courseId", selectedCourseId, false),
     createConditionField(
       "Gradebook score field",
       createConditionSelect({ "data-field": "scoreField" }, [
@@ -224,8 +242,7 @@ const renderGradeThresholdFields = (card, fieldsContainer, seed) => {
 const renderProgramCompletionFields = (card, fieldsContainer, seed) => {
   const selectedCourseIds = Array.isArray(seed.courseIds) ? seed.courseIds.join(",") : "";
   replaceConditionFields(fieldsContainer, [
-    createCourseSearchField("courseIds"),
-    createCourseSelectField("Courses", "courseIds", selectedCourseIds, true),
+    ...createCoursePickerFields("Courses", "courseIds", selectedCourseIds, true),
     createConditionField(
       "Minimum completed (optional)",
       createConditionInput("number", {
@@ -259,8 +276,7 @@ const renderAssignmentSubmissionFields = (card, fieldsContainer, seed) => {
     ? seed.workflowStates.join(",")
     : "";
   replaceConditionFields(fieldsContainer, [
-    createCourseSearchField("courseId"),
-    createCourseSelectField("Course", "courseId", selectedCourseId, false),
+    ...createCoursePickerFields("Course", "courseId", selectedCourseId, false),
     createConditionField(
       "Gradebook item search",
       createConditionInput("search", {
@@ -280,6 +296,7 @@ const renderAssignmentSubmissionFields = (card, fieldsContainer, seed) => {
         [createConditionOption("", "Select course first", false)],
       ),
     ),
+    createConditionLookupStatus("data-lms-gradebook-status", ""),
     createConditionField(
       "Minimum score (optional)",
       createConditionInput("number", {

@@ -6,6 +6,7 @@ import {
   mockedListBadgeIssuanceRules,
   mockedListBadgeIssuanceRuleVersions,
   mockedListBadgeTemplates,
+  mockedListTenantLmsConnectionsDb,
 } from "./institution-admin-test-utils/rules-test-harness";
 import { buildBadgeRuleVersionRecord } from "./test-support/badge-rule-version";
 import { app } from "./index";
@@ -191,7 +192,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("Exclude learners who match this requirement");
     expect(body).toContain("Advanced JSON tools");
     expect(body).toContain("Canvas Test (Canvas)");
-    expect(body).toContain("Update LMS connection");
+    expect(body).not.toContain('id="rule-builder-lms-status"');
+    expect(body).not.toContain("Update LMS connection");
     expect(body).toContain("Choose a badge template");
     expect(body).toMatch(
       /id="rule-builder-badge-template-fallback-field"[\s\S]*?id="rule-builder-badge-template-select"[^>]*name="badgeTemplateId"[^>]*required/,
@@ -220,6 +222,18 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).not.toContain("Reviewer roles (optional)");
     expect(body).not.toContain("Start from a proven pattern");
     expect(body).not.toContain("Authoring approach");
+  });
+
+  it("shows LMS setup guidance only when the builder has no usable connection", async () => {
+    mockedListTenantLmsConnectionsDb.mockResolvedValue([]);
+
+    const response = await requestRuleBuilder(createEnv());
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Create an LMS connection before building rules.");
+    expect(body).toContain("Create LMS connection");
+    expect(body).not.toContain('id="rule-builder-lms-status"');
   });
 
   it("keeps navigation and unfinished-work recovery in the builder context", async () => {

@@ -469,7 +469,6 @@ if (badgeTemplateField instanceof HTMLSelectElement) {
 
 if (ruleBuilderLmsConnectionSelect instanceof HTMLSelectElement) {
   ruleBuilderLmsConnectionSelect.addEventListener("change", () => {
-    setLmsLookupStatus("", false);
     resetRuleBuilderLearnerPicker(
       "Learners load when this step opens",
       "CredTrail loads learners from the courses configured in this rule.",

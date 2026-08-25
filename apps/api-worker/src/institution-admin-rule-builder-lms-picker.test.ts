@@ -6,7 +6,6 @@ import {
   FakeInput,
   FakeOption,
   FakeSelect,
-  FakeStatusElement,
 } from "./test-support/browser-page-asset-harness";
 
 interface PickerHarness {
@@ -28,7 +27,7 @@ interface PickerHarness {
     query: string;
     fallbackMessage: string;
   }) => Promise<boolean>;
-  readonly hydrateGradebookItemsForCard: (card: FakeElement, query: string) => Promise<void>;
+  readonly hydrateGradebookItemsForCard: (card: FakeElement, query: string) => Promise<boolean>;
   readonly hydrateWorkflowStateSelect: (input: {
     stateSelect: FakeSelect;
     workflowStatesUrl: string;
@@ -39,10 +38,7 @@ interface PickerHarness {
   readonly renderConditionFields: (card: FakeElement, seed: object) => void;
 }
 
-const loadPickerHarness = (input: {
-  readonly fetchImpl: typeof fetch;
-  readonly status: FakeStatusElement;
-}): PickerHarness => {
+const loadPickerHarness = (input: { readonly fetchImpl: typeof fetch }): PickerHarness => {
   const conditionFields = readFileSync(
     new URL(
       "./ui/page-assets/content/js/institution-admin-rule-builder-condition-fields.js",
@@ -124,10 +120,7 @@ const loadPickerHarness = (input: {
     getSelectedLmsConnectionId: (): string => "connection-1",
     lmsConnectionsApiPath: "/v1/lms/connections",
     ruleBuilderConditionList: conditionList,
-    ruleBuilderLmsStatus: input.status,
-    ruleCreateStatus: new FakeElement(),
     ruleValueLists: [],
-    setStatus: (): void => undefined,
     window: {
       clearTimeout,
       setTimeout,
@@ -141,11 +134,44 @@ const loadPickerHarness = (input: {
   return context.__pickerHarness as PickerHarness;
 };
 
+const createCourseLookupFixture = (
+  fieldName = "courseId",
+): { readonly card: FakeElement; readonly select: FakeSelect; readonly status: FakeElement } => {
+  const card = new FakeElement();
+  const select = new FakeSelect();
+  select.dataset.field = fieldName;
+  const status = new FakeElement("P");
+  status.setAttribute("data-lms-course-status", fieldName);
+  status.hidden = true;
+  card.append(select, status);
+  return { card, select, status };
+};
+
+const createAssignmentLookupFixture = (): {
+  readonly card: FakeElement;
+  readonly itemSelect: FakeSelect;
+  readonly status: FakeElement;
+} => {
+  const card = new FakeElement();
+  const courseSelect = new FakeSelect();
+  courseSelect.dataset.field = "courseId";
+  courseSelect.value = "course-101";
+  const itemSelect = new FakeSelect();
+  itemSelect.dataset.field = "assignmentId";
+  itemSelect.dataset.lmsGradebookItemSelect = "";
+  const stateSelect = new FakeSelect();
+  stateSelect.dataset.lmsWorkflowStateSelect = "";
+  const status = new FakeElement("P");
+  status.setAttribute("data-lms-gradebook-status", "");
+  status.hidden = true;
+  card.append(courseSelect, itemSelect, stateSelect, status);
+  return { card, itemSelect, status };
+};
+
 describe("rule-builder LMS course picker", () => {
   it("keeps an unfinished course requirement empty instead of inventing a course ID", () => {
     const harness = loadPickerHarness({
       fetchImpl: (() => Promise.reject(new Error("not called"))) as typeof fetch,
-      status: new FakeStatusElement(),
     });
     const card = new FakeElement();
     card.className = "ct-admin__condition-card";
@@ -180,10 +206,8 @@ describe("rule-builder LMS course picker", () => {
   });
 
   it("makes restored single- and multi-course selections available before hydration", () => {
-    const status = new FakeStatusElement();
     const harness = loadPickerHarness({
       fetchImpl: (() => Promise.reject(new Error("not called"))) as typeof fetch,
-      status,
     });
     const singleField = harness.createCourseSelectField(
       "LMS course",
@@ -217,6 +241,39 @@ describe("rule-builder LMS course picker", () => {
     expect(multiSelect.required).toBe(false);
   });
 
+  it("renders separate polite status regions for course and gradebook lookups", () => {
+    const harness = loadPickerHarness({
+      fetchImpl: (() => Promise.reject(new Error("not called"))) as typeof fetch,
+    });
+    const card = new FakeElement();
+    card.className = "ct-admin__condition-card";
+    const typeSelect = new FakeSelect();
+    typeSelect.className = "ct-admin__condition-type";
+    typeSelect.value = "assignment_submission";
+    const fields = new FakeElement();
+    fields.className = "ct-admin__condition-fields";
+    const summary = new FakeElement();
+    summary.className = "ct-admin__condition-summary";
+    card.append(typeSelect, fields, summary);
+
+    harness.renderConditionFields(card, {
+      type: "assignment_submission",
+      courseId: "",
+      assignmentId: "",
+      workflowStates: [],
+    });
+
+    const courseStatus = card.querySelector('[data-lms-course-status="courseId"]');
+    const gradebookStatus = card.querySelector("[data-lms-gradebook-status]");
+
+    expect(courseStatus?.hidden).toBe(true);
+    expect(courseStatus?.getAttribute("aria-live")).toBe("polite");
+    expect(courseStatus?.getAttribute("aria-atomic")).toBe("true");
+    expect(gradebookStatus?.hidden).toBe(true);
+    expect(gradebookStatus?.getAttribute("aria-live")).toBe("polite");
+    expect(gradebookStatus?.getAttribute("aria-atomic")).toBe("true");
+  });
+
   it("keeps restored pathway courses through the startup refresh while hydration is pending", async () => {
     const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
@@ -236,8 +293,7 @@ describe("rule-builder LMS course picker", () => {
         });
       });
     }) as typeof fetch;
-    const status = new FakeStatusElement();
-    const harness = loadPickerHarness({ fetchImpl, status });
+    const harness = loadPickerHarness({ fetchImpl });
     const card = new FakeElement();
     card.className = "ct-admin__condition-card";
     const typeSelect = new FakeSelect();
@@ -305,11 +361,16 @@ describe("rule-builder LMS course picker", () => {
         }),
       );
     }) as typeof fetch;
-    const status = new FakeStatusElement();
-    const harness = loadPickerHarness({ fetchImpl, status });
-    const card = {};
+    const harness = loadPickerHarness({ fetchImpl });
+    const card = new FakeElement();
+    const status = new FakeElement("P");
+    status.setAttribute("data-lms-course-status", "courseId");
+    status.hidden = true;
     const staleSelect = new FakeSelect();
+    staleSelect.dataset.field = "courseId";
     const currentSelect = new FakeSelect();
+    currentSelect.dataset.field = "courseId";
+    card.append(status);
 
     const staleRequest = harness.hydrateCourseSelect(card, staleSelect, "old");
     const currentRequest = harness.hydrateCourseSelect(card, currentSelect, "new");
@@ -322,7 +383,117 @@ describe("rule-builder LMS course picker", () => {
     ]);
     expect(currentSelect.options.map((option) => option.value)).toEqual(["", "new-course"]);
     expect(status.hidden).toBe(true);
-    expect(status.message.textContent).toBe("");
+    expect(status.textContent).toBe("");
+  });
+
+  it("keeps loading in the select and reports the actual truncated result count locally", async () => {
+    let resolveCourses: (response: Response) => void = () => {
+      throw new Error("Course request did not start");
+    };
+    const fetchImpl = (() =>
+      new Promise<Response>((resolve) => {
+        resolveCourses = resolve;
+      })) as typeof fetch;
+    const harness = loadPickerHarness({ fetchImpl });
+    const { card, select, status } = createCourseLookupFixture();
+
+    const request = harness.hydrateCourseSelect(card, select, "");
+
+    expect(select.disabled).toBe(true);
+    expect(select.options.map((option) => option.textContent)).toEqual(["Loading courses..."]);
+    expect(status.hidden).toBe(true);
+
+    resolveCourses(
+      Response.json({
+        courses: [
+          { courseId: "course-101", title: "Course 101" },
+          { courseId: "course-202", title: "Course 202" },
+        ],
+        hasMore: true,
+      }),
+    );
+
+    await expect(request).resolves.toBe(true);
+    expect(status.hidden).toBe(false);
+    expect(status.dataset.tone).toBe("info");
+    expect(status.textContent).toBe(
+      "Showing 2 courses. Search by title, code, or ID to narrow the list.",
+    );
+  });
+
+  it("uses quiet local empty states for the initial course list and filtered results", async () => {
+    const fetchImpl = (() =>
+      Promise.resolve(Response.json({ courses: [], hasMore: false }))) as typeof fetch;
+    const harness = loadPickerHarness({ fetchImpl });
+    const { card, select, status } = createCourseLookupFixture();
+
+    await expect(harness.hydrateCourseSelect(card, select, "")).resolves.toBe(true);
+    expect(status.dataset.tone).toBe("info");
+    expect(status.textContent).toBe("No courses are available through this LMS connection.");
+
+    await expect(harness.hydrateCourseSelect(card, select, "calculus")).resolves.toBe(true);
+    expect(status.dataset.tone).toBe("info");
+    expect(status.textContent).toBe("No courses match this search.");
+  });
+
+  it("keeps course lookup feedback independent across requirement cards", async () => {
+    const fetchImpl = ((input: RequestInfo | URL): Promise<Response> => {
+      const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+      const isFirstCard = url.includes("q=first");
+      return Promise.resolve(
+        Response.json({
+          courses: isFirstCard
+            ? []
+            : [
+                { courseId: "course-202", title: "Course 202" },
+                { courseId: "course-303", title: "Course 303" },
+              ],
+          hasMore: !isFirstCard,
+        }),
+      );
+    }) as typeof fetch;
+    const harness = loadPickerHarness({ fetchImpl });
+    const first = createCourseLookupFixture();
+    const second = createCourseLookupFixture();
+
+    await Promise.all([
+      harness.hydrateCourseSelect(first.card, first.select, "first"),
+      harness.hydrateCourseSelect(second.card, second.select, "second"),
+    ]);
+
+    expect(first.status.textContent).toBe("No courses match this search.");
+    expect(second.status.textContent).toBe(
+      "Showing 2 matches. Refine your search to narrow the list.",
+    );
+  });
+
+  it("reports course lookup failures beside the owning picker", async () => {
+    const harness = loadPickerHarness({
+      fetchImpl: (() => Promise.reject(new Error("Canvas token expired."))) as typeof fetch,
+    });
+    const { card, select, status } = createCourseLookupFixture();
+
+    await expect(harness.hydrateCourseSelect(card, select, "biology")).resolves.toBe(false);
+    expect(select.disabled).toBe(false);
+    expect(status.hidden).toBe(false);
+    expect(status.dataset.tone).toBe("error");
+    expect(status.textContent).toBe("Canvas token expired.");
+  });
+
+  it("reports gradebook lookup failures beside the assignment picker", async () => {
+    const harness = loadPickerHarness({
+      fetchImpl: (() => Promise.reject(new Error("Gradebook access denied."))) as typeof fetch,
+    });
+    const { card, itemSelect, status } = createAssignmentLookupFixture();
+
+    await expect(harness.hydrateGradebookItemsForCard(card, "essay")).resolves.toBe(false);
+    expect(itemSelect.disabled).toBe(false);
+    expect(itemSelect.options.map((option) => option.textContent)).toEqual([
+      "Gradebook items unavailable",
+    ]);
+    expect(status.hidden).toBe(false);
+    expect(status.dataset.tone).toBe("error");
+    expect(status.textContent).toBe("Gradebook access denied.");
   });
 
   it("preserves an existing selection that is absent from refreshed results", async () => {
@@ -333,8 +504,7 @@ describe("rule-builder LMS course picker", () => {
           hasMore: false,
         }),
       )) as typeof fetch;
-    const status = new FakeStatusElement();
-    const harness = loadPickerHarness({ fetchImpl, status });
+    const harness = loadPickerHarness({ fetchImpl });
     const select = new FakeSelect();
     const selectedOption = new FakeOption();
     selectedOption.value = "selected-course";
@@ -367,7 +537,7 @@ describe("rule-builder LMS course picker", () => {
         Response.json({ items: [{ assignmentId: "new-item", title: "New item" }] }),
       );
     }) as typeof fetch;
-    const harness = loadPickerHarness({ fetchImpl, status: new FakeStatusElement() });
+    const harness = loadPickerHarness({ fetchImpl });
     const select = new FakeSelect();
 
     const staleRequest = harness.hydrateGradebookItemSelect({
@@ -399,7 +569,7 @@ describe("rule-builder LMS course picker", () => {
         init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
       });
     }) as typeof fetch;
-    const harness = loadPickerHarness({ fetchImpl, status: new FakeStatusElement() });
+    const harness = loadPickerHarness({ fetchImpl });
     const card = new FakeElement();
     const courseSelect = new FakeSelect();
     courseSelect.dataset.field = "courseId";
@@ -415,8 +585,8 @@ describe("rule-builder LMS course picker", () => {
     courseSelect.value = "";
     const clearedRequest = harness.hydrateGradebookItemsForCard(card, "");
 
-    await expect(clearedRequest).resolves.toBeUndefined();
-    await expect(staleRequest).resolves.toBeUndefined();
+    await expect(clearedRequest).resolves.toBe(true);
+    await expect(staleRequest).resolves.toBe(false);
     expect(requestedUrls).toEqual([
       "/v1/lms/connections/connection-1/courses/old-course/gradebook-items",
     ]);
@@ -442,7 +612,7 @@ describe("rule-builder LMS course picker", () => {
         Response.json({ states: [{ value: "graded", label: "Graded", preselected: true }] }),
       );
     }) as typeof fetch;
-    const harness = loadPickerHarness({ fetchImpl, status: new FakeStatusElement() });
+    const harness = loadPickerHarness({ fetchImpl });
     const select = new FakeSelect();
 
     const staleRequest = harness.hydrateWorkflowStateSelect({
@@ -483,7 +653,7 @@ describe("rule-builder LMS course picker", () => {
 
       return Promise.reject(new Error(`Unexpected LMS request: ${url}`));
     }) as typeof fetch;
-    const harness = loadPickerHarness({ fetchImpl, status: new FakeStatusElement() });
+    const harness = loadPickerHarness({ fetchImpl });
     const card = new FakeElement();
     const courseSelect = new FakeSelect();
     courseSelect.dataset.field = "courseId";
@@ -509,6 +679,6 @@ describe("rule-builder LMS course picker", () => {
     expect(stateSelect.disabled).toBe(true);
 
     resolveItems(Response.json({ items: [] }));
-    await expect(currentItemRequest).resolves.toBeUndefined();
+    await expect(currentItemRequest).resolves.toBe(true);
   });
 });

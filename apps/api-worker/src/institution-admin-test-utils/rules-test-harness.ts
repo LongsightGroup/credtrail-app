@@ -34,6 +34,7 @@ export {
   mockedListBadgeTemplateImageRevisionCountsByTenant,
   mockedListBadgeTemplateImageRevisions,
   mockedListBadgeTemplates,
+  mockedListTenantLmsConnectionsDb,
   mockedReopenApprovedBadgeIssuanceRuleVersionDb,
   mockedResolveBadgeIssuanceRuleEvaluationReview,
   mockedSetBadgeTemplateArchivedState,

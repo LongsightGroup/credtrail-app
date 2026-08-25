@@ -384,18 +384,6 @@ export const RuleBuilderMetadataStep = (props: {
                   </a>
                 </div>
               ) : null}
-              <div
-                id="rule-builder-lms-status"
-                class="ct-admin__builder-lms-status ct-admin__builder-field-span"
-                data-tone="info"
-                role="alert"
-                hidden={true}
-              >
-                <span data-rule-builder-lms-status-message="true"></span>
-                <a class="ct-admin__text-action" href={props.accessLmsConnectionsPath}>
-                  Update LMS connection
-                </a>
-              </div>
               <AdminField label="Awarding pattern" className="ct-admin__builder-field-span">
                 <CtSelect id="rule-builder-template-preset" name="templatePreset">
                   <option value="course_completion">Course completed</option>

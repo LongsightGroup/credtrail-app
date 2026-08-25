@@ -86,6 +86,9 @@
 .ct-admin__condition-field {
   min-width: 0;
 }
+.ct-admin__condition-lookup-status {
+  grid-column: 1 / -1;
+}
 .ct-admin__condition-help {
   margin: 0;
   font-size: 0.79rem;
@@ -341,4 +344,3 @@
 .ct-admin__builder-summary-value[data-tone='error'] {
   color: var(--ct-theme-state-danger);
 }
-

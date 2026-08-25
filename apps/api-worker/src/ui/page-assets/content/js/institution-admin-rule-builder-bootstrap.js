@@ -34,7 +34,6 @@ const ruleBuilderRootLogic = document.getElementById("rule-builder-root-logic");
 const ruleBuilderDefinitionJson = document.getElementById("rule-builder-definition-json");
 const ruleBuilderTemplatePreset = document.getElementById("rule-builder-template-preset");
 const ruleBuilderLmsConnectionSelect = document.getElementById("rule-builder-lms-connection");
-const ruleBuilderLmsStatus = document.getElementById("rule-builder-lms-status");
 const ruleBuilderLmsProviderKindInput = document.getElementById("rule-builder-lms-provider-kind");
 const ruleBuilderBadgeTemplatePickerRoot = document.getElementById(
   "rule-builder-badge-template-picker",

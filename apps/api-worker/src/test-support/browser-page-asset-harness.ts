@@ -201,15 +201,6 @@ export class FakeElement {
   }
 }
 
-/** Fake status element whose nested message node is always queryable. */
-export class FakeStatusElement extends FakeElement {
-  public readonly message = new FakeElement();
-
-  public override querySelector(): FakeElement {
-    return this.message;
-  }
-}
-
 /** Minimal HTMLOptionElement substitute. */
 export class FakeOption extends FakeElement {
   public disabled = false;
