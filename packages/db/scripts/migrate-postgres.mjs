@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 import pg from "pg";
 
 import {
+  ACHIEVEMENT_SNAPSHOT_MIGRATION,
   ACHIEVEMENT_SNAPSHOT_REPAIR,
   applyAchievementSnapshotMigrationRepair,
-  verifyAchievementSnapshotMigrationRepairHistory,
 } from "./achievement-snapshot-migration-repair.mjs";
 import {
   calculateMigrationChecksum,
@@ -16,6 +16,14 @@ import {
   parseMigrationChecksumManifest,
   verifyMigrationChecksumManifest,
 } from "./migration-integrity.mjs";
+import {
+  LMS_PROVIDER_NARROWING_MIGRATION,
+  LMS_PROVIDER_NARROWING_REPAIR,
+  REPORTING_ATTRIBUTION_BACKFILL_MIGRATION,
+  REPORTING_ATTRIBUTION_BACKFILL_REPAIR,
+  applyMigrationReplacement,
+  verifyMigrationRepairHistory,
+} from "./migration-replacements.mjs";
 
 const { Pool } = pg;
 
@@ -53,11 +61,47 @@ const achievementSnapshotRepair = {
   sql: achievementSnapshotRepairSql,
   checksum: calculateMigrationChecksum(achievementSnapshotRepairSql),
 };
+const reportingAttributionBackfillRepairSql = await readFile(
+  path.join(migrationRepairsDir, REPORTING_ATTRIBUTION_BACKFILL_REPAIR),
+  "utf8",
+);
+const reportingAttributionBackfillRepair = {
+  fileName: REPORTING_ATTRIBUTION_BACKFILL_REPAIR,
+  sql: reportingAttributionBackfillRepairSql,
+  checksum: calculateMigrationChecksum(reportingAttributionBackfillRepairSql),
+};
+const lmsProviderNarrowingRepairSql = await readFile(
+  path.join(migrationRepairsDir, LMS_PROVIDER_NARROWING_REPAIR),
+  "utf8",
+);
+const lmsProviderNarrowingRepair = {
+  fileName: LMS_PROVIDER_NARROWING_REPAIR,
+  sql: lmsProviderNarrowingRepairSql,
+  checksum: calculateMigrationChecksum(lmsProviderNarrowingRepairSql),
+};
 const migrationRepairManifestValue = JSON.parse(
   await readFile(path.join(migrationRepairsDir, "checksums.json"), "utf8"),
 );
 const migrationRepairManifest = parseMigrationChecksumManifest(migrationRepairManifestValue);
-verifyMigrationChecksumManifest([achievementSnapshotRepair], migrationRepairManifest);
+verifyMigrationChecksumManifest(
+  [achievementSnapshotRepair, reportingAttributionBackfillRepair, lmsProviderNarrowingRepair],
+  migrationRepairManifest,
+);
+
+const knownMigrationRepairs = [
+  {
+    blockedVersion: ACHIEVEMENT_SNAPSHOT_MIGRATION,
+    repair: achievementSnapshotRepair,
+  },
+  {
+    blockedVersion: REPORTING_ATTRIBUTION_BACKFILL_MIGRATION,
+    repair: reportingAttributionBackfillRepair,
+  },
+  {
+    blockedVersion: LMS_PROVIDER_NARROWING_MIGRATION,
+    repair: lmsProviderNarrowingRepair,
+  },
+];
 
 const client = await pool.connect();
 let migrationLockAcquired = false;
@@ -87,10 +131,7 @@ try {
   const migrationRepairHistory = await client.query(
     "SELECT repair_version, blocked_version, repair_checksum FROM schema_migration_repairs",
   );
-  verifyAchievementSnapshotMigrationRepairHistory(
-    migrationRepairHistory.rows,
-    achievementSnapshotRepair,
-  );
+  verifyMigrationRepairHistory(migrationRepairHistory.rows, knownMigrationRepairs);
 
   const appliedMigrationResult = await client.query(
     "SELECT version, checksum FROM schema_migrations ORDER BY version",
@@ -112,13 +153,50 @@ try {
       let successMessage;
 
       if (action.kind === "apply") {
-        const repaired = await applyAchievementSnapshotMigrationRepair(
+        let appliedRepair;
+        const achievementSnapshotRepaired = await applyAchievementSnapshotMigrationRepair(
           client,
           action.migration,
           achievementSnapshotRepair,
         );
 
-        if (!repaired) {
+        if (achievementSnapshotRepaired) {
+          appliedRepair = achievementSnapshotRepair;
+        }
+
+        if (appliedRepair === undefined) {
+          const reportingAttributionBackfillRepaired = await applyMigrationReplacement(
+            client,
+            action.migration,
+            {
+              blockedVersion: REPORTING_ATTRIBUTION_BACKFILL_MIGRATION,
+              repairFileName: REPORTING_ATTRIBUTION_BACKFILL_REPAIR,
+            },
+            reportingAttributionBackfillRepair,
+          );
+
+          if (reportingAttributionBackfillRepaired) {
+            appliedRepair = reportingAttributionBackfillRepair;
+          }
+        }
+
+        if (appliedRepair === undefined) {
+          const lmsProviderNarrowingRepaired = await applyMigrationReplacement(
+            client,
+            action.migration,
+            {
+              blockedVersion: LMS_PROVIDER_NARROWING_MIGRATION,
+              repairFileName: LMS_PROVIDER_NARROWING_REPAIR,
+            },
+            lmsProviderNarrowingRepair,
+          );
+
+          if (lmsProviderNarrowingRepaired) {
+            appliedRepair = lmsProviderNarrowingRepair;
+          }
+        }
+
+        if (appliedRepair === undefined) {
           await client.query(action.migration.sql);
         }
 
@@ -126,8 +204,8 @@ try {
           action.migration.fileName,
           action.migration.checksum,
         ]);
-        successMessage = repaired
-          ? `Applied ${achievementSnapshotRepair.fileName} in place of blocked ${action.migration.fileName}`
+        successMessage = appliedRepair
+          ? `Applied ${appliedRepair.fileName} in place of blocked ${action.migration.fileName}`
           : `Applied ${action.migration.fileName}`;
       } else {
         const baselineResult = await client.query(

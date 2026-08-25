@@ -1,3 +1,5 @@
 {
-  "0063_preserve_populated_achievement_history.sql": "d0ec36a6b745087844f93726329d16ad297aeaa67d0176a9559f59d589fb4017"
+  "0063_preserve_populated_achievement_history.sql": "d0ec36a6b745087844f93726329d16ad297aeaa67d0176a9559f59d589fb4017",
+  "0077_batch_assertion_reporting_attributions.sql": "3918b3eaafbb782a260af65e6300e8a94a027ce238fa3f5dfe0e20ae71cad214",
+  "0078_detach_dependents_and_narrow_lms_providers.sql": "b41a31d7d35834a78af952facc9022c9cd1d90683a1137070199dde3b02029f2"
 }
