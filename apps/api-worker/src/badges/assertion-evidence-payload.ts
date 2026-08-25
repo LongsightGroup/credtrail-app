@@ -146,7 +146,7 @@ export const loadAssertionEvidencePayload = async (
         assertionId: assertion.id,
         limit: 100,
       }),
-      findAssertionReportingAttributionByAssertionId(db, assertion.id),
+      findAssertionReportingAttributionByAssertionId(db, input.tenantId, assertion.id),
       findBadgeIssuanceRuleEvaluationByAssertionId(db, {
         tenantId: input.tenantId,
         assertionId: assertion.id,

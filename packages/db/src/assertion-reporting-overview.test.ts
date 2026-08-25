@@ -10,6 +10,7 @@ import {
   listTenantReportingComparisons,
   recordAssertionEngagementEvent,
   transferBadgeTemplateOwnership,
+  upsertAssertionReportingAttribution,
 } from "./index";
 import {
   cleanupTestResources,
@@ -79,6 +80,75 @@ describe("reporting foundation", () => {
 });
 
 describeDbIntegration("reporting aggregates with Postgres", () => {
+  it("does not read or overwrite attribution across tenant boundaries", async () => {
+    const ownerFixture = await createTestTenantFixture({
+      displayName: "Attribution Owner Tenant",
+    });
+    const otherFixture = await createTestTenantFixture({
+      displayName: "Attribution Other Tenant",
+    });
+    const ownerBadgeTemplateId = await seedBadgeTemplate(ownerFixture.db, {
+      tenantId: ownerFixture.tenantId,
+      title: "Owner badge",
+    });
+    const otherBadgeTemplateId = await seedBadgeTemplate(otherFixture.db, {
+      tenantId: otherFixture.tenantId,
+      title: "Other badge",
+    });
+    const assertionId = await seedAssertion(ownerFixture.db, {
+      tenantId: ownerFixture.tenantId,
+      badgeTemplateId: ownerBadgeTemplateId,
+      recipientIdentity: "scoped-attribution@example.edu",
+      issuedAt: "2026-03-03T00:00:00.000Z",
+    });
+
+    try {
+      await seedAssertionAttribution(ownerFixture.db, {
+        assertionId,
+        tenantId: ownerFixture.tenantId,
+        badgeTemplateId: ownerBadgeTemplateId,
+        orgUnitId: `${ownerFixture.tenantId}:org:institution`,
+        attributionSource: "issuance_snapshot",
+        attributedAt: "2026-03-03T00:00:00.000Z",
+      });
+
+      await expect(
+        findAssertionReportingAttributionByAssertionId(
+          otherFixture.db,
+          otherFixture.tenantId,
+          assertionId,
+        ),
+      ).resolves.toBeNull();
+      await expect(
+        upsertAssertionReportingAttribution(otherFixture.db, {
+          assertionId,
+          tenantId: otherFixture.tenantId,
+          badgeTemplateId: otherBadgeTemplateId,
+          orgUnitId: `${otherFixture.tenantId}:org:institution`,
+          attributionSource: "current_owner_fallback",
+          attributedAt: "2026-03-04T00:00:00.000Z",
+        }),
+      ).rejects.toThrow("Unable to load reporting attribution");
+
+      await expect(
+        findAssertionReportingAttributionByAssertionId(
+          ownerFixture.db,
+          ownerFixture.tenantId,
+          assertionId,
+        ),
+      ).resolves.toMatchObject({
+        tenantId: ownerFixture.tenantId,
+        badgeTemplateId: ownerBadgeTemplateId,
+        attributionSource: "issuance_snapshot",
+        attributedAt: "2026-03-03T00:00:00.000Z",
+      });
+    } finally {
+      await cleanupTestResources(ownerFixture.db, {
+        tenantIds: [ownerFixture.tenantId, otherFixture.tenantId],
+      });
+    }
+  });
+
   it("repairs missing attribution from ownership history without a reporting read", async () => {
     const fixture = await createTestTenantFixture({ displayName: "Reporting Repair Tenant" });
     const badgeTemplateId = await seedBadgeTemplate(fixture.db, {
@@ -119,7 +189,11 @@ describeDbIntegration("reporting aggregates with Postgres", () => {
       });
 
       expect(
-        await findAssertionReportingAttributionByAssertionId(fixture.db, assertionId),
+        await findAssertionReportingAttributionByAssertionId(
+          fixture.db,
+          fixture.tenantId,
+          assertionId,
+        ),
       ).toBeNull();
 
       const backfillSql = readFileSync(
@@ -132,7 +206,11 @@ describeDbIntegration("reporting aggregates with Postgres", () => {
       await fixture.db.prepare(backfillSql).run();
 
       expect(
-        await findAssertionReportingAttributionByAssertionId(fixture.db, assertionId),
+        await findAssertionReportingAttributionByAssertionId(
+          fixture.db,
+          fixture.tenantId,
+          assertionId,
+        ),
       ).toMatchObject({
         assertionId,
         tenantId: fixture.tenantId,

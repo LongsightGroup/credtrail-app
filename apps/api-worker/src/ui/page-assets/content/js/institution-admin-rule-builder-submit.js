@@ -294,6 +294,9 @@ ruleCreateForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   if (ruleBuilderAuthoringController.state() !== "idle") {
+    const message = "CredTrail is already saving this rule. Wait for that attempt to finish.";
+    setStatus(ruleCreateStatus, message, false);
+    syncRuleBuilderSummary(message);
     return;
   }
 
@@ -413,6 +416,9 @@ ruleCreateForm.addEventListener("submit", async (event) => {
   updateStepNavigationState();
 
   if (result.status === "ignored") {
+    const message = "CredTrail is already saving this rule. Wait for that attempt to finish.";
+    setStatus(ruleCreateStatus, message, false);
+    syncRuleBuilderSummary(message);
     return;
   }
 
@@ -449,6 +455,8 @@ ruleCreateForm.addEventListener("submit", async (event) => {
   setStatus(ruleCreateStatus, successMessage, false, "success");
   syncRuleBuilderSummary(successMessage);
   setTimeout(() => {
+    ruleBuilderAuthoringController.resetCompleted();
+    updateStepNavigationState();
     window.location.assign(rulesListPath);
   }, 900);
 });

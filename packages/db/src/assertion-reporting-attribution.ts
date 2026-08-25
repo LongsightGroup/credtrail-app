@@ -6,8 +6,10 @@ import type {
 import { mapAssertionReportingAttributionRow } from "./assertion-internal.js";
 import type { AssertionReportingAttributionRow } from "./assertion-internal.js";
 
+/** Loads one assertion attribution within its owning tenant. */
 export const findAssertionReportingAttributionByAssertionId = async (
   db: SqlDatabase,
+  tenantId: string,
   assertionId: string,
 ): Promise<AssertionReportingAttributionRecord | null> => {
   const lookupStatement = (): Promise<AssertionReportingAttributionRow | null> =>
@@ -25,10 +27,11 @@ export const findAssertionReportingAttributionByAssertionId = async (
           updated_at AS updatedAt
         FROM assertion_reporting_attributions
         WHERE assertion_id = ?
+          AND tenant_id = ?
         LIMIT 1
       `,
       )
-      .bind(assertionId)
+      .bind(assertionId, tenantId)
       .first<AssertionReportingAttributionRow>();
 
   const row = await lookupStatement();
@@ -36,6 +39,7 @@ export const findAssertionReportingAttributionByAssertionId = async (
   return row === null ? null : mapAssertionReportingAttributionRow(row);
 };
 
+/** Inserts or refreshes assertion attribution without changing its tenant owner. */
 export const upsertAssertionReportingAttribution = async (
   db: SqlDatabase,
   input: {
@@ -65,12 +69,12 @@ export const upsertAssertionReportingAttribution = async (
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (assertion_id)
         DO UPDATE SET
-          tenant_id = excluded.tenant_id,
           badge_template_id = excluded.badge_template_id,
           org_unit_id = excluded.org_unit_id,
           attribution_source = excluded.attribution_source,
           attributed_at = excluded.attributed_at,
           updated_at = excluded.updated_at
+        WHERE assertion_reporting_attributions.tenant_id = excluded.tenant_id
       `,
       )
       .bind(
@@ -87,7 +91,11 @@ export const upsertAssertionReportingAttribution = async (
 
   await upsertStatement();
 
-  const attribution = await findAssertionReportingAttributionByAssertionId(db, input.assertionId);
+  const attribution = await findAssertionReportingAttributionByAssertionId(
+    db,
+    input.tenantId,
+    input.assertionId,
+  );
 
   if (attribution === null) {
     throw new Error(`Unable to load reporting attribution for assertion "${input.assertionId}"`);

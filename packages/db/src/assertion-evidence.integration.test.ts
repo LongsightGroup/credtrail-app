@@ -99,6 +99,7 @@ describeDbIntegration("assertion evidence DB helpers with Postgres", () => {
       });
       const attribution = await dbModule.findAssertionReportingAttributionByAssertionId(
         fixture.db,
+        fixture.tenantId,
         assertionId,
       );
 

@@ -16,6 +16,7 @@ interface BrowserRequestInit {
   readonly method: string;
   readonly headers: Readonly<Record<string, string>>;
   readonly body: string;
+  readonly signal: AbortSignal;
 }
 
 type BrowserRequest = (path: string, init: BrowserRequestInit) => Promise<BrowserResponse>;
@@ -35,6 +36,7 @@ interface AuthoringController {
     | { readonly status: "rejected"; readonly message: string }
     | { readonly status: "completed"; readonly outcome: AuthoringOutcome }
   >;
+  readonly resetCompleted: () => void;
   readonly state: () => "idle" | "submitting" | "completed";
 }
 
@@ -42,6 +44,9 @@ interface AuthoringControllerDependencies {
   readonly request: BrowserRequest;
   readonly parseResponse: (response: BrowserResponse) => Promise<unknown>;
   readonly createRequestId: () => string;
+  readonly reportUnexpectedError: (error: unknown) => void;
+  readonly requestTimeoutMs: number | undefined;
+  readonly waitBeforeReplay: (delayMs: number) => Promise<void>;
 }
 
 interface RuleBuilderAuthoringModule {
@@ -53,7 +58,7 @@ const loadRuleBuilderAuthoringModule = (): RuleBuilderAuthoringModule => {
     new URL("./content/js/institution-admin-rule-builder-authoring.js", import.meta.url),
     "utf8",
   );
-  const context = createContext({});
+  const context = createContext({ AbortSignal });
   new Script(
     `${source}\nthis.createController = createRuleBuilderAuthoringController;`,
   ).runInContext(context);
@@ -78,11 +83,17 @@ const createTestController = (input: {
   readonly request: BrowserRequest;
   readonly parseResponse?: (response: BrowserResponse) => Promise<unknown>;
   readonly createRequestId?: () => string;
+  readonly reportUnexpectedError?: (error: unknown) => void;
+  readonly requestTimeoutMs?: number;
+  readonly waitBeforeReplay?: (delayMs: number) => Promise<void>;
 }): AuthoringController => {
   return authoringModule.createController({
     request: input.request,
     parseResponse: input.parseResponse ?? createResponseParser,
     createRequestId: input.createRequestId ?? (() => "request-1"),
+    reportUnexpectedError: input.reportUnexpectedError ?? (() => undefined),
+    requestTimeoutMs: input.requestTimeoutMs,
+    waitBeforeReplay: input.waitBeforeReplay ?? (() => Promise.resolve()),
   });
 };
 
@@ -130,6 +141,28 @@ describe("rule builder browser authoring controller", () => {
     expect(controller.state()).toBe("completed");
   });
 
+  it("allows another submission if navigation does not follow a completed command", async () => {
+    let requestCount = 0;
+    const controller = createTestController({
+      request: async () => {
+        requestCount += 1;
+        return { ok: true, payload: { outcome: "draft_saved" } };
+      },
+    });
+    const input = {
+      apiPath: "/author",
+      delivery: singleAttempt,
+      payload: { action: "save_draft" },
+    } as const;
+
+    await controller.execute(input);
+    controller.resetCompleted();
+    const retried = await controller.execute(input);
+
+    expect(retried).toEqual({ status: "completed", outcome: "draft_saved" });
+    expect(requestCount).toBe(2);
+  });
+
   it("ignores a concurrent submission while the first request is pending", async () => {
     let resolveRequest: ((response: BrowserResponse) => void) | undefined;
     let requestCount = 0;
@@ -171,6 +204,30 @@ describe("rule builder browser authoring controller", () => {
 
     expect(result.status).toBe("rejected");
     expect(result.status === "rejected" ? result.message : "").toContain("approval step");
+    expect(controller.state()).toBe("idle");
+  });
+
+  it("times out a request that never returns and makes the controller retryable", async () => {
+    const controller = createTestController({
+      request: (_path, init) => {
+        return new Promise<BrowserResponse>((_resolve, reject) => {
+          init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true });
+        });
+      },
+      requestTimeoutMs: 5,
+    });
+
+    await expect(
+      controller.execute({
+        apiPath: "/author",
+        delivery: singleAttempt,
+        payload: { action: "save_draft" },
+      }),
+    ).resolves.toEqual({
+      status: "unknown",
+      requestId: "request-1",
+      attemptCount: 1,
+    });
     expect(controller.state()).toBe("idle");
   });
 

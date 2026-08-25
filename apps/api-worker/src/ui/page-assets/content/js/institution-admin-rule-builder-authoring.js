@@ -1,3 +1,5 @@
+const RULE_BUILDER_AUTHORING_REQUEST_TIMEOUT_MS = 15_000;
+
 const attemptRuleBuilderAuthoringCommand = async (dependencies, input) => {
   const requestId = dependencies.createRequestId();
   let response;
@@ -10,6 +12,9 @@ const attemptRuleBuilderAuthoringCommand = async (dependencies, input) => {
         "x-request-id": requestId,
       },
       body: input.body,
+      signal: AbortSignal.timeout(
+        dependencies.requestTimeoutMs ?? RULE_BUILDER_AUTHORING_REQUEST_TIMEOUT_MS,
+      ),
     });
   } catch {
     return {
@@ -161,6 +166,11 @@ const createRuleBuilderAuthoringController = (dependencies) => {
 
   return {
     execute,
+    resetCompleted: () => {
+      if (state === "completed") {
+        state = "idle";
+      }
+    },
     state: () => state,
   };
 };
