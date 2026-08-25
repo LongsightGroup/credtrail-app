@@ -17,7 +17,7 @@
     const apiBase = container.dataset.ltiGradebookApiBase ?? '';
 
     if (!(itemSelect instanceof HTMLSelectElement) || !(stateSelect instanceof HTMLSelectElement)) {
-      return;
+      return lmsLookupSuperseded();
     }
 
     const assignmentId = itemSelect.value;
@@ -26,11 +26,17 @@
         ? ''
         : apiBase + '/gradebook-items/' + encodeURIComponent(assignmentId) + '/workflow-states';
 
-    await lmsHydrateWorkflowStateSelect({
+    const outcome = await lmsHydrateWorkflowStateSelect({
       stateSelect,
       workflowStatesUrl,
       fallbackMessage: 'Sakai gradebook access is unavailable. Manual approval remains available.',
     });
+
+    if (outcome.status === 'failed') {
+      setStatus(container, outcome.message, true);
+    }
+
+    return outcome;
   };
 
   const hydrateGradebookItems = async (container) => {
@@ -40,23 +46,17 @@
     const stateSelect = container.querySelector('[data-lti-workflow-state-select]');
 
     if (!(itemSelect instanceof HTMLSelectElement)) {
-      return;
-    }
-
-    if (apiBase.length === 0) {
-      itemSelect.disabled = true;
-      itemSelect.value = '';
-      return;
+      return lmsLookupSuperseded();
     }
 
     const query = itemQuery instanceof HTMLInputElement ? itemQuery.value.trim() : '';
     const itemsUrl = apiBase + '/gradebook-items';
 
     setStatus(container, '', false);
-    await lmsHydrateGradebookItemWorkflowSelects({
+    const outcome = await lmsHydrateGradebookItemWorkflowSelects({
       itemSelect,
       stateSelect,
-      itemsUrl,
+      itemsUrl: apiBase.length === 0 ? '' : itemsUrl,
       query,
       itemFallbackMessage: 'Sakai gradebook access is unavailable. Manual approval remains available.',
       workflowFallbackMessage: 'Sakai gradebook access is unavailable. Manual approval remains available.',
@@ -65,6 +65,12 @@
           ? ''
           : apiBase + '/gradebook-items/' + encodeURIComponent(assignmentId) + '/workflow-states',
     });
+
+    if (outcome.status === 'failed') {
+      setStatus(container, outcome.message, true);
+    }
+
+    return outcome;
   };
 
   const bindSetup = (container) => {
@@ -77,22 +83,12 @@
 
     const refreshItems = lmsBindDebouncedSearch({
       searchInput: itemQuery,
-      onInput: () =>
-        hydrateGradebookItems(container).catch((error) => {
-          const message = error instanceof Error ? error.message : 'Unable to load Sakai gradebook items.';
-          itemSelect.disabled = true;
-          itemSelect.value = '';
-          setStatus(container, message, true);
-          void hydrateWorkflowStates(container);
-        }),
+      onInput: () => hydrateGradebookItems(container),
     });
 
     itemSelect.addEventListener('change', () => {
       itemSelect.dataset.selectedValue = itemSelect.value;
-      void hydrateWorkflowStates(container).catch((error) => {
-        const message = error instanceof Error ? error.message : 'Unable to load workflow states.';
-        setStatus(container, message, true);
-      });
+      lmsRunDetached(() => hydrateWorkflowStates(container));
     });
 
     refreshItems();

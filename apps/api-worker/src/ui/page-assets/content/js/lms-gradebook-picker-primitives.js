@@ -13,6 +13,39 @@ const lmsGradebookItemLabel = (item) => {
   return title + points + (itemId.length > 0 ? " (" + itemId + ")" : "");
 };
 
+const lmsLookupComplete = () => ({ status: "complete" });
+
+const lmsLookupSuperseded = () => ({ status: "superseded" });
+
+const lmsLookupFailureMessage = (error, fallbackMessage) => {
+  return error instanceof Error ? error.message : fallbackMessage;
+};
+
+const lmsLookupFailed = (source, error, fallbackMessage) => ({
+  status: "failed",
+  source,
+  message: lmsLookupFailureMessage(error, fallbackMessage),
+});
+
+const lmsReportUnexpectedError = (error) => {
+  if (typeof globalThis.reportError === "function") {
+    globalThis.reportError(error);
+    return;
+  }
+
+  window.setTimeout(() => {
+    throw error;
+  }, 0);
+};
+
+const lmsRunDetached = (operation) => {
+  try {
+    Promise.resolve(operation()).catch(lmsReportUnexpectedError);
+  } catch (error) {
+    lmsReportUnexpectedError(error);
+  }
+};
+
 const lmsParseJsonBody = async (response) => {
   try {
     return await response.json();
@@ -61,18 +94,21 @@ const lmsFetchLatestSelectJson = async (select, url, fallbackMessage) => {
     });
 
     if (lmsRequestControllerBySelect.get(select) !== controller) {
-      return { status: "superseded" };
+      return lmsLookupSuperseded();
     }
 
     lmsRequestControllerBySelect.delete(select);
     return { status: "complete", payload };
   } catch (error) {
     if (controller.signal.aborted) {
-      return { status: "superseded" };
+      return lmsLookupSuperseded();
     }
 
     lmsRequestControllerBySelect.delete(select);
-    throw error;
+    return {
+      status: "failed",
+      message: lmsLookupFailureMessage(error, fallbackMessage),
+    };
   }
 };
 
@@ -122,6 +158,16 @@ const lmsSetSelectOptions = (
   select.replaceChildren(...options);
 };
 
+const lmsSetLookupSelectFailureState = (select, label) => {
+  const placeholder = select.options.item(0);
+
+  if (placeholder !== null) {
+    placeholder.textContent = label;
+  }
+
+  select.disabled = false;
+};
+
 const lmsPreselectedWorkflowValues = (states, selectedValues) => {
   if (selectedValues.length > 0) {
     return selectedValues;
@@ -136,7 +182,7 @@ const lmsHydrateWorkflowStateSelect = async (input) => {
   const { stateSelect, workflowStatesUrl, fallbackMessage } = input;
 
   if (!(stateSelect instanceof HTMLSelectElement)) {
-    return false;
+    throw new TypeError("Workflow-state select is unavailable.");
   }
 
   if (workflowStatesUrl.length === 0) {
@@ -150,7 +196,7 @@ const lmsHydrateWorkflowStateSelect = async (input) => {
       (state) => state.value,
     );
     stateSelect.disabled = true;
-    return true;
+    return lmsLookupComplete();
   }
 
   stateSelect.disabled = true;
@@ -169,11 +215,30 @@ const lmsHydrateWorkflowStateSelect = async (input) => {
     fallbackMessage ?? "Unable to load workflow states.",
   );
   if (result.status === "superseded") {
-    return false;
+    return result;
   }
 
-  const payload = result.payload;
-  const states = payload && Array.isArray(payload.states) ? payload.states : [];
+  if (result.status === "failed") {
+    lmsSetLookupSelectFailureState(stateSelect, "Workflow states unavailable");
+    return {
+      status: "failed",
+      source: "workflow-states",
+      message: result.message,
+    };
+  }
+
+  const states = lmsParseWorkflowStates(result.payload);
+
+  if (states === null) {
+    const failed = lmsLookupFailed(
+      "workflow-states",
+      null,
+      fallbackMessage ?? "Unable to load workflow states.",
+    );
+    lmsSetLookupSelectFailureState(stateSelect, "Workflow states unavailable");
+    return failed;
+  }
+
   const defaults = lmsPreselectedWorkflowValues(states, preserved);
   lmsSetSelectOptions(
     stateSelect,
@@ -184,14 +249,14 @@ const lmsHydrateWorkflowStateSelect = async (input) => {
     (state) => state.value,
   );
   stateSelect.disabled = false;
-  return true;
+  return lmsLookupComplete();
 };
 
 const lmsHydrateGradebookItemSelect = async (input) => {
   const { itemSelect, itemsUrl, query, fallbackMessage } = input;
 
   if (!(itemSelect instanceof HTMLSelectElement)) {
-    return false;
+    throw new TypeError("Gradebook-item select is unavailable.");
   }
 
   if (itemsUrl.length === 0) {
@@ -205,7 +270,7 @@ const lmsHydrateGradebookItemSelect = async (input) => {
       (item) => item.assignmentId,
     );
     itemSelect.disabled = true;
-    return true;
+    return lmsLookupComplete();
   }
 
   const selected = lmsSelectedValuesForSelect(itemSelect);
@@ -225,11 +290,30 @@ const lmsHydrateGradebookItemSelect = async (input) => {
     fallbackMessage ?? "Unable to load gradebook items.",
   );
   if (result.status === "superseded") {
-    return false;
+    return result;
   }
 
-  const payload = result.payload;
-  const items = payload && Array.isArray(payload.items) ? payload.items : [];
+  if (result.status === "failed") {
+    lmsSetLookupSelectFailureState(itemSelect, "Gradebook items unavailable");
+    return {
+      status: "failed",
+      source: "gradebook-items",
+      message: result.message,
+    };
+  }
+
+  const items = lmsParseGradebookItems(result.payload);
+
+  if (items === null) {
+    const failed = lmsLookupFailed(
+      "gradebook-items",
+      null,
+      fallbackMessage ?? "Unable to load gradebook items.",
+    );
+    lmsSetLookupSelectFailureState(itemSelect, "Gradebook items unavailable");
+    return failed;
+  }
+
   lmsSetSelectOptions(
     itemSelect,
     items,
@@ -242,7 +326,7 @@ const lmsHydrateGradebookItemSelect = async (input) => {
   itemSelect.dataset.selectedValue = itemSelect.value;
   itemSelect.dataset.selectedValues = lmsSelectedValuesFromSelect(itemSelect).join(",");
 
-  return true;
+  return lmsLookupComplete();
 };
 
 const lmsHydrateGradebookItemWorkflowSelects = async (input) => {
@@ -255,23 +339,26 @@ const lmsHydrateGradebookItemWorkflowSelects = async (input) => {
     workflowFallbackMessage,
     workflowStatesUrlForAssignment,
   } = input;
-  const itemHydration = lmsHydrateGradebookItemSelect({
-    itemSelect,
-    itemsUrl,
-    query,
-    fallbackMessage: itemFallbackMessage,
-  });
+  const [itemOutcome, stateClearingOutcome] = await Promise.all([
+    lmsHydrateGradebookItemSelect({
+      itemSelect,
+      itemsUrl,
+      query,
+      fallbackMessage: itemFallbackMessage,
+    }),
+    lmsHydrateWorkflowStateSelect({
+      stateSelect,
+      workflowStatesUrl: "",
+      fallbackMessage: workflowFallbackMessage,
+    }),
+  ]);
 
-  await lmsHydrateWorkflowStateSelect({
-    stateSelect,
-    workflowStatesUrl: "",
-    fallbackMessage: workflowFallbackMessage,
-  });
+  if (stateClearingOutcome.status !== "complete") {
+    return stateClearingOutcome;
+  }
 
-  const didHydrateItems = await itemHydration;
-
-  if (!didHydrateItems || itemsUrl.length === 0) {
-    return didHydrateItems;
+  if (itemOutcome.status !== "complete" || itemsUrl.length === 0) {
+    return itemOutcome;
   }
 
   return lmsHydrateWorkflowStateSelect({
@@ -288,7 +375,7 @@ const lmsBindDebouncedSearch = (input) => {
   const schedule = () => {
     window.clearTimeout(timer);
     timer = window.setTimeout(() => {
-      void onInput();
+      lmsRunDetached(onInput);
     }, debounceMs ?? 180);
   };
 

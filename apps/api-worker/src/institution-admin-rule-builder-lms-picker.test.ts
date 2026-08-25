@@ -6,9 +6,24 @@ import {
   FakeInput,
   FakeOption,
   FakeSelect,
+  FakeTimers,
 } from "./test-support/browser-page-asset-harness";
 
+type LmsLookupOutcome =
+  | { readonly status: "complete" }
+  | { readonly status: "superseded" }
+  | {
+      readonly status: "failed";
+      readonly source: "courses" | "gradebook-items" | "workflow-states";
+      readonly message: string;
+    };
+
 interface PickerHarness {
+  readonly bindDebouncedSearch: (input: {
+    readonly debounceMs: number;
+    readonly onInput: () => Promise<unknown>;
+    readonly searchInput: FakeInput;
+  }) => () => void;
   readonly conditionList: FakeElement;
   readonly createCourseSelectField: (
     labelText: string,
@@ -20,25 +35,32 @@ interface PickerHarness {
     card: object,
     select: FakeSelect,
     query: string,
-  ) => Promise<boolean>;
+  ) => Promise<LmsLookupOutcome>;
   readonly hydrateGradebookItemSelect: (input: {
     itemSelect: FakeSelect;
     itemsUrl: string;
     query: string;
     fallbackMessage: string;
-  }) => Promise<boolean>;
-  readonly hydrateGradebookItemsForCard: (card: FakeElement, query: string) => Promise<boolean>;
+  }) => Promise<LmsLookupOutcome>;
+  readonly hydrateGradebookItemsForCard: (
+    card: FakeElement,
+    query: string,
+  ) => Promise<LmsLookupOutcome>;
   readonly hydrateWorkflowStateSelect: (input: {
     stateSelect: FakeSelect;
     workflowStatesUrl: string;
     fallbackMessage: string;
-  }) => Promise<boolean>;
+  }) => Promise<LmsLookupOutcome>;
   readonly readConditionFromCard: (card: FakeElement, strict: boolean) => unknown;
+  readonly reportedErrors: unknown[];
   readonly refreshConditionCardValueListOptions: () => void;
   readonly renderConditionFields: (card: FakeElement, seed: object) => void;
 }
 
-const loadPickerHarness = (input: { readonly fetchImpl: typeof fetch }): PickerHarness => {
+const loadPickerHarness = (input: {
+  readonly fetchImpl: typeof fetch;
+  readonly timers?: FakeTimers;
+}): PickerHarness => {
   const conditionFields = readFileSync(
     new URL(
       "./ui/page-assets/content/js/institution-admin-rule-builder-condition-fields.js",
@@ -55,6 +77,10 @@ const loadPickerHarness = (input: { readonly fetchImpl: typeof fetch }): PickerH
   );
   const primitives = readFileSync(
     new URL("./ui/page-assets/content/js/lms-gradebook-picker-primitives.js", import.meta.url),
+    "utf8",
+  );
+  const payloadParsers = readFileSync(
+    new URL("./ui/page-assets/content/js/lms-picker-payload-parsers.js", import.meta.url),
     "utf8",
   );
   const picker = readFileSync(
@@ -80,6 +106,7 @@ const loadPickerHarness = (input: { readonly fetchImpl: typeof fetch }): PickerH
   );
   const conditionList = new FakeElement();
   conditionList.className = "ct-admin__condition-list";
+  const reportedErrors: unknown[] = [];
   const context = createContext({
     AbortController,
     AbortSignal,
@@ -119,16 +146,20 @@ const loadPickerHarness = (input: { readonly fetchImpl: typeof fetch }): PickerH
     getDefaultCourseId: (): string => "",
     getSelectedLmsConnectionId: (): string => "connection-1",
     lmsConnectionsApiPath: "/v1/lms/connections",
+    reportError: (error: unknown): void => {
+      reportedErrors.push(error);
+    },
+    reportedErrors,
     ruleBuilderConditionList: conditionList,
     ruleValueLists: [],
     window: {
-      clearTimeout,
-      setTimeout,
+      clearTimeout: input.timers?.clearTimeout ?? clearTimeout,
+      setTimeout: input.timers?.setTimeout ?? setTimeout,
     },
   });
 
   new Script(
-    `${conditionFields}\n${conditionModel}\n${primitives}\n${picker}\n${fieldRenderers}\n${summary}\nglobalThis.__pickerHarness = { conditionList: ruleBuilderConditionList, createCourseSelectField, hydrateCourseSelect, hydrateGradebookItemSelect: lmsHydrateGradebookItemSelect, hydrateGradebookItemsForCard: hydrateGradebookItemSelect, hydrateWorkflowStateSelect: lmsHydrateWorkflowStateSelect, readConditionFromCard, refreshConditionCardValueListOptions, renderConditionFields };`,
+    `${conditionFields}\n${conditionModel}\n${payloadParsers}\n${primitives}\n${picker}\n${fieldRenderers}\n${summary}\nglobalThis.__pickerHarness = { bindDebouncedSearch: lmsBindDebouncedSearch, conditionList: ruleBuilderConditionList, createCourseSelectField, hydrateCourseSelect, hydrateGradebookItemSelect: lmsHydrateGradebookItemSelect, hydrateGradebookItemsForCard: hydrateGradebookItemSelect, hydrateWorkflowStateSelect: lmsHydrateWorkflowStateSelect, readConditionFromCard, refreshConditionCardValueListOptions, renderConditionFields, reportedErrors };`,
   ).runInContext(context);
 
   return context.__pickerHarness as PickerHarness;
@@ -150,6 +181,7 @@ const createCourseLookupFixture = (
 const createAssignmentLookupFixture = (): {
   readonly card: FakeElement;
   readonly itemSelect: FakeSelect;
+  readonly stateSelect: FakeSelect;
   readonly status: FakeElement;
 } => {
   const card = new FakeElement();
@@ -165,7 +197,7 @@ const createAssignmentLookupFixture = (): {
   status.setAttribute("data-lms-gradebook-status", "");
   status.hidden = true;
   card.append(courseSelect, itemSelect, stateSelect, status);
-  return { card, itemSelect, status };
+  return { card, itemSelect, stateSelect, status };
 };
 
 describe("rule-builder LMS course picker", () => {
@@ -332,7 +364,9 @@ describe("rule-builder LMS course picker", () => {
       minimumCompleted: 2,
     });
 
-    await expect(harness.hydrateCourseSelect(card, select, "settle")).resolves.toBe(true);
+    await expect(harness.hydrateCourseSelect(card, select, "settle")).resolves.toEqual({
+      status: "complete",
+    });
     expect(select.selectedOptions.map((option) => option.value).sort()).toEqual([
       "course-101",
       "course-202",
@@ -375,8 +409,8 @@ describe("rule-builder LMS course picker", () => {
     const staleRequest = harness.hydrateCourseSelect(card, staleSelect, "old");
     const currentRequest = harness.hydrateCourseSelect(card, currentSelect, "new");
 
-    await expect(currentRequest).resolves.toBe(true);
-    await expect(staleRequest).resolves.toBe(false);
+    await expect(currentRequest).resolves.toEqual({ status: "complete" });
+    await expect(staleRequest).resolves.toEqual({ status: "superseded" });
     expect(requestedUrls).toEqual([
       "/v1/lms/connections/connection-1/courses?q=old",
       "/v1/lms/connections/connection-1/courses?q=new",
@@ -413,7 +447,7 @@ describe("rule-builder LMS course picker", () => {
       }),
     );
 
-    await expect(request).resolves.toBe(true);
+    await expect(request).resolves.toEqual({ status: "complete" });
     expect(status.hidden).toBe(false);
     expect(status.dataset.tone).toBe("info");
     expect(status.textContent).toBe(
@@ -427,11 +461,15 @@ describe("rule-builder LMS course picker", () => {
     const harness = loadPickerHarness({ fetchImpl });
     const { card, select, status } = createCourseLookupFixture();
 
-    await expect(harness.hydrateCourseSelect(card, select, "")).resolves.toBe(true);
+    await expect(harness.hydrateCourseSelect(card, select, "")).resolves.toEqual({
+      status: "complete",
+    });
     expect(status.dataset.tone).toBe("info");
     expect(status.textContent).toBe("No courses are available through this LMS connection.");
 
-    await expect(harness.hydrateCourseSelect(card, select, "calculus")).resolves.toBe(true);
+    await expect(harness.hydrateCourseSelect(card, select, "calculus")).resolves.toEqual({
+      status: "complete",
+    });
     expect(status.dataset.tone).toBe("info");
     expect(status.textContent).toBe("No courses match this search.");
   });
@@ -473,11 +511,34 @@ describe("rule-builder LMS course picker", () => {
     });
     const { card, select, status } = createCourseLookupFixture();
 
-    await expect(harness.hydrateCourseSelect(card, select, "biology")).resolves.toBe(false);
+    await expect(harness.hydrateCourseSelect(card, select, "biology")).resolves.toEqual({
+      status: "failed",
+      source: "courses",
+      message: "Canvas token expired.",
+    });
     expect(select.disabled).toBe(false);
     expect(status.hidden).toBe(false);
     expect(status.dataset.tone).toBe("error");
     expect(status.textContent).toBe("Canvas token expired.");
+  });
+
+  it("rejects malformed course payloads without leaving the picker loading", async () => {
+    const harness = loadPickerHarness({
+      fetchImpl: (() =>
+        Promise.resolve(Response.json({ courses: [null], hasMore: false }))) as typeof fetch,
+    });
+    const { card, select, status } = createCourseLookupFixture();
+
+    await expect(harness.hydrateCourseSelect(card, select, "biology")).resolves.toEqual({
+      status: "failed",
+      source: "courses",
+      message: "Unable to load LMS courses.",
+    });
+    expect(select.disabled).toBe(false);
+    expect(select.options.map((option) => option.textContent)).toEqual(["Courses unavailable"]);
+    expect(status.hidden).toBe(false);
+    expect(status.dataset.tone).toBe("error");
+    expect(status.textContent).toBe("Unable to load LMS courses.");
   });
 
   it("reports gradebook lookup failures beside the assignment picker", async () => {
@@ -486,7 +547,11 @@ describe("rule-builder LMS course picker", () => {
     });
     const { card, itemSelect, status } = createAssignmentLookupFixture();
 
-    await expect(harness.hydrateGradebookItemsForCard(card, "essay")).resolves.toBe(false);
+    await expect(harness.hydrateGradebookItemsForCard(card, "essay")).resolves.toEqual({
+      status: "failed",
+      source: "gradebook-items",
+      message: "Gradebook access denied.",
+    });
     expect(itemSelect.disabled).toBe(false);
     expect(itemSelect.options.map((option) => option.textContent)).toEqual([
       "Gradebook items unavailable",
@@ -494,6 +559,113 @@ describe("rule-builder LMS course picker", () => {
     expect(status.hidden).toBe(false);
     expect(status.dataset.tone).toBe("error");
     expect(status.textContent).toBe("Gradebook access denied.");
+  });
+
+  it("rejects malformed gradebook-item payloads at the response boundary", async () => {
+    const harness = loadPickerHarness({
+      fetchImpl: (() => Promise.resolve(Response.json({ items: [null] }))) as typeof fetch,
+    });
+    const select = new FakeSelect();
+
+    await expect(
+      harness.hydrateGradebookItemSelect({
+        itemSelect: select,
+        itemsUrl: "/course-101/items",
+        query: "",
+        fallbackMessage: "Unable to load gradebook items.",
+      }),
+    ).resolves.toEqual({
+      status: "failed",
+      source: "gradebook-items",
+      message: "Unable to load gradebook items.",
+    });
+    expect(select.disabled).toBe(false);
+    expect(select.options.map((option) => option.textContent)).toEqual([
+      "Gradebook items unavailable",
+    ]);
+  });
+
+  it("rejects malformed workflow-state payloads at the response boundary", async () => {
+    const harness = loadPickerHarness({
+      fetchImpl: (() => Promise.resolve(Response.json({ states: [null] }))) as typeof fetch,
+    });
+    const select = new FakeSelect();
+
+    await expect(
+      harness.hydrateWorkflowStateSelect({
+        stateSelect: select,
+        workflowStatesUrl: "/assignment-1/workflow-states",
+        fallbackMessage: "Unable to load workflow states.",
+      }),
+    ).resolves.toEqual({
+      status: "failed",
+      source: "workflow-states",
+      message: "Unable to load workflow states.",
+    });
+    expect(select.disabled).toBe(false);
+    expect(select.options.map((option) => option.textContent)).toEqual([
+      "Workflow states unavailable",
+    ]);
+  });
+
+  it("keeps hydrated gradebook items when the workflow-state stage fails", async () => {
+    const fetchImpl = ((input: RequestInfo | URL): Promise<Response> => {
+      const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+
+      if (url.endsWith("/gradebook-items")) {
+        return Promise.resolve(
+          Response.json({ items: [{ assignmentId: "assignment-1", title: "Essay" }] }),
+        );
+      }
+
+      if (url.endsWith("/gradebook-items/assignment-1/workflow-states")) {
+        return Promise.reject(new Error("Workflow states denied."));
+      }
+
+      return Promise.reject(new Error(`Unexpected LMS request: ${url}`));
+    }) as typeof fetch;
+    const harness = loadPickerHarness({ fetchImpl });
+    const { card, itemSelect, stateSelect, status } = createAssignmentLookupFixture();
+    itemSelect.dataset.selectedValue = "assignment-1";
+
+    await expect(harness.hydrateGradebookItemsForCard(card, "")).resolves.toEqual({
+      status: "failed",
+      source: "workflow-states",
+      message: "Workflow states denied.",
+    });
+    expect(itemSelect.disabled).toBe(false);
+    expect(itemSelect.options.map((option) => option.value)).toEqual(["", "assignment-1"]);
+    expect(itemSelect.options.map((option) => option.textContent)).toEqual([
+      "Select gradebook item",
+      "Essay (assignment-1)",
+    ]);
+    expect(stateSelect.disabled).toBe(false);
+    expect(stateSelect.options.map((option) => option.textContent)).toEqual([
+      "Workflow states unavailable",
+    ]);
+    expect(status.hidden).toBe(false);
+    expect(status.dataset.tone).toBe("error");
+    expect(status.textContent).toBe("Workflow states denied.");
+  });
+
+  it("reports rejected debounced work through the detached-work owner", async () => {
+    const timers = new FakeTimers();
+    const harness = loadPickerHarness({
+      fetchImpl: (() => Promise.reject(new Error("not called"))) as typeof fetch,
+      timers,
+    });
+    const defect = new Error("Post-fetch rendering failed.");
+    const schedule = harness.bindDebouncedSearch({
+      debounceMs: 0,
+      searchInput: new FakeInput(),
+      onInput: () => Promise.reject(defect),
+    });
+
+    schedule();
+    timers.runAll();
+    await Promise.resolve();
+
+    expect(harness.reportedErrors).toEqual([defect]);
   });
 
   it("preserves an existing selection that is absent from refreshed results", async () => {
@@ -512,7 +684,9 @@ describe("rule-builder LMS course picker", () => {
     selectedOption.selected = true;
     select.append(selectedOption);
 
-    await expect(harness.hydrateCourseSelect({}, select, "other")).resolves.toBe(true);
+    await expect(harness.hydrateCourseSelect({}, select, "other")).resolves.toEqual({
+      status: "complete",
+    });
     expect(select.selectedOptions.map((option) => option.value)).toEqual(["selected-course"]);
     expect(select.options.map((option) => option.value)).toEqual([
       "",
@@ -553,8 +727,8 @@ describe("rule-builder LMS course picker", () => {
       fallbackMessage: "Unavailable",
     });
 
-    await expect(currentRequest).resolves.toBe(true);
-    await expect(staleRequest).resolves.toBe(false);
+    await expect(currentRequest).resolves.toEqual({ status: "complete" });
+    await expect(staleRequest).resolves.toEqual({ status: "superseded" });
     expect(select.options.map((option) => option.value)).toEqual(["", "new-item"]);
     expect(requestCacheModes).toEqual(["no-store", "no-store"]);
   });
@@ -585,8 +759,8 @@ describe("rule-builder LMS course picker", () => {
     courseSelect.value = "";
     const clearedRequest = harness.hydrateGradebookItemsForCard(card, "");
 
-    await expect(clearedRequest).resolves.toBe(true);
-    await expect(staleRequest).resolves.toBe(false);
+    await expect(clearedRequest).resolves.toEqual({ status: "complete" });
+    await expect(staleRequest).resolves.toEqual({ status: "superseded" });
     expect(requestedUrls).toEqual([
       "/v1/lms/connections/connection-1/courses/old-course/gradebook-items",
     ]);
@@ -626,8 +800,8 @@ describe("rule-builder LMS course picker", () => {
       fallbackMessage: "Unavailable",
     });
 
-    await expect(currentRequest).resolves.toBe(true);
-    await expect(staleRequest).resolves.toBe(false);
+    await expect(currentRequest).resolves.toEqual({ status: "complete" });
+    await expect(staleRequest).resolves.toEqual({ status: "superseded" });
     expect(select.options.map((option) => option.value)).toEqual(["", "graded"]);
     expect(select.selectedOptions.map((option) => option.value)).toEqual(["graded"]);
   });
@@ -672,13 +846,13 @@ describe("rule-builder LMS course picker", () => {
     });
     const currentItemRequest = harness.hydrateGradebookItemsForCard(card, "");
 
-    await expect(staleStateRequest).resolves.toBe(false);
+    await expect(staleStateRequest).resolves.toEqual({ status: "superseded" });
     expect(stateSelect.options.map((option) => option.textContent)).toEqual([
       "Select gradebook item first",
     ]);
     expect(stateSelect.disabled).toBe(true);
 
     resolveItems(Response.json({ items: [] }));
-    await expect(currentItemRequest).resolves.toBe(true);
+    await expect(currentItemRequest).resolves.toEqual({ status: "complete" });
   });
 });

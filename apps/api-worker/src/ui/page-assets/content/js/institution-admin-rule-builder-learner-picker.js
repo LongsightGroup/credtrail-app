@@ -294,7 +294,7 @@ const loadRuleBuilderLearners = async (query = "") => {
 
     clearRuleBuilderLearnerSelection("Unable to load learners");
     setRuleBuilderLearnerStatus(
-      lmsLookupErrorMessage(error, "Unable to load LMS learners."),
+      lmsLookupFailureMessage(error, "Unable to load LMS learners."),
       true,
     );
   }

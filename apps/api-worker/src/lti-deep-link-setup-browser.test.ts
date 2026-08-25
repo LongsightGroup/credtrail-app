@@ -15,10 +15,16 @@ interface LtiPickerHarness {
   readonly itemQuery: FakeInput;
   readonly itemSelect: FakeSelect;
   readonly stateSelect: FakeSelect;
+  readonly status: FakeElement;
+  readonly statusMessage: FakeElement;
   readonly timers: FakeTimers;
 }
 
 const loadLtiPickerHarness = (fetchImpl: typeof fetch): LtiPickerHarness => {
+  const payloadParsers = readFileSync(
+    new URL("./ui/page-assets/content/js/lms-picker-payload-parsers.js", import.meta.url),
+    "utf8",
+  );
   const primitives = readFileSync(
     new URL("./ui/page-assets/content/js/lms-gradebook-picker-primitives.js", import.meta.url),
     "utf8",
@@ -62,10 +68,10 @@ const loadLtiPickerHarness = (fetchImpl: typeof fetch): LtiPickerHarness => {
     window,
   });
 
-  new Script(`${primitives}\n${setup}`).runInContext(context);
+  new Script(`${payloadParsers}\n${primitives}\n${setup}`).runInContext(context);
   document.dispatch("DOMContentLoaded");
 
-  return { document, itemQuery, itemSelect, stateSelect, timers };
+  return { document, itemQuery, itemSelect, stateSelect, status, statusMessage, timers };
 };
 
 describe("LTI Deep Linking gradebook picker", () => {
@@ -180,5 +186,45 @@ describe("LTI Deep Linking gradebook picker", () => {
 
     expect(oldWorkflowAborted).toBe(true);
     expect(harness.stateSelect.options.map((option) => option.value)).toEqual(["", "released"]);
+  });
+
+  it("keeps loaded items and localizes a workflow-state failure", async () => {
+    const fetchImpl = ((input: RequestInfo | URL): Promise<Response> => {
+      const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+
+      if (url.endsWith("/gradebook-items")) {
+        return Promise.resolve(
+          Response.json({ items: [{ assignmentId: "assignment-1", title: "Assignment 1" }] }),
+        );
+      }
+
+      if (url.endsWith("/gradebook-items/assignment-1/workflow-states")) {
+        return Promise.resolve(
+          Response.json({ error: "Sakai workflow states denied." }, { status: 403 }),
+        );
+      }
+
+      return Promise.reject(new Error(`Unexpected LTI picker request: ${url}`));
+    }) as typeof fetch;
+    const harness = loadLtiPickerHarness(fetchImpl);
+
+    harness.timers.runAll();
+    await waitForBrowserCondition(
+      () => harness.itemSelect.options.some((option) => option.value === "assignment-1"),
+      "LTI gradebook items did not load",
+    );
+    harness.itemSelect.value = "assignment-1";
+    harness.itemSelect.dispatch("change");
+    await waitForBrowserCondition(
+      () => harness.statusMessage.textContent === "Sakai workflow states denied.",
+      "LTI workflow-state failure was not reported",
+    );
+
+    expect(harness.itemSelect.options.map((option) => option.value)).toEqual(["", "assignment-1"]);
+    expect(harness.stateSelect.options.map((option) => option.textContent)).toEqual([
+      "Workflow states unavailable",
+    ]);
+    expect(harness.status.hidden).toBe(false);
+    expect(harness.status.dataset.tone).toBe("error");
   });
 });

@@ -185,6 +185,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
       "institution-admin-rule-builder-steps.js",
       "institution-admin-rule-builder-condition-fields.js",
       "institution-admin-rule-builder-condition-field-renderers.js",
+      "lms-picker-payload-parsers.js",
       "lms-gradebook-picker-primitives.js",
       "institution-admin-rule-builder-lms-picker.js",
       "institution-admin-rule-builder-condition-model.js",
@@ -211,7 +212,11 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   ltiDeepLinkSetupJs: {
     kind: "script",
     stem: "lti-deep-link-setup",
-    sources: ["lms-gradebook-picker-primitives.js", "lti-deep-link-setup.js"],
+    sources: [
+      "lms-picker-payload-parsers.js",
+      "lms-gradebook-picker-primitives.js",
+      "lti-deep-link-setup.js",
+    ],
   },
   ltiPostMessageStorageJs: {
     kind: "script",

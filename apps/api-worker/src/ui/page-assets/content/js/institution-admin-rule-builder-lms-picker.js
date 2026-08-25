@@ -15,10 +15,6 @@ const lmsCourseLabel = (course) => {
   );
 };
 
-const lmsLookupErrorMessage = (error, fallback) => {
-  return error instanceof Error ? error.message : fallback;
-};
-
 const setConditionLookupStatus = (card, selector, message, isError) => {
   if (!(card instanceof HTMLElement)) {
     return;
@@ -76,20 +72,6 @@ const courseLookupStatusMessage = (courseCount, hasMore, query) => {
         " matches. Refine your search to narrow the list.";
 };
 
-const setLookupSelectFailureState = (select, label) => {
-  if (!(select instanceof HTMLSelectElement)) {
-    return;
-  }
-
-  const placeholder = select.options.item(0);
-
-  if (placeholder !== null) {
-    placeholder.textContent = label;
-  }
-
-  select.disabled = false;
-};
-
 const courseLookupAbortControllerByCard = new WeakMap();
 
 const selectedCourseOptionSnapshots = (select, selectedValues) => {
@@ -145,6 +127,26 @@ const setCourseSelectOptions = (
       select.insertBefore(option, firstCourseOption);
     }
   });
+};
+
+const failCourseLookup = (
+  card,
+  select,
+  error,
+  selectedValues,
+  selectedOptionSnapshots,
+) => {
+  const outcome = lmsLookupFailed("courses", error, "Unable to load LMS courses.");
+  setCourseSelectOptions(
+    select,
+    [],
+    "Courses unavailable",
+    selectedValues,
+    selectedOptionSnapshots,
+  );
+  select.disabled = false;
+  setCourseLookupStatus(card, select, outcome.message, true);
+  return outcome;
 };
 
 const coursesPath = (query) => {
@@ -215,7 +217,7 @@ const hydrateCourseSelect = async (card, select, query) => {
       selectedOptionSnapshots,
     );
     select.disabled = true;
-    return true;
+    return lmsLookupComplete();
   }
 
   const abortController = new AbortController();
@@ -231,34 +233,25 @@ const hydrateCourseSelect = async (card, select, query) => {
     });
   } catch (error) {
     if (abortController.signal.aborted) {
-      return false;
+      return lmsLookupSuperseded();
     }
 
     courseLookupAbortControllerByCard.delete(card);
-    setCourseSelectOptions(
-      select,
-      [],
-      "Courses unavailable",
-      selectedValues,
-      selectedOptionSnapshots,
-    );
-    select.disabled = false;
-    setCourseLookupStatus(
-      card,
-      select,
-      lmsLookupErrorMessage(error, "Unable to load LMS courses."),
-      true,
-    );
-    return false;
+    return failCourseLookup(card, select, error, selectedValues, selectedOptionSnapshots);
   }
 
   if (courseLookupAbortControllerByCard.get(card) !== abortController) {
-    return false;
+    return lmsLookupSuperseded();
   }
 
   courseLookupAbortControllerByCard.delete(card);
-  const courses = payload && Array.isArray(payload.courses) ? payload.courses : [];
-  const hasMore = payload && payload.hasMore === true;
+  const parsed = lmsParseCourseSearchPayload(payload);
+
+  if (parsed === null) {
+    return failCourseLookup(card, select, null, selectedValues, selectedOptionSnapshots);
+  }
+
+  const { courses, hasMore } = parsed;
   setCourseSelectOptions(
     select,
     courses,
@@ -274,7 +267,7 @@ const hydrateCourseSelect = async (card, select, query) => {
     false,
   );
 
-  return true;
+  return lmsLookupComplete();
 };
 
 const hydrateWorkflowStateSelect = async (card) => {
@@ -284,21 +277,17 @@ const hydrateWorkflowStateSelect = async (card) => {
 
   setGradebookLookupStatus(card, "", false);
 
-  try {
-    return await lmsHydrateWorkflowStateSelect({
-      stateSelect,
-      workflowStatesUrl: workflowStatesPath(courseId, assignmentId),
-      fallbackMessage: "Unable to load workflow states.",
-    });
-  } catch (error) {
-    setLookupSelectFailureState(stateSelect, "Workflow states unavailable");
-    setGradebookLookupStatus(
-      card,
-      lmsLookupErrorMessage(error, "Unable to load workflow states."),
-      true,
-    );
-    return false;
+  const outcome = await lmsHydrateWorkflowStateSelect({
+    stateSelect,
+    workflowStatesUrl: workflowStatesPath(courseId, assignmentId),
+    fallbackMessage: "Unable to load workflow states.",
+  });
+
+  if (outcome.status === "failed") {
+    setGradebookLookupStatus(card, outcome.message, true);
   }
+
+  return outcome;
 };
 
 const hydrateGradebookItemSelect = async (card, query) => {
@@ -307,33 +296,29 @@ const hydrateGradebookItemSelect = async (card, query) => {
   const stateSelect = card.querySelector("[data-lms-workflow-state-select]");
 
   if (!(itemSelect instanceof HTMLSelectElement)) {
-    return false;
+    return lmsLookupSuperseded();
   }
 
   const path = gradebookItemsPath(courseId, query);
 
   setGradebookLookupStatus(card, "", false);
 
-  try {
-    return await lmsHydrateGradebookItemWorkflowSelects({
-      itemSelect,
-      stateSelect,
-      itemsUrl: path,
-      query: "",
-      itemFallbackMessage: "Unable to load gradebook items.",
-      workflowFallbackMessage: "Unable to load workflow states.",
-      workflowStatesUrlForAssignment: (assignmentId) =>
-        workflowStatesPath(courseId, assignmentId),
-    });
-  } catch (error) {
-    setLookupSelectFailureState(itemSelect, "Gradebook items unavailable");
-    setGradebookLookupStatus(
-      card,
-      lmsLookupErrorMessage(error, "Unable to load gradebook items."),
-      true,
-    );
-    return false;
+  const outcome = await lmsHydrateGradebookItemWorkflowSelects({
+    itemSelect,
+    stateSelect,
+    itemsUrl: path,
+    query: "",
+    itemFallbackMessage: "Unable to load gradebook items.",
+    workflowFallbackMessage: "Unable to load workflow states.",
+    workflowStatesUrlForAssignment: (assignmentId) =>
+      workflowStatesPath(courseId, assignmentId),
+  });
+
+  if (outcome.status === "failed") {
+    setGradebookLookupStatus(card, outcome.message, true);
   }
+
+  return outcome;
 };
 
 const bindSearchableCourseSelect = (card, fieldName) => {
@@ -348,22 +333,26 @@ const bindSearchableCourseSelect = (card, fieldName) => {
 
   const refresh = lmsBindDebouncedSearch({
     searchInput: courseSearch,
-    onInput: () =>
-      hydrateCourseSelect(
+    onInput: async () => {
+      const courseOutcome = await hydrateCourseSelect(
         card,
         courseSelect,
         courseSearch instanceof HTMLInputElement ? courseSearch.value : "",
-      )
-        .then((didHydrate) => {
-          if (!didHydrate) {
-            return;
-          }
+      );
 
+      if (courseOutcome.status !== "complete") {
+        return;
+      }
+
+      syncDefinitionJsonFromBuilder();
+      if (fieldName === "courseId") {
+        const itemOutcome = await hydrateGradebookItemSelect(card, "");
+
+        if (itemOutcome.status === "complete") {
           syncDefinitionJsonFromBuilder();
-          if (fieldName === "courseId") {
-            void hydrateGradebookItemSelect(card, "");
-          }
-        }),
+        }
+      }
+    },
   });
 
   courseSelect.addEventListener("change", () => {
@@ -372,7 +361,13 @@ const bindSearchableCourseSelect = (card, fieldName) => {
       .map((option) => option.value)
       .join(",");
     if (fieldName === "courseId") {
-      void hydrateGradebookItemSelect(card, "");
+      lmsRunDetached(async () => {
+        const outcome = await hydrateGradebookItemSelect(card, "");
+
+        if (outcome.status === "complete") {
+          syncDefinitionJsonFromBuilder();
+        }
+      });
     }
   });
 
@@ -389,21 +384,24 @@ const bindSearchableGradebookItemSelect = (card) => {
 
   lmsBindDebouncedSearch({
     searchInput: itemSearch,
-    onInput: () =>
-      hydrateGradebookItemSelect(
+    onInput: async () => {
+      const outcome = await hydrateGradebookItemSelect(
         card,
         itemSearch instanceof HTMLInputElement ? itemSearch.value : "",
-      ).then((didHydrate) => {
-        if (didHydrate) {
-          syncDefinitionJsonFromBuilder();
-        }
-      }),
+      );
+
+      if (outcome.status === "complete") {
+        syncDefinitionJsonFromBuilder();
+      }
+    },
   });
 
   itemSelect.addEventListener("change", () => {
     itemSelect.dataset.selectedValue = itemSelect.value;
-    void hydrateWorkflowStateSelect(card).then((didHydrate) => {
-      if (didHydrate) {
+    lmsRunDetached(async () => {
+      const outcome = await hydrateWorkflowStateSelect(card);
+
+      if (outcome.status === "complete") {
         syncDefinitionJsonFromBuilder();
       }
     });
