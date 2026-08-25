@@ -1,7 +1,7 @@
 import { parseCreateBadgeIssuanceRuleRequest } from "@credtrail/validation";
 import { describe, expect, it } from "vitest";
 import type { GradebookAssignmentReader, GradebookAssignmentRecord } from "../lms/gradebook-types";
-import { validateBadgeRuleReferences } from "./badge-rule-reference-validator";
+import { validateBadgeRuleAssignmentReferences } from "./badge-rule-assignment-reference-validator";
 
 const definitionWithAssignments = (assignmentIds: readonly string[]) => {
   return parseCreateBadgeIssuanceRuleRequest({
@@ -56,14 +56,14 @@ const createProvider = (
   listAssignments,
 });
 
-describe("validateBadgeRuleReferences", () => {
+describe("validateBadgeRuleAssignmentReferences", () => {
   it("does not read gradebooks for a course-only pathway", async () => {
     const provider = createProvider(() =>
       Promise.reject(new Error("course-only rules must not load assignments")),
     );
 
     await expect(
-      validateBadgeRuleReferences({
+      validateBadgeRuleAssignmentReferences({
         provider,
         definition: threeCoursePathwayDefinition(),
       }),
@@ -78,7 +78,7 @@ describe("validateBadgeRuleReferences", () => {
     });
 
     await expect(
-      validateBadgeRuleReferences({
+      validateBadgeRuleAssignmentReferences({
         provider,
         definition: definitionWithAssignments(["draft", "final"]),
       }),
@@ -90,7 +90,7 @@ describe("validateBadgeRuleReferences", () => {
     const provider = createProvider(() => Promise.resolve([assignment("draft")]));
 
     await expect(
-      validateBadgeRuleReferences({
+      validateBadgeRuleAssignmentReferences({
         provider,
         definition: definitionWithAssignments(["draft", "final"]),
       }),
@@ -106,7 +106,7 @@ describe("validateBadgeRuleReferences", () => {
     const provider = createProvider(() => Promise.reject(cause));
 
     await expect(
-      validateBadgeRuleReferences({
+      validateBadgeRuleAssignmentReferences({
         provider,
         definition: definitionWithAssignments(["final"]),
       }),

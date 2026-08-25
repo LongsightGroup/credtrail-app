@@ -10,7 +10,6 @@ import {
 } from "./ui/page-assets/script-asset-fragments";
 
 const INSTITUTION_ADMIN_SHELL_JS = readScriptAssetSource("institutionAdminShellJs");
-const INSTITUTION_ADMIN_RULE_BUILDER_JS = readScriptAssetSource("institutionAdminRuleBuilderJs");
 const LTI_DEEP_LINK_SETUP_JS = readScriptAssetSource("ltiDeepLinkSetupJs");
 const PUBLIC_BADGE_JS = readScriptAssetSource("publicBadgeJs");
 
@@ -190,20 +189,6 @@ class FakeBrowserElement {
 }
 
 describe("page asset manifest", () => {
-  it("gives rule authors actionable guidance after an unconfirmed retry", () => {
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "CredTrail retried but did not receive confirmation.",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain('"In Rules, look for “"');
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "If it is not listed, try creating the draft again.",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).toContain(
-      "If it is not listed, try creating and submitting it again.",
-    );
-    expect(INSTITUTION_ADMIN_RULE_BUILDER_JS).not.toContain("Try again safely, or check Rules.");
-  });
-
   it("points registered page assets at generated static files", () => {
     const assetKeys: readonly PageAssetKey[] = [
       "foundationCss",

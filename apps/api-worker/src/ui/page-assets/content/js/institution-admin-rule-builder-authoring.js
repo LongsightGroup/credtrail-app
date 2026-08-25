@@ -1,3 +1,79 @@
+const requestRuleBuilderAuthoringCommand = async (dependencies, input) => {
+  const replaySafeCreate = input.delivery.kind === "replay_safe_create";
+
+  if (!replaySafeCreate && input.delivery.kind !== "single_attempt") {
+    throw new Error("Unknown rule authoring delivery policy");
+  }
+
+  const maximumAttempts = replaySafeCreate ? 2 : 1;
+  const payload = replaySafeCreate
+    ? { ...input.payload, builderDraftId: input.delivery.builderDraftId }
+    : input.payload;
+  const body = JSON.stringify(payload);
+
+  for (let attemptCount = 1; attemptCount <= maximumAttempts; attemptCount += 1) {
+    const requestId = dependencies.createRequestId();
+
+    try {
+      const response = await dependencies.request(input.apiPath, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": requestId,
+        },
+        body,
+      });
+
+      return {
+        status: "response_received",
+        response,
+        requestId,
+        attemptCount,
+      };
+    } catch {
+      if (attemptCount === maximumAttempts) {
+        return {
+          status: "unconfirmed",
+          requestId,
+          attemptCount,
+        };
+      }
+    }
+  }
+
+  throw new Error("Rule authoring attempt limit was not resolved");
+};
+
+const ruleBuilderUnconfirmedAuthoringMessage = (input) => {
+  let nextStep;
+
+  if (input.operation === "create_draft") {
+    nextStep = "If it is not listed, try creating the draft again.";
+  } else if (input.operation === "create_and_submit") {
+    nextStep = "If it is not listed, try creating and submitting it again.";
+  } else if (input.operation === "save_new_draft_version") {
+    nextStep = "If the latest draft is unchanged, try saving again.";
+  } else {
+    throw new Error("Unknown rule authoring operation");
+  }
+
+  const confirmationMessage =
+    input.attemptCount > 1
+      ? "CredTrail retried but did not receive confirmation. "
+      : "CredTrail did not receive confirmation. ";
+
+  return (
+    confirmationMessage +
+    "In Rules, look for “" +
+    input.ruleName +
+    "”. " +
+    nextStep +
+    " Reference: " +
+    input.requestId +
+    "."
+  );
+};
+
 const createRuleBuilderAuthoringController = (dependencies) => {
   let state = "idle";
 
@@ -7,81 +83,59 @@ const createRuleBuilderAuthoringController = (dependencies) => {
     }
 
     state = "submitting";
-    const requestId = dependencies.createRequestId();
-    const builderDraftId = input.payload.builderDraftId;
-    const replaySafeCreate = typeof builderDraftId === "string" && builderDraftId.length > 0;
-    const maximumAttempts = replaySafeCreate ? 2 : 1;
-    const body = JSON.stringify(input.payload);
 
-    for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
-      let response;
+    try {
+      const requestResult = await requestRuleBuilderAuthoringCommand(dependencies, input);
 
-      try {
-        response = await dependencies.request(input.apiPath, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "x-request-id": requestId,
-          },
-          body,
-        });
-      } catch {
-        if (attempt < maximumAttempts) {
-          continue;
-        }
-
-        state = "idle";
+      if (requestResult.status === "unconfirmed") {
         return {
           status: "unknown",
-          requestId,
-          retryAttempted: attempt > 1,
+          requestId: requestResult.requestId,
+          attemptCount: requestResult.attemptCount,
         };
       }
 
+      let payload;
+
       try {
-        const payload = await dependencies.parseResponse(response);
-
-        if (!response.ok) {
-          state = "idle";
-          return {
-            status: "rejected",
-            message: dependencies.errorMessage(payload),
-          };
-        }
-
-        const outcome =
-          payload && typeof payload === "object" && typeof payload.outcome === "string"
-            ? payload.outcome
-            : "";
-
-        if (
-          outcome !== "draft_saved" &&
-          outcome !== "pending_approval" &&
-          outcome !== "approved"
-        ) {
-          state = "idle";
-          return {
-            status: "rejected",
-            message: "CredTrail returned an invalid rule authoring outcome.",
-          };
-        }
-
-        state = "completed";
-        return {
-          status: "completed",
-          outcome,
-        };
+        payload = await dependencies.parseResponse(requestResult.response);
       } catch {
-        state = "idle";
         return {
           status: "unknown",
-          requestId,
-          retryAttempted: attempt > 1,
+          requestId: requestResult.requestId,
+          attemptCount: requestResult.attemptCount,
         };
+      }
+
+      if (!requestResult.response.ok) {
+        return {
+          status: "rejected",
+          message: dependencies.errorMessage(payload),
+        };
+      }
+
+      const outcome =
+        payload && typeof payload === "object" && typeof payload.outcome === "string"
+          ? payload.outcome
+          : "";
+
+      if (outcome !== "draft_saved" && outcome !== "pending_approval" && outcome !== "approved") {
+        return {
+          status: "rejected",
+          message: "CredTrail returned an invalid rule authoring outcome.",
+        };
+      }
+
+      state = "completed";
+      return {
+        status: "completed",
+        outcome,
+      };
+    } finally {
+      if (state === "submitting") {
+        state = "idle";
       }
     }
-
-    throw new Error("Rule authoring attempt limit was not resolved");
   };
 
   return {

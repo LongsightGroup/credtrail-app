@@ -3,22 +3,35 @@ import { createContext, Script } from "node:vm";
 import { describe, expect, it } from "vitest";
 
 type AuthoringOutcome = "draft_saved" | "pending_approval" | "approved";
+type AuthoringOperation = "create_draft" | "create_and_submit" | "save_new_draft_version";
+type AuthoringDelivery =
+  | { readonly kind: "single_attempt" }
+  | { readonly kind: "replay_safe_create"; readonly builderDraftId: string };
 
 interface BrowserResponse {
   readonly ok: boolean;
   readonly payload: unknown;
 }
 
+interface BrowserRequestInit {
+  readonly method: string;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body: string;
+}
+
+type BrowserRequest = (path: string, init: BrowserRequestInit) => Promise<BrowserResponse>;
+
 interface AuthoringController {
   readonly execute: (input: {
     readonly apiPath: string;
+    readonly delivery: AuthoringDelivery;
     readonly payload: Readonly<Record<string, unknown>>;
   }) => Promise<
     | { readonly status: "ignored" }
     | {
         readonly status: "unknown";
         readonly requestId: string;
-        readonly retryAttempted: boolean;
+        readonly attemptCount: number;
       }
     | { readonly status: "rejected"; readonly message: string }
     | { readonly status: "completed"; readonly outcome: AuthoringOutcome }
@@ -26,44 +39,68 @@ interface AuthoringController {
   readonly state: () => "idle" | "submitting" | "completed";
 }
 
-type CreateAuthoringController = (dependencies: {
-  readonly request: (
-    path: string,
-    init: {
-      readonly method: string;
-      readonly headers: Readonly<Record<string, string>>;
-      readonly body: string;
-    },
-  ) => Promise<BrowserResponse>;
+interface AuthoringControllerDependencies {
+  readonly request: BrowserRequest;
   readonly parseResponse: (response: BrowserResponse) => Promise<unknown>;
   readonly errorMessage: (payload: unknown) => string;
   readonly createRequestId: () => string;
-}) => AuthoringController;
+}
 
-const loadCreateAuthoringController = (): CreateAuthoringController => {
+interface RuleBuilderAuthoringModule {
+  readonly createController: (dependencies: AuthoringControllerDependencies) => AuthoringController;
+  readonly unconfirmedMessage: (input: {
+    readonly operation: AuthoringOperation;
+    readonly ruleName: string;
+    readonly attemptCount: number;
+    readonly requestId: string;
+  }) => string;
+}
+
+const loadRuleBuilderAuthoringModule = (): RuleBuilderAuthoringModule => {
   const source = readFileSync(
     new URL("./content/js/institution-admin-rule-builder-authoring.js", import.meta.url),
     "utf8",
   );
   const context = createContext({});
   new Script(
-    `${source}\nthis.createController = createRuleBuilderAuthoringController;`,
+    `${source}\nthis.createController = createRuleBuilderAuthoringController;\nthis.unconfirmedMessage = ruleBuilderUnconfirmedAuthoringMessage;`,
   ).runInContext(context);
-  const createController = (context as { createController?: unknown }).createController;
+  const loaded = context as {
+    readonly createController?: unknown;
+    readonly unconfirmedMessage?: unknown;
+  };
 
-  if (typeof createController !== "function") {
+  if (typeof loaded.createController !== "function") {
     throw new Error("Rule builder authoring controller did not load");
   }
+  if (typeof loaded.unconfirmedMessage !== "function") {
+    throw new Error("Rule builder unconfirmed message policy did not load");
+  }
 
-  // SAFETY: The VM source defines this function, and the runtime guard above verifies its callable boundary.
-  return createController as CreateAuthoringController;
+  // SAFETY: The VM source defines both functions, and the runtime guards verify their callable boundaries.
+  return loaded as RuleBuilderAuthoringModule;
 };
 
+const authoringModule = loadRuleBuilderAuthoringModule();
 const createResponseParser = async (response: BrowserResponse): Promise<unknown> => {
   return response.payload;
 };
 
-const createRequestId = (): string => "request-123";
+const createTestController = (input: {
+  readonly request: BrowserRequest;
+  readonly parseResponse?: (response: BrowserResponse) => Promise<unknown>;
+  readonly errorMessage?: (payload: unknown) => string;
+  readonly createRequestId?: () => string;
+}): AuthoringController => {
+  return authoringModule.createController({
+    request: input.request,
+    parseResponse: input.parseResponse ?? createResponseParser,
+    errorMessage: input.errorMessage ?? (() => "request rejected"),
+    createRequestId: input.createRequestId ?? (() => "request-1"),
+  });
+};
+
+const singleAttempt: AuthoringDelivery = { kind: "single_attempt" };
 
 describe("rule builder browser authoring controller", () => {
   it.each<{
@@ -74,53 +111,58 @@ describe("rule builder browser authoring controller", () => {
     { action: "submit_for_approval", outcome: "pending_approval" },
     { action: "submit_for_approval", outcome: "approved" },
   ])("sends one $action command and returns $outcome", async ({ action, outcome }) => {
-    const requests: Array<{ readonly path: string; readonly body: string }> = [];
-    const controller = loadCreateAuthoringController()({
+    const requests: Array<{
+      readonly path: string;
+      readonly headers: Readonly<Record<string, string>>;
+      readonly body: string;
+    }> = [];
+    const controller = createTestController({
       request: async (path, init) => {
-        requests.push({ path, body: init.body });
+        requests.push({ path, headers: init.headers, body: init.body });
         return { ok: true, payload: { outcome } };
       },
-      parseResponse: createResponseParser,
-      errorMessage: () => "request rejected",
-      createRequestId,
     });
 
     const result = await controller.execute({
       apiPath: "/v1/tenants/tenant_123/badge-rules",
+      delivery: singleAttempt,
       payload: { name: "Rule", action },
     });
 
     expect(result.status).toBe("completed");
     expect(result.status === "completed" ? result.outcome : null).toBe(outcome);
-    expect(requests).toHaveLength(1);
-    expect(requests[0]?.path).toBe("/v1/tenants/tenant_123/badge-rules");
-    expect(JSON.parse(requests[0]?.body ?? "{}")).toMatchObject({ action });
+    expect(requests).toEqual([
+      {
+        path: "/v1/tenants/tenant_123/badge-rules",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "request-1",
+        },
+        body: JSON.stringify({ name: "Rule", action }),
+      },
+    ]);
     expect(controller.state()).toBe("completed");
   });
 
   it("ignores a concurrent submission while the first request is pending", async () => {
     let resolveRequest: ((response: BrowserResponse) => void) | undefined;
     let requestCount = 0;
-    const controller = loadCreateAuthoringController()({
+    const controller = createTestController({
       request: () => {
         requestCount += 1;
         return new Promise<BrowserResponse>((resolve) => {
           resolveRequest = resolve;
         });
       },
-      parseResponse: createResponseParser,
-      errorMessage: () => "request rejected",
-      createRequestId,
     });
+    const input = {
+      apiPath: "/author",
+      delivery: singleAttempt,
+      payload: { action: "submit_for_approval" },
+    } as const;
 
-    const first = controller.execute({
-      apiPath: "/author",
-      payload: { action: "submit_for_approval" },
-    });
-    const second = await controller.execute({
-      apiPath: "/author",
-      payload: { action: "submit_for_approval" },
-    });
+    const first = controller.execute(input);
+    const second = await controller.execute(input);
 
     expect(controller.state()).toBe("submitting");
     expect(second.status).toBe("ignored");
@@ -131,9 +173,8 @@ describe("rule builder browser authoring controller", () => {
   });
 
   it("returns a rejected command to idle so the user can correct and retry", async () => {
-    const controller = loadCreateAuthoringController()({
+    const controller = createTestController({
       request: async () => ({ ok: false, payload: { error: "Policy needs an approval step." } }),
-      parseResponse: createResponseParser,
       errorMessage: (payload) =>
         typeof payload === "object" &&
         payload !== null &&
@@ -141,11 +182,11 @@ describe("rule builder browser authoring controller", () => {
         typeof payload.error === "string"
           ? payload.error
           : "request rejected",
-      createRequestId,
     });
 
     const result = await controller.execute({
       apiPath: "/author",
+      delivery: singleAttempt,
       payload: { action: "submit_for_approval" },
     });
 
@@ -154,14 +195,15 @@ describe("rule builder browser authoring controller", () => {
     expect(controller.state()).toBe("idle");
   });
 
-  it("automatically retries an idempotent create when the first response is lost", async () => {
+  it("retries a replay-safe create with one logical identity and fresh request IDs", async () => {
     let requestCount = 0;
+    let requestIdSequence = 0;
     const requests: Array<{
       readonly path: string;
       readonly headers: Readonly<Record<string, string>>;
       readonly body: string;
     }> = [];
-    const controller = loadCreateAuthoringController()({
+    const controller = createTestController({
       request: async (path, init) => {
         requestCount += 1;
         requests.push({ path, headers: init.headers, body: init.body });
@@ -172,94 +214,166 @@ describe("rule builder browser authoring controller", () => {
 
         return { ok: true, payload: { outcome: "pending_approval" } };
       },
-      parseResponse: createResponseParser,
-      errorMessage: () => "request rejected",
-      createRequestId,
+      createRequestId: () => {
+        requestIdSequence += 1;
+        return `request-${requestIdSequence}`;
+      },
     });
 
     const result = await controller.execute({
       apiPath: "/author",
-      payload: { action: "submit_for_approval", builderDraftId: "brd-123" },
+      delivery: { kind: "replay_safe_create", builderDraftId: "brd-123" },
+      payload: { action: "submit_for_approval" },
     });
 
     expect(result).toEqual({ status: "completed", outcome: "pending_approval" });
-    expect(requestCount).toBe(2);
     expect(requests).toEqual([
       {
         path: "/author",
         headers: {
           "content-type": "application/json",
-          "x-request-id": "request-123",
+          "x-request-id": "request-1",
         },
-        body: JSON.stringify({
-          action: "submit_for_approval",
-          builderDraftId: "brd-123",
-        }),
+        body: JSON.stringify({ action: "submit_for_approval", builderDraftId: "brd-123" }),
       },
       {
         path: "/author",
         headers: {
           "content-type": "application/json",
-          "x-request-id": "request-123",
+          "x-request-id": "request-2",
         },
-        body: JSON.stringify({
-          action: "submit_for_approval",
-          builderDraftId: "brd-123",
-        }),
+        body: JSON.stringify({ action: "submit_for_approval", builderDraftId: "brd-123" }),
       },
     ]);
     expect(controller.state()).toBe("completed");
   });
 
-  it("reports one correlated unknown result after both create attempts lose their responses", async () => {
+  it("reports the terminal attempt after both replay-safe requests lose their responses", async () => {
     let requestCount = 0;
-    const controller = loadCreateAuthoringController()({
+    const controller = createTestController({
       request: async () => {
         requestCount += 1;
         throw new Error("connection unavailable");
       },
-      parseResponse: createResponseParser,
-      errorMessage: () => "request rejected",
-      createRequestId,
+      createRequestId: () => `request-${requestCount + 1}`,
     });
 
     const result = await controller.execute({
       apiPath: "/author",
-      payload: { action: "save_draft", builderDraftId: "brd-123" },
-    });
-
-    expect(result).toEqual({
-      status: "unknown",
-      requestId: "request-123",
-      retryAttempted: true,
-    });
-    expect(requestCount).toBe(2);
-    expect(controller.state()).toBe("idle");
-  });
-
-  it("does not automatically retry a command without a replay-safe builder identity", async () => {
-    let requestCount = 0;
-    const controller = loadCreateAuthoringController()({
-      request: async () => {
-        requestCount += 1;
-        throw new Error("connection unavailable");
-      },
-      parseResponse: createResponseParser,
-      errorMessage: () => "request rejected",
-      createRequestId,
-    });
-
-    const result = await controller.execute({
-      apiPath: "/author",
+      delivery: { kind: "replay_safe_create", builderDraftId: "brd-123" },
       payload: { action: "save_draft" },
     });
 
     expect(result).toEqual({
       status: "unknown",
-      requestId: "request-123",
-      retryAttempted: false,
+      requestId: "request-2",
+      attemptCount: 2,
+    });
+    expect(requestCount).toBe(2);
+    expect(controller.state()).toBe("idle");
+  });
+
+  it("does not retry a command with the single-attempt delivery policy", async () => {
+    let requestCount = 0;
+    const controller = createTestController({
+      request: async () => {
+        requestCount += 1;
+        throw new Error("connection unavailable");
+      },
+    });
+
+    const result = await controller.execute({
+      apiPath: "/author",
+      delivery: singleAttempt,
+      payload: { action: "save_draft", builderDraftId: "ignored-payload-convention" },
+    });
+
+    expect(result).toEqual({
+      status: "unknown",
+      requestId: "request-1",
+      attemptCount: 1,
     });
     expect(requestCount).toBe(1);
     expect(controller.state()).toBe("idle");
   });
+
+  it("returns to idle when response parsing cannot confirm the outcome", async () => {
+    const controller = createTestController({
+      request: async () => ({ ok: true, payload: null }),
+      parseResponse: () => Promise.reject(new Error("response body unavailable")),
+    });
+
+    await expect(
+      controller.execute({
+        apiPath: "/author",
+        delivery: singleAttempt,
+        payload: { action: "save_draft" },
+      }),
+    ).resolves.toEqual({
+      status: "unknown",
+      requestId: "request-1",
+      attemptCount: 1,
+    });
+    expect(controller.state()).toBe("idle");
+  });
+
+  it("returns to idle when an injected dependency violates its contract", async () => {
+    const controller = createTestController({
+      request: async () => ({ ok: true, payload: { outcome: "draft_saved" } }),
+      createRequestId: () => {
+        throw new Error("request ID generator defect");
+      },
+    });
+
+    await expect(
+      controller.execute({
+        apiPath: "/author",
+        delivery: singleAttempt,
+        payload: { action: "save_draft" },
+      }),
+    ).rejects.toThrow("request ID generator defect");
+    expect(controller.state()).toBe("idle");
+  });
+});
+
+describe("rule builder unconfirmed authoring message", () => {
+  it.each<{
+    readonly operation: AuthoringOperation;
+    readonly attemptCount: number;
+    readonly confirmationMessage: string;
+    readonly nextStep: string;
+  }>([
+    {
+      operation: "create_draft",
+      attemptCount: 2,
+      confirmationMessage: "CredTrail retried but did not receive confirmation.",
+      nextStep: "If it is not listed, try creating the draft again.",
+    },
+    {
+      operation: "create_and_submit",
+      attemptCount: 2,
+      confirmationMessage: "CredTrail retried but did not receive confirmation.",
+      nextStep: "If it is not listed, try creating and submitting it again.",
+    },
+    {
+      operation: "save_new_draft_version",
+      attemptCount: 1,
+      confirmationMessage: "CredTrail did not receive confirmation.",
+      nextStep: "If the latest draft is unchanged, try saving again.",
+    },
+  ])(
+    "renders the $operation recovery policy",
+    ({ operation, attemptCount, confirmationMessage, nextStep }) => {
+      expect(
+        authoringModule.unconfirmedMessage({
+          operation,
+          ruleName: "Attendance award",
+          attemptCount,
+          requestId: "request-42",
+        }),
+      ).toBe(
+        `${confirmationMessage} In Rules, look for “Attendance award”. ${nextStep} Reference: request-42.`,
+      );
+    },
+  );
 });

@@ -40,7 +40,7 @@ import type { GradebookRequestOptions } from "../lms/gradebook-types";
 import { lmsLookupErrorMessage } from "../lms/gradebook-picker";
 import { authorizeBadgeRuleCourses } from "../rules/badge-rule-course-authorization";
 import { resolveBadgeIssuanceRuleDefinitionValueLists } from "../rules/badge-rule-definition-resolver";
-import { validateBadgeRuleReferences } from "../rules/badge-rule-reference-validator";
+import { validateBadgeRuleAssignmentReferences } from "../rules/badge-rule-assignment-reference-validator";
 import { extractBadgeIssuanceRuleRequirements } from "../rules/engine";
 
 type BadgeRuleDraftRequest =
@@ -171,7 +171,7 @@ const prepareBadgeRuleDraft = async (
     };
   }
 
-  const referenceValidation = await validateBadgeRuleReferences(
+  const referenceValidation = await validateBadgeRuleAssignmentReferences(
     {
       provider: resolvedProvider.provider,
       definition: resolvedDefinition,

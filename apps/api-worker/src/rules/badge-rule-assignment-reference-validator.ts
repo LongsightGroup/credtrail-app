@@ -3,9 +3,9 @@ import type { GradebookAssignmentReader, GradebookRequestOptions } from "../lms/
 import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
 import { extractBadgeIssuanceRuleRequirements } from "./engine";
 
-const RULE_REFERENCE_VALIDATION_CONCURRENCY = 4;
+const ASSIGNMENT_REFERENCE_VALIDATION_CONCURRENCY = 4;
 
-export type BadgeRuleReferenceValidationResult =
+export type BadgeRuleAssignmentReferenceValidationResult =
   | { readonly status: "valid" }
   | {
       readonly status: "gradebook_unavailable";
@@ -31,13 +31,13 @@ type CourseAssignmentValidation =
     };
 
 /** Validates assignment references through gradebook access and reuses results per course. */
-export const validateBadgeRuleReferences = async (
+export const validateBadgeRuleAssignmentReferences = async (
   input: {
     readonly provider: GradebookAssignmentReader;
     readonly definition: BadgeIssuanceRuleDefinition;
   },
   options: GradebookRequestOptions = {},
-): Promise<BadgeRuleReferenceValidationResult> => {
+): Promise<BadgeRuleAssignmentReferenceValidationResult> => {
   const requirements = extractBadgeIssuanceRuleRequirements(input.definition);
   const courseIds = [
     ...new Set(requirements.assignmentRefs.map((assignmentRef) => assignmentRef.courseId)),
@@ -49,7 +49,7 @@ export const validateBadgeRuleReferences = async (
 
   const courseValidations = await mapConcurrentBounded(
     courseIds,
-    { concurrency: RULE_REFERENCE_VALIDATION_CONCURRENCY },
+    { concurrency: ASSIGNMENT_REFERENCE_VALIDATION_CONCURRENCY },
     async (courseId): Promise<CourseAssignmentValidation> => {
       try {
         const assignments = await input.provider.listAssignments({ courseId }, options);

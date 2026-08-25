@@ -375,8 +375,19 @@ ruleCreateForm.addEventListener("submit", async (event) => {
     changeSummary = changeSummary + " Issuance timing: " + issuanceLabel + ".";
   }
 
+  const builderDraftId =
+    !isRuleBuilderEditMode &&
+    ruleBuilderContext &&
+    typeof ruleBuilderContext.builderDraftId === "string"
+      ? ruleBuilderContext.builderDraftId
+      : "";
+  const delivery =
+    builderDraftId.length > 0
+      ? { kind: "replay_safe_create", builderDraftId }
+      : { kind: "single_attempt" };
   const authoringPromise = ruleBuilderAuthoringController.execute({
     apiPath: ruleBuilderSubmitApiPath,
+    delivery,
     payload: {
       name,
       ...(description.length > 0 ? { description } : {}),
@@ -386,11 +397,6 @@ ruleCreateForm.addEventListener("submit", async (event) => {
       definition: definitionWithOptions,
       ...(changeSummary.length > 0 ? { changeSummary } : {}),
       action,
-      ...(!isRuleBuilderEditMode &&
-      ruleBuilderContext &&
-      typeof ruleBuilderContext.builderDraftId === "string"
-        ? { builderDraftId: ruleBuilderContext.builderDraftId }
-        : {}),
     },
   });
   updateStepNavigationState();
@@ -417,22 +423,17 @@ ruleCreateForm.addEventListener("submit", async (event) => {
   }
 
   if (result.status === "unknown") {
-    const nextStep = isRuleBuilderEditMode
-      ? "If the latest draft is unchanged, try saving again."
+    const operation = isRuleBuilderEditMode
+      ? "save_new_draft_version"
       : action === "submit_for_approval"
-        ? "If it is not listed, try creating and submitting it again."
-        : "If it is not listed, try creating the draft again.";
-    const message =
-      (result.retryAttempted
-        ? "CredTrail retried but did not receive confirmation. "
-        : "CredTrail did not receive confirmation. ") +
-      "In Rules, look for “" +
-      name +
-      "”. " +
-      nextStep +
-      " Reference: " +
-      result.requestId +
-      ".";
+        ? "create_and_submit"
+        : "create_draft";
+    const message = ruleBuilderUnconfirmedAuthoringMessage({
+      operation,
+      ruleName: name,
+      attemptCount: result.attemptCount,
+      requestId: result.requestId,
+    });
     setStatus(ruleCreateStatus, message, true);
     syncRuleBuilderSummary(message);
     return;
