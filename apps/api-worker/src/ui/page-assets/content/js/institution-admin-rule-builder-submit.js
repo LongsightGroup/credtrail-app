@@ -423,11 +423,10 @@ ruleCreateForm.addEventListener("submit", async (event) => {
   }
 
   if (result.status === "unknown") {
-    const operation = isRuleBuilderEditMode
-      ? "save_new_draft_version"
-      : action === "submit_for_approval"
-        ? "create_and_submit"
-        : "create_draft";
+    const operation = ruleBuilderAuthoringOperationForSubmit({
+      isEditMode: isRuleBuilderEditMode,
+      action,
+    });
     const message = ruleBuilderUnconfirmedAuthoringMessage({
       operation,
       ruleName: name,

@@ -65,6 +65,7 @@ const loadLtiPickerHarness = (fetchImpl: typeof fetch): LtiPickerHarness => {
     HTMLInputElement: FakeInput,
     HTMLSelectElement: FakeSelect,
     Response,
+    URLSearchParams,
     window,
   });
 

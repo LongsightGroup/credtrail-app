@@ -88,22 +88,21 @@ const clearRuleBuilderLearnerSelection = (message) => {
   }
 };
 
-const ruleBuilderLearnersPath = (courseId, query) => {
+const ruleBuilderLearnersPath = (courseId) => {
   const connectionId = getSelectedLmsConnectionId();
 
   if (connectionId.length === 0) {
     return "";
   }
 
-  const path =
+  return (
     lmsConnectionsApiPath +
     "/" +
     encodeURIComponent(connectionId) +
     "/courses/" +
     encodeURIComponent(courseId) +
-    "/learners";
-
-  return query.length === 0 ? path : path + "?q=" + encodeURIComponent(query);
+    "/learners"
+  );
 };
 
 const mergeRuleBuilderLearners = (courseResults, courseCount) => {
@@ -223,7 +222,7 @@ const loadRuleBuilderLearners = async (query = "") => {
     const courseResults = await Promise.all(
       courseIds.map(async (courseId) => {
         const payload = await lmsFetchJson(
-          ruleBuilderLearnersPath(courseId, query),
+          lmsUrlWithSearchQuery(ruleBuilderLearnersPath(courseId), query),
           "Unable to load LMS learners.",
         );
         return {

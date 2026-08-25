@@ -76,35 +76,46 @@ const lmsFetchJson = async (url, fallbackMessage, options) => {
   return payload;
 };
 
-const lmsRequestControllerBySelect = new WeakMap();
+const lmsUrlWithSearchQuery = (resourceUrl, query) => {
+  const normalizedQuery = query.trim();
 
-const lmsCancelSelectRequest = (select) => {
-  lmsRequestControllerBySelect.get(select)?.abort();
-  lmsRequestControllerBySelect.delete(select);
+  if (resourceUrl.length === 0 || normalizedQuery.length === 0) {
+    return resourceUrl;
+  }
+
+  const separator = resourceUrl.includes("?") ? "&" : "?";
+  return resourceUrl + separator + new URLSearchParams({ q: normalizedQuery }).toString();
 };
 
-const lmsFetchLatestSelectJson = async (select, url, fallbackMessage) => {
-  lmsCancelSelectRequest(select);
+const lmsRequestControllerByOwner = new WeakMap();
+
+const lmsCancelRequest = (requestOwner) => {
+  lmsRequestControllerByOwner.get(requestOwner)?.abort();
+  lmsRequestControllerByOwner.delete(requestOwner);
+};
+
+const lmsFetchLatestJson = async (requestOwner, url, fallbackMessage) => {
+  lmsCancelRequest(requestOwner);
   const controller = new AbortController();
-  lmsRequestControllerBySelect.set(select, controller);
+  lmsRequestControllerByOwner.set(requestOwner, controller);
 
   try {
     const payload = await lmsFetchJson(url, fallbackMessage, {
       signal: controller.signal,
     });
 
-    if (lmsRequestControllerBySelect.get(select) !== controller) {
+    if (lmsRequestControllerByOwner.get(requestOwner) !== controller) {
       return lmsLookupSuperseded();
     }
 
-    lmsRequestControllerBySelect.delete(select);
+    lmsRequestControllerByOwner.delete(requestOwner);
     return { status: "complete", payload };
   } catch (error) {
     if (controller.signal.aborted) {
       return lmsLookupSuperseded();
     }
 
-    lmsRequestControllerBySelect.delete(select);
+    lmsRequestControllerByOwner.delete(requestOwner);
     return {
       status: "failed",
       message: lmsLookupFailureMessage(error, fallbackMessage),
@@ -186,7 +197,7 @@ const lmsHydrateWorkflowStateSelect = async (input) => {
   }
 
   if (workflowStatesUrl.length === 0) {
-    lmsCancelSelectRequest(stateSelect);
+    lmsCancelRequest(stateSelect);
     lmsSetSelectOptions(
       stateSelect,
       [],
@@ -209,7 +220,7 @@ const lmsHydrateWorkflowStateSelect = async (input) => {
     (state) => state.label,
     (state) => state.value,
   );
-  const result = await lmsFetchLatestSelectJson(
+  const result = await lmsFetchLatestJson(
     stateSelect,
     workflowStatesUrl,
     fallbackMessage ?? "Unable to load workflow states.",
@@ -260,7 +271,7 @@ const lmsHydrateGradebookItemSelect = async (input) => {
   }
 
   if (itemsUrl.length === 0) {
-    lmsCancelSelectRequest(itemSelect);
+    lmsCancelRequest(itemSelect);
     lmsSetSelectOptions(
       itemSelect,
       [],
@@ -283,8 +294,8 @@ const lmsHydrateGradebookItemSelect = async (input) => {
     lmsGradebookItemLabel,
     (item) => item.assignmentId,
   );
-  const url = query.length === 0 ? itemsUrl : itemsUrl + "?q=" + encodeURIComponent(query);
-  const result = await lmsFetchLatestSelectJson(
+  const url = lmsUrlWithSearchQuery(itemsUrl, query);
+  const result = await lmsFetchLatestJson(
     itemSelect,
     url,
     fallbackMessage ?? "Unable to load gradebook items.",

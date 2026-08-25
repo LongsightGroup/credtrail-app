@@ -585,6 +585,28 @@ describe("rule-builder LMS course picker", () => {
     ]);
   });
 
+  it("adds a search query without replacing existing resource parameters", async () => {
+    const requestedUrls: string[] = [];
+    const harness = loadPickerHarness({
+      fetchImpl: ((input: RequestInfo | URL): Promise<Response> => {
+        requestedUrls.push(
+          input instanceof Request ? input.url : input instanceof URL ? input.href : input,
+        );
+        return Promise.resolve(Response.json({ items: [] }));
+      }) as typeof fetch,
+    });
+
+    await expect(
+      harness.hydrateGradebookItemSelect({
+        itemSelect: new FakeSelect(),
+        itemsUrl: "/course-101/items?include=archived",
+        query: " final essay ",
+        fallbackMessage: "Unable to load gradebook items.",
+      }),
+    ).resolves.toEqual({ status: "complete" });
+    expect(requestedUrls).toEqual(["/course-101/items?include=archived&q=final+essay"]);
+  });
+
   it("rejects malformed workflow-state payloads at the response boundary", async () => {
     const harness = loadPickerHarness({
       fetchImpl: (() => Promise.resolve(Response.json({ states: [null] }))) as typeof fetch,

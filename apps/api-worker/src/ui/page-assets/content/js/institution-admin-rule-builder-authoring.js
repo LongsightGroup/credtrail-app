@@ -65,6 +65,18 @@ const attemptRuleBuilderAuthoringCommand = async (dependencies, input) => {
   };
 };
 
+const ruleBuilderAuthoringOperationForSubmit = (input) => {
+  if (input.action === "save_draft") {
+    return input.isEditMode ? "save_new_draft_version" : "create_draft";
+  }
+
+  if (input.action === "submit_for_approval") {
+    return input.isEditMode ? "save_and_submit" : "create_and_submit";
+  }
+
+  throw new Error("Unknown rule authoring action");
+};
+
 const ruleBuilderUnconfirmedAuthoringMessage = (input) => {
   let nextStep;
 
@@ -74,6 +86,9 @@ const ruleBuilderUnconfirmedAuthoringMessage = (input) => {
     nextStep = "If it is not listed, try creating and submitting it again.";
   } else if (input.operation === "save_new_draft_version") {
     nextStep = "If the latest draft is unchanged, try saving again.";
+  } else if (input.operation === "save_and_submit") {
+    nextStep =
+      "If the latest version is not pending approval or approved, try saving and submitting it again.";
   } else {
     throw new Error("Unknown rule authoring operation");
   }

@@ -72,8 +72,6 @@ const courseLookupStatusMessage = (courseCount, hasMore, query) => {
         " matches. Refine your search to narrow the list.";
 };
 
-const courseLookupAbortControllerByCard = new WeakMap();
-
 const selectedCourseOptionSnapshots = (select, selectedValues) => {
   const snapshotsByValue = new Map();
 
@@ -132,11 +130,15 @@ const setCourseSelectOptions = (
 const failCourseLookup = (
   card,
   select,
-  error,
+  message,
   selectedValues,
   selectedOptionSnapshots,
 ) => {
-  const outcome = lmsLookupFailed("courses", error, "Unable to load LMS courses.");
+  const outcome = {
+    status: "failed",
+    source: "courses",
+    message,
+  };
   setCourseSelectOptions(
     select,
     [],
@@ -149,35 +151,30 @@ const failCourseLookup = (
   return outcome;
 };
 
-const coursesPath = (query) => {
+const coursesPath = () => {
   const connectionId = getSelectedLmsConnectionId();
 
   if (connectionId.length === 0) {
     return "";
   }
 
-  const queryString = query.trim();
-  const suffix = queryString.length === 0 ? "" : "?q=" + encodeURIComponent(queryString);
-  return lmsConnectionsApiPath + "/" + encodeURIComponent(connectionId) + "/courses" + suffix;
+  return lmsConnectionsApiPath + "/" + encodeURIComponent(connectionId) + "/courses";
 };
 
-const gradebookItemsPath = (courseId, query) => {
+const gradebookItemsPath = (courseId) => {
   const connectionId = getSelectedLmsConnectionId();
 
   if (connectionId.length === 0 || courseId.length === 0) {
     return "";
   }
 
-  const queryString = query.trim();
-  const suffix = queryString.length === 0 ? "" : "?q=" + encodeURIComponent(queryString);
   return (
     lmsConnectionsApiPath +
     "/" +
     encodeURIComponent(connectionId) +
     "/courses/" +
     encodeURIComponent(courseId) +
-    "/gradebook-items" +
-    suffix
+    "/gradebook-items"
   );
 };
 
@@ -201,13 +198,13 @@ const workflowStatesPath = (courseId, assignmentId) => {
 };
 
 const hydrateCourseSelect = async (card, select, query) => {
-  courseLookupAbortControllerByCard.get(card)?.abort();
-  const path = coursesPath(query);
+  const path = coursesPath();
+  const url = lmsUrlWithSearchQuery(path, query);
   const selectedValues = lmsSelectedValuesForSelect(select);
   const selectedOptionSnapshots = selectedCourseOptionSnapshots(select, selectedValues);
 
   if (path.length === 0) {
-    courseLookupAbortControllerByCard.delete(card);
+    lmsCancelRequest(card);
     setCourseLookupStatus(card, select, "", false);
     setCourseSelectOptions(
       select,
@@ -220,35 +217,35 @@ const hydrateCourseSelect = async (card, select, query) => {
     return lmsLookupComplete();
   }
 
-  const abortController = new AbortController();
-  courseLookupAbortControllerByCard.set(card, abortController);
   setCourseLookupStatus(card, select, "", false);
   select.disabled = true;
   setCourseSelectOptions(select, [], "Loading courses...", selectedValues, selectedOptionSnapshots);
-  let payload;
+  const result = await lmsFetchLatestJson(card, url, "Unable to load LMS courses.");
 
-  try {
-    payload = await lmsFetchJson(path, "Unable to load LMS courses.", {
-      signal: abortController.signal,
-    });
-  } catch (error) {
-    if (abortController.signal.aborted) {
-      return lmsLookupSuperseded();
-    }
-
-    courseLookupAbortControllerByCard.delete(card);
-    return failCourseLookup(card, select, error, selectedValues, selectedOptionSnapshots);
+  if (result.status === "superseded") {
+    return result;
   }
 
-  if (courseLookupAbortControllerByCard.get(card) !== abortController) {
-    return lmsLookupSuperseded();
+  if (result.status === "failed") {
+    return failCourseLookup(
+      card,
+      select,
+      result.message,
+      selectedValues,
+      selectedOptionSnapshots,
+    );
   }
 
-  courseLookupAbortControllerByCard.delete(card);
-  const parsed = lmsParseCourseSearchPayload(payload);
+  const parsed = lmsParseCourseSearchPayload(result.payload);
 
   if (parsed === null) {
-    return failCourseLookup(card, select, null, selectedValues, selectedOptionSnapshots);
+    return failCourseLookup(
+      card,
+      select,
+      "Unable to load LMS courses.",
+      selectedValues,
+      selectedOptionSnapshots,
+    );
   }
 
   const { courses, hasMore } = parsed;
@@ -299,7 +296,7 @@ const hydrateGradebookItemSelect = async (card, query) => {
     return lmsLookupSuperseded();
   }
 
-  const path = gradebookItemsPath(courseId, query);
+  const path = gradebookItemsPath(courseId);
 
   setGradebookLookupStatus(card, "", false);
 
@@ -307,7 +304,7 @@ const hydrateGradebookItemSelect = async (card, query) => {
     itemSelect,
     stateSelect,
     itemsUrl: path,
-    query: "",
+    query,
     itemFallbackMessage: "Unable to load gradebook items.",
     workflowFallbackMessage: "Unable to load workflow states.",
     workflowStatesUrlForAssignment: (assignmentId) =>
