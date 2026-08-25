@@ -1,47 +1,68 @@
-const requestRuleBuilderAuthoringCommand = async (dependencies, input) => {
-  const replaySafeCreate = input.delivery.kind === "replay_safe_create";
+const attemptRuleBuilderAuthoringCommand = async (dependencies, input) => {
+  const requestId = dependencies.createRequestId();
+  let response;
 
-  if (!replaySafeCreate && input.delivery.kind !== "single_attempt") {
-    throw new Error("Unknown rule authoring delivery policy");
+  try {
+    response = await dependencies.request(input.apiPath, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-request-id": requestId,
+      },
+      body: input.body,
+    });
+  } catch {
+    return {
+      status: "unknown",
+      requestId,
+      attemptCount: input.attemptCount,
+    };
   }
 
-  const maximumAttempts = replaySafeCreate ? 2 : 1;
-  const payload = replaySafeCreate
-    ? { ...input.payload, builderDraftId: input.delivery.builderDraftId }
-    : input.payload;
-  const body = JSON.stringify(payload);
+  let payload;
 
-  for (let attemptCount = 1; attemptCount <= maximumAttempts; attemptCount += 1) {
-    const requestId = dependencies.createRequestId();
+  try {
+    payload = await dependencies.parseResponse(response);
+  } catch {
+    return {
+      status: "unknown",
+      requestId,
+      attemptCount: input.attemptCount,
+    };
+  }
 
-    try {
-      const response = await dependencies.request(input.apiPath, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-request-id": requestId,
-        },
-        body,
-      });
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === "object" && typeof payload.error === "string"
+        ? payload.error
+        : "";
 
-      return {
-        status: "response_received",
-        response,
-        requestId,
-        attemptCount,
-      };
-    } catch {
-      if (attemptCount === maximumAttempts) {
-        return {
-          status: "unconfirmed",
+    return message.length > 0
+      ? { status: "rejected", message }
+      : {
+          status: "unknown",
           requestId,
-          attemptCount,
+          attemptCount: input.attemptCount,
         };
-      }
-    }
   }
 
-  throw new Error("Rule authoring attempt limit was not resolved");
+  const outcome =
+    payload && typeof payload === "object" && typeof payload.outcome === "string"
+      ? payload.outcome
+      : "";
+
+  if (outcome !== "draft_saved" && outcome !== "pending_approval" && outcome !== "approved") {
+    return {
+      status: "unknown",
+      requestId,
+      attemptCount: input.attemptCount,
+    };
+  }
+
+  return {
+    status: "completed",
+    outcome,
+  };
 };
 
 const ruleBuilderUnconfirmedAuthoringMessage = (input) => {
@@ -85,52 +106,37 @@ const createRuleBuilderAuthoringController = (dependencies) => {
     state = "submitting";
 
     try {
-      const requestResult = await requestRuleBuilderAuthoringCommand(dependencies, input);
+      const replaySafeCreate = input.delivery.kind === "replay_safe_create";
 
-      if (requestResult.status === "unconfirmed") {
-        return {
-          status: "unknown",
-          requestId: requestResult.requestId,
-          attemptCount: requestResult.attemptCount,
-        };
+      if (!replaySafeCreate && input.delivery.kind !== "single_attempt") {
+        throw new Error("Unknown rule authoring delivery policy");
       }
 
-      let payload;
+      const maximumAttempts = replaySafeCreate ? 2 : 1;
+      const payload = replaySafeCreate
+        ? { ...input.payload, builderDraftId: input.delivery.builderDraftId }
+        : input.payload;
+      const body = JSON.stringify(payload);
+      let attemptCount = 1;
 
-      try {
-        payload = await dependencies.parseResponse(requestResult.response);
-      } catch {
-        return {
-          status: "unknown",
-          requestId: requestResult.requestId,
-          attemptCount: requestResult.attemptCount,
-        };
+      while (true) {
+        const result = await attemptRuleBuilderAuthoringCommand(dependencies, {
+          apiPath: input.apiPath,
+          body,
+          attemptCount,
+        });
+
+        if (result.status === "completed") {
+          state = "completed";
+          return result;
+        }
+
+        if (result.status === "rejected" || attemptCount === maximumAttempts) {
+          return result;
+        }
+
+        attemptCount += 1;
       }
-
-      if (!requestResult.response.ok) {
-        return {
-          status: "rejected",
-          message: dependencies.errorMessage(payload),
-        };
-      }
-
-      const outcome =
-        payload && typeof payload === "object" && typeof payload.outcome === "string"
-          ? payload.outcome
-          : "";
-
-      if (outcome !== "draft_saved" && outcome !== "pending_approval" && outcome !== "approved") {
-        return {
-          status: "rejected",
-          message: "CredTrail returned an invalid rule authoring outcome.",
-        };
-      }
-
-      state = "completed";
-      return {
-        status: "completed",
-        outcome,
-      };
     } finally {
       if (state === "submitting") {
         state = "idle";

@@ -3,7 +3,6 @@ import { createContext, Script } from "node:vm";
 import { describe, expect, it } from "vitest";
 
 type AuthoringOutcome = "draft_saved" | "pending_approval" | "approved";
-type AuthoringOperation = "create_draft" | "create_and_submit" | "save_new_draft_version";
 type AuthoringDelivery =
   | { readonly kind: "single_attempt" }
   | { readonly kind: "replay_safe_create"; readonly builderDraftId: string };
@@ -42,18 +41,11 @@ interface AuthoringController {
 interface AuthoringControllerDependencies {
   readonly request: BrowserRequest;
   readonly parseResponse: (response: BrowserResponse) => Promise<unknown>;
-  readonly errorMessage: (payload: unknown) => string;
   readonly createRequestId: () => string;
 }
 
 interface RuleBuilderAuthoringModule {
   readonly createController: (dependencies: AuthoringControllerDependencies) => AuthoringController;
-  readonly unconfirmedMessage: (input: {
-    readonly operation: AuthoringOperation;
-    readonly ruleName: string;
-    readonly attemptCount: number;
-    readonly requestId: string;
-  }) => string;
 }
 
 const loadRuleBuilderAuthoringModule = (): RuleBuilderAuthoringModule => {
@@ -63,21 +55,17 @@ const loadRuleBuilderAuthoringModule = (): RuleBuilderAuthoringModule => {
   );
   const context = createContext({});
   new Script(
-    `${source}\nthis.createController = createRuleBuilderAuthoringController;\nthis.unconfirmedMessage = ruleBuilderUnconfirmedAuthoringMessage;`,
+    `${source}\nthis.createController = createRuleBuilderAuthoringController;`,
   ).runInContext(context);
   const loaded = context as {
     readonly createController?: unknown;
-    readonly unconfirmedMessage?: unknown;
   };
 
   if (typeof loaded.createController !== "function") {
     throw new Error("Rule builder authoring controller did not load");
   }
-  if (typeof loaded.unconfirmedMessage !== "function") {
-    throw new Error("Rule builder unconfirmed message policy did not load");
-  }
 
-  // SAFETY: The VM source defines both functions, and the runtime guards verify their callable boundaries.
+  // SAFETY: The VM source defines the function, and the runtime guard verifies its callable boundary.
   return loaded as RuleBuilderAuthoringModule;
 };
 
@@ -89,13 +77,11 @@ const createResponseParser = async (response: BrowserResponse): Promise<unknown>
 const createTestController = (input: {
   readonly request: BrowserRequest;
   readonly parseResponse?: (response: BrowserResponse) => Promise<unknown>;
-  readonly errorMessage?: (payload: unknown) => string;
   readonly createRequestId?: () => string;
 }): AuthoringController => {
   return authoringModule.createController({
     request: input.request,
     parseResponse: input.parseResponse ?? createResponseParser,
-    errorMessage: input.errorMessage ?? (() => "request rejected"),
     createRequestId: input.createRequestId ?? (() => "request-1"),
   });
 };
@@ -175,13 +161,6 @@ describe("rule builder browser authoring controller", () => {
   it("returns a rejected command to idle so the user can correct and retry", async () => {
     const controller = createTestController({
       request: async () => ({ ok: false, payload: { error: "Policy needs an approval step." } }),
-      errorMessage: (payload) =>
-        typeof payload === "object" &&
-        payload !== null &&
-        "error" in payload &&
-        typeof payload.error === "string"
-          ? payload.error
-          : "request rejected",
     });
 
     const result = await controller.execute({
@@ -246,6 +225,110 @@ describe("rule builder browser authoring controller", () => {
       },
     ]);
     expect(controller.state()).toBe("completed");
+  });
+
+  it("retries a replay-safe create when a successful response body is malformed", async () => {
+    let requestCount = 0;
+    const controller = createTestController({
+      request: async () => {
+        requestCount += 1;
+        return requestCount === 1
+          ? { ok: true, payload: null }
+          : { ok: true, payload: { outcome: "draft_saved" } };
+      },
+      createRequestId: () => `request-${requestCount + 1}`,
+    });
+
+    const result = await controller.execute({
+      apiPath: "/author",
+      delivery: { kind: "replay_safe_create", builderDraftId: "brd-123" },
+      payload: { action: "save_draft" },
+    });
+
+    expect(result).toEqual({ status: "completed", outcome: "draft_saved" });
+    expect(requestCount).toBe(2);
+    expect(controller.state()).toBe("completed");
+  });
+
+  it("retries a replay-safe create when parsing the first response fails", async () => {
+    let parseCount = 0;
+    let requestCount = 0;
+    const controller = createTestController({
+      request: async () => {
+        requestCount += 1;
+        return { ok: true, payload: { outcome: "draft_saved" } };
+      },
+      parseResponse: async (response) => {
+        parseCount += 1;
+
+        if (parseCount === 1) {
+          throw new Error("response body unavailable");
+        }
+
+        return response.payload;
+      },
+      createRequestId: () => `request-${requestCount + 1}`,
+    });
+
+    const result = await controller.execute({
+      apiPath: "/author",
+      delivery: { kind: "replay_safe_create", builderDraftId: "brd-123" },
+      payload: { action: "save_draft" },
+    });
+
+    expect(result).toEqual({ status: "completed", outcome: "draft_saved" });
+    expect(requestCount).toBe(2);
+    expect(parseCount).toBe(2);
+  });
+
+  it("retries an unrecognized gateway response for a replay-safe create", async () => {
+    let requestCount = 0;
+    const controller = createTestController({
+      request: async () => {
+        requestCount += 1;
+        return requestCount === 1
+          ? { ok: false, payload: null }
+          : { ok: true, payload: { outcome: "draft_saved" } };
+      },
+      createRequestId: () => `request-${requestCount + 1}`,
+    });
+
+    const result = await controller.execute({
+      apiPath: "/author",
+      delivery: { kind: "replay_safe_create", builderDraftId: "brd-123" },
+      payload: { action: "save_draft" },
+    });
+
+    expect(result).toEqual({ status: "completed", outcome: "draft_saved" });
+    expect(requestCount).toBe(2);
+  });
+
+  it("does not retry a structured CredTrail server rejection", async () => {
+    let requestCount = 0;
+    const controller = createTestController({
+      request: async () => {
+        requestCount += 1;
+        return {
+          ok: false,
+          payload: {
+            error: "CredTrail could not check this badge's artwork right now.",
+          },
+        };
+      },
+    });
+
+    const result = await controller.execute({
+      apiPath: "/author",
+      delivery: { kind: "replay_safe_create", builderDraftId: "brd-123" },
+      payload: { action: "save_draft" },
+    });
+
+    expect(result).toEqual({
+      status: "rejected",
+      message: "CredTrail could not check this badge's artwork right now.",
+    });
+    expect(requestCount).toBe(1);
+    expect(controller.state()).toBe("idle");
   });
 
   it("reports the terminal attempt after both replay-safe requests lose their responses", async () => {
@@ -334,46 +417,4 @@ describe("rule builder browser authoring controller", () => {
     ).rejects.toThrow("request ID generator defect");
     expect(controller.state()).toBe("idle");
   });
-});
-
-describe("rule builder unconfirmed authoring message", () => {
-  it.each<{
-    readonly operation: AuthoringOperation;
-    readonly attemptCount: number;
-    readonly confirmationMessage: string;
-    readonly nextStep: string;
-  }>([
-    {
-      operation: "create_draft",
-      attemptCount: 2,
-      confirmationMessage: "CredTrail retried but did not receive confirmation.",
-      nextStep: "If it is not listed, try creating the draft again.",
-    },
-    {
-      operation: "create_and_submit",
-      attemptCount: 2,
-      confirmationMessage: "CredTrail retried but did not receive confirmation.",
-      nextStep: "If it is not listed, try creating and submitting it again.",
-    },
-    {
-      operation: "save_new_draft_version",
-      attemptCount: 1,
-      confirmationMessage: "CredTrail did not receive confirmation.",
-      nextStep: "If the latest draft is unchanged, try saving again.",
-    },
-  ])(
-    "renders the $operation recovery policy",
-    ({ operation, attemptCount, confirmationMessage, nextStep }) => {
-      expect(
-        authoringModule.unconfirmedMessage({
-          operation,
-          ruleName: "Attendance award",
-          attemptCount,
-          requestId: "request-42",
-        }),
-      ).toBe(
-        `${confirmationMessage} In Rules, look for “Attendance award”. ${nextStep} Reference: request-42.`,
-      );
-    },
-  );
 });

@@ -79,7 +79,6 @@ const ruleBuilderSaveFormalDraftButton = document.getElementById("rule-builder-s
 const ruleBuilderAuthoringController = createRuleBuilderAuthoringController({
   request: fetch,
   parseResponse: parseJsonBody,
-  errorMessage: errorDetailFromPayload,
   createRequestId: () => crypto.randomUUID(),
 });
 const ruleBuilderSaveDraftButton = document.getElementById("rule-builder-save-draft");
