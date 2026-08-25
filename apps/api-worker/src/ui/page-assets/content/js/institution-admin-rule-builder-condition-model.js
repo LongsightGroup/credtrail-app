@@ -253,7 +253,7 @@ const conditionLabel = (condition) => {
   return conditionTypeLabels[type] ?? "Requirement";
 };
 
-const conditionDetail = (condition) => {
+const conditionDetail = (condition, courseLabelForId) => {
   const leaf = leafConditionFromCondition(condition);
 
   if (leaf === null || typeof leaf !== "object") {
@@ -263,7 +263,7 @@ const conditionDetail = (condition) => {
   if (leaf.type === "course_completion") {
     const courseLabel =
       typeof leaf.courseId === "string" && leaf.courseId.length > 0
-        ? ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), leaf.courseId)
+        ? courseLabelForId(leaf.courseId)
         : (leaf.courseListId ?? "selected course");
 
     return (
@@ -279,7 +279,7 @@ const conditionDetail = (condition) => {
     const parts = [];
     const courseLabel =
       typeof leaf.courseId === "string" && leaf.courseId.length > 0
-        ? ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), leaf.courseId)
+        ? courseLabelForId(leaf.courseId)
         : (leaf.courseListId ?? "selected");
 
     if (leaf.minScore !== undefined) {
@@ -302,7 +302,7 @@ const conditionDetail = (condition) => {
       "Gradebook item " +
       leaf.assignmentId +
       " in " +
-      ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), leaf.courseId) +
+      courseLabelForId(leaf.courseId) +
       " must satisfy submission rules."
     );
   }
@@ -394,6 +394,7 @@ const renderRuleFlowPreview = () => {
   const conditions = readConditionsForPreview();
   const rootLogic = getRuleBuilderRootLogic();
   const connectorLabel = rootLogic === "any" ? "OR" : "AND";
+  const courseLabelForId = ruleBuilderCourseLabelResolver(getSelectedLmsConnectionId());
 
   ruleBuilderFlowEmpty.hidden = conditions.length > 0;
 
@@ -421,7 +422,7 @@ const renderRuleFlowPreview = () => {
       index === 0 ? "" : connectorLabel,
       "Requirement " + String(index + 1),
       (isNegated ? "Exclude: " : "") + conditionLabel(condition),
-      conditionDetail(condition),
+      conditionDetail(condition, courseLabelForId),
     );
   });
   const badgeLabel = selectedBadgeTemplateLabel();
@@ -448,7 +449,7 @@ const addSourceEntry = (entries, key, label, state, detail) => {
   }
 };
 
-const sourceEntriesForConditions = (conditions) => {
+const sourceEntriesForConditions = (conditions, courseLabelForId) => {
   const entries = new Map();
   const lmsLabel = getSelectedLmsProviderKind() || "selected LMS";
 
@@ -469,7 +470,7 @@ const sourceEntriesForConditions = (conditions) => {
         "lms-gradebook",
         lmsLabel + " gradebook connection",
         "Connected or sample",
-        conditionDetail(condition),
+        conditionDetail(condition, courseLabelForId),
       );
       return;
     }
@@ -480,7 +481,7 @@ const sourceEntriesForConditions = (conditions) => {
         "lms-assignments",
         lmsLabel + " gradebook items",
         "Connected or sample",
-        conditionDetail(condition),
+        conditionDetail(condition, courseLabelForId),
       );
       return;
     }
@@ -491,7 +492,7 @@ const sourceEntriesForConditions = (conditions) => {
         "survey",
         leaf.source === "qualtrics" ? "Qualtrics surveys" : "Survey facts",
         "Sample or connector facts",
-        conditionDetail(condition),
+        conditionDetail(condition, courseLabelForId),
       );
       return;
     }
@@ -502,7 +503,7 @@ const sourceEntriesForConditions = (conditions) => {
         "credtrail",
         "CredTrail issued badges",
         "Available",
-        conditionDetail(condition),
+        conditionDetail(condition, courseLabelForId),
       );
       return;
     }
@@ -513,13 +514,19 @@ const sourceEntriesForConditions = (conditions) => {
         "custom",
         "Institutional fields",
         "Sample or import facts",
-        conditionDetail(condition),
+        conditionDetail(condition, courseLabelForId),
       );
       return;
     }
 
     if (leaf.type === "time_window") {
-      addSourceEntry(entries, "clock", "System clock", "Available", conditionDetail(condition));
+      addSourceEntry(
+        entries,
+        "clock",
+        "System clock",
+        "Available",
+        conditionDetail(condition, courseLabelForId),
+      );
     }
   });
 
@@ -639,7 +646,8 @@ const renderSourceReadiness = () => {
   }
 
   const conditions = readConditionsForPreview();
-  const entries = sourceEntriesForConditions(conditions);
+  const courseLabelForId = ruleBuilderCourseLabelResolver(getSelectedLmsConnectionId());
+  const entries = sourceEntriesForConditions(conditions, courseLabelForId);
 
   if (entries.length === 0) {
     const row = document.createElement("div");

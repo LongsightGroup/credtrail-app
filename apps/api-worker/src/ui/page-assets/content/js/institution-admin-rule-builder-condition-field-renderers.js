@@ -88,7 +88,13 @@ const createCourseSearchField = (targetFieldName) => {
   );
 };
 
-const createCourseSelectField = (labelText, fieldName, selectedValue, multiple) => {
+const createCourseSelectField = (
+  labelText,
+  fieldName,
+  selectedValue,
+  multiple,
+  courseLabelForId,
+) => {
   const selectedCourseIds = parseCsv(selectedValue);
   const attributes = {
     "data-field": fieldName,
@@ -109,11 +115,7 @@ const createCourseSelectField = (labelText, fieldName, selectedValue, multiple) 
     createConditionSelect(attributes, [
       createConditionOption("", "Loading courses...", selectedCourseIds.length === 0),
       ...selectedCourseIds.map((courseId) =>
-        createConditionOption(
-          courseId,
-          ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), courseId),
-          true,
-        ),
+        createConditionOption(courseId, courseLabelForId(courseId), true),
       ),
     ]),
   );
@@ -131,10 +133,16 @@ const createConditionLookupStatus = (attributeName, attributeValue) => {
   return status;
 };
 
-const createCoursePickerFields = (labelText, fieldName, selectedValue, multiple) => {
+const createCoursePickerFields = (
+  labelText,
+  fieldName,
+  selectedValue,
+  multiple,
+  courseLabelForId,
+) => {
   return [
     createCourseSearchField(fieldName),
-    createCourseSelectField(labelText, fieldName, selectedValue, multiple),
+    createCourseSelectField(labelText, fieldName, selectedValue, multiple, courseLabelForId),
     createConditionLookupStatus("data-lms-course-status", fieldName),
   ];
 };
@@ -167,10 +175,16 @@ const createListSelectField = (labelText, fieldName, kind, selectedValue, emptyL
   );
 };
 
-const renderCourseCompletionFields = (card, fieldsContainer, seed) => {
+const renderCourseCompletionFields = (card, fieldsContainer, seed, courseLabelForId) => {
   const selectedCourseId = typeof seed.courseId === "string" ? seed.courseId : "";
   replaceConditionFields(fieldsContainer, [
-    ...createCoursePickerFields("LMS course", "courseId", selectedCourseId, false),
+    ...createCoursePickerFields(
+      "LMS course",
+      "courseId",
+      selectedCourseId,
+      false,
+      courseLabelForId,
+    ),
     createConditionField(
       "Gradebook completion at least %",
       createConditionInput("number", {
@@ -197,10 +211,16 @@ const renderCourseCompletionFields = (card, fieldsContainer, seed) => {
   updateConditionPlainSummary(card);
 };
 
-const renderGradeThresholdFields = (card, fieldsContainer, seed) => {
+const renderGradeThresholdFields = (card, fieldsContainer, seed, courseLabelForId) => {
   const selectedCourseId = typeof seed.courseId === "string" ? seed.courseId : "";
   replaceConditionFields(fieldsContainer, [
-    ...createCoursePickerFields("LMS course", "courseId", selectedCourseId, false),
+    ...createCoursePickerFields(
+      "LMS course",
+      "courseId",
+      selectedCourseId,
+      false,
+      courseLabelForId,
+    ),
     createConditionField(
       "Gradebook score field",
       createConditionSelect({ "data-field": "scoreField" }, [
@@ -245,10 +265,16 @@ const renderGradeThresholdFields = (card, fieldsContainer, seed) => {
   updateConditionPlainSummary(card);
 };
 
-const renderProgramCompletionFields = (card, fieldsContainer, seed) => {
+const renderProgramCompletionFields = (card, fieldsContainer, seed, courseLabelForId) => {
   const selectedCourseIds = Array.isArray(seed.courseIds) ? seed.courseIds.join(",") : "";
   replaceConditionFields(fieldsContainer, [
-    ...createCoursePickerFields("Courses", "courseIds", selectedCourseIds, true),
+    ...createCoursePickerFields(
+      "Courses",
+      "courseIds",
+      selectedCourseIds,
+      true,
+      courseLabelForId,
+    ),
     createConditionField(
       "Minimum completed (optional)",
       createConditionInput("number", {
@@ -275,14 +301,14 @@ const renderProgramCompletionFields = (card, fieldsContainer, seed) => {
   updateConditionPlainSummary(card);
 };
 
-const renderAssignmentSubmissionFields = (card, fieldsContainer, seed) => {
+const renderAssignmentSubmissionFields = (card, fieldsContainer, seed, courseLabelForId) => {
   const selectedCourseId = typeof seed.courseId === "string" ? seed.courseId : "";
   const selectedAssignmentId = typeof seed.assignmentId === "string" ? seed.assignmentId : "";
   const selectedWorkflowStates = Array.isArray(seed.workflowStates)
     ? seed.workflowStates.join(",")
     : "";
   replaceConditionFields(fieldsContainer, [
-    ...createCoursePickerFields("Course", "courseId", selectedCourseId, false),
+    ...createCoursePickerFields("Course", "courseId", selectedCourseId, false, courseLabelForId),
     createConditionField(
       "Gradebook item search",
       createConditionInput("search", {
@@ -501,5 +527,10 @@ const renderConditionFields = (card, seed) => {
   updateConditionCardClass(card, conditionType);
   const renderer = conditionFieldRenderers[conditionType] ?? renderPrerequisiteBadgeFields;
 
-  renderer(card, fieldsContainer, seed);
+  renderer(
+    card,
+    fieldsContainer,
+    seed,
+    ruleBuilderCourseLabelResolver(getSelectedLmsConnectionId()),
+  );
 };

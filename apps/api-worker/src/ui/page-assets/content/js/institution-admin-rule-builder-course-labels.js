@@ -40,3 +40,7 @@ const hasRuleBuilderCourseLabel = (connectionId, courseId) => {
 const ruleBuilderCourseLabelForId = (connectionId, courseId) => {
   return ruleBuilderCourseLabelsByConnectionId.get(connectionId)?.get(courseId) ?? courseId;
 };
+
+const ruleBuilderCourseLabelResolver = (connectionId) => {
+  return (courseId) => ruleBuilderCourseLabelForId(connectionId, courseId);
+};

@@ -160,10 +160,12 @@ const updateConditionPlainSummary = (card) => {
   const conditionType =
     typeSelect instanceof HTMLSelectElement ? typeSelect.value : "course_completion";
   const negatePrefix = readCheckboxFromCard(card, "negate") ? "Must not: " : "";
+  const courseLabelForId = ruleBuilderCourseLabelResolver(getSelectedLmsConnectionId());
 
   try {
     const condition = readConditionFromCard(card, false);
-    summaryElement.textContent = negatePrefix + formatConditionPlainSummary(condition);
+    summaryElement.textContent =
+      negatePrefix + formatConditionPlainSummary(condition, courseLabelForId);
     return;
   } catch {
     summaryElement.textContent =
@@ -171,7 +173,7 @@ const updateConditionPlainSummary = (card) => {
   }
 };
 
-const formatConditionPlainSummary = (condition) => {
+const formatConditionPlainSummary = (condition, courseLabelForId) => {
   if (!condition || typeof condition !== "object" || typeof condition.type !== "string") {
     return "Requirement";
   }
@@ -181,7 +183,7 @@ const formatConditionPlainSummary = (condition) => {
       typeof condition.courseListId === "string" && condition.courseListId.length > 0
         ? "courses from list " + condition.courseListId
         : typeof condition.courseId === "string" && condition.courseId.length > 0
-          ? ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), condition.courseId)
+          ? courseLabelForId(condition.courseId)
           : "the course";
     const completionPercent =
       typeof condition.minCompletionPercent === "number" ? condition.minCompletionPercent : 100;
@@ -199,7 +201,7 @@ const formatConditionPlainSummary = (condition) => {
       typeof condition.courseListId === "string" && condition.courseListId.length > 0
         ? "courses from list " + condition.courseListId
         : typeof condition.courseId === "string" && condition.courseId.length > 0
-          ? ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), condition.courseId)
+          ? courseLabelForId(condition.courseId)
           : "the course";
     const scoreField = condition.scoreField === "current_score" ? "current score" : "final score";
     const minScore =
@@ -226,9 +228,7 @@ const formatConditionPlainSummary = (condition) => {
 
     const courseLabel =
       courseCount > 0
-        ? condition.courseIds
-            .map((courseId) => ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), courseId))
-            .join(", ")
+        ? condition.courseIds.map(courseLabelForId).join(", ")
         : "required courses";
 
     return "Learner completes at least " + String(minimumCompleted) + " of: " + courseLabel;
@@ -237,7 +237,7 @@ const formatConditionPlainSummary = (condition) => {
   if (condition.type === "assignment_submission") {
     const courseLabel =
       typeof condition.courseId === "string" && condition.courseId.length > 0
-        ? ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), condition.courseId)
+        ? courseLabelForId(condition.courseId)
         : "the course";
     const assignmentLabel =
       typeof condition.assignmentId === "string" && condition.assignmentId.length > 0

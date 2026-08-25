@@ -71,62 +71,52 @@ const selectedCourseOptionSnapshots = (select, selectedValues, connectionId) => 
   return snapshotsByValue;
 };
 
-const setCourseSelectOptions = (
-  select,
-  courses,
-  emptyLabel,
-  selectedValues,
-  selectedOptionSnapshots,
-  connectionId,
-) => {
-  lmsSetSelectOptions(
-    select,
-    courses,
-    emptyLabel,
-    selectedValues,
-    ruleBuilderCourseLabel,
-    (course) => course.courseId,
-  );
+const courseSelectOptions = (input) => {
+  const courseById = new Map(input.courses.map((course) => [course.courseId, course]));
+  const selectedValues = [...new Set(input.selectedValues)];
+  const selectedSet = new Set(selectedValues);
+  const selectedOptions = selectedValues.map((courseId) => {
+    const course = courseById.get(courseId);
 
-  const availableValues = new Set(Array.from(select.options).map((option) => option.value));
-  const firstCourseOption = select.options.item(1);
-
-  selectedOptionSnapshots.forEach((snapshotLabel, value) => {
-    if (availableValues.has(value)) {
-      return;
-    }
-
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = hasRuleBuilderCourseLabel(connectionId, value)
-      ? ruleBuilderCourseLabelForId(connectionId, value)
-      : snapshotLabel;
-    option.selected = true;
-
-    if (firstCourseOption === null) {
-      select.append(option);
-    } else {
-      select.insertBefore(option, firstCourseOption);
-    }
+    return {
+      courseId,
+      label:
+        course === undefined
+          ? hasRuleBuilderCourseLabel(input.connectionId, courseId)
+            ? ruleBuilderCourseLabelForId(input.connectionId, courseId)
+            : (input.selectedOptionSnapshots.get(courseId) ?? courseId)
+          : ruleBuilderCourseLabel(course),
+    };
   });
+  const availableOptions = input.courses
+    .filter((course) => !selectedSet.has(course.courseId))
+    .map((course) => ({
+      courseId: course.courseId,
+      label: ruleBuilderCourseLabel(course),
+    }));
+
+  return [...selectedOptions, ...availableOptions];
 };
 
-const failCourseLookup = (
-  card,
-  select,
-  message,
-  selectedValues,
-  selectedOptionSnapshots,
-  connectionId,
-) => {
-  setCourseSelectOptions(
+const setCourseSelectOptions = (select, input) => {
+  const options = courseSelectOptions(input);
+
+  lmsSetSelectOptions(
     select,
-    [],
-    "Courses unavailable",
-    selectedValues,
-    selectedOptionSnapshots,
-    connectionId,
+    options,
+    input.emptyLabel,
+    input.selectedValues,
+    (option) => option.label,
+    (option) => option.courseId,
   );
+};
+
+const failCourseLookup = (card, select, message, selection) => {
+  setCourseSelectOptions(select, {
+    ...selection,
+    courses: [],
+    emptyLabel: "Courses unavailable",
+  });
   const outcome = lmsFailSelectLookup(
     select,
     "Courses unavailable",
@@ -182,6 +172,71 @@ const workflowStatesPath = (courseId, assignmentId) => {
   );
 };
 
+const restoreSelectedCourseLabels = async (input) => {
+  const unresolvedCourseIds = [
+    ...new Set(
+      input.selectedValues.filter(
+        (courseId) => !hasRuleBuilderCourseLabel(input.connectionId, courseId),
+      ),
+    ),
+  ];
+
+  if (unresolvedCourseIds.length === 0) {
+    return { status: "complete", warningMessage: "" };
+  }
+
+  const result = await lmsFetchLatestJson(
+    input.requestOwner,
+    input.coursesPath + "/resolve",
+    "Unable to restore saved course names.",
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ courseIds: unresolvedCourseIds }),
+    },
+  );
+
+  if (result.status === "superseded") {
+    return result;
+  }
+
+  if (getSelectedLmsConnectionId() !== input.connectionId) {
+    return lmsLookupSuperseded();
+  }
+
+  if (result.status === "failed") {
+    return {
+      status: "complete",
+      warningMessage: result.message + " Saved course IDs remain visible.",
+    };
+  }
+
+  const resolvedCourses = lmsParseCourseResolutionPayload(result.payload);
+
+  if (resolvedCourses === null) {
+    return {
+      status: "complete",
+      warningMessage: "Unable to restore every saved course name. Saved course IDs remain visible.",
+    };
+  }
+
+  rememberRuleBuilderCourseLabels(input.connectionId, resolvedCourses);
+  const restoredCourseIds = new Set(resolvedCourses.map((course) => course.courseId));
+  const hasMissingCourse = unresolvedCourseIds.some(
+    (courseId) => !restoredCourseIds.has(courseId),
+  );
+
+  return {
+    status: "complete",
+    warningMessage: hasMissingCourse
+      ? "Unable to restore every saved course name. Saved course IDs remain visible."
+      : "",
+  };
+};
+
 const hydrateCourseSelect = async (card, select, query) => {
   const connectionId = getSelectedLmsConnectionId();
   const path = coursesPathForConnection(connectionId);
@@ -192,32 +247,31 @@ const hydrateCourseSelect = async (card, select, query) => {
     selectedValues,
     connectionId,
   );
+  const selection = {
+    connectionId,
+    selectedValues,
+    selectedOptionSnapshots,
+  };
 
   if (path.length === 0) {
     lmsCancelRequest(card);
     setCourseLookupStatus(card, select, "", false);
-    setCourseSelectOptions(
-      select,
-      [],
-      "Select an LMS connection first",
-      selectedValues,
-      selectedOptionSnapshots,
-      connectionId,
-    );
+    setCourseSelectOptions(select, {
+      ...selection,
+      courses: [],
+      emptyLabel: "Select an LMS connection first",
+    });
     select.disabled = true;
     return lmsLookupComplete();
   }
 
   setCourseLookupStatus(card, select, "", false);
   select.disabled = true;
-  setCourseSelectOptions(
-    select,
-    [],
-    "Loading courses...",
-    selectedValues,
-    selectedOptionSnapshots,
-    connectionId,
-  );
+  setCourseSelectOptions(select, {
+    ...selection,
+    courses: [],
+    emptyLabel: "Loading courses...",
+  });
   const result = await lmsFetchLatestJson(card, url, "Unable to load LMS courses.");
 
   if (result.status === "superseded") {
@@ -225,27 +279,13 @@ const hydrateCourseSelect = async (card, select, query) => {
   }
 
   if (result.status === "failed") {
-    return failCourseLookup(
-      card,
-      select,
-      result.message,
-      selectedValues,
-      selectedOptionSnapshots,
-      connectionId,
-    );
+    return failCourseLookup(card, select, result.message, selection);
   }
 
   const parsed = lmsParseCourseSearchPayload(result.payload);
 
   if (parsed === null) {
-    return failCourseLookup(
-      card,
-      select,
-      "Unable to load LMS courses.",
-      selectedValues,
-      selectedOptionSnapshots,
-      connectionId,
-    );
+    return failCourseLookup(card, select, "Unable to load LMS courses.", selection);
   }
 
   const { courses, hasMore } = parsed;
@@ -254,88 +294,28 @@ const hydrateCourseSelect = async (card, select, query) => {
   }
 
   rememberRuleBuilderCourseLabels(connectionId, courses);
-  setCourseSelectOptions(
-    select,
-    courses,
-    courses.length === 0 ? "No matching courses" : "Select course",
-    selectedValues,
-    selectedOptionSnapshots,
+  const labelRestoration = await restoreSelectedCourseLabels({
     connectionId,
-  );
+    coursesPath: path,
+    requestOwner: card,
+    selectedValues,
+  });
 
-  const unresolvedCourseIds = [
-    ...new Set(
-      selectedValues.filter((courseId) => !hasRuleBuilderCourseLabel(connectionId, courseId)),
-    ),
-  ];
-
-  if (unresolvedCourseIds.length > 0) {
-    const resolutionResult = await lmsFetchLatestJson(
-      card,
-      path + "/resolve",
-      "Unable to restore saved course names.",
-      {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ courseIds: unresolvedCourseIds }),
-      },
-    );
-
-    if (resolutionResult.status === "superseded") {
-      return resolutionResult;
-    }
-
-    if (getSelectedLmsConnectionId() !== connectionId) {
-      return lmsLookupSuperseded();
-    }
-
-    const resolvedCourses =
-      resolutionResult.status === "complete"
-        ? lmsParseCourseResolutionPayload(resolutionResult.payload)
-        : null;
-
-    if (resolvedCourses !== null) {
-      rememberRuleBuilderCourseLabels(connectionId, resolvedCourses);
-      setCourseSelectOptions(
-        select,
-        courses,
-        courses.length === 0 ? "No matching courses" : "Select course",
-        selectedValues,
-        selectedOptionSnapshots,
-        connectionId,
-      );
-    }
-
-    const restoredCourseIds = new Set(
-      resolvedCourses === null ? [] : resolvedCourses.map((course) => course.courseId),
-    );
-    const hasMissingCourse = unresolvedCourseIds.some(
-      (courseId) => !restoredCourseIds.has(courseId),
-    );
-
-    if (resolutionResult.status === "failed" || resolvedCourses === null || hasMissingCourse) {
-      select.disabled = false;
-      setCourseLookupStatus(
-        card,
-        select,
-        (resolutionResult.status === "failed"
-          ? resolutionResult.message
-          : "Unable to restore every saved course name.") + " Saved course IDs remain visible.",
-        true,
-      );
-      return lmsLookupComplete();
-    }
+  if (labelRestoration.status === "superseded") {
+    return labelRestoration;
   }
 
+  setCourseSelectOptions(select, {
+    ...selection,
+    courses,
+    emptyLabel: courses.length === 0 ? "No matching courses" : "Select course",
+  });
   select.disabled = false;
   setCourseLookupStatus(
     card,
     select,
-    courseLookupStatusMessage(courses.length, hasMore, query),
-    false,
+    labelRestoration.warningMessage || courseLookupStatusMessage(courses.length, hasMore, query),
+    labelRestoration.warningMessage.length > 0,
   );
 
   return lmsLookupComplete();
