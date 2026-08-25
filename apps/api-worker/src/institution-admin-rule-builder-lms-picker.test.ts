@@ -7,6 +7,7 @@ import {
   FakeOption,
   FakeSelect,
   FakeTimers,
+  waitForBrowserCondition,
 } from "./test-support/browser-page-asset-harness";
 
 type LmsLookupOutcome =
@@ -25,6 +26,7 @@ interface PickerHarness {
     readonly searchInput: FakeInput;
   }) => () => void;
   readonly conditionList: FakeElement;
+  readonly conditionDetail: (condition: unknown) => string;
   readonly createCourseSelectField: (
     labelText: string,
     fieldName: string,
@@ -51,16 +53,26 @@ interface PickerHarness {
     workflowStatesUrl: string;
     fallbackMessage: string;
   }) => Promise<LmsLookupOutcome>;
+  readonly formatConditionPlainSummary: (condition: unknown) => string;
   readonly readConditionFromCard: (card: FakeElement, strict: boolean) => unknown;
   readonly reportedErrors: unknown[];
   readonly refreshConditionCardValueListOptions: () => void;
   readonly renderConditionFields: (card: FakeElement, seed: object) => void;
+  readonly setSelectedLmsConnectionId: (connectionId: string) => void;
+  readonly updateConditionPlainSummary: (card: FakeElement) => void;
 }
 
 const loadPickerHarness = (input: {
   readonly fetchImpl: typeof fetch;
   readonly timers?: FakeTimers;
 }): PickerHarness => {
+  const courseLabels = readFileSync(
+    new URL(
+      "./ui/page-assets/content/js/institution-admin-rule-builder-course-labels.js",
+      import.meta.url,
+    ),
+    "utf8",
+  );
   const conditionFields = readFileSync(
     new URL(
       "./ui/page-assets/content/js/institution-admin-rule-builder-condition-fields.js",
@@ -107,6 +119,7 @@ const loadPickerHarness = (input: {
   const conditionList = new FakeElement();
   conditionList.className = "ct-admin__condition-list";
   const reportedErrors: unknown[] = [];
+  let selectedLmsConnectionId = "connection-1";
   const context = createContext({
     AbortController,
     AbortSignal,
@@ -144,7 +157,7 @@ const loadPickerHarness = (input: {
     bindExclusiveFieldPair: (): void => undefined,
     conditionTypeLabels: {},
     getDefaultCourseId: (): string => "",
-    getSelectedLmsConnectionId: (): string => "connection-1",
+    getSelectedLmsConnectionId: (): string => selectedLmsConnectionId,
     lmsConnectionsApiPath: "/v1/lms/connections",
     reportError: (error: unknown): void => {
       reportedErrors.push(error);
@@ -159,10 +172,15 @@ const loadPickerHarness = (input: {
   });
 
   new Script(
-    `${conditionFields}\n${conditionModel}\n${payloadParsers}\n${primitives}\n${picker}\n${fieldRenderers}\n${summary}\nglobalThis.__pickerHarness = { bindDebouncedSearch: lmsBindDebouncedSearch, conditionList: ruleBuilderConditionList, createCourseSelectField, hydrateCourseSelect, hydrateGradebookItemSelect: lmsHydrateGradebookItemSelect, hydrateGradebookItemsForCard: hydrateGradebookItemSelect, hydrateWorkflowStateSelect: lmsHydrateWorkflowStateSelect, readConditionFromCard, refreshConditionCardValueListOptions, renderConditionFields, reportedErrors };`,
+    `${courseLabels}\n${conditionFields}\n${conditionModel}\n${payloadParsers}\n${primitives}\n${picker}\n${fieldRenderers}\n${summary}\nglobalThis.__pickerHarness = { bindDebouncedSearch: lmsBindDebouncedSearch, conditionDetail, conditionList: ruleBuilderConditionList, createCourseSelectField, formatConditionPlainSummary, hydrateCourseSelect, hydrateGradebookItemSelect: lmsHydrateGradebookItemSelect, hydrateGradebookItemsForCard: hydrateGradebookItemSelect, hydrateWorkflowStateSelect: lmsHydrateWorkflowStateSelect, readConditionFromCard, refreshConditionCardValueListOptions, renderConditionFields, reportedErrors, updateConditionPlainSummary };`,
   ).runInContext(context);
 
-  return context.__pickerHarness as PickerHarness;
+  return {
+    ...(context.__pickerHarness as PickerHarness),
+    setSelectedLmsConnectionId: (connectionId): void => {
+      selectedLmsConnectionId = connectionId;
+    },
+  };
 };
 
 const createCourseLookupFixture = (
@@ -306,15 +324,42 @@ describe("rule-builder LMS course picker", () => {
     expect(gradebookStatus?.getAttribute("aria-atomic")).toBe("true");
   });
 
-  it("keeps restored pathway courses through the startup refresh while hydration is pending", async () => {
+  it("restores saved course labels in one exact batch without changing persisted IDs", async () => {
+    const requests: Array<{ readonly init: RequestInit | undefined; readonly url: string }> = [];
     const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+      requests.push({ init, url });
 
       if (url.includes("q=settle")) {
         return Promise.resolve(
           Response.json({
-            courses: [{ courseId: "course-101", title: "Course 101" }],
+            courses: [
+              {
+                courseCode: "BIO-101",
+                courseId: "course-101",
+                title: "Foundations of Biology",
+              },
+            ],
             hasMore: false,
+          }),
+        );
+      }
+
+      if (url.endsWith("/courses/resolve")) {
+        return Promise.resolve(
+          Response.json({
+            courses: [
+              {
+                courseCode: "CHEM-202",
+                courseId: "course-202",
+                title: "Organic Chemistry",
+              },
+              {
+                courseCode: "PHYS-303",
+                courseId: "course-303",
+                title: "Advanced Mechanics",
+              },
+            ],
           }),
         );
       }
@@ -372,6 +417,186 @@ describe("rule-builder LMS course picker", () => {
       "course-202",
       "course-303",
     ]);
+    expect(
+      Object.fromEntries(select.options.map((option) => [option.value, option.textContent])),
+    ).toMatchObject({
+      "course-101": "Foundations of Biology · BIO-101 (course-101)",
+      "course-202": "Organic Chemistry · CHEM-202 (course-202)",
+      "course-303": "Advanced Mechanics · PHYS-303 (course-303)",
+    });
+
+    const resolutionRequest = requests.find((request) => request.url.endsWith("/courses/resolve"));
+    expect(resolutionRequest?.init?.method).toBe("POST");
+    expect(resolutionRequest?.init?.cache).toBe("no-store");
+    const resolutionRequestBody = resolutionRequest?.init?.body;
+
+    if (typeof resolutionRequestBody !== "string") {
+      throw new TypeError("Expected exact course resolution to send a JSON string body");
+    }
+
+    expect(JSON.parse(resolutionRequestBody) as unknown).toEqual({
+      courseIds: ["course-202", "course-303"],
+    });
+    expect(requests.filter((request) => request.url.endsWith("/courses/resolve"))).toHaveLength(1);
+
+    expect(
+      harness.formatConditionPlainSummary({
+        type: "program_completion",
+        courseIds: ["course-101", "course-202", "course-303"],
+        minimumCompleted: 2,
+      }),
+    ).toBe(
+      "Learner completes at least 2 of: Foundations of Biology · BIO-101 (course-101), Organic Chemistry · CHEM-202 (course-202), Advanced Mechanics · PHYS-303 (course-303)",
+    );
+    expect(harness.readConditionFromCard(card, false)).toEqual({
+      type: "program_completion",
+      courseIds: ["course-202", "course-303", "course-101"],
+      minimumCompleted: 2,
+    });
+    harness.updateConditionPlainSummary(card);
+    expect(summary.textContent).toContain("Organic Chemistry · CHEM-202 (course-202)");
+    expect(summary.textContent).toContain("Advanced Mechanics · PHYS-303 (course-303)");
+    expect(summary.textContent).toContain("Foundations of Biology · BIO-101 (course-101)");
+
+    harness.renderConditionFields(card, {
+      type: "program_completion",
+      courseIds: ["course-101", "course-202", "course-303"],
+      minimumCompleted: 2,
+    });
+    const restoredSelect = card.querySelector('[data-field="courseIds"]');
+    expect(
+      restoredSelect instanceof FakeSelect
+        ? restoredSelect.options.slice(1).map((option) => option.textContent)
+        : [],
+    ).toEqual([
+      "Foundations of Biology · BIO-101 (course-101)",
+      "Organic Chemistry · CHEM-202 (course-202)",
+      "Advanced Mechanics · PHYS-303 (course-303)",
+    ]);
+  });
+
+  it("keeps saved IDs usable when exact label restoration fails", async () => {
+    const fetchImpl = ((input: RequestInfo | URL): Promise<Response> => {
+      const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+
+      if (url.endsWith("/courses/resolve")) {
+        return Promise.resolve(
+          Response.json({ error: "The LMS could not resolve saved courses." }, { status: 502 }),
+        );
+      }
+
+      return Promise.resolve(
+        Response.json({
+          courses: [{ courseId: "other-course", title: "Other course" }],
+          hasMore: false,
+        }),
+      );
+    }) as typeof fetch;
+    const harness = loadPickerHarness({ fetchImpl });
+    const { card, select, status } = createCourseLookupFixture();
+    const selectedOption = new FakeOption();
+    selectedOption.value = "saved-course";
+    selectedOption.textContent = "saved-course";
+    selectedOption.selected = true;
+    select.append(selectedOption);
+
+    await expect(harness.hydrateCourseSelect(card, select, "other")).resolves.toEqual({
+      status: "complete",
+    });
+    expect(select.disabled).toBe(false);
+    expect(select.selectedOptions.map((option) => option.value)).toEqual(["saved-course"]);
+    expect(select.selectedOptions.map((option) => option.textContent)).toEqual(["saved-course"]);
+    expect(status.hidden).toBe(false);
+    expect(status.dataset.tone).toBe("error");
+    expect(status.textContent).toBe(
+      "The LMS could not resolve saved courses. Saved course IDs remain visible.",
+    );
+  });
+
+  it("keeps labels isolated to the LMS connection that authorized them", async () => {
+    const harness = loadPickerHarness({
+      fetchImpl: (() =>
+        Promise.resolve(
+          Response.json({
+            courses: [
+              {
+                courseCode: "BIO-101",
+                courseId: "course-101",
+                title: "Connection one biology",
+              },
+            ],
+            hasMore: false,
+          }),
+        )) as typeof fetch,
+    });
+    const { card, select } = createCourseLookupFixture();
+
+    await expect(harness.hydrateCourseSelect(card, select, "biology")).resolves.toEqual({
+      status: "complete",
+    });
+    expect(select.options[1]?.textContent).toBe("Connection one biology · BIO-101 (course-101)");
+
+    harness.setSelectedLmsConnectionId("connection-2");
+    const restoredField = harness.createCourseSelectField(
+      "LMS course",
+      "courseId",
+      "course-101",
+      false,
+    );
+    const restoredSelect = restoredField.children[1];
+    expect(
+      restoredSelect instanceof FakeSelect ? restoredSelect.options[1]?.textContent : null,
+    ).toBe("course-101");
+  });
+
+  it("projects authorized labels into course and assignment summaries", async () => {
+    const harness = loadPickerHarness({
+      fetchImpl: (() =>
+        Promise.resolve(
+          Response.json({
+            courses: [
+              {
+                courseCode: "BIO-101",
+                courseId: "course-101",
+                title: "Foundations of Biology",
+              },
+            ],
+            hasMore: false,
+          }),
+        )) as typeof fetch,
+    });
+    const { card, select } = createCourseLookupFixture();
+
+    await harness.hydrateCourseSelect(card, select, "biology");
+
+    expect(
+      harness.formatConditionPlainSummary({
+        type: "course_completion",
+        courseId: "course-101",
+        minCompletionPercent: 80,
+      }),
+    ).toContain("Foundations of Biology · BIO-101 (course-101)");
+    expect(
+      harness.formatConditionPlainSummary({
+        type: "grade_threshold",
+        courseId: "course-101",
+        minScore: 70,
+      }),
+    ).toContain("Foundations of Biology · BIO-101 (course-101)");
+    expect(
+      harness.formatConditionPlainSummary({
+        type: "assignment_submission",
+        courseId: "course-101",
+        assignmentId: "essay-1",
+      }),
+    ).toContain("Foundations of Biology · BIO-101 (course-101)");
+    expect(
+      harness.conditionDetail({
+        type: "assignment_submission",
+        courseId: "course-101",
+        assignmentId: "essay-1",
+      }),
+    ).toContain("Foundations of Biology · BIO-101 (course-101)");
   });
 
   it("aborts a stale request when the same card receives a replacement select", async () => {
@@ -418,6 +643,68 @@ describe("rule-builder LMS course picker", () => {
     expect(currentSelect.options.map((option) => option.value)).toEqual(["", "new-course"]);
     expect(status.hidden).toBe(true);
     expect(status.textContent).toBe("");
+  });
+
+  it("supersedes an exact-label request before a newer search can be overwritten", async () => {
+    let exactRequestStarted = false;
+    let exactRequestAborted = false;
+    const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+
+      if (url.includes("q=old")) {
+        return Promise.resolve(
+          Response.json({
+            courses: [{ courseId: "other-course", title: "Old search result" }],
+            hasMore: false,
+          }),
+        );
+      }
+
+      if (url.endsWith("/courses/resolve")) {
+        exactRequestStarted = true;
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            exactRequestAborted = true;
+            reject(new Error("aborted"));
+          });
+        });
+      }
+
+      return Promise.resolve(
+        Response.json({
+          courses: [
+            {
+              courseCode: "NEW-101",
+              courseId: "selected-course",
+              title: "Current course",
+            },
+          ],
+          hasMore: false,
+        }),
+      );
+    }) as typeof fetch;
+    const harness = loadPickerHarness({ fetchImpl });
+    const { card, select } = createCourseLookupFixture();
+    const selectedOption = new FakeOption();
+    selectedOption.value = "selected-course";
+    selectedOption.textContent = "selected-course";
+    selectedOption.selected = true;
+    select.append(selectedOption);
+
+    const staleRequest = harness.hydrateCourseSelect(card, select, "old");
+    await waitForBrowserCondition(
+      () => exactRequestStarted,
+      "Expected the stale exact-label request to start",
+    );
+
+    const currentRequest = harness.hydrateCourseSelect(card, select, "new");
+
+    await expect(currentRequest).resolves.toEqual({ status: "complete" });
+    await expect(staleRequest).resolves.toEqual({ status: "superseded" });
+    expect(exactRequestAborted).toBe(true);
+    expect(select.selectedOptions.map((option) => option.textContent)).toEqual([
+      "Current course · NEW-101 (selected-course)",
+    ]);
   });
 
   it("keeps loading in the select and reports the actual truncated result count locally", async () => {

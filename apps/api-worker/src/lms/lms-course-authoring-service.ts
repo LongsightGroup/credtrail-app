@@ -54,6 +54,11 @@ export interface SearchLmsCoursesInput extends LmsCourseAuthoringRequest {
   readonly limit: number;
 }
 
+/** Input for resolving exact LMS courses visible to one authoring user. */
+export interface ResolveLmsCoursesInput extends LmsCourseAuthoringRequest {
+  readonly courseIds: readonly string[];
+}
+
 /** Search input for learners in one authorized LMS course. */
 export interface SearchLmsLearnersInput extends LmsCourseAuthoringRequest {
   readonly courseId: string;
@@ -93,6 +98,12 @@ export interface LmsCourseAuthoringService {
       readonly hasMore: boolean;
     }>
   >;
+
+  /** Resolves exact courses within the current user's provider authorization boundary. */
+  resolveCourses(
+    input: ResolveLmsCoursesInput,
+    options?: LmsCourseAuthoringOptions,
+  ): Promise<LmsCourseAuthoringResult<{ readonly courses: readonly GradebookCourseRecord[] }>>;
 
   /** Searches learners after verifying that the current user can author against the course. */
   searchLearners(
@@ -279,6 +290,18 @@ export const createLmsCourseAuthoringService = (
   };
 
   return {
+    resolveCourses: async (input, options = {}) => {
+      const authorization = await authorizeCourses(input, requestOptions(options));
+
+      if (authorization.status !== "resolved") {
+        return authorization;
+      }
+
+      return {
+        status: "resolved",
+        courses: authorization.courses,
+      };
+    },
     searchCourses: async (input, options = {}) => {
       const operationOptions = requestOptions(options);
       const providerResult = await resolveProvider(input, operationOptions);

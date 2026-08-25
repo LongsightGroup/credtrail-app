@@ -68,6 +68,7 @@ const lmsErrorDetailFromPayload = (payload, fallbackMessage) => {
 
 const lmsFetchJson = async (url, fallbackMessage, options) => {
   const response = await fetch(url, {
+    ...(options && typeof options === "object" ? options : {}),
     cache: "no-store",
     signal: options && options.signal instanceof AbortSignal ? options.signal : undefined,
   });
@@ -98,13 +99,14 @@ const lmsCancelRequest = (requestOwner) => {
   lmsRequestControllerByOwner.delete(requestOwner);
 };
 
-const lmsFetchLatestJson = async (requestOwner, url, fallbackMessage) => {
+const lmsFetchLatestJson = async (requestOwner, url, fallbackMessage, requestOptions) => {
   lmsCancelRequest(requestOwner);
   const controller = new AbortController();
   lmsRequestControllerByOwner.set(requestOwner, controller);
 
   try {
     const payload = await lmsFetchJson(url, fallbackMessage, {
+      ...(requestOptions && typeof requestOptions === "object" ? requestOptions : {}),
       signal: controller.signal,
     });
 

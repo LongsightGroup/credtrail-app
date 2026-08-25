@@ -27,9 +27,7 @@ const readConditionFromCard = (card, strict) => {
     condition = {
       type: "course_completion",
       minCompletionPercent: minCompletionPercent ?? 100,
-      ...(courseListId.length > 0
-        ? { courseListId }
-        : { courseId }),
+      ...(courseListId.length > 0 ? { courseListId } : { courseId }),
     };
   } else if (conditionType === "grade_threshold") {
     const courseId = readFieldFromCard(card, "courseId");
@@ -55,9 +53,7 @@ const readConditionFromCard = (card, strict) => {
       type: "grade_threshold",
       scoreField:
         readFieldFromCard(card, "scoreField") === "current_score" ? "current_score" : "final_score",
-      ...(courseListId.length > 0
-        ? { courseListId }
-        : { courseId }),
+      ...(courseListId.length > 0 ? { courseListId } : { courseId }),
     };
 
     if (minScore !== null) {
@@ -86,9 +82,7 @@ const readConditionFromCard = (card, strict) => {
 
     condition = {
       type: "program_completion",
-      ...(courseListId.length > 0
-        ? { courseListId }
-        : { courseIds }),
+      ...(courseListId.length > 0 ? { courseListId } : { courseIds }),
     };
 
     if (minimumCompleted !== null) {
@@ -267,17 +261,26 @@ const conditionDetail = (condition) => {
   }
 
   if (leaf.type === "course_completion") {
+    const courseLabel =
+      typeof leaf.courseId === "string" && leaf.courseId.length > 0
+        ? ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), leaf.courseId)
+        : (leaf.courseListId ?? "selected course");
+
     return (
       "At least " +
       String(leaf.minCompletionPercent ?? 100) +
       "% of gradebook items in " +
-      (leaf.courseId ?? leaf.courseListId ?? "selected course") +
+      courseLabel +
       " must be complete."
     );
   }
 
   if (leaf.type === "grade_threshold") {
     const parts = [];
+    const courseLabel =
+      typeof leaf.courseId === "string" && leaf.courseId.length > 0
+        ? ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), leaf.courseId)
+        : (leaf.courseListId ?? "selected");
 
     if (leaf.minScore !== undefined) {
       parts.push("min " + String(leaf.minScore));
@@ -287,12 +290,7 @@ const conditionDetail = (condition) => {
       parts.push("max " + String(leaf.maxScore));
     }
 
-    return (
-      "Course " +
-      (leaf.courseId ?? leaf.courseListId ?? "selected") +
-      " score " +
-      (parts.join(", ") || "threshold")
-    );
+    return "Course " + courseLabel + " score " + (parts.join(", ") || "threshold");
   }
 
   if (leaf.type === "program_completion") {
@@ -304,7 +302,7 @@ const conditionDetail = (condition) => {
       "Gradebook item " +
       leaf.assignmentId +
       " in " +
-      leaf.courseId +
+      ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), leaf.courseId) +
       " must satisfy submission rules."
     );
   }
@@ -532,9 +530,7 @@ const buildSampleFactsFromConditions = (conditions, learnerId) => {
   const courseId = getDefaultCourseId();
   const parsedScore = Number(getTextFieldValue("testScore"));
   const score =
-    Number.isFinite(parsedScore) && parsedScore >= 0 && parsedScore <= 100
-      ? parsedScore
-      : 92;
+    Number.isFinite(parsedScore) && parsedScore >= 0 && parsedScore <= 100 ? parsedScore : 92;
   const parsedCompletionPercent = Number(getTextFieldValue("testCompletionPercent"));
   const completionPercent =
     Number.isFinite(parsedCompletionPercent) &&

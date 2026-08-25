@@ -108,7 +108,13 @@ const createCourseSelectField = (labelText, fieldName, selectedValue, multiple) 
     labelText,
     createConditionSelect(attributes, [
       createConditionOption("", "Loading courses...", selectedCourseIds.length === 0),
-      ...selectedCourseIds.map((courseId) => createConditionOption(courseId, courseId, true)),
+      ...selectedCourseIds.map((courseId) =>
+        createConditionOption(
+          courseId,
+          ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), courseId),
+          true,
+        ),
+      ),
     ]),
   );
 };

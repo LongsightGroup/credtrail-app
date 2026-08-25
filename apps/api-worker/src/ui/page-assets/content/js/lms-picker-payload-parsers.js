@@ -1,16 +1,11 @@
-const lmsParseCourseSearchPayload = (payload) => {
-  if (
-    !payload ||
-    typeof payload !== "object" ||
-    !Array.isArray(payload.courses) ||
-    typeof payload.hasMore !== "boolean"
-  ) {
+const lmsParseCourseRecords = (candidate) => {
+  if (!Array.isArray(candidate)) {
     return null;
   }
 
   const courses = [];
 
-  for (const course of payload.courses) {
+  for (const course of candidate) {
     if (
       !course ||
       typeof course !== "object" ||
@@ -31,7 +26,24 @@ const lmsParseCourseSearchPayload = (payload) => {
     });
   }
 
-  return { courses, hasMore: payload.hasMore };
+  return courses;
+};
+
+const lmsParseCourseSearchPayload = (payload) => {
+  if (!payload || typeof payload !== "object" || typeof payload.hasMore !== "boolean") {
+    return null;
+  }
+
+  const courses = lmsParseCourseRecords(payload.courses);
+  return courses === null ? null : { courses, hasMore: payload.hasMore };
+};
+
+const lmsParseCourseResolutionPayload = (payload) => {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  return lmsParseCourseRecords(payload.courses);
 };
 
 const lmsParseGradebookItems = (payload) => {

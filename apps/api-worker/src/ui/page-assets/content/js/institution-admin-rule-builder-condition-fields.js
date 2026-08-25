@@ -181,7 +181,7 @@ const formatConditionPlainSummary = (condition) => {
       typeof condition.courseListId === "string" && condition.courseListId.length > 0
         ? "courses from list " + condition.courseListId
         : typeof condition.courseId === "string" && condition.courseId.length > 0
-          ? condition.courseId
+          ? ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), condition.courseId)
           : "the course";
     const completionPercent =
       typeof condition.minCompletionPercent === "number" ? condition.minCompletionPercent : 100;
@@ -199,7 +199,7 @@ const formatConditionPlainSummary = (condition) => {
       typeof condition.courseListId === "string" && condition.courseListId.length > 0
         ? "courses from list " + condition.courseListId
         : typeof condition.courseId === "string" && condition.courseId.length > 0
-          ? condition.courseId
+          ? ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), condition.courseId)
           : "the course";
     const scoreField = condition.scoreField === "current_score" ? "current score" : "final score";
     const minScore =
@@ -224,7 +224,12 @@ const formatConditionPlainSummary = (condition) => {
       );
     }
 
-    const courseLabel = courseCount > 0 ? condition.courseIds.join(", ") : "required courses";
+    const courseLabel =
+      courseCount > 0
+        ? condition.courseIds
+            .map((courseId) => ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), courseId))
+            .join(", ")
+        : "required courses";
 
     return "Learner completes at least " + String(minimumCompleted) + " of: " + courseLabel;
   }
@@ -232,7 +237,7 @@ const formatConditionPlainSummary = (condition) => {
   if (condition.type === "assignment_submission") {
     const courseLabel =
       typeof condition.courseId === "string" && condition.courseId.length > 0
-        ? condition.courseId
+        ? ruleBuilderCourseLabelForId(getSelectedLmsConnectionId(), condition.courseId)
         : "the course";
     const assignmentLabel =
       typeof condition.assignmentId === "string" && condition.assignmentId.length > 0

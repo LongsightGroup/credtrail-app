@@ -14,6 +14,7 @@ import {
   parseBadgeRuleRegistryPageQuery,
   parseCreateTenantApiKeyRequest,
   parseRevokeTenantApiKeyRequest,
+  parseResolveTenantLmsConnectionCoursesRequest,
   parseTenantLmsConnectionCoursePathParams,
   parseTenantLmsConnectionCourseSearchQuery,
   parseTenantLmsConnectionGradebookItemPathParams,
@@ -121,6 +122,32 @@ describe("tenant LMS connection parsers", () => {
         apiBaseUrl: "https://moodle.example.edu",
       });
     }).toThrow(/./);
+  });
+
+  it("normalizes a bounded set of exact LMS course references", () => {
+    expect(
+      parseResolveTenantLmsConnectionCoursesRequest({
+        courseIds: [" course-202 ", "course-101", "course-202"],
+      }),
+    ).toEqual({
+      courseIds: ["course-202", "course-101"],
+    });
+  });
+
+  it("rejects invalid exact LMS course reference requests", () => {
+    expect(() => parseResolveTenantLmsConnectionCoursesRequest({ courseIds: [] })).toThrow(/./);
+    expect(() => parseResolveTenantLmsConnectionCoursesRequest({ courseIds: ["  "] })).toThrow(/./);
+    expect(() =>
+      parseResolveTenantLmsConnectionCoursesRequest({
+        courseIds: Array.from({ length: 201 }, (_, index) => `course-${String(index)}`),
+      }),
+    ).toThrow(/./);
+    expect(() =>
+      parseResolveTenantLmsConnectionCoursesRequest({
+        courseIds: ["course-101"],
+        query: "ignored",
+      }),
+    ).toThrow(/./);
   });
 });
 

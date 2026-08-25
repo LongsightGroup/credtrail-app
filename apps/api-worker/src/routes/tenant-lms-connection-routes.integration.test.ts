@@ -5,7 +5,7 @@ import {
   type TenantMembershipRole,
 } from "@credtrail/db";
 import { Hono } from "hono";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it } from "vitest";
 import {
   cleanupTestResources,
   createTestPostgresDatabase,
@@ -111,6 +111,16 @@ const createSakaiPickerFetch = (requests: Request[]): typeof fetch => {
       });
     }
 
+    if (url.pathname === "/direct/site/course-202.json") {
+      return Response.json({
+        id: "course-202",
+        title: "Course 202",
+        shortDescription: "CS202",
+        type: "course",
+        published: true,
+      });
+    }
+
     if (url.pathname === "/api/sites/course-101/grading/full-gradebook") {
       return Response.json({
         siteId: "course-101",
@@ -187,6 +197,16 @@ describeDbIntegration("tenant LMS connection routes", () => {
       courses: Array<{ courseId: string; title: string }>;
       hasMore: boolean;
     }>();
+    const resolvedCoursesResponse = await app.request(`${routeBase}/courses/resolve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        courseIds: [" course-202 ", "course-101", "course-202"],
+      }),
+    });
+    const resolvedCoursesBody = await resolvedCoursesResponse.json<{
+      courses: Array<{ courseId: string; title: string; courseCode: string | null }>;
+    }>();
     const learnersResponse = await app.request(`${routeBase}/courses/course-101/learners?q=ada`);
     const learnersBody = await learnersResponse.json<{
       learners: Array<{ learnerId: string; displayName: string; email: string | null }>;
@@ -210,6 +230,19 @@ describeDbIntegration("tenant LMS connection routes", () => {
       courses: [expect.objectContaining({ courseId: "course-101", title: "Course 101" })],
       hasMore: false,
     });
+    expect(resolvedCoursesResponse.status).toBe(200);
+    expect(resolvedCoursesBody.courses).toEqual([
+      expect.objectContaining({
+        courseId: "course-202",
+        title: "Course 202",
+        courseCode: "CS202",
+      }),
+      expect.objectContaining({
+        courseId: "course-101",
+        title: "Course 101",
+        courseCode: "CS101",
+      }),
+    ]);
     expect(learnersResponse.status).toBe(200);
     expect(learnersBody).toMatchObject({
       learners: [
@@ -231,9 +264,13 @@ describeDbIntegration("tenant LMS connection routes", () => {
       expect.objectContaining({ value: "graded", preselected: true }),
     );
     expect(
-      [coursesResponse, learnersResponse, itemsResponse, statesResponse].every(
-        (response) => response.headers.get("cache-control") === "no-store",
-      ),
+      [
+        coursesResponse,
+        resolvedCoursesResponse,
+        learnersResponse,
+        itemsResponse,
+        statesResponse,
+      ].every((response) => response.headers.get("cache-control") === "no-store"),
     ).toBe(true);
     expect(requests.every((request) => request.headers.get("cookie") === "SAKAIID=session")).toBe(
       true,
@@ -241,6 +278,11 @@ describeDbIntegration("tenant LMS connection routes", () => {
     expect(
       requests.some((request) => new URL(request.url).searchParams.get("search") === "course"),
     ).toBe(true);
+    expect(
+      requests.filter(
+        (request) => new URL(request.url).pathname === "/direct/site/course-202.json",
+      ),
+    ).toHaveLength(1);
   });
 
   it("bounds course picker responses at the route contract", async () => {
@@ -297,10 +339,63 @@ describeDbIntegration("tenant LMS connection routes", () => {
     expect(body.error).toContain("Save a Sakai administrator username and password");
   });
 
+  it("rejects invalid or unauthorized exact course references", async () => {
+    const fixture = await createTestTenantFixture({ displayName: "Exact LMS Course Resolution" });
+    tenantIds.push(fixture.tenantId);
+    const connection = await createSakaiConnection(fixture);
+    let providerRequestCount = 0;
+    const fetchImpl: typeof fetch = async (requestInput, requestInit) => {
+      providerRequestCount += 1;
+      const request = new Request(requestInput, requestInit);
+      const url = new URL(request.url);
+
+      if (url.pathname === "/direct/site/course-denied.json") {
+        return Response.json({
+          id: "course-denied",
+          title: "Denied project site",
+          type: "project",
+        });
+      }
+
+      throw new Error(`Unexpected Sakai request: ${url.pathname}${url.search}`);
+    };
+    const app = createRouteApp({
+      db: fixture.db,
+      tenantId: fixture.tenantId,
+      fetchImpl,
+    });
+    const resolveUrl = `/v1/tenants/${fixture.tenantId}/lms/connections/${connection.id}/courses/resolve`;
+
+    const invalidResponse = await app.request(resolveUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ courseIds: [] }),
+    });
+    expect(invalidResponse.status).toBe(400);
+    expect(invalidResponse.headers.get("cache-control")).toBe("no-store");
+    expect(providerRequestCount).toBe(0);
+
+    const unauthorizedResponse = await app.request(resolveUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ courseIds: ["course-denied"] }),
+    });
+    const unauthorizedBody = await unauthorizedResponse.json<{ error: string }>();
+
+    expect(unauthorizedResponse.status).toBe(403);
+    expect(unauthorizedResponse.headers.get("cache-control")).toBe("no-store");
+    expect(unauthorizedBody.error).toContain("not available");
+    expect(providerRequestCount).toBe(1);
+  });
+
   it("rejects roles outside the issuer boundary before reading LMS state", async () => {
     const fixture = await createTestTenantFixture({ displayName: "Forbidden LMS Picker" });
     tenantIds.push(fixture.tenantId);
-    const fetchImpl = vi.fn<typeof fetch>();
+    let providerRequestCount = 0;
+    const fetchImpl: typeof fetch = () => {
+      providerRequestCount += 1;
+      return Promise.reject(new Error("Provider I/O must not run"));
+    };
     const app = createRouteApp({
       db: fixture.db,
       tenantId: fixture.tenantId,
@@ -309,10 +404,15 @@ describeDbIntegration("tenant LMS connection routes", () => {
     });
 
     const response = await app.request(
-      `/v1/tenants/${fixture.tenantId}/lms/connections/not-read/courses`,
+      `/v1/tenants/${fixture.tenantId}/lms/connections/not-read/courses/resolve`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseIds: ["course-101"] }),
+      },
     );
 
     expect(response.status).toBe(403);
-    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(providerRequestCount).toBe(0);
   });
 });

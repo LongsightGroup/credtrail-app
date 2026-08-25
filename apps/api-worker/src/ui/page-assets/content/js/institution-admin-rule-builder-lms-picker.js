@@ -1,20 +1,3 @@
-const lmsCourseLabel = (course) => {
-  if (!course || typeof course !== "object") {
-    return "Untitled course";
-  }
-
-  const title =
-    typeof course.title === "string" && course.title.length > 0 ? course.title : "Untitled course";
-  const courseCode =
-    typeof course.courseCode === "string" && course.courseCode.length > 0 ? course.courseCode : "";
-  const courseId = typeof course.courseId === "string" ? course.courseId : "";
-  return (
-    title +
-    (courseCode.length > 0 ? " · " + courseCode : "") +
-    (courseId.length > 0 ? " (" + courseId + ")" : "")
-  );
-};
-
 const setConditionLookupStatus = (card, selector, message, isError) => {
   if (!(card instanceof HTMLElement)) {
     return;
@@ -38,12 +21,7 @@ const setCourseLookupStatus = (card, select, message, isError) => {
     return;
   }
 
-  setConditionLookupStatus(
-    card,
-    '[data-lms-course-status="' + fieldName + '"]',
-    message,
-    isError,
-  );
+  setConditionLookupStatus(card, '[data-lms-course-status="' + fieldName + '"]', message, isError);
 };
 
 const setGradebookLookupStatus = (card, message, isError) => {
@@ -67,23 +45,26 @@ const courseLookupStatusMessage = (courseCount, hasMore, query) => {
     ? "Showing " +
         String(courseCount) +
         " courses. Search by title, code, or ID to narrow the list."
-    : "Showing " +
-        String(courseCount) +
-        " matches. Refine your search to narrow the list.";
+    : "Showing " + String(courseCount) + " matches. Refine your search to narrow the list.";
 };
 
-const selectedCourseOptionSnapshots = (select, selectedValues) => {
+const selectedCourseOptionSnapshots = (select, selectedValues, connectionId) => {
   const snapshotsByValue = new Map();
 
   Array.from(select.selectedOptions).forEach((option) => {
     if (option.value.length > 0) {
-      snapshotsByValue.set(option.value, option.textContent ?? option.value);
+      snapshotsByValue.set(
+        option.value,
+        hasRuleBuilderCourseLabel(connectionId, option.value)
+          ? ruleBuilderCourseLabelForId(connectionId, option.value)
+          : (option.textContent ?? option.value),
+      );
     }
   });
 
   selectedValues.forEach((value) => {
     if (!snapshotsByValue.has(value)) {
-      snapshotsByValue.set(value, value);
+      snapshotsByValue.set(value, ruleBuilderCourseLabelForId(connectionId, value));
     }
   });
 
@@ -96,27 +77,30 @@ const setCourseSelectOptions = (
   emptyLabel,
   selectedValues,
   selectedOptionSnapshots,
+  connectionId,
 ) => {
   lmsSetSelectOptions(
     select,
     courses,
     emptyLabel,
     selectedValues,
-    lmsCourseLabel,
+    ruleBuilderCourseLabel,
     (course) => course.courseId,
   );
 
   const availableValues = new Set(Array.from(select.options).map((option) => option.value));
   const firstCourseOption = select.options.item(1);
 
-  selectedOptionSnapshots.forEach((label, value) => {
+  selectedOptionSnapshots.forEach((snapshotLabel, value) => {
     if (availableValues.has(value)) {
       return;
     }
 
     const option = document.createElement("option");
     option.value = value;
-    option.textContent = label;
+    option.textContent = hasRuleBuilderCourseLabel(connectionId, value)
+      ? ruleBuilderCourseLabelForId(connectionId, value)
+      : snapshotLabel;
     option.selected = true;
 
     if (firstCourseOption === null) {
@@ -133,6 +117,7 @@ const failCourseLookup = (
   message,
   selectedValues,
   selectedOptionSnapshots,
+  connectionId,
 ) => {
   setCourseSelectOptions(
     select,
@@ -140,6 +125,7 @@ const failCourseLookup = (
     "Courses unavailable",
     selectedValues,
     selectedOptionSnapshots,
+    connectionId,
   );
   const outcome = lmsFailSelectLookup(
     select,
@@ -152,9 +138,7 @@ const failCourseLookup = (
   return outcome;
 };
 
-const coursesPath = () => {
-  const connectionId = getSelectedLmsConnectionId();
-
+const coursesPathForConnection = (connectionId) => {
   if (connectionId.length === 0) {
     return "";
   }
@@ -199,10 +183,15 @@ const workflowStatesPath = (courseId, assignmentId) => {
 };
 
 const hydrateCourseSelect = async (card, select, query) => {
-  const path = coursesPath();
+  const connectionId = getSelectedLmsConnectionId();
+  const path = coursesPathForConnection(connectionId);
   const url = lmsUrlWithSearchQuery(path, query);
   const selectedValues = lmsSelectedValuesForSelect(select);
-  const selectedOptionSnapshots = selectedCourseOptionSnapshots(select, selectedValues);
+  const selectedOptionSnapshots = selectedCourseOptionSnapshots(
+    select,
+    selectedValues,
+    connectionId,
+  );
 
   if (path.length === 0) {
     lmsCancelRequest(card);
@@ -213,6 +202,7 @@ const hydrateCourseSelect = async (card, select, query) => {
       "Select an LMS connection first",
       selectedValues,
       selectedOptionSnapshots,
+      connectionId,
     );
     select.disabled = true;
     return lmsLookupComplete();
@@ -220,7 +210,14 @@ const hydrateCourseSelect = async (card, select, query) => {
 
   setCourseLookupStatus(card, select, "", false);
   select.disabled = true;
-  setCourseSelectOptions(select, [], "Loading courses...", selectedValues, selectedOptionSnapshots);
+  setCourseSelectOptions(
+    select,
+    [],
+    "Loading courses...",
+    selectedValues,
+    selectedOptionSnapshots,
+    connectionId,
+  );
   const result = await lmsFetchLatestJson(card, url, "Unable to load LMS courses.");
 
   if (result.status === "superseded") {
@@ -234,6 +231,7 @@ const hydrateCourseSelect = async (card, select, query) => {
       result.message,
       selectedValues,
       selectedOptionSnapshots,
+      connectionId,
     );
   }
 
@@ -246,17 +244,92 @@ const hydrateCourseSelect = async (card, select, query) => {
       "Unable to load LMS courses.",
       selectedValues,
       selectedOptionSnapshots,
+      connectionId,
     );
   }
 
   const { courses, hasMore } = parsed;
+  if (getSelectedLmsConnectionId() !== connectionId) {
+    return lmsLookupSuperseded();
+  }
+
+  rememberRuleBuilderCourseLabels(connectionId, courses);
   setCourseSelectOptions(
     select,
     courses,
     courses.length === 0 ? "No matching courses" : "Select course",
     selectedValues,
     selectedOptionSnapshots,
+    connectionId,
   );
+
+  const unresolvedCourseIds = [
+    ...new Set(
+      selectedValues.filter((courseId) => !hasRuleBuilderCourseLabel(connectionId, courseId)),
+    ),
+  ];
+
+  if (unresolvedCourseIds.length > 0) {
+    const resolutionResult = await lmsFetchLatestJson(
+      card,
+      path + "/resolve",
+      "Unable to restore saved course names.",
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ courseIds: unresolvedCourseIds }),
+      },
+    );
+
+    if (resolutionResult.status === "superseded") {
+      return resolutionResult;
+    }
+
+    if (getSelectedLmsConnectionId() !== connectionId) {
+      return lmsLookupSuperseded();
+    }
+
+    const resolvedCourses =
+      resolutionResult.status === "complete"
+        ? lmsParseCourseResolutionPayload(resolutionResult.payload)
+        : null;
+
+    if (resolvedCourses !== null) {
+      rememberRuleBuilderCourseLabels(connectionId, resolvedCourses);
+      setCourseSelectOptions(
+        select,
+        courses,
+        courses.length === 0 ? "No matching courses" : "Select course",
+        selectedValues,
+        selectedOptionSnapshots,
+        connectionId,
+      );
+    }
+
+    const restoredCourseIds = new Set(
+      resolvedCourses === null ? [] : resolvedCourses.map((course) => course.courseId),
+    );
+    const hasMissingCourse = unresolvedCourseIds.some(
+      (courseId) => !restoredCourseIds.has(courseId),
+    );
+
+    if (resolutionResult.status === "failed" || resolvedCourses === null || hasMissingCourse) {
+      select.disabled = false;
+      setCourseLookupStatus(
+        card,
+        select,
+        (resolutionResult.status === "failed"
+          ? resolutionResult.message
+          : "Unable to restore every saved course name.") + " Saved course IDs remain visible.",
+        true,
+      );
+      return lmsLookupComplete();
+    }
+  }
+
   select.disabled = false;
   setCourseLookupStatus(
     card,
@@ -308,8 +381,7 @@ const hydrateGradebookItemSelect = async (card, query) => {
     query,
     itemFallbackMessage: "Unable to load gradebook items.",
     workflowFallbackMessage: "Unable to load workflow states.",
-    workflowStatesUrlForAssignment: (assignmentId) =>
-      workflowStatesPath(courseId, assignmentId),
+    workflowStatesUrlForAssignment: (assignmentId) => workflowStatesPath(courseId, assignmentId),
   });
 
   if (outcome.status === "failed") {

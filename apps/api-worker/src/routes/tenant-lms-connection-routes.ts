@@ -6,6 +6,7 @@ import {
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
+  parseResolveTenantLmsConnectionCoursesRequest,
   parseTenantLmsConnectionCoursePathParams,
   parseTenantLmsConnectionCourseSearchQuery,
   parseTenantLmsConnectionGradebookItemPathParams,
@@ -215,6 +216,45 @@ export const registerTenantLmsConnectionRoutes = (
       connectionId: pathParams.connectionId,
       courses: result.courses,
       hasMore: result.hasMore,
+    });
+  });
+
+  app.post("/v1/tenants/:tenantId/lms/connections/:connectionId/courses/resolve", async (c) => {
+    const pathParams = parseTenantLmsConnectionPathParams(c.req.param());
+    c.header("Cache-Control", "no-store");
+    let request;
+
+    try {
+      request = parseResolveTenantLmsConnectionCoursesRequest(await c.req.json<unknown>());
+    } catch {
+      return jsonError(c, 400, "Invalid LMS course resolution payload");
+    }
+
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const result = await lmsCourseAuthoring.resolveCourses(
+      {
+        db: resolveDatabase(c.env),
+        tenantId: pathParams.tenantId,
+        connectionId: pathParams.connectionId,
+        userId: roleCheck.principal.userId,
+        courseIds: request.courseIds,
+      },
+      { signal: c.req.raw.signal },
+    );
+
+    if (result.status !== "resolved") {
+      return lmsCourseAuthoringFailureResponse(result);
+    }
+
+    return c.json({
+      tenantId: pathParams.tenantId,
+      connectionId: pathParams.connectionId,
+      courses: result.courses,
     });
   });
 
