@@ -417,7 +417,22 @@ ruleCreateForm.addEventListener("submit", async (event) => {
   }
 
   if (result.status === "unknown") {
-    const message = "CredTrail could not confirm the result. Try again safely, or check Rules.";
+    const nextStep = isRuleBuilderEditMode
+      ? "If the latest draft is unchanged, try saving again."
+      : action === "submit_for_approval"
+        ? "If it is not listed, try creating and submitting it again."
+        : "If it is not listed, try creating the draft again.";
+    const message =
+      (result.retryAttempted
+        ? "CredTrail retried but did not receive confirmation. "
+        : "CredTrail did not receive confirmation. ") +
+      "In Rules, look for “" +
+      name +
+      "”. " +
+      nextStep +
+      " Reference: " +
+      result.requestId +
+      ".";
     setStatus(ruleCreateStatus, message, true);
     syncRuleBuilderSummary(message);
     return;

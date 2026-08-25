@@ -30,7 +30,7 @@ type CourseAssignmentValidation =
       readonly cause: unknown;
     };
 
-/** Validates every unique rule course through gradebook access and reuses assignment results. */
+/** Validates assignment references through gradebook access and reuses results per course. */
 export const validateBadgeRuleReferences = async (
   input: {
     readonly provider: GradebookAssignmentReader;
@@ -40,10 +40,7 @@ export const validateBadgeRuleReferences = async (
 ): Promise<BadgeRuleReferenceValidationResult> => {
   const requirements = extractBadgeIssuanceRuleRequirements(input.definition);
   const courseIds = [
-    ...new Set([
-      ...requirements.courseIds,
-      ...requirements.assignmentRefs.map((assignmentRef) => assignmentRef.courseId),
-    ]),
+    ...new Set(requirements.assignmentRefs.map((assignmentRef) => assignmentRef.courseId)),
   ];
 
   if (courseIds.length === 0) {

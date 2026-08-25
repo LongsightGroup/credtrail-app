@@ -80,6 +80,7 @@ const ruleBuilderAuthoringController = createRuleBuilderAuthoringController({
   request: fetch,
   parseResponse: parseJsonBody,
   errorMessage: errorDetailFromPayload,
+  createRequestId: () => crypto.randomUUID(),
 });
 const ruleBuilderSaveDraftButton = document.getElementById("rule-builder-save-draft");
 const ruleBuilderDraftStatus = document.getElementById("rule-builder-draft-status");

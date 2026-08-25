@@ -23,6 +23,24 @@ const definitionWithAssignments = (assignmentIds: readonly string[]) => {
   }).definition;
 };
 
+const threeCoursePathwayDefinition = () => {
+  return parseCreateBadgeIssuanceRuleRequest({
+    name: "Sample Course Pathway Badge",
+    badgeTemplateId: "badge-template",
+    badgeTemplateReuseAcknowledged: false,
+    lmsConnectionId: "lms-connection",
+    lmsProviderKind: "sakai",
+    action: "save_draft",
+    definition: {
+      conditions: {
+        type: "program_completion",
+        courseIds: ["course-101", "course-102", "course-103"],
+        minimumCompleted: 3,
+      },
+    },
+  }).definition;
+};
+
 const assignment = (assignmentId: string): GradebookAssignmentRecord => ({
   assignmentId,
   courseId: "course-101",
@@ -39,6 +57,19 @@ const createProvider = (
 });
 
 describe("validateBadgeRuleReferences", () => {
+  it("does not read gradebooks for a course-only pathway", async () => {
+    const provider = createProvider(() =>
+      Promise.reject(new Error("course-only rules must not load assignments")),
+    );
+
+    await expect(
+      validateBadgeRuleReferences({
+        provider,
+        definition: threeCoursePathwayDefinition(),
+      }),
+    ).resolves.toEqual({ status: "valid" });
+  });
+
   it("loads each course gradebook once and reuses its assignments", async () => {
     const requestedCourseIds: string[] = [];
     const provider = createProvider((input) => {

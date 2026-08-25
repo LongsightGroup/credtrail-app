@@ -7,51 +7,81 @@ const createRuleBuilderAuthoringController = (dependencies) => {
     }
 
     state = "submitting";
+    const requestId = dependencies.createRequestId();
+    const builderDraftId = input.payload.builderDraftId;
+    const replaySafeCreate = typeof builderDraftId === "string" && builderDraftId.length > 0;
+    const maximumAttempts = replaySafeCreate ? 2 : 1;
+    const body = JSON.stringify(input.payload);
 
-    try {
-      const response = await dependencies.request(input.apiPath, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(input.payload),
-      });
-      const payload = await dependencies.parseResponse(response);
+    for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
+      let response;
 
-      if (!response.ok) {
+      try {
+        response = await dependencies.request(input.apiPath, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-request-id": requestId,
+          },
+          body,
+        });
+      } catch {
+        if (attempt < maximumAttempts) {
+          continue;
+        }
+
         state = "idle";
         return {
-          status: "rejected",
-          message: dependencies.errorMessage(payload),
+          status: "unknown",
+          requestId,
+          retryAttempted: attempt > 1,
         };
       }
 
-      const outcome =
-        payload && typeof payload === "object" && typeof payload.outcome === "string"
-          ? payload.outcome
-          : "";
+      try {
+        const payload = await dependencies.parseResponse(response);
 
-      if (
-        outcome !== "draft_saved" &&
-        outcome !== "pending_approval" &&
-        outcome !== "approved"
-      ) {
+        if (!response.ok) {
+          state = "idle";
+          return {
+            status: "rejected",
+            message: dependencies.errorMessage(payload),
+          };
+        }
+
+        const outcome =
+          payload && typeof payload === "object" && typeof payload.outcome === "string"
+            ? payload.outcome
+            : "";
+
+        if (
+          outcome !== "draft_saved" &&
+          outcome !== "pending_approval" &&
+          outcome !== "approved"
+        ) {
+          state = "idle";
+          return {
+            status: "rejected",
+            message: "CredTrail returned an invalid rule authoring outcome.",
+          };
+        }
+
+        state = "completed";
+        return {
+          status: "completed",
+          outcome,
+        };
+      } catch {
         state = "idle";
         return {
-          status: "rejected",
-          message: "CredTrail returned an invalid rule authoring outcome.",
+          status: "unknown",
+          requestId,
+          retryAttempted: attempt > 1,
         };
       }
-
-      state = "completed";
-      return {
-        status: "completed",
-        outcome,
-      };
-    } catch {
-      state = "idle";
-      return { status: "unknown" };
     }
+
+    throw new Error("Rule authoring attempt limit was not resolved");
   };
 
   return {

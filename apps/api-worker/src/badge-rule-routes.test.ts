@@ -732,6 +732,88 @@ describe("badge rule routes", () => {
     expect(mockedSubmitBadgeIssuanceRuleVersionForApproval).not.toHaveBeenCalled();
   });
 
+  it.each<{
+    readonly action: "save_draft" | "submit_for_approval";
+    readonly outcome: "draft_saved" | "pending_approval";
+  }>([
+    { action: "save_draft", outcome: "draft_saved" },
+    { action: "submit_for_approval", outcome: "pending_approval" },
+  ])(
+    "authors a three-course Sakai pathway with $action without reading assignment gradebooks",
+    async ({ action, outcome }) => {
+      mockedFindTenantLmsConnectionById.mockResolvedValue(
+        sampleTenantLmsConnection({
+          id: "lms_sakai",
+          displayName: "TrySakai",
+          providerKind: "sakai",
+          apiBaseUrl: "https://sakai.example.edu",
+          accessToken: "sakai-token",
+          refreshToken: null,
+        }),
+      );
+      mockedCreateGradebookProvider.mockReturnValue({
+        kind: "sakai",
+        courseCatalogForConnection: () => ({
+          verifyCourseAccess: () =>
+            Promise.resolve({ authorizedCourses: [], unauthorizedCourseIds: [] }),
+          listCourses: () => Promise.resolve({ courses: [], hasMore: false }),
+        }),
+        listAssignments: () =>
+          Promise.reject(new Error("course-only rules must not load assignments")),
+        listEnrollments: () => Promise.resolve([]),
+        listLearners: () => Promise.resolve([]),
+        listSubmissions: () => Promise.resolve([]),
+        listGrades: () => Promise.resolve([]),
+        listCompletions: () => Promise.resolve([]),
+      });
+      mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({
+        status: "completed",
+        outcome,
+        pendingStepNumber: outcome === "pending_approval" ? 1 : null,
+        writeStatus: "created",
+        rule: sampleRule({
+          lmsProviderKind: "sakai",
+          lmsConnectionId: "lms_sakai",
+        }),
+        version: sampleVersion({
+          status: outcome === "pending_approval" ? "pending_approval" : "draft",
+        }),
+      });
+
+      const response = await app.request(
+        "/v1/tenants/tenant_123/badge-rules",
+        {
+          method: "POST",
+          headers: {
+            Origin: "http://localhost",
+            Cookie: "better-auth.session_token=session-token",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            name: "Sample Course Pathway Badge",
+            badgeTemplateId: "badge_template_cs101",
+            badgeTemplateReuseAcknowledged: false,
+            lmsConnectionId: "lms_sakai",
+            action,
+            builderDraftId: `brd_pathway_${action}`,
+            definition: {
+              conditions: {
+                type: "program_completion",
+                courseIds: ["course_101", "course_102", "course_103"],
+                minimumCompleted: 3,
+              },
+            },
+          }),
+        },
+        createEnv(),
+      );
+      const body = await response.json<{ outcome: string }>();
+
+      expect(response.status).toBe(201);
+      expect(body.outcome).toBe(outcome);
+    },
+  );
+
   it("returns an atomic authoring rejection without recording a created-rule audit", async () => {
     const env = createEnv();
     mockedCreateBadgeIssuanceRuleWithAction.mockResolvedValue({
