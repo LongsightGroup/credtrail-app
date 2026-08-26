@@ -74,6 +74,32 @@ describe("fetchCanvasJsonArrayPages", () => {
     expect(requests).toEqual(["/api/v1/items?per_page=100", "/api/v1/items?page=2&per_page=100"]);
   });
 
+  it("invokes the fetch transport without rebinding its receiver", async () => {
+    const fetchImpl: typeof fetch = async function (
+      this: unknown,
+      _input: RequestInfo | URL,
+      _init?: RequestInit,
+    ): Promise<Response> {
+      if (this !== undefined) {
+        throw new TypeError("Illegal invocation");
+      }
+
+      return Response.json([{ id: 1 }]);
+    };
+
+    await expect(
+      fetchCanvasJsonArrayPages({
+        apiBaseUrl,
+        fetchImpl,
+        accessToken: "canvas-token",
+        path: "/api/v1/items",
+        operation: "course_search",
+        maxPages: CANVAS_GRADEBOOK_FULL_MAX_PAGES,
+        onMaxPages: "throw",
+      }),
+    ).resolves.toEqual([{ id: 1 }]);
+  });
+
   it("throws when pagination exceeds maxPages", async () => {
     const fetchImpl = ((): Promise<Response> => {
       return Promise.resolve(

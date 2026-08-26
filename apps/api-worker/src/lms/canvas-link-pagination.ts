@@ -74,6 +74,7 @@ export const fetchCanvasJsonArrayPages = async (
   input: FetchCanvasJsonArrayPagesInput,
   options: GradebookRequestOptions = {},
 ): Promise<readonly unknown[]> => {
+  const fetchImpl = input.fetchImpl;
   const firstRequestUrl = new URL(input.path, input.apiBaseUrl);
 
   if (input.query !== undefined && input.query.size > 0) {
@@ -90,7 +91,7 @@ export const fetchCanvasJsonArrayPages = async (
     let response: Response;
 
     try {
-      response = await input.fetchImpl(requestUrl.toString(), {
+      response = await fetchImpl(requestUrl.toString(), {
         method: "GET",
         headers: withCredTrailUserAgent({
           authorization: `Bearer ${input.accessToken}`,
