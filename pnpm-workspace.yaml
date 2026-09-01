@@ -11,6 +11,8 @@ overrides:
   zod: 4.5.4
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
+  # This exact release was explicitly approved for adoption before the normal quarantine expires.
+  - "zod@4.5.4"
   # CredTrail is a co-author on @longsightgroup/lti-tool, so we can safely consume coordinated releases immediately.
   - "@longsightgroup/lti-tool"
   # Wrangler updates unblock local Cloudflare compatibility checks and are verified before commit.
