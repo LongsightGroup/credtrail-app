@@ -8,7 +8,7 @@ overrides:
   jose: 6.2.3
   nanoid: 3.3.18
   postcss: 8.5.26
-  zod: 4.4.3
+  zod: 4.5.4
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
   # CredTrail is a co-author on @longsightgroup/lti-tool, so we can safely consume coordinated releases immediately.

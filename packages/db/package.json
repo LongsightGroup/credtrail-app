@@ -13,6 +13,6 @@
   "dependencies": {
     "@credtrail/validation": "workspace:*",
     "pg": "^8.21.0",
-    "zod": "4.4.3"
+    "zod": "4.5.4"
   }
 }
