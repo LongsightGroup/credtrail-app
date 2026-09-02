@@ -223,6 +223,38 @@ const waitForBuilderDraftSave = (page: Page): ReturnType<Page["waitForResponse"]
   });
 };
 
+const waitForBuilderDraftDefinitionSave = (
+  page: Page,
+  expectedDefinition: unknown,
+): ReturnType<Page["waitForResponse"]> => {
+  const expectedDefinitionJson = JSON.stringify(expectedDefinition);
+
+  return page.waitForResponse((response) => {
+    const request = response.request();
+    if (
+      request.method() !== "PUT" ||
+      !new URL(request.url()).pathname.includes("/badge-rule-builder-drafts/")
+    ) {
+      return false;
+    }
+
+    try {
+      const payload: unknown = JSON.parse(request.postData() ?? "null");
+      const definitionJson =
+        payload !== null && typeof payload === "object"
+          ? Reflect.get(payload, "definitionJson")
+          : undefined;
+
+      return (
+        typeof definitionJson === "string" &&
+        JSON.stringify(JSON.parse(definitionJson) as unknown) === expectedDefinitionJson
+      );
+    } catch {
+      return false;
+    }
+  });
+};
+
 const cleanupDraftRestoreRecords = async (input: {
   readonly builderDraftId?: string;
   readonly lmsConnectionId: string;
@@ -365,10 +397,7 @@ test("unfinished custom requirements restore without being replaced by a starter
     await applyDefinitionJson(page, customDefinition);
     await expect(page.getByLabel("Awarding pattern")).toHaveValue("custom");
 
-    const saveResponsePromise = page.waitForResponse((response) => {
-      const request = response.request();
-      return request.method() === "PUT" && new URL(request.url()).pathname.includes("drafts");
-    });
+    const saveResponsePromise = waitForBuilderDraftDefinitionSave(page, customDefinition);
     await page.getByRole("button", { name: "Save unfinished work" }).click();
     const saveResponse = await saveResponsePromise;
     const savePayload: unknown = await saveResponse.json();
