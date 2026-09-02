@@ -377,7 +377,7 @@ export const processAutomatedBadgeRule = async (input: {
           learnerId: learner.learnerId,
         },
         ...(learner.displayName.length === 0 ? {} : { recipientDisplayName: learner.displayName }),
-        idempotencyKey: `rule-evaluate:${version.id}:${learnerKey}`,
+        idempotencyKey: `rule-evaluate:${learnerKey}`,
         achievementSource: {
           kind: "rule_version",
           provenance: {

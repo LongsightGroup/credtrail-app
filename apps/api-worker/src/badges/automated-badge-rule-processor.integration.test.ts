@@ -120,14 +120,14 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
       const queuedIssuance = await fixture.db
         .prepare(
           `
-          SELECT payload_json AS payloadJson
+          SELECT payload_json AS payloadJson, idempotency_key AS idempotencyKey
           FROM job_queue_messages
           WHERE tenant_id = ?
             AND job_type = 'issue_badge'
         `,
         )
         .bind(fixture.tenantId)
-        .first<{ payloadJson: string }>();
+        .first<{ payloadJson: string; idempotencyKey: string }>();
       const activationJob = await fixture.db
         .prepare(
           `
@@ -171,6 +171,15 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
       expect(queuedIssuancePayload).not.toHaveProperty("badgeTemplateId");
       expect(queuedIssuancePayload).not.toHaveProperty("achievementSnapshot");
       expect(queuedIssuancePayload).not.toHaveProperty("recipientIdentifiers");
+      expect(queuedIssuance?.idempotencyKey).toMatch(/^rule-evaluate:[0-9a-f]{64}$/);
+      expect(() =>
+        parseQueueJob({
+          jobType: "issue_badge",
+          tenantId: fixture.tenantId,
+          payload: queuedIssuancePayload,
+          idempotencyKey: queuedIssuance?.idempotencyKey ?? "",
+        }),
+      ).not.toThrow();
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],
