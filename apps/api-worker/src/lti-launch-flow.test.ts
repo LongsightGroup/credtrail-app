@@ -41,6 +41,7 @@ vi.mock("@credtrail/db", async () => {
     listLearnerBadgeSummaries: vi.fn(),
     listAllLtiIssuerRegistrations: vi.fn(),
     listLtiResourceLinkPlacementsForContext: vi.fn(),
+    listLtiResourceLinkPlacementRuleStates: vi.fn(),
     listTenantLmsConnections: vi.fn(),
     moveLearnerIdentityAliasToProfile: vi.fn(),
     resolveLearnerProfileFromSaml: vi.fn(),
@@ -95,6 +96,7 @@ import {
   listLearnerBadgeSummaries,
   listAllLtiIssuerRegistrations,
   listLtiResourceLinkPlacementsForContext,
+  listLtiResourceLinkPlacementRuleStates,
   listTenantLmsConnections,
   moveLearnerIdentityAliasToProfile,
   resolveLearnerProfileFromSaml,
@@ -178,6 +180,9 @@ const mockedListLearnerBadgeSummaries = vi.mocked(listLearnerBadgeSummaries);
 const mockedListLtiIssuerRegistrations = vi.mocked(listAllLtiIssuerRegistrations);
 const mockedListLtiResourceLinkPlacementsForContext = vi.mocked(
   listLtiResourceLinkPlacementsForContext,
+);
+const mockedListLtiResourceLinkPlacementRuleStates = vi.mocked(
+  listLtiResourceLinkPlacementRuleStates,
 );
 const mockedListTenantLmsConnections = vi.mocked(listTenantLmsConnections);
 const mockedMoveLearnerIdentityAliasToProfile = vi.mocked(moveLearnerIdentityAliasToProfile);
@@ -728,8 +733,8 @@ const sampleLearnerBadgeSummary = (
 };
 
 const sampleLtiResourceLinkPlacement = (
-  overrides?: Partial<LtiResourceLinkPlacementRecord>,
-): LtiResourceLinkPlacementRecord => {
+  overrides?: Partial<Extract<LtiResourceLinkPlacementRecord, { status: "active" }>>,
+): Extract<LtiResourceLinkPlacementRecord, { status: "active" }> => {
   return {
     id: "lti_place_123",
     tenantId: "tenant_123",
@@ -739,8 +744,12 @@ const sampleLtiResourceLinkPlacement = (
     contextId: "course-123",
     resourceLinkId: "resource-link-placed-badge",
     badgeTemplateId: "badge_template_001",
-    ruleId: null,
+    ruleId: "brl_lti_rule_123",
     createdByUserId: "usr_lti_123",
+    status: "active",
+    lastSeenAt: "2026-02-10T22:00:00.000Z",
+    retiredAt: null,
+    retiredByUserId: null,
     createdAt: "2026-02-10T22:00:00.000Z",
     updatedAt: "2026-02-10T22:00:00.000Z",
     ...overrides,
@@ -905,6 +914,10 @@ describe("LTI 1.3 core launch flow", () => {
     mockedListAssertionLifecycleStatesByAssertionIds.mockResolvedValue([]);
     mockedListLtiResourceLinkPlacementsForContext.mockReset();
     mockedListLtiResourceLinkPlacementsForContext.mockResolvedValue([]);
+    mockedListLtiResourceLinkPlacementRuleStates.mockReset();
+    mockedListLtiResourceLinkPlacementRuleStates.mockImplementation(async (_db, input) =>
+      input.ruleIds.map((ruleId) => ({ ruleId, isActive: true })),
+    );
     mockedListTenantLmsConnections.mockReset();
     mockedListTenantLmsConnections.mockResolvedValue([sampleTenantLmsConnection()]);
     mockedEnsureExternalCourseOrgUnit.mockReset();
@@ -947,6 +960,10 @@ describe("LTI 1.3 core launch flow", () => {
       badgeTemplateId: "badge_template_001",
       ruleId: "brl_lti_rule_123",
       createdByUserId: linkedUserId,
+      status: "active",
+      lastSeenAt: "2026-02-10T22:00:00.000Z",
+      retiredAt: null,
+      retiredByUserId: null,
       createdAt: "2026-02-10T22:00:00.000Z",
       updatedAt: "2026-02-10T22:00:00.000Z",
     });
@@ -985,6 +1002,10 @@ describe("LTI 1.3 core launch flow", () => {
         badgeTemplateId: "badge_template_001",
         ruleId: "brl_lti_rule_123",
         createdByUserId: linkedUserId,
+        status: "active",
+        lastSeenAt: "2026-02-10T22:00:00.000Z",
+        retiredAt: null,
+        retiredByUserId: null,
         createdAt: "2026-02-10T22:00:00.000Z",
         updatedAt: "2026-02-10T22:00:00.000Z",
       },
@@ -1087,6 +1108,10 @@ describe("LTI 1.3 core launch flow", () => {
       badgeTemplateId: "badge_template_001",
       ruleId: null,
       createdByUserId: linkedUserId,
+      status: "active",
+      lastSeenAt: "2026-02-10T22:00:00.000Z",
+      retiredAt: null,
+      retiredByUserId: null,
       createdAt: "2026-02-10T22:00:00.000Z",
       updatedAt: "2026-02-10T22:00:00.000Z",
     });
@@ -2127,12 +2152,13 @@ describe("LTI 1.3 core launch flow", () => {
       clientId,
       deploymentId,
       contextId: "course-123",
+      includeRetired: true,
     });
     expect(mockedListBadgeTemplates).not.toHaveBeenCalled();
     expect(mockedListBadgeTemplatesByIds).toHaveBeenCalledWith(fakeDb, {
       tenantId,
       badgeTemplateIds: ["badge_template_001"],
-      includeArchived: false,
+      includeArchived: true,
     });
     expect(mockedListAssertionsByIdempotencyKeys).not.toHaveBeenCalled();
     expect(mockedListAssertionsByBadgeTemplatesAndRecipientEmails).toHaveBeenCalledWith(fakeDb, {
@@ -3014,11 +3040,12 @@ describe("LTI 1.3 core launch flow", () => {
       clientId,
       deploymentId,
       contextId: "course-123",
+      includeRetired: true,
     });
     expect(mockedListBadgeTemplatesByIds).toHaveBeenCalledWith(fakeDb, {
       tenantId,
       badgeTemplateIds: ["badge_template_001", "badge_template_002"],
-      includeArchived: false,
+      includeArchived: true,
     });
     expect(mockedListLearnerBadgeSummaries).toHaveBeenCalledWith(fakeDb, {
       tenantId,

@@ -28,6 +28,7 @@ import { registerTenantIssuedBadgesAdminRoutes } from "./tenant-issued-badges-ad
 import { registerTenantLearnerRecordAdminRoutes } from "./tenant-learner-record-admin-routes";
 import { registerTenantLearnerPathwayAdminRoutes } from "./tenant-learner-pathway-admin-routes";
 import { registerTenantLmsConnectionAdminRoutes } from "./tenant-lms-connection-admin-routes";
+import { registerTenantLtiPlacementAdminRoutes } from "./tenant-lti-placement-admin-routes";
 import { registerTenantMemberManagementRoutes } from "./tenant-member-management-routes";
 import {
   assertRoleChangeAllowed,
@@ -231,6 +232,12 @@ export const registerTenantGovernanceRoutes = (
     app: input.app,
     resolveDatabase: input.resolveDatabase,
     loadInstitutionAdminShellData: pageData.loadInstitutionAdminShellData,
+    resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
+  });
+
+  registerTenantLtiPlacementAdminRoutes({
+    app: input.app,
+    resolveDatabase: input.resolveDatabase,
     resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
   });
 

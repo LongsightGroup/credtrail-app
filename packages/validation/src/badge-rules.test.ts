@@ -8,6 +8,8 @@ import {
   parseBadgeIssuanceRuleReviewQueueQuery,
   parseBadgeIssuanceRuleVersionDiffQuery,
   parseBadgeIssuanceRuleVersionPathParams,
+  parseLtiResourceLinkPlacementPathParams,
+  parseRetireLtiResourceLinkPlacementRequest,
   parseCreateBadgeIssuanceRuleRequest,
   parseCreateBadgeIssuanceRuleValueListRequest,
   parseDecideBadgeIssuanceRuleVersionRequest,
@@ -292,6 +294,24 @@ describe("badge issuance rule parsers", () => {
 
     expect(rulePathParams.ruleId).toBe("brl_123");
     expect(versionPathParams.versionId).toBe("brv_123");
+  });
+
+  it("parses placement retirement path and form identities", () => {
+    const pathParams = parseLtiResourceLinkPlacementPathParams({
+      tenantId: "tenant_123",
+      ruleId: "brl_123",
+      versionId: "brv_123",
+      placementId: "lti_place_123",
+    });
+    const request = parseRetireLtiResourceLinkPlacementRequest({
+      placementId: "lti_place_123",
+    });
+
+    expect(pathParams.placementId).toBe("lti_place_123");
+    expect(request).toEqual({ placementId: "lti_place_123" });
+    expect(() => parseRetireLtiResourceLinkPlacementRequest({ placementId: "" })).toThrow(
+      /too small/i,
+    );
   });
 
   it("parses badge rule diff and audit-log query parameters", () => {

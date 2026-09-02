@@ -279,9 +279,7 @@ export const CourseBadgeSummarySection = (input: {
               ? "Search learners, badges, or status in this course."
               : hasPlacedBadges
                 ? "Badge placements exist, but no learner badge rows are available yet."
-                : showPlacementGuidance
-                  ? "Place a CredTrail badge from your LMS content picker to start badging this course."
-                  : "No badge placements are available for this LMS course yet."}
+                : "No active badge placements are available for this LMS course."}
           </p>
         </header>
         <p class={`lti-launch__bulk-status lti-launch__bulk-status--${view.status}`}>
@@ -412,14 +410,14 @@ export const CourseBadgeSummarySection = (input: {
         ) : (
           <div class="lti-launch__course-summary-empty">
             <strong>
-              {hasPlacedBadges ? "No learner badge rows yet" : "No badges placed yet"}
+              {hasPlacedBadges ? "No learner badge rows yet" : "No active badge placements"}
             </strong>
             <p>
               {hasPlacedBadges
                 ? "CredTrail could not build learner badge rows for this course. Try again after roster and badge data are available."
                 : showPlacementGuidance
-                  ? "Use the LMS add-content or external-tool flow, choose CredTrail, then select a badge template. After the badge is placed, launch it from this course to issue it from the roster."
-                  : "Once a badge is placed in this course, instructors will see learner badge status here."}
+                  ? "Use the LMS add-content or external-tool flow to place an active CredTrail badge. You can also review existing placement and badge-rule status in CredTrail."
+                  : "Instructors will see learner badge status here when an active placement is available."}
             </p>
           </div>
         )}

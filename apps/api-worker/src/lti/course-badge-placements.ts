@@ -1,6 +1,7 @@
 import {
   listBadgeTemplatesByIds,
   listLtiResourceLinkPlacementsForContext,
+  listLtiResourceLinkPlacementRuleStates,
   type BadgeTemplateRecord,
   type LtiResourceLinkPlacementRecord,
   type SqlDatabase,
@@ -24,6 +25,27 @@ export interface LtiCourseBadgePlacementResolution {
   placements: readonly LtiResourceLinkPlacementRecord[];
   orderedTemplates: readonly BadgeTemplateRecord[];
   placementGroups: readonly LtiCourseBadgeTemplatePlacementGroup[];
+  status:
+    | {
+        kind: "usable";
+        counts: LtiCourseBadgePlacementResolutionCounts;
+      }
+    | {
+        kind: "empty";
+        reason: "no_placements" | "only_retired" | "no_active_rules" | "no_available_templates";
+        counts: LtiCourseBadgePlacementResolutionCounts;
+      };
+}
+
+export interface LtiCourseBadgePlacementResolutionCounts {
+  queriedPlacements: number;
+  activePlacements: number;
+  retiredPlacements: number;
+  usablePlacements: number;
+  inactiveRulePlacements: number;
+  missingRulePlacements: number;
+  archivedTemplatePlacements: number;
+  missingTemplatePlacements: number;
 }
 
 export const ltiCourseContextIdFromLaunch = (input: {
@@ -91,23 +113,95 @@ export const resolveOrderedCourseBadgeTemplatesForContext = async (input: {
   issuerClientId: string;
   contextId: string;
 }): Promise<LtiCourseBadgePlacementResolution> => {
-  const placements = await listLtiResourceLinkPlacementsForContext(input.db, {
+  const queriedPlacements = await listLtiResourceLinkPlacementsForContext(input.db, {
     tenantId: input.tenantId,
     issuer: input.launchClaims.iss,
     clientId: input.issuerClientId,
     deploymentId: input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
     contextId: input.contextId,
+    includeRetired: true,
   });
-  const orderedBadgeTemplateIds = orderedUniqueBadgeTemplateIds(placements);
+  const activePlacements = queriedPlacements.filter((placement) => placement.status === "active");
+  const linkedRuleIds = activePlacements
+    .map((placement) => placement.ruleId)
+    .filter((ruleId): ruleId is string => ruleId !== null);
+  const ruleStates = await listLtiResourceLinkPlacementRuleStates(input.db, {
+    tenantId: input.tenantId,
+    ruleIds: linkedRuleIds,
+  });
+  const ruleStatesById = new Map(ruleStates.map((rule) => [rule.ruleId, rule]));
+  const missingRulePlacements = activePlacements.filter(
+    (placement) => placement.ruleId === null || !ruleStatesById.has(placement.ruleId),
+  );
+  const inactiveRulePlacements = activePlacements.filter((placement) => {
+    if (placement.ruleId === null) {
+      return false;
+    }
+
+    return ruleStatesById.get(placement.ruleId)?.isActive === false;
+  });
+  const activeRulePlacements = activePlacements.filter((placement) => {
+    if (placement.ruleId === null) {
+      return false;
+    }
+
+    return ruleStatesById.get(placement.ruleId)?.isActive === true;
+  });
+  const orderedBadgeTemplateIds = orderedUniqueBadgeTemplateIds(activeRulePlacements);
   const badgeTemplates = await listBadgeTemplatesByIds(input.db, {
     tenantId: input.tenantId,
     badgeTemplateIds: orderedBadgeTemplateIds,
-    includeArchived: false,
+    includeArchived: true,
   });
   const templatesById = new Map(badgeTemplates.map((template) => [template.id, template]));
   const orderedTemplates = orderedBadgeTemplateIds
     .map((badgeTemplateId) => templatesById.get(badgeTemplateId) ?? null)
-    .filter((badgeTemplate): badgeTemplate is BadgeTemplateRecord => badgeTemplate !== null);
+    .filter(
+      (badgeTemplate): badgeTemplate is BadgeTemplateRecord =>
+        badgeTemplate !== null && !badgeTemplate.isArchived,
+    );
+  const availableTemplateIds = new Set(orderedTemplates.map((template) => template.id));
+  const placements = activeRulePlacements.filter((placement) =>
+    availableTemplateIds.has(placement.badgeTemplateId),
+  );
+  const archivedTemplateIds = new Set(
+    badgeTemplates.filter((template) => template.isArchived).map((template) => template.id),
+  );
+  const archivedTemplatePlacements = activeRulePlacements.filter((placement) =>
+    archivedTemplateIds.has(placement.badgeTemplateId),
+  );
+  const knownTemplateIds = new Set(badgeTemplates.map((template) => template.id));
+  const missingTemplatePlacements = activeRulePlacements.filter(
+    (placement) => !knownTemplateIds.has(placement.badgeTemplateId),
+  );
+  const counts: LtiCourseBadgePlacementResolutionCounts = {
+    queriedPlacements: queriedPlacements.length,
+    activePlacements: activePlacements.length,
+    retiredPlacements: queriedPlacements.length - activePlacements.length,
+    usablePlacements: placements.length,
+    inactiveRulePlacements: inactiveRulePlacements.length,
+    missingRulePlacements: missingRulePlacements.length,
+    archivedTemplatePlacements: archivedTemplatePlacements.length,
+    missingTemplatePlacements: missingTemplatePlacements.length,
+  };
+  const emptyReason = (): Extract<
+    LtiCourseBadgePlacementResolution["status"],
+    { kind: "empty" }
+  >["reason"] => {
+    if (queriedPlacements.length === 0) {
+      return "no_placements";
+    }
+
+    if (activePlacements.length === 0) {
+      return "only_retired";
+    }
+
+    if (activeRulePlacements.length === 0) {
+      return "no_active_rules";
+    }
+
+    return "no_available_templates";
+  };
 
   return {
     contextId: input.contextId,
@@ -117,5 +211,9 @@ export const resolveOrderedCourseBadgeTemplatesForContext = async (input: {
       placements,
       orderedTemplates,
     }),
+    status:
+      placements.length > 0
+        ? { kind: "usable", counts }
+        : { kind: "empty", reason: emptyReason(), counts },
   };
 };

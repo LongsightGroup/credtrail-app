@@ -15,7 +15,7 @@ import { ensureExternalCourseOrgUnit } from "./external-course-org-units.js";
 import { normalizeLtiIssuer } from "./lti.js";
 import {
   findLtiResourceLinkPlacement,
-  upsertLtiResourceLinkPlacement,
+  upsertLtiResourceLinkPlacementWithinTransaction,
   type LtiResourceLinkPlacementRecord,
 } from "./lti-resource-link-placements.js";
 import { runSqlTransaction, type SqlDatabase } from "./tenant-scope.js";
@@ -228,7 +228,7 @@ export const createLtiCourseBadgeRule = async (
       };
     }
 
-    const placement = await upsertLtiResourceLinkPlacement(transactionDb, {
+    const placement = await upsertLtiResourceLinkPlacementWithinTransaction(transactionDb, {
       tenantId: input.tenantId,
       issuer: input.placement.issuer,
       clientId: input.placement.clientId,

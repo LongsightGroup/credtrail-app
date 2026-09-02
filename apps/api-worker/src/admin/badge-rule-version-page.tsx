@@ -2,6 +2,7 @@ import type {
   BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleVersionRecord,
   AutomatedBadgeRuleEvaluationStatusRecord,
+  LtiResourceLinkPlacementRecord,
   TenantMembershipRole,
   TenantOrgUnitRecord,
   TenantRecord,
@@ -17,6 +18,8 @@ import {
 } from "./badge-rule-version-navigator";
 import { BadgeRuleVersionOverview } from "./badge-rule-version-overview";
 import { BadgeRuleAutomatedEvaluationStatus } from "./badge-rule-automated-evaluation-status";
+import { BadgeRuleLtiPlacements } from "./badge-rule-lti-placements";
+import { AdminStatus } from "./components";
 import { renderInstitutionAdminShellPage } from "./institution-admin-shell";
 
 /** Builds the canonical institution-admin page for inspecting one badge-rule version. */
@@ -32,8 +35,9 @@ export const badgeRuleVersionPage = (input: {
   readonly definition: BadgeIssuanceRuleDefinition;
   readonly orgUnit: TenantOrgUnitRecord | null;
   readonly automaticEvaluationStatus: AutomatedBadgeRuleEvaluationStatusRecord | null;
+  readonly placements: readonly LtiResourceLinkPlacementRecord[];
   readonly evaluationRequestId: string;
-  readonly evaluationFlash: { readonly tone: "success" | "error"; readonly message: string } | null;
+  readonly actionFlash: { readonly tone: "success" | "error"; readonly message: string } | null;
 }): AppPage => {
   const navigation = buildBadgeRuleVersionNavigationModel({
     rule: input.rule,
@@ -80,6 +84,9 @@ export const badgeRuleVersionPage = (input: {
             navigation={navigation}
             destination="detail"
           />
+          {input.actionFlash === null ? null : (
+            <AdminStatus tone={input.actionFlash.tone}>{input.actionFlash.message}</AdminStatus>
+          )}
           <BadgeRuleVersionOverview
             tenantId={input.tenant.id}
             rule={input.rule}
@@ -95,7 +102,12 @@ export const badgeRuleVersionPage = (input: {
             status={input.automaticEvaluationStatus}
             canRunNow={canRunAutomaticEvaluation}
             requestId={input.evaluationRequestId}
-            flash={input.evaluationFlash}
+          />
+          <BadgeRuleLtiPlacements
+            tenantId={input.tenant.id}
+            ruleId={input.rule.id}
+            versionId={input.version.id}
+            placements={input.placements}
           />
         </section>
       </>

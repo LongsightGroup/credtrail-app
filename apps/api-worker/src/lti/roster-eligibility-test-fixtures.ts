@@ -82,8 +82,8 @@ export const sampleLtiRosterBadgeRuleVersion = (
 };
 
 export const sampleLtiRosterResourceLinkPlacement = (
-  overrides?: Partial<LtiResourceLinkPlacementRecord>,
-): LtiResourceLinkPlacementRecord => ({
+  overrides?: Partial<Extract<LtiResourceLinkPlacementRecord, { status: "active" }>>,
+): Extract<LtiResourceLinkPlacementRecord, { status: "active" }> => ({
   id: "lti_place_123",
   tenantId: "tenant_123",
   issuer: "https://sakai.example.edu",
@@ -94,6 +94,10 @@ export const sampleLtiRosterResourceLinkPlacement = (
   badgeTemplateId: "badge_template_001",
   ruleId: "brl_123",
   createdByUserId: "usr_instructor_123",
+  status: "active",
+  lastSeenAt: "2026-02-10T22:00:00.000Z",
+  retiredAt: null,
+  retiredByUserId: null,
   createdAt: "2026-02-10T22:00:00.000Z",
   updatedAt: "2026-02-10T22:00:00.000Z",
   ...overrides,

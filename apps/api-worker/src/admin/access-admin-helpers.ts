@@ -48,6 +48,16 @@ export const buildBadgeRuleVersionDetailPath = (
   return `${buildBadgeRuleDetailPath(tenantId, ruleId)}/versions/${encodeURIComponent(versionId)}`;
 };
 
+/** Builds the administrator action URL for retiring one recorded LMS placement. */
+export const tenantLtiPlacementRetireAdminPath = (
+  tenantId: string,
+  ruleId: string,
+  versionId: string,
+  placementId: string,
+): string => {
+  return `${buildBadgeRuleVersionDetailPath(tenantId, ruleId, versionId)}/placements/${encodeURIComponent(placementId)}/retire`;
+};
+
 /** Builds the read-only API URL for labels referenced by one badge-rule version. */
 export const buildBadgeRuleVersionLmsReferenceLabelsPath = (
   tenantId: string,

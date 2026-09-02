@@ -12,6 +12,7 @@ import { canIssueBadgesAsTenantMember, isTenantAdminRole } from "../auth/tenant-
 import { ltiBadgeSummaryCardFromTemplate, newestAssertion } from "./badge-summary-helpers";
 import {
   resolveOrderedCourseBadgeTemplatesForContext,
+  type LtiCourseBadgePlacementResolution,
   type LtiCourseBadgeTemplatePlacementGroup,
 } from "./course-badge-placements";
 import {
@@ -102,6 +103,21 @@ const ltiCourseBadgeOverview = (input: {
   });
 };
 
+const instructorEmptyPlacementMessage = (
+  status: Extract<LtiCourseBadgePlacementResolution["status"], { kind: "empty" }>,
+): string => {
+  switch (status.reason) {
+    case "no_placements":
+      return "No badges have been placed in this LMS course yet.";
+    case "only_retired":
+      return "No active badge placements are recorded for this course.";
+    case "no_active_rules":
+      return "No active badge rules are linked to this course's recorded placements.";
+    case "no_available_templates":
+      return "No available badge templates are linked to this course's active rules.";
+  }
+};
+
 const ltiCourseBadgeSummaryViewFromRoster = async (
   dependencies: Pick<
     InstructorCourseSummaryViewDependencies,
@@ -114,6 +130,7 @@ const ltiCourseBadgeSummaryViewFromRoster = async (
     courseContextTitle: string | null;
     roster: LtiNrpsRoster;
     placementGroups: readonly LtiCourseBadgeTemplatePlacementGroup[];
+    emptyPlacementMessage: string;
     canPlaceBadgesFromLti: boolean;
     canOpenAdminLinks: boolean;
   },
@@ -221,7 +238,7 @@ const ltiCourseBadgeSummaryViewFromRoster = async (
     status: "ready",
     message:
       placementGroups.length === 0
-        ? "No badges have been placed in this LMS course yet."
+        ? input.emptyPlacementMessage
         : `Showing progress for ${String(placementGroups.length)} badge placement${
             placementGroups.length === 1 ? "" : "s"
           } in this course.`,
@@ -254,6 +271,10 @@ const resolveInstructorCourseBadgeSummaryViewWithDependencies = async (
     courseContextTitle: input.courseContextTitle,
     roster: input.roster,
     placementGroups: courseBadges.placementGroups,
+    emptyPlacementMessage:
+      courseBadges.status.kind === "empty"
+        ? instructorEmptyPlacementMessage(courseBadges.status)
+        : "No active badge placements are available in this course.",
     canPlaceBadgesFromLti: canIssueBadgesAsTenantMember(input.membershipRole),
     canOpenAdminLinks: isTenantAdminRole(input.membershipRole),
   });

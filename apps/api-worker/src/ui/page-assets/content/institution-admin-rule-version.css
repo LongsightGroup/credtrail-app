@@ -328,6 +328,79 @@
   gap: var(--ct-space-3);
 }
 
+.ct-admin__rule-placements .ct-admin__list-header {
+  padding: var(--ct-space-4);
+}
+
+.ct-admin__rule-placements th[scope="row"] {
+  min-inline-size: 12rem;
+}
+
+.ct-admin__rule-placement-technical-details,
+.ct-admin__rule-placement-retire {
+  margin-block-start: var(--ct-space-2);
+  color: var(--ct-theme-text-subtle);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.ct-admin__rule-placement-technical-details summary,
+.ct-admin__rule-placement-retire summary {
+  inline-size: fit-content;
+  color: var(--ct-theme-link);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ct-admin__rule-placement-technical-details summary:focus-visible,
+.ct-admin__rule-placement-retire summary:focus-visible {
+  outline: 2px solid var(--ct-theme-border-focus);
+  outline-offset: 3px;
+}
+
+.ct-admin__rule-placement-technical-details dl {
+  display: grid;
+  gap: var(--ct-space-2);
+  margin: var(--ct-space-3) 0 0;
+}
+
+.ct-admin__rule-placement-technical-details dl div {
+  display: grid;
+  gap: var(--ct-space-1);
+}
+
+.ct-admin__rule-placement-technical-details dt {
+  font-weight: 650;
+}
+
+.ct-admin__rule-placement-technical-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ct-admin__rule-placement-retire > div {
+  display: grid;
+  gap: var(--ct-space-3);
+  max-inline-size: 36rem;
+  margin-block-start: var(--ct-space-3);
+  padding: var(--ct-space-3);
+  border: 1px solid var(--ct-theme-state-error);
+  border-radius: var(--ct-radius-sm);
+  background: var(--ct-theme-surface-soft);
+}
+
+.ct-admin__rule-placement-retire p,
+.ct-admin__rule-placement-retired-copy {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.ct-admin__rule-placement-retired-copy {
+  max-inline-size: 36rem;
+  color: var(--ct-theme-text-subtle);
+  font-size: 0.8rem;
+}
+
 @media (max-width: 700px) {
   .ct-admin__rule-version-navigation {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

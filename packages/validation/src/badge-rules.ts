@@ -277,6 +277,17 @@ export const badgeIssuanceRuleVersionPathParamsSchema = badgeIssuanceRulePathPar
   versionId: resourceIdSchema,
 });
 
+export const ltiResourceLinkPlacementPathParamsSchema =
+  badgeIssuanceRuleVersionPathParamsSchema.extend({
+    placementId: resourceIdSchema,
+  });
+
+export const retireLtiResourceLinkPlacementRequestSchema = z
+  .object({
+    placementId: resourceIdSchema,
+  })
+  .strict();
+
 export const badgeIssuanceRuleVersionDiffQuerySchema = z.object({
   baseVersionId: resourceIdSchema.optional(),
 });
@@ -523,6 +534,14 @@ export type BadgeIssuanceRuleVersionPathParams = z.infer<
   typeof badgeIssuanceRuleVersionPathParamsSchema
 >;
 
+export type LtiResourceLinkPlacementPathParams = z.infer<
+  typeof ltiResourceLinkPlacementPathParamsSchema
+>;
+
+export type RetireLtiResourceLinkPlacementRequest = z.infer<
+  typeof retireLtiResourceLinkPlacementRequestSchema
+>;
+
 export type BadgeIssuanceRuleEvaluationPathParams = z.infer<
   typeof badgeIssuanceRuleEvaluationPathParamsSchema
 >;
@@ -603,6 +622,18 @@ export const parseBadgeIssuanceRuleVersionPathParams = (
   input: unknown,
 ): BadgeIssuanceRuleVersionPathParams => {
   return badgeIssuanceRuleVersionPathParamsSchema.parse(input);
+};
+
+export const parseLtiResourceLinkPlacementPathParams = (
+  input: unknown,
+): LtiResourceLinkPlacementPathParams => {
+  return ltiResourceLinkPlacementPathParamsSchema.parse(input);
+};
+
+export const parseRetireLtiResourceLinkPlacementRequest = (
+  input: unknown,
+): RetireLtiResourceLinkPlacementRequest => {
+  return retireLtiResourceLinkPlacementRequestSchema.parse(input);
 };
 
 export const parseCreateBadgeIssuanceRuleRequest = (

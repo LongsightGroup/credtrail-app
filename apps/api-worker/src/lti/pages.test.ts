@@ -467,12 +467,10 @@ describe("ltiLaunchResultPage", () => {
     );
 
     expect(html).toContain("Course badge summary");
+    expect(html).toContain("No active badge placements are available for this LMS course.");
+    expect(html).toContain("No active badge placements");
     expect(html).toContain(
-      "Place a CredTrail badge from your LMS content picker to start badging this course.",
-    );
-    expect(html).toContain("No badges placed yet");
-    expect(html).toContain(
-      "Use the LMS add-content or external-tool flow, choose CredTrail, then select a badge template.",
+      "Use the LMS add-content or external-tool flow to place an active CredTrail badge.",
     );
     expect(html).toContain("Demo1 123 456 SP24");
     expect(html).toContain("<dt>Learners</dt>");

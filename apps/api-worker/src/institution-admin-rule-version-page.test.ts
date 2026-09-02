@@ -1,4 +1,7 @@
-import type { AutomatedBadgeRuleEvaluationStatusRecord } from "@credtrail/db";
+import type {
+  AutomatedBadgeRuleEvaluationStatusRecord,
+  LtiResourceLinkPlacementRecord,
+} from "@credtrail/db";
 import { describe, expect, it } from "vitest";
 import {
   createEnv,
@@ -10,7 +13,9 @@ import {
   mockedFindTenantMembership,
   mockedListBadgeIssuanceRuleVersions,
   mockedListBadgeIssuanceRuleValueLists,
+  mockedListLtiResourceLinkPlacementsForRuleDb,
   mockedRequestManualAutomatedBadgeRuleEvaluationDb,
+  mockedRetireLtiResourceLinkPlacementDb,
   sampleDetailRule,
   sampleDetailVersion,
   sampleMembership,
@@ -45,6 +50,39 @@ const sampleEvaluationStatus = (
   failureTag: null,
   updatedAt: "2026-09-02T18:01:05.000Z",
   ...overrides,
+});
+
+const samplePlacement = (
+  overrides: Partial<Extract<LtiResourceLinkPlacementRecord, { status: "active" }>> = {},
+): Extract<LtiResourceLinkPlacementRecord, { status: "active" }> => ({
+  id: "lti_place_detail",
+  tenantId: "tenant_123",
+  issuer: "https://lms.example.test",
+  clientId: "client_detail",
+  deploymentId: "deployment_detail",
+  contextId: "course_detail",
+  resourceLinkId: "resource_detail",
+  badgeTemplateId: "badge_template_001",
+  ruleId: "brl_detail",
+  createdByUserId: "usr_admin",
+  status: "active",
+  lastSeenAt: "2026-09-02T17:45:00.000Z",
+  retiredAt: null,
+  retiredByUserId: null,
+  createdAt: "2026-09-01T17:45:00.000Z",
+  updatedAt: "2026-09-02T17:45:00.000Z",
+  ...overrides,
+});
+
+const sampleRetiredPlacement = (): Extract<
+  LtiResourceLinkPlacementRecord,
+  { status: "retired" }
+> => ({
+  ...samplePlacement(),
+  id: "lti_place_retired",
+  status: "retired",
+  retiredAt: "2026-09-02T18:00:00.000Z",
+  retiredByUserId: "usr_admin",
 });
 
 const requestRulePage = (path: string): Promise<Response> => {
@@ -134,6 +172,30 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId", () => {
 });
 
 describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () => {
+  it("lists active and retired placements with row-owned retirement guidance", async () => {
+    const activeVersion = sampleDetailVersion("brv_detail_active", 1, "active");
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleDetailRule(activeVersion.id));
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([activeVersion]);
+    mockedListLtiResourceLinkPlacementsForRuleDb.mockResolvedValue([
+      samplePlacement(),
+      sampleRetiredPlacement(),
+    ]);
+
+    const response = await requestRulePage(
+      "/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_active",
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("LTI placements");
+    expect(body).toContain("Only active placements backed by an active rule");
+    expect(body).toContain("Retire placement");
+    expect(body).toContain("will reactivate if launched again");
+    expect(body).toContain("Advanced LMS identifiers");
+    expect(body).toContain("course_detail");
+    expect(body).not.toContain("https://lms.example.test");
+  });
+
   it("shows the latest automatic evaluation outcome and recovery action", async () => {
     const activeVersion = sampleDetailVersion("brv_detail_active", 1, "active");
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleDetailRule(activeVersion.id));
@@ -429,6 +491,85 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () =>
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Badge rule version not found" });
+  });
+});
+
+describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/placements/:placementId/retire", () => {
+  const requestRetirement = (
+    input: {
+      pathPlacementId?: string;
+      formPlacementId?: string;
+    } = {},
+  ): Promise<Response> => {
+    const pathPlacementId = input.pathPlacementId ?? "lti_place_detail";
+    const formPlacementId = input.formPlacementId ?? pathPlacementId;
+    const activeVersion = sampleDetailVersion("brv_detail_active", 1, "active");
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleDetailRule(activeVersion.id));
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([activeVersion]);
+
+    return Promise.resolve(
+      app.request(
+        `/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_active/placements/${pathPlacementId}/retire`,
+        {
+          method: "POST",
+          headers: {
+            Origin: "http://localhost",
+            Cookie: "better-auth.session_token=session-token",
+          },
+          body: new URLSearchParams({ placementId: formPlacementId }),
+        },
+        createEnv(),
+      ),
+    );
+  };
+
+  it("retires an authorized tenant/rule-owned placement", async () => {
+    mockedRetireLtiResourceLinkPlacementDb.mockResolvedValue({
+      status: "retired",
+      placement: sampleRetiredPlacement(),
+    });
+
+    const response = await requestRetirement();
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_active",
+    );
+    expect(mockedRetireLtiResourceLinkPlacementDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_detail",
+      placementId: "lti_place_detail",
+      actorUserId: "usr_admin",
+      actorRole: "admin",
+    });
+  });
+
+  it("treats an already-retired replay as successful", async () => {
+    mockedRetireLtiResourceLinkPlacementDb.mockResolvedValue({
+      status: "already_retired",
+      placement: sampleRetiredPlacement(),
+    });
+
+    const response = await requestRetirement();
+
+    expect(response.status).toBe(303);
+    expect(mockedRetireLtiResourceLinkPlacementDb).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects mismatched path and form identities before persistence", async () => {
+    const response = await requestRetirement({ formPlacementId: "lti_place_other" });
+
+    expect(response.status).toBe(303);
+    expect(mockedRetireLtiResourceLinkPlacementDb).not.toHaveBeenCalled();
+  });
+
+  it("does not allow a non-admin member to retire a placement", async () => {
+    mockedFindTenantMembership.mockResolvedValue(sampleMembership("viewer"));
+
+    const response = await requestRetirement();
+
+    expect(response.status).toBe(403);
+    expect(mockedRetireLtiResourceLinkPlacementDb).not.toHaveBeenCalled();
   });
 });
 

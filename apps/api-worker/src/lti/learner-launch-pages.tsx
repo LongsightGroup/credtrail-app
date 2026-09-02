@@ -14,7 +14,7 @@ export const LearnerBadgeSummarySection = (input: {
   const view = input.view;
   const title = view.scope === "selected" ? "Selected badge" : "Badges in this course";
   const emptyTitle =
-    view.scope === "selected" ? "No selected badge details" : "No badges placed yet";
+    view.scope === "selected" ? "No selected badge details" : "No active badges in this course";
   const claimActionPath = (path: string): string => {
     if (input.sessionHandoffToken === undefined || input.sessionHandoffToken === null) {
       return path;

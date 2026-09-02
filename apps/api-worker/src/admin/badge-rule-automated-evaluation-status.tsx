@@ -1,7 +1,7 @@
 import type { AutomatedBadgeRuleEvaluationStatusRecord } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { formatIsoTimestamp } from "../utils/display-format";
-import { AdminButton, AdminPanel, AdminStatus, AdminStatusPill } from "./components";
+import { AdminButton, AdminPanel, AdminStatusPill } from "./components";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
@@ -129,7 +129,6 @@ export const BadgeRuleAutomatedEvaluationStatus = (input: {
   readonly status: AutomatedBadgeRuleEvaluationStatusRecord | null;
   readonly canRunNow: boolean;
   readonly requestId: string;
-  readonly flash: { readonly tone: "success" | "error"; readonly message: string } | null;
 }): HonoElement => {
   const action = `/tenants/${encodeURIComponent(input.tenantId)}/admin/rules/${encodeURIComponent(input.ruleId)}/versions/${encodeURIComponent(input.versionId)}/run-evaluation`;
 
@@ -146,10 +145,6 @@ export const BadgeRuleAutomatedEvaluationStatus = (input: {
           </AdminStatusPill>
         )}
       </div>
-
-      {input.flash === null ? null : (
-        <AdminStatus tone={input.flash.tone}>{input.flash.message}</AdminStatus>
-      )}
 
       {input.status === null ? (
         <p class="ct-admin__rule-evaluation-summary">

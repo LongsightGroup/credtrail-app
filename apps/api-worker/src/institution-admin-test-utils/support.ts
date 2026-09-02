@@ -92,6 +92,8 @@ import {
   listLearnerRecordAssertionExports,
   listLearnerRecordEntries,
   listTenantReportingComparisons,
+  listLtiResourceLinkPlacementsForRule,
+  retireLtiResourceLinkPlacement,
   type LearnerProfileRecord,
   type LearnerRecordAssertionExportRecord,
   type LearnerRecordEntryRecord,
@@ -154,6 +156,10 @@ export const mockedFindBadgeIssuanceRuleVersionByIdDb = vi.mocked(findBadgeIssua
 export const mockedFindAutomatedBadgeRuleEvaluationStatusDb = vi.mocked(
   findAutomatedBadgeRuleEvaluationStatus,
 );
+export const mockedListLtiResourceLinkPlacementsForRuleDb = vi.mocked(
+  listLtiResourceLinkPlacementsForRule,
+);
+export const mockedRetireLtiResourceLinkPlacementDb = vi.mocked(retireLtiResourceLinkPlacement);
 export const mockedRequestManualAutomatedBadgeRuleEvaluationDb = vi.mocked(
   requestManualAutomatedBadgeRuleEvaluation,
 );

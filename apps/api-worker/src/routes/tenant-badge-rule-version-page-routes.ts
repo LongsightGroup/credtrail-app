@@ -1,5 +1,6 @@
 import {
   findAutomatedBadgeRuleEvaluationStatus,
+  listLtiResourceLinkPlacementsForRule,
   resolveBadgeIssuanceRuleVersionSelection,
 } from "@credtrail/db";
 import {
@@ -42,6 +43,7 @@ interface RuleVersionRenderData extends AuthorizedRuleVersionPageData {
     ReturnType<typeof findAutomatedBadgeRuleEvaluationStatus>
   >;
   readonly evaluationFlash: Awaited<ReturnType<typeof consumeAdminListMessageFlash>>;
+  readonly placements: Awaited<ReturnType<typeof listLtiResourceLinkPlacementsForRule>>;
   readonly evaluationRequestId: string;
 }
 
@@ -107,7 +109,8 @@ const renderRuleVersion = async (
       definition: input.definition,
       orgUnit: input.orgUnit,
       automaticEvaluationStatus: input.automaticEvaluationStatus,
-      evaluationFlash: input.evaluationFlash,
+      placements: input.placements,
+      actionFlash: input.evaluationFlash,
       evaluationRequestId: input.evaluationRequestId,
     }),
   );
@@ -188,11 +191,15 @@ export const registerTenantBadgeRuleVersionPageRoutes = (
       return loaded;
     }
 
-    const [automaticEvaluationStatus, evaluationFlash] = await Promise.all([
+    const [automaticEvaluationStatus, placements, evaluationFlash] = await Promise.all([
       findAutomatedBadgeRuleEvaluationStatus(resolveDatabase(c.env), {
         tenantId: pathParams.tenantId,
         ruleId: pathParams.ruleId,
         versionId: pathParams.versionId,
+      }),
+      listLtiResourceLinkPlacementsForRule(resolveDatabase(c.env), {
+        tenantId: pathParams.tenantId,
+        ruleId: pathParams.ruleId,
       }),
       consumeAdminListMessageFlash(c, {
         tenantId: pathParams.tenantId,
@@ -204,6 +211,7 @@ export const registerTenantBadgeRuleVersionPageRoutes = (
     return renderRuleVersion(c, {
       ...loaded,
       automaticEvaluationStatus,
+      placements,
       evaluationFlash,
       evaluationRequestId: crypto.randomUUID(),
     });

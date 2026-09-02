@@ -87,6 +87,8 @@ import {
   mockedMarkLearnerRecordImportPreviewQueuedDb,
   mockedRecertifyBadgeIssuanceRuleVersionDb,
   mockedRequestManualAutomatedBadgeRuleEvaluationDb,
+  mockedListLtiResourceLinkPlacementsForRuleDb,
+  mockedRetireLtiResourceLinkPlacementDb,
   mockedRecordAssertionLifecycleTransition,
   mockedRemoveBadgeRuleApproverGroupDb,
   mockedRemoveBadgeRuleApproverGroupMemberDb,
@@ -404,6 +406,8 @@ export const resetInstitutionAdminTestDefaults = (): void => {
   mockedFindBadgeIssuanceRuleById.mockResolvedValue(null);
   mockedFindAutomatedBadgeRuleEvaluationStatusDb.mockResolvedValue(null);
   mockedRequestManualAutomatedBadgeRuleEvaluationDb.mockResolvedValue("queued");
+  mockedListLtiResourceLinkPlacementsForRuleDb.mockResolvedValue([]);
+  mockedRetireLtiResourceLinkPlacementDb.mockResolvedValue({ status: "not_found" });
   mockedListTenantOrgUnits.mockResolvedValue(sampleReportingOrgUnits());
   mockedListTenantMembershipOrgUnitScopes.mockResolvedValue([
     {

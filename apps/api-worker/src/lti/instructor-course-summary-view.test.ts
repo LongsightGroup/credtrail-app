@@ -70,8 +70,8 @@ const badgeTemplate = (overrides: Partial<BadgeTemplateRecord> = {}): BadgeTempl
 };
 
 const placement = (
-  overrides: Partial<LtiResourceLinkPlacementRecord> = {},
-): LtiResourceLinkPlacementRecord => {
+  overrides: Partial<Extract<LtiResourceLinkPlacementRecord, { status: "active" }>> = {},
+): Extract<LtiResourceLinkPlacementRecord, { status: "active" }> => {
   return {
     id: "lti_place_123",
     tenantId,
@@ -83,6 +83,10 @@ const placement = (
     badgeTemplateId,
     ruleId: "brl_123",
     createdByUserId: "usr_instructor_123",
+    status: "active",
+    lastSeenAt: "2026-02-10T22:00:00.000Z",
+    retiredAt: null,
+    retiredByUserId: null,
     createdAt: "2026-02-10T22:00:00.000Z",
     updatedAt: "2026-02-10T22:00:00.000Z",
     ...overrides,
@@ -173,6 +177,19 @@ const createResolveWithTestDependencies = () => {
         placements: group.placements,
         orderedTemplates: [group.template],
         placementGroups: [group],
+        status: {
+          kind: "usable",
+          counts: {
+            queriedPlacements: 1,
+            activePlacements: 1,
+            retiredPlacements: 0,
+            usablePlacements: 1,
+            inactiveRulePlacements: 0,
+            missingRulePlacements: 0,
+            archivedTemplatePlacements: 0,
+            missingTemplatePlacements: 0,
+          },
+        },
       };
     },
     listBadgeTemplateRecipientAssertions: async (db, assertionInput) => {
@@ -295,5 +312,43 @@ describe("resolveInstructorCourseBadgeSummaryView", () => {
     expect(view.canPlaceBadgesFromLti).toBe(true);
     expect(view.rows.map((row) => row.learnerDetailPath)).toEqual([null, null]);
     expect(view.rows.map((row) => row.badgeDetailPath)).toEqual([null, null]);
+  });
+
+  it("reports historical rows with no active rules as zero active placements", async () => {
+    const resolver = createInstructorCourseBadgeSummaryViewResolver({
+      resolveCourseBadgePlacements: async () => ({
+        contextId,
+        placements: [],
+        orderedTemplates: [],
+        placementGroups: [],
+        status: {
+          kind: "empty",
+          reason: "no_active_rules",
+          counts: {
+            queriedPlacements: 3,
+            activePlacements: 3,
+            retiredPlacements: 0,
+            usablePlacements: 0,
+            inactiveRulePlacements: 3,
+            missingRulePlacements: 0,
+            archivedTemplatePlacements: 0,
+            missingTemplatePlacements: 0,
+          },
+        },
+      }),
+      listBadgeTemplateRecipientAssertions: async () => [],
+      listAssertionLifecycleStates: async () => [],
+    });
+
+    const view = await resolver(resolveViewInput());
+
+    expect(view).toMatchObject({
+      status: "ready",
+      message: "No active badge rules are linked to this course's recorded placements.",
+      badgeCount: 0,
+      issuedCount: 0,
+      badges: [],
+      rows: [],
+    });
   });
 });

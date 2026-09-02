@@ -41,6 +41,10 @@ export type ResolveLearnerResourceLinkViewInput = ResolveLearnerResourceLinkView
   launch: ValidatedResourceLinkLaunch;
 };
 
+interface LearnerLaunchViewDependencies {
+  readonly resolveCourseBadgePlacements: typeof resolveOrderedCourseBadgeTemplatesForContext;
+}
+
 const learnerClaimActionPath = (input: { tenantId: string; assertionId: string }): string => {
   return `/tenants/${encodeURIComponent(input.tenantId)}/learner/badges/${encodeURIComponent(
     input.assertionId,
@@ -221,6 +225,7 @@ const resolveSelectedLearnerBadgeSummaryView = async (
 };
 
 const resolveCourseLearnerBadgeSummaryView = async (
+  dependencies: LearnerLaunchViewDependencies,
   input: ResolveLearnerResourceLinkViewBaseInput & {
     launch: ValidatedCourseResourceLinkLaunch;
   },
@@ -240,20 +245,24 @@ const resolveCourseLearnerBadgeSummaryView = async (
     };
   }
 
-  const courseBadges = await resolveOrderedCourseBadgeTemplatesForContext({
+  const courseBadges = await dependencies.resolveCourseBadgePlacements({
     db: input.db,
     tenantId: input.tenantId,
     launchClaims: input.launchClaims,
     issuerClientId: input.issuerClientId,
     contextId,
   });
+  const emptyMessage =
+    courseBadges.status.kind === "empty" && courseBadges.status.reason === "no_placements"
+      ? "No CredTrail badges have been placed in this LMS course yet."
+      : "No active CredTrail badges are available in this LMS course.";
 
   return {
     scope: "course",
     status: "ready",
     message:
       courseBadges.orderedTemplates.length === 0
-        ? "No CredTrail badges have been placed in this LMS course yet."
+        ? emptyMessage
         : `Showing ${String(courseBadges.orderedTemplates.length)} active badge${
             courseBadges.orderedTemplates.length === 1 ? "" : "s"
           } in this course.`,
@@ -266,7 +275,8 @@ const resolveCourseLearnerBadgeSummaryView = async (
   };
 };
 
-export const resolveLearnerResourceLinkView = async (
+const resolveLearnerResourceLinkViewWithDependencies = async (
+  dependencies: LearnerLaunchViewDependencies,
   input: ResolveLearnerResourceLinkViewInput,
 ): Promise<LtiLearnerBadgeSummaryView> => {
   const launch = input.launch;
@@ -279,10 +289,7 @@ export const resolveLearnerResourceLinkView = async (
       });
     }
 
-    return await resolveCourseLearnerBadgeSummaryView({
-      ...input,
-      launch,
-    });
+    return await resolveCourseLearnerBadgeSummaryView(dependencies, { ...input, launch });
   } catch (error) {
     input.ltiLog?.warn("Could not build learner badge summary view", {
       tenantId: input.tenantId,
@@ -298,4 +305,24 @@ export const resolveLearnerResourceLinkView = async (
       badges: [],
     };
   }
+};
+
+/** Creates a learner launch view resolver with an explicit course-placement dependency. */
+export const createLearnerResourceLinkViewResolver = (
+  dependencies: LearnerLaunchViewDependencies,
+): ((input: ResolveLearnerResourceLinkViewInput) => Promise<LtiLearnerBadgeSummaryView>) => {
+  return (input) => resolveLearnerResourceLinkViewWithDependencies(dependencies, input);
+};
+
+const defaultLearnerLaunchViewDependencies: LearnerLaunchViewDependencies = {
+  resolveCourseBadgePlacements: resolveOrderedCourseBadgeTemplatesForContext,
+};
+
+export const resolveLearnerResourceLinkView = (
+  input: ResolveLearnerResourceLinkViewInput,
+): Promise<LtiLearnerBadgeSummaryView> => {
+  return resolveLearnerResourceLinkViewWithDependencies(
+    defaultLearnerLaunchViewDependencies,
+    input,
+  );
 };
