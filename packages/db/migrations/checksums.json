@@ -80,5 +80,6 @@
   "0078_narrow_badge_rule_lms_providers.sql": "40cf76cf417a04c60f4d32359f0b01e13429130273328a84310fd1a330a26715",
   "0079_validate_badge_rule_lms_provider_constraints.sql": "1eb2672dc94a8130c8785056106299f3192c5906eefa500f442bb6cec3c2fc5f",
   "0080_badge_rule_automated_evaluation_status.sql": "2650129788b51f317cad38e20cfd8ab867e5563233538cbaeeeae872ab27188a",
-  "0081_lti_resource_link_placement_lifecycle.sql": "d480db71b54f87719dbdb08b55a0457caadc4adf9433c10493240d5b9ec65392"
+  "0081_lti_resource_link_placement_lifecycle.sql": "d480db71b54f87719dbdb08b55a0457caadc4adf9433c10493240d5b9ec65392",
+  "0082_badge_rule_placement_availability.sql": "59c24550d61dbc8cb37a4b582640eff43e01e16981b0d2e0797885464c0c3ea8"
 }

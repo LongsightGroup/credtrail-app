@@ -15,6 +15,7 @@ export * from "./learner-record.js";
 export * from "./learner-pathways.js";
 export * from "./tenant-admin.js";
 export * from "./badge-rules.js";
+export * from "./badge-rule-placement-availability.js";
 export * from "./auth.js";
 export * from "./credentials.js";
 export * from "./queue-migration.js";
