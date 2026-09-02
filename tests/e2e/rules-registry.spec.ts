@@ -16,7 +16,10 @@ test("an administrator can search, filter, and sort the governed rules registry"
   await expect(page).toHaveURL(/q=Local(\+|%20)Demo/);
   await expect(page).toHaveURL(/status=draft/);
   await expect(
-    page.getByRole("link", { name: "Local Demo: Applied Analytics Completion" }),
+    page.getByRole("link", {
+      name: "Local Demo: Applied Analytics Completion",
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(page.getByText("1 shown · 1 matching rule").first()).toBeVisible();
 
