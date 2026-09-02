@@ -205,6 +205,7 @@ describe("page asset manifest", () => {
       "institutionAdminTemplateEditorCss",
       "institutionAdminIssuedBadgesJs",
       "institutionAdminRuleBuilderJs",
+      "institutionAdminRuleAvailabilityCss",
       "learnerRecordCss",
       "ltiPagesCss",
     ];
@@ -297,6 +298,17 @@ describe("page asset manifest", () => {
     expect(templateEditorCss).not.toContain(".ct-admin__template-editor-body select,");
     expect(templateEditorCss).not.toContain(".ct-admin__template-editor-body textarea {");
     expect(templateEditorCss).toContain(".ct-admin__template-editor-body .ct-input[type='file']");
+  });
+
+  it("builds the rule availability layout with a no-JavaScript disclosure fallback", () => {
+    const availabilityCss = readGeneratedAsset("institutionAdminRuleAvailabilityCss");
+
+    expect(availabilityCss).toContain(".ct-rule-availability__scope-choices");
+    expect(availabilityCss).toContain(":has(#availability-scope-selected:checked)");
+    expect(availabilityCss).toContain("@supports not selector(:has(*))");
+    expect(availabilityCss).toContain("@media (max-width: 780px)");
+    expect(availabilityCss).not.toContain("border-left:");
+    expect(availabilityCss).not.toContain("border-right:");
   });
 
   it("keeps LTI Deep Linking setup buttons on primitive action contracts", () => {

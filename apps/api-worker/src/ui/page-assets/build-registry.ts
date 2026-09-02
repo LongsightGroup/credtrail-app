@@ -152,6 +152,11 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     stem: "institution-admin-rule-version",
     sources: ["rule-definition-summary.css", "institution-admin-rule-version.css"],
   },
+  institutionAdminRuleAvailabilityCss: {
+    kind: "style",
+    stem: "institution-admin-rule-availability",
+    sources: ["institution-admin-rule-availability.css"],
+  },
   institutionAdminRuleApprovalReviewJs: {
     kind: "script",
     stem: "institution-admin-rule-approval-review",

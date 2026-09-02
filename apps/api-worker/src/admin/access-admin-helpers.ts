@@ -44,6 +44,39 @@ export const buildBadgeRuleDetailPath = (tenantId: string, ruleId: string): stri
   return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}`;
 };
 
+/** Builds the rule-owned administrator workflow for course placement availability. */
+export const buildBadgeRulePlacementAvailabilityPath = (
+  tenantId: string,
+  ruleId: string,
+): string => {
+  return `${buildBadgeRuleDetailPath(tenantId, ruleId)}/availability`;
+};
+
+export const tenantBadgeRulePlacementAvailabilityUpdatePath = (
+  tenantId: string,
+  ruleId: string,
+): string => `${buildBadgeRulePlacementAvailabilityPath(tenantId, ruleId)}/update`;
+
+export const tenantBadgeRulePlacementAvailabilityCourseAddPath = (
+  tenantId: string,
+  ruleId: string,
+): string => `${buildBadgeRulePlacementAvailabilityPath(tenantId, ruleId)}/courses`;
+
+export const tenantBadgeRulePlacementAvailabilityCourseRemovePath = (
+  tenantId: string,
+  ruleId: string,
+): string => `${buildBadgeRulePlacementAvailabilityPath(tenantId, ruleId)}/courses/remove`;
+
+export const tenantBadgeRulePlacementAvailabilityCourseMapPath = (
+  tenantId: string,
+  ruleId: string,
+): string => `${buildBadgeRulePlacementAvailabilityPath(tenantId, ruleId)}/course-mappings`;
+
+export const tenantBadgeRulePlacementAvailabilityRemovePath = (
+  tenantId: string,
+  ruleId: string,
+): string => `${buildBadgeRulePlacementAvailabilityPath(tenantId, ruleId)}/remove`;
+
 /** Builds the canonical administrator URL for one governed badge-rule version. */
 export const buildBadgeRuleVersionDetailPath = (
   tenantId: string,

@@ -19,6 +19,7 @@ import { formatIsoTimestamp } from "../../utils/display-format";
 import {
   buildBadgeRuleCopyPath,
   buildBadgeRuleDetailPath,
+  buildBadgeRulePlacementAvailabilityPath,
   buildBadgeRuleVersionDetailPath,
   tenantBadgeRuleDeleteAdminPath,
 } from "../access-admin-helpers";
@@ -241,6 +242,14 @@ const renderResolvedRuleRow = (
               Edit
             </AdminButtonLink>
           ) : null}
+          <AdminButtonLink
+            href={buildBadgeRulePlacementAvailabilityPath(input.tenantId, rule.id)}
+            variant="quiet"
+            size="tiny"
+            ariaLabel={`Set course availability for ${displayFields.displayName}`}
+          >
+            Set course availability
+          </AdminButtonLink>
           {menuActions.length > 0 ? (
             <AdminActionMenu
               menuId={`badge-rule-action-menu-${rule.id}`}

@@ -8,6 +8,7 @@ import type {
   RequireTenantRole,
   ResolveDatabase,
 } from "../app/route-deps";
+import type { LmsCourseAuthoringService } from "../lms/lms-course-authoring-service";
 
 export interface RegisterTenantGovernanceRoutesInput {
   app: Hono<AppEnv>;
@@ -38,6 +39,7 @@ export interface RegisterTenantGovernanceRoutesInput {
   requireDelegatedIssuingAuthorityPermission: RequireDelegatedIssuingAuthorityPermission;
   assertionBelongsToTenant: (tenantId: string, assertionId: string) => boolean;
   issueBadgeForTenant: IssueBadgeForTenant;
+  lmsCourseAuthoring: LmsCourseAuthoringService;
   ADMIN_ROLES: readonly TenantMembershipRole[];
   ISSUER_ROLES: readonly TenantMembershipRole[];
   APPROVAL_WORKSPACE_ROLES: readonly TenantMembershipRole[];

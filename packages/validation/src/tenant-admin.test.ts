@@ -13,6 +13,13 @@ import {
   parseBadgeRuleBuilderPageQuery,
   parseBadgeRuleRegistryCursorPayload,
   parseBadgeRuleRegistryPageQuery,
+  parseBadgeRulePlacementAvailabilityPathParams,
+  parseBadgeRulePlacementAvailabilitySearchQuery,
+  parseUpdateBadgeRulePlacementAvailabilityAdminRequest,
+  parseAddBadgeRulePlacementAvailabilityCourseAdminRequest,
+  parseRemoveBadgeRulePlacementAvailabilityCourseAdminRequest,
+  parseMapBadgeRulePlacementAvailabilityCourseAdminRequest,
+  parseRemoveBadgeRulePlacementAvailabilityAdminRequest,
   parseCreateTenantApiKeyRequest,
   parseRevokeTenantApiKeyRequest,
   parseResolveTenantLmsConnectionCoursesRequest,
@@ -31,6 +38,129 @@ import {
   parseUpdateTenantMemberRoleRequest,
   parseUpsertTenantMembershipOrgUnitScopeRequest,
 } from "./tenant-admin.js";
+
+describe("badge rule placement availability admin parsers", () => {
+  it("parses the tenant-local rule path and bounded course search", () => {
+    expect(
+      parseBadgeRulePlacementAvailabilityPathParams({
+        tenantId: "tenant_123",
+        ruleId: "brl_123",
+      }),
+    ).toEqual({ tenantId: "tenant_123", ruleId: "brl_123" });
+    expect(
+      parseBadgeRulePlacementAvailabilitySearchQuery({
+        connectionId: "lms_canvas",
+        q: "  Biology  ",
+      }),
+    ).toEqual({ connectionId: "lms_canvas", q: "Biology" });
+    expect(parseBadgeRulePlacementAvailabilitySearchQuery({ connectionId: "", q: "" })).toEqual({});
+    expect(() => parseBadgeRulePlacementAvailabilitySearchQuery({ q: "Biology" })).toThrow(
+      "Choose an LMS connection",
+    );
+    expect(() =>
+      parseBadgeRulePlacementAvailabilityPathParams({
+        tenantId: "tenant_123",
+        ruleId: " ",
+      }),
+    ).toThrow(/./);
+  });
+
+  it("parses every scope while requiring broad-impact confirmation", () => {
+    expect(
+      parseUpdateBadgeRulePlacementAvailabilityAdminRequest({
+        scope: "selected_courses",
+        courseContextIds: ["lctx_2", "lctx_1", "lctx_2"],
+      }),
+    ).toEqual({
+      scope: "selected_courses",
+      courseContextIds: ["lctx_2", "lctx_1"],
+    });
+    expect(
+      parseUpdateBadgeRulePlacementAvailabilityAdminRequest({
+        scope: "org_unit_subtree",
+        rootOrgUnitId: "ou_sciences",
+        confirmImpact: "confirmed",
+      }),
+    ).toEqual({
+      scope: "org_unit_subtree",
+      rootOrgUnitId: "ou_sciences",
+      confirmImpact: "confirmed",
+    });
+    expect(
+      parseUpdateBadgeRulePlacementAvailabilityAdminRequest({
+        scope: "tenant",
+        confirmImpact: "confirmed",
+      }),
+    ).toEqual({ scope: "tenant", confirmImpact: "confirmed" });
+    expect(() =>
+      parseUpdateBadgeRulePlacementAvailabilityAdminRequest({
+        scope: "org_unit_subtree",
+        rootOrgUnitId: "ou_sciences",
+      }),
+    ).toThrow(/./);
+    expect(() =>
+      parseUpdateBadgeRulePlacementAvailabilityAdminRequest({ scope: "tenant" }),
+    ).toThrow(/./);
+    expect(() =>
+      parseUpdateBadgeRulePlacementAvailabilityAdminRequest({
+        scope: "selected_courses",
+        courseContextIds: [],
+      }),
+    ).toThrow(/./);
+  });
+
+  it("parses course add, remove, mapping, and stop-offering requests strictly", () => {
+    expect(
+      parseAddBadgeRulePlacementAvailabilityCourseAdminRequest({
+        connectionId: "lms_canvas",
+        courseId: " course-101 ",
+      }),
+    ).toEqual({ connectionId: "lms_canvas", courseId: "course-101" });
+    expect(
+      parseRemoveBadgeRulePlacementAvailabilityCourseAdminRequest({
+        courseContextId: "lctx_101",
+      }),
+    ).toEqual({ courseContextId: "lctx_101" });
+    expect(
+      parseMapBadgeRulePlacementAvailabilityCourseAdminRequest({
+        connectionId: "lms_canvas",
+        courseId: "course-101",
+        parentOrgUnitId: "ou_biology",
+      }),
+    ).toEqual({
+      connectionId: "lms_canvas",
+      courseId: "course-101",
+      parentOrgUnitId: "ou_biology",
+    });
+    expect(
+      parseRemoveBadgeRulePlacementAvailabilityAdminRequest({ confirmRemoval: "confirmed" }),
+    ).toEqual({ confirmRemoval: "confirmed" });
+
+    const invalidInputs: readonly (() => unknown)[] = [
+      () =>
+        parseAddBadgeRulePlacementAvailabilityCourseAdminRequest({
+          connectionId: "lms_canvas",
+          courseId: " ",
+        }),
+      () =>
+        parseRemoveBadgeRulePlacementAvailabilityCourseAdminRequest({
+          courseContextId: "lctx_101",
+          unexpected: true,
+        }),
+      () =>
+        parseMapBadgeRulePlacementAvailabilityCourseAdminRequest({
+          connectionId: "lms_canvas",
+          courseId: "course-101",
+          parentOrgUnitId: " ",
+        }),
+      () => parseRemoveBadgeRulePlacementAvailabilityAdminRequest({}),
+    ];
+
+    for (const parseInvalidInput of invalidInputs) {
+      expect(parseInvalidInput).toThrow(/./);
+    }
+  });
+});
 
 describe("badge rule builder query parser", () => {
   it("accepts only bounded template and copy source IDs", () => {

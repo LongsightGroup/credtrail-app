@@ -248,6 +248,88 @@ export const tenantLmsConnectionCourseSearchQuerySchema = z.object({
   q: z.string().trim().min(1).max(255).optional(),
 });
 
+const placementAvailabilityLmsCourseIdSchema = z.string().trim().min(1).max(255);
+const placementAvailabilityResourceIdSchema = z.string().trim().min(1).max(255);
+const placementAvailabilityEmptyStringAsUndefined = (value: unknown): unknown => {
+  return value === "" ? undefined : value;
+};
+
+export const badgeRulePlacementAvailabilityPathParamsSchema = tenantPathParamsSchema
+  .extend({
+    ruleId: placementAvailabilityResourceIdSchema,
+  })
+  .strict();
+
+export const badgeRulePlacementAvailabilitySearchQuerySchema = z
+  .strictObject({
+    connectionId: z.preprocess(
+      placementAvailabilityEmptyStringAsUndefined,
+      placementAvailabilityResourceIdSchema.optional(),
+    ),
+    q: z.preprocess(
+      placementAvailabilityEmptyStringAsUndefined,
+      z.string().trim().min(1).max(120).optional(),
+    ),
+  })
+  .superRefine((value, context) => {
+    if (value.q !== undefined && value.connectionId === undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["connectionId"],
+        message: "Choose an LMS connection before searching",
+      });
+    }
+  });
+
+const selectedCoursesPlacementAvailabilityAdminRequestSchema = z
+  .strictObject({
+    scope: z.literal("selected_courses"),
+    courseContextIds: z.array(placementAvailabilityResourceIdSchema).min(1).max(500),
+  })
+  .transform((request) => ({
+    ...request,
+    courseContextIds: [...new Set(request.courseContextIds)],
+  }));
+
+const orgUnitPlacementAvailabilityAdminRequestSchema = z.strictObject({
+  scope: z.literal("org_unit_subtree"),
+  rootOrgUnitId: placementAvailabilityResourceIdSchema,
+  confirmImpact: z.literal("confirmed"),
+});
+
+const tenantPlacementAvailabilityAdminRequestSchema = z.strictObject({
+  scope: z.literal("tenant"),
+  confirmImpact: z.literal("confirmed"),
+});
+
+export const updateBadgeRulePlacementAvailabilityAdminRequestSchema = z.discriminatedUnion(
+  "scope",
+  [
+    selectedCoursesPlacementAvailabilityAdminRequestSchema,
+    orgUnitPlacementAvailabilityAdminRequestSchema,
+    tenantPlacementAvailabilityAdminRequestSchema,
+  ],
+);
+
+export const addBadgeRulePlacementAvailabilityCourseAdminRequestSchema = z.strictObject({
+  connectionId: placementAvailabilityResourceIdSchema,
+  courseId: placementAvailabilityLmsCourseIdSchema,
+});
+
+export const removeBadgeRulePlacementAvailabilityCourseAdminRequestSchema = z.strictObject({
+  courseContextId: placementAvailabilityResourceIdSchema,
+});
+
+export const mapBadgeRulePlacementAvailabilityCourseAdminRequestSchema = z.strictObject({
+  connectionId: placementAvailabilityResourceIdSchema,
+  courseId: placementAvailabilityLmsCourseIdSchema,
+  parentOrgUnitId: placementAvailabilityResourceIdSchema,
+});
+
+export const removeBadgeRulePlacementAvailabilityAdminRequestSchema = z.strictObject({
+  confirmRemoval: z.literal("confirmed"),
+});
+
 /** Exact LMS course references requested by an authenticated authoring flow. */
 export const resolveTenantLmsConnectionCoursesRequestSchema = z
   .strictObject({
@@ -434,6 +516,34 @@ export type TenantLmsConnectionCourseSearchQuery = z.infer<
   typeof tenantLmsConnectionCourseSearchQuerySchema
 >;
 
+export type BadgeRulePlacementAvailabilityPathParams = z.infer<
+  typeof badgeRulePlacementAvailabilityPathParamsSchema
+>;
+
+export type BadgeRulePlacementAvailabilitySearchQuery = z.infer<
+  typeof badgeRulePlacementAvailabilitySearchQuerySchema
+>;
+
+export type UpdateBadgeRulePlacementAvailabilityAdminRequest = z.infer<
+  typeof updateBadgeRulePlacementAvailabilityAdminRequestSchema
+>;
+
+export type AddBadgeRulePlacementAvailabilityCourseAdminRequest = z.infer<
+  typeof addBadgeRulePlacementAvailabilityCourseAdminRequestSchema
+>;
+
+export type RemoveBadgeRulePlacementAvailabilityCourseAdminRequest = z.infer<
+  typeof removeBadgeRulePlacementAvailabilityCourseAdminRequestSchema
+>;
+
+export type MapBadgeRulePlacementAvailabilityCourseAdminRequest = z.infer<
+  typeof mapBadgeRulePlacementAvailabilityCourseAdminRequestSchema
+>;
+
+export type RemoveBadgeRulePlacementAvailabilityAdminRequest = z.infer<
+  typeof removeBadgeRulePlacementAvailabilityAdminRequestSchema
+>;
+
 export type ResolveTenantLmsConnectionCoursesRequest = z.infer<
   typeof resolveTenantLmsConnectionCoursesRequestSchema
 >;
@@ -562,6 +672,48 @@ export const parseTenantLmsConnectionCourseSearchQuery = (
   input: unknown,
 ): TenantLmsConnectionCourseSearchQuery => {
   return tenantLmsConnectionCourseSearchQuerySchema.parse(input);
+};
+
+export const parseBadgeRulePlacementAvailabilityPathParams = (
+  input: unknown,
+): BadgeRulePlacementAvailabilityPathParams => {
+  return badgeRulePlacementAvailabilityPathParamsSchema.parse(input);
+};
+
+export const parseBadgeRulePlacementAvailabilitySearchQuery = (
+  input: unknown,
+): BadgeRulePlacementAvailabilitySearchQuery => {
+  return badgeRulePlacementAvailabilitySearchQuerySchema.parse(input);
+};
+
+export const parseUpdateBadgeRulePlacementAvailabilityAdminRequest = (
+  input: unknown,
+): UpdateBadgeRulePlacementAvailabilityAdminRequest => {
+  return updateBadgeRulePlacementAvailabilityAdminRequestSchema.parse(input);
+};
+
+export const parseAddBadgeRulePlacementAvailabilityCourseAdminRequest = (
+  input: unknown,
+): AddBadgeRulePlacementAvailabilityCourseAdminRequest => {
+  return addBadgeRulePlacementAvailabilityCourseAdminRequestSchema.parse(input);
+};
+
+export const parseRemoveBadgeRulePlacementAvailabilityCourseAdminRequest = (
+  input: unknown,
+): RemoveBadgeRulePlacementAvailabilityCourseAdminRequest => {
+  return removeBadgeRulePlacementAvailabilityCourseAdminRequestSchema.parse(input);
+};
+
+export const parseMapBadgeRulePlacementAvailabilityCourseAdminRequest = (
+  input: unknown,
+): MapBadgeRulePlacementAvailabilityCourseAdminRequest => {
+  return mapBadgeRulePlacementAvailabilityCourseAdminRequestSchema.parse(input);
+};
+
+export const parseRemoveBadgeRulePlacementAvailabilityAdminRequest = (
+  input: unknown,
+): RemoveBadgeRulePlacementAvailabilityAdminRequest => {
+  return removeBadgeRulePlacementAvailabilityAdminRequestSchema.parse(input);
 };
 
 /** Parses a bounded set of exact LMS course references for authoring. */

@@ -1,0 +1,208 @@
+.ct-rule-availability,
+.ct-rule-availability__header {
+  max-inline-size: 58rem;
+}
+
+.ct-rule-availability__header > p:first-child {
+  margin-block-end: var(--ct-space-3);
+}
+
+.ct-rule-availability__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--ct-space-4);
+}
+
+.ct-rule-availability__summary h2,
+.ct-rule-availability h2,
+.ct-rule-availability h3 {
+  font-family: var(--ct-font-sans);
+}
+
+.ct-rule-availability__current {
+  margin-block-start: var(--ct-space-1);
+  color: var(--ct-theme-text-title);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.ct-rule-availability__scope-choices {
+  display: grid;
+  gap: var(--ct-space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ct-rule-availability__scope-choices legend {
+  margin-block-end: var(--ct-space-2);
+  color: var(--ct-theme-text-title);
+  font-weight: 700;
+}
+
+.ct-rule-availability__scope-choices > label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--ct-space-3);
+  min-block-size: 3rem;
+  padding: var(--ct-space-3);
+  border: 1px solid var(--ct-theme-border-default);
+  border-radius: var(--ct-radius-md);
+  background: var(--ct-theme-surface-card-strong);
+  cursor: pointer;
+}
+
+.ct-rule-availability__scope-choices > label:has(input:checked) {
+  border-color: var(--ct-theme-border-focus);
+  background: var(--ct-theme-surface-info);
+}
+
+.ct-rule-availability__scope-choices input,
+.ct-rule-availability__confirmation input {
+  margin-block-start: 0.2rem;
+}
+
+.ct-rule-availability__scope-choices span {
+  display: grid;
+  gap: var(--ct-space-1);
+}
+
+.ct-rule-availability__scope-choices small,
+.ct-rule-availability__course-list small {
+  color: var(--ct-theme-text-muted);
+  line-height: 1.45;
+}
+
+.ct-rule-availability__scope-detail {
+  display: none;
+  gap: var(--ct-space-3);
+  padding-block-start: var(--ct-space-2);
+}
+
+.ct-rule-availability__scope-form:has(#availability-scope-selected:checked)
+  [data-scope-detail="selected_courses"],
+.ct-rule-availability__scope-form:has(#availability-scope-org:checked)
+  [data-scope-detail="org_unit_subtree"],
+.ct-rule-availability__scope-form:has(#availability-scope-tenant:checked)
+  [data-scope-detail="tenant"] {
+  display: grid;
+}
+
+.ct-rule-availability__impact {
+  display: grid;
+  gap: var(--ct-space-2);
+  padding: var(--ct-space-4);
+  border: 1px solid var(--ct-theme-border-default);
+  border-radius: var(--ct-radius-md);
+  background: var(--ct-theme-surface-soft);
+}
+
+.ct-rule-availability__confirmation {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--ct-space-2);
+  align-items: start;
+  min-block-size: 3rem;
+  padding-block: var(--ct-space-2);
+  cursor: pointer;
+}
+
+.ct-rule-availability__course-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-block: 1px solid var(--ct-theme-border-soft);
+}
+
+.ct-rule-availability__course-list > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ct-space-4);
+  padding-block: var(--ct-space-3);
+  border-block-end: 1px solid var(--ct-theme-border-soft);
+}
+
+.ct-rule-availability__course-list > li:last-child {
+  border-block-end: 0;
+}
+
+.ct-rule-availability__course-list > li > div:first-child {
+  display: grid;
+  gap: var(--ct-space-1);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.ct-rule-availability__search-form {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.75fr) minmax(14rem, 1fr) auto;
+  align-items: end;
+  gap: var(--ct-space-3);
+}
+
+.ct-rule-availability__course-actions,
+.ct-rule-availability__mapping-form {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--ct-space-2);
+}
+
+.ct-rule-availability__mapping-form > label {
+  display: grid;
+  gap: var(--ct-space-1);
+  min-inline-size: 13rem;
+  color: var(--ct-theme-text-body);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.ct-rule-availability__mapping-summary {
+  color: var(--ct-theme-text-muted);
+  font-size: 0.88rem;
+}
+
+.ct-rule-availability__stop-panel {
+  border-color: var(--ct-theme-border-danger);
+}
+
+@supports not selector(:has(*)) {
+  .ct-rule-availability__scope-detail {
+    display: grid;
+  }
+}
+
+@media (max-width: 780px) {
+  .ct-rule-availability__search-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-rule-availability__course-list > li {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ct-rule-availability__course-actions,
+  .ct-rule-availability__mapping-form {
+    align-items: stretch;
+    justify-content: flex-start;
+    flex-direction: column;
+  }
+
+  .ct-rule-availability__mapping-form > label {
+    min-inline-size: 0;
+  }
+}
+
+@media (pointer: coarse) {
+  .ct-rule-availability__scope-choices > label,
+  .ct-rule-availability__confirmation {
+    min-block-size: 3.25rem;
+  }
+}
