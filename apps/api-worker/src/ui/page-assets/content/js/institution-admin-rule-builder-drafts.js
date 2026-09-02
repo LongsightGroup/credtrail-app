@@ -101,10 +101,7 @@ const performRuleBuilderDraftSave = async (options) => {
       window.history.replaceState(
         null,
         "",
-        rulesListPath +
-          "/drafts/" +
-          encodeURIComponent(payload.draft.id) +
-          "/edit",
+        rulesListPath + "/drafts/" + encodeURIComponent(payload.draft.id) + "/edit",
       );
     }
     return true;
@@ -134,8 +131,8 @@ const persistRuleBuilderDraftOnStepChange = () => {
   void saveRuleBuilderDraft({ quiet: true });
 };
 
-const applyBuilderDraftPayload = (draftContext) => {
-  const payload = draftContext.payload;
+const applyRuleBuilderPayload = (payloadContext, sourceLabel) => {
+  const payload = payloadContext.payload;
   let savedDefinition = null;
   let definitionAppliedToBuilder = true;
 
@@ -161,9 +158,9 @@ const applyBuilderDraftPayload = (draftContext) => {
     try {
       savedDefinition = JSON.parse(payload.definitionJson);
       ruleBuilderDefinitionJson.value = JSON.stringify(savedDefinition, null, 2);
-      definitionAppliedToBuilder = applyDefinitionToBuilder(savedDefinition, "Saved draft");
+      definitionAppliedToBuilder = applyDefinitionToBuilder(savedDefinition, sourceLabel);
     } catch {
-      setRuleBuilderDraftStatus("Saved draft requirements could not be restored.", "warning");
+      setRuleBuilderDraftStatus(sourceLabel + " requirements could not be restored.", "warning");
     }
   }
 
@@ -205,7 +202,7 @@ const applyBuilderDraftPayload = (draftContext) => {
     }
   }
 
-  const currentStep = draftContext.currentStep;
+  const currentStep = payloadContext.currentStep;
   if (typeof currentStep === "string") {
     const stepIndex = ruleBuilderStepOrder.indexOf(currentStep);
     if (stepIndex >= 0) {
@@ -245,7 +242,7 @@ const restoreBuilderDraftIfApplicable = () => {
     return;
   }
 
-  applyBuilderDraftPayload(builderDraftContext);
+  applyRuleBuilderPayload(builderDraftContext, "Saved draft");
   setRuleBuilderDraftStatus("Draft restored from last save.", "success");
 };
 
@@ -493,78 +490,6 @@ if (ruleBuilderExportJsonButton instanceof HTMLButtonElement) {
         true,
       );
       syncRuleBuilderSummary(error instanceof Error ? error.message : "Unable to export JSON.");
-    }
-  });
-}
-
-if (
-  ruleBuilderCloneLoadButton instanceof HTMLButtonElement &&
-  ruleBuilderCloneRuleSelect instanceof HTMLSelectElement
-) {
-  ruleBuilderCloneLoadButton.addEventListener("click", async () => {
-    const ruleId = ruleBuilderCloneRuleSelect.value.trim();
-
-    if (ruleId.length === 0) {
-      setStatus(ruleCreateStatus, "Select a rule to copy.", true);
-      syncRuleBuilderSummary("Select a rule to copy.");
-      return;
-    }
-
-    setStatus(ruleCreateStatus, "Copying rule settings...", false);
-    syncRuleBuilderSummary("Copying rule settings...");
-
-    try {
-      const response = await fetch(badgeRuleApiPath + "/" + encodeURIComponent(ruleId));
-      const payload = await parseJsonBody(response);
-
-      if (!response.ok) {
-        setStatus(ruleCreateStatus, errorDetailFromPayload(payload), true);
-        syncRuleBuilderSummary(errorDetailFromPayload(payload));
-        return;
-      }
-
-      const versions = payload && Array.isArray(payload.versions) ? payload.versions : [];
-      const latestVersion = versions.slice().sort((left, right) => {
-        const leftVersion = typeof left.versionNumber === "number" ? left.versionNumber : 0;
-        const rightVersion = typeof right.versionNumber === "number" ? right.versionNumber : 0;
-        return rightVersion - leftVersion;
-      })[0];
-      const snapshot =
-        latestVersion &&
-        latestVersion.snapshot &&
-        typeof latestVersion.snapshot === "object" &&
-        !Array.isArray(latestVersion.snapshot)
-          ? latestVersion.snapshot
-          : null;
-
-      if (snapshot === null || typeof latestVersion.ruleJson !== "string") {
-        setStatus(ruleCreateStatus, "Selected rule has no saved settings to copy.", true);
-        syncRuleBuilderSummary("Selected rule has no saved settings to copy.");
-        return;
-      }
-
-      setRuleCreateFieldValue(
-        "description",
-        typeof snapshot.description === "string" ? snapshot.description : "",
-      );
-
-      if (typeof snapshot.badgeTemplateId === "string") {
-        setRuleCreateFieldValue("badgeTemplateId", snapshot.badgeTemplateId);
-        ruleBuilderBadgeTemplatePicker.sync(true);
-      }
-
-      setRuleCreateFieldValue(
-        "lmsConnectionId",
-        typeof snapshot.lmsConnectionId === "string" ? snapshot.lmsConnectionId : "",
-      );
-      syncSelectedLmsProviderKind();
-
-      const definition = JSON.parse(latestVersion.ruleJson);
-      ruleBuilderDefinitionJson.value = JSON.stringify(definition, null, 2);
-      applyDefinitionToBuilder(definition, "Copied rule settings");
-    } catch {
-      setStatus(ruleCreateStatus, "Unable to copy selected rule from this browser session.", true);
-      syncRuleBuilderSummary("Unable to copy selected rule from this browser session.");
     }
   });
 }

@@ -18,8 +18,10 @@ import {
   listTenantLmsConnections,
 } from "@credtrail/db";
 import {
+  parseBadgeIssuanceRuleDefinitionJson,
   parseBadgeIssuanceRulePathParams,
   parseBadgeIssuanceRuleBuilderDraftPathParams,
+  parseBadgeRuleBuilderPageQuery,
   parseBadgeTemplatePathParams,
   parseTenantLmsConnectionPathParams,
   parseTenantPathParams,
@@ -35,9 +37,15 @@ import {
   institutionAdminBadgeStatusPage,
   institutionAdminDashboardPage,
 } from "../admin/institution-admin/page";
-import { institutionAdminRuleBuilderPage } from "../admin/institution-admin-rule-builder-page";
+import {
+  institutionAdminRuleBuilderPage,
+  type InstitutionAdminRuleBuilderCopySource,
+} from "../admin/institution-admin-rule-builder-page";
 import type { InstitutionAdminView } from "../admin/institution-admin/page-types";
-import { buildLmsConnectionEditPath } from "../admin/lms-connection-admin-helpers";
+import {
+  buildLmsConnectionEditPath,
+  isLmsConnectionReady,
+} from "../admin/lms-connection-admin-helpers";
 import {
   loadTenantBadgeRuleValueLists,
   toRuleValueListBuilderContextEntries,
@@ -454,9 +462,10 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
     },
   ): Promise<Response> => {
     const encodedTenantId = encodeURIComponent(route.tenantId);
+    const requestUrl = new URL(c.req.url);
     const nextPath =
       route.draftId === undefined
-        ? `/tenants/${encodedTenantId}/admin/rules/new`
+        ? `/tenants/${encodedTenantId}/admin/rules/new${requestUrl.search}`
         : `/tenants/${encodedTenantId}/admin/rules/drafts/${encodeURIComponent(route.draftId)}/edit`;
     const rulesPath = `/tenants/${encodedTenantId}/admin/rules`;
     const roleCheck = await requireTenantRole(c, route.tenantId, ADMIN_ROLES);
@@ -488,6 +497,21 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
 
     const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
+    let builderPageQuery: ReturnType<typeof parseBadgeRuleBuilderPageQuery>;
+
+    try {
+      builderPageQuery = parseBadgeRuleBuilderPageQuery(c.req.query());
+    } catch {
+      await setAdminListMessageFlash(c, {
+        tenantId: route.tenantId,
+        userId: principal.userId,
+        workspace: "rules",
+        tone: "error",
+        message: "That rule builder link is invalid. Start again from the Rules page.",
+      });
+      return c.redirect(rulesPath, 303);
+    }
+
     const [tenant, sharedData, badgeRules] = await Promise.all([
       findTenantById(db, route.tenantId),
       loadInstitutionAdminRuleBuilderSharedData(db, {
@@ -534,13 +558,72 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
       badgeTemplates: sharedData.badgeTemplates,
     });
-    const requestUrl = new URL(c.req.url);
-    const requestedBadgeTemplateId = (c.req.query("badgeTemplateId") ?? "").trim();
+    const requestedBadgeTemplateId = builderPageQuery.badgeTemplateId ?? "";
     const selectedBadgeTemplateId = sharedData.badgeTemplates.some(
       (template) => template.id === requestedBadgeTemplateId,
     )
       ? requestedBadgeTemplateId
       : undefined;
+    let copySource: InstitutionAdminRuleBuilderCopySource | undefined;
+
+    if (builderPageQuery.copyRuleId !== undefined) {
+      const sourceRule = badgeRules.find((rule) => rule.id === builderPageQuery.copyRuleId);
+      const sourceVersions = badgeRuleVersions.filter(
+        (version) => version.ruleId === builderPageQuery.copyRuleId,
+      );
+      const sourceVersion = latestBadgeIssuanceRuleVersion(sourceVersions);
+      let copySourceError: string | null = null;
+
+      if (sourceRule === undefined || sourceVersion === null) {
+        copySourceError = "That rule is not available to copy. Choose Copy from the Rules page.";
+      } else {
+        const templateIsAvailable = badgeTemplateAvailability.some(
+          (entry) =>
+            entry.template.id === sourceVersion.snapshot.badgeTemplateId &&
+            entry.artworkAvailability === "available",
+        );
+        const sourceConnection = sharedData.lmsConnections.find(
+          (connection) => connection.id === sourceVersion.snapshot.lmsConnectionId,
+        );
+
+        if (!templateIsAvailable) {
+          copySourceError =
+            "That rule's badge template is not ready to use. Update its artwork, then copy the rule again.";
+        } else if (sourceConnection === undefined || !isLmsConnectionReady(sourceConnection)) {
+          copySourceError =
+            "That rule's LMS connection is not ready. Update the connection, then copy the rule again.";
+        } else {
+          try {
+            const definition = parseBadgeIssuanceRuleDefinitionJson(sourceVersion.ruleJson);
+            const sourceDisplayName = sourceVersion.snapshot.name;
+
+            copySource = {
+              displayName: sourceDisplayName,
+              name: `Copy of ${sourceDisplayName}`.slice(0, 200),
+              description: sourceVersion.snapshot.description ?? "",
+              badgeTemplateId: sourceVersion.snapshot.badgeTemplateId,
+              lmsConnectionId: sourceConnection.id,
+              lmsProviderKind: sourceConnection.providerKind,
+              definition,
+            };
+          } catch {
+            copySourceError =
+              "That rule's saved requirements cannot be copied. Review the source rule and try again.";
+          }
+        }
+      }
+
+      if (copySourceError !== null) {
+        await setAdminListMessageFlash(c, {
+          tenantId: route.tenantId,
+          userId: principal.userId,
+          workspace: "rules",
+          tone: "error",
+          message: copySourceError,
+        });
+        return c.redirect(rulesPath, 303);
+      }
+    }
     const switchOrganizationPath =
       sharedData.accessibleTenantContexts.length > 1
         ? buildOrganizationsPath(`${requestUrl.pathname}${requestUrl.search}`)
@@ -566,6 +649,7 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
         valueLists: sharedData.valueLists,
         builderDraftId,
         builderDraft: sharedData.builderDraft,
+        ...(copySource === undefined ? {} : { copySource }),
         ...(selectedBadgeTemplateId === undefined ? {} : { selectedBadgeTemplateId }),
         switchOrganizationPath,
       }),

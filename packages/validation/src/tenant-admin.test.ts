@@ -10,6 +10,7 @@ import {
   parseTenantReportingTrendQuery,
 } from "./reporting-queries.js";
 import {
+  parseBadgeRuleBuilderPageQuery,
   parseBadgeRuleRegistryCursorPayload,
   parseBadgeRuleRegistryPageQuery,
   parseCreateTenantApiKeyRequest,
@@ -30,6 +31,28 @@ import {
   parseUpdateTenantMemberRoleRequest,
   parseUpsertTenantMembershipOrgUnitScopeRequest,
 } from "./tenant-admin.js";
+
+describe("badge rule builder query parser", () => {
+  it("accepts only bounded template and copy source IDs", () => {
+    expect(parseBadgeRuleBuilderPageQuery({})).toEqual({});
+    expect(
+      parseBadgeRuleBuilderPageQuery({
+        badgeTemplateId: "badge_template_001",
+        copyRuleId: "brl_copy",
+      }),
+    ).toEqual({
+      badgeTemplateId: "badge_template_001",
+      copyRuleId: "brl_copy",
+    });
+    expect(parseBadgeRuleBuilderPageQuery({ badgeTemplateId: "", copyRuleId: "" })).toEqual({});
+    expect(() => parseBadgeRuleBuilderPageQuery({ copyRuleId: "not valid" })).toThrow(
+      "Invalid resource ID",
+    );
+    expect(() => parseBadgeRuleBuilderPageQuery({ unexpected: "value" })).toThrow(
+      "Unrecognized key",
+    );
+  });
+});
 
 describe("badge rule registry query parsers", () => {
   it("applies bounded registry defaults and explicit filters", () => {

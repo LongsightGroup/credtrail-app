@@ -34,6 +34,11 @@ export const buildRulesAdminPath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/rules`;
 };
 
+/** Builds the new-rule URL for a tenant-local copy source. */
+export const buildBadgeRuleCopyPath = (tenantId: string, ruleId: string): string => {
+  return `${buildRulesAdminPath(tenantId)}/new?copyRuleId=${encodeURIComponent(ruleId)}`;
+};
+
 /** Builds the stable administrator URL for a governed badge rule. */
 export const buildBadgeRuleDetailPath = (tenantId: string, ruleId: string): string => {
   return `${buildRulesAdminPath(tenantId)}/${encodeURIComponent(ruleId)}`;

@@ -314,6 +314,24 @@ export const badgeRuleRegistryPageQuerySchema = z
     }
   });
 
+const badgeRuleBuilderResourceIdQuerySchema = resourceIdSchema
+  .trim()
+  .max(512)
+  .regex(/^[A-Za-z0-9:._-]+$/, "Invalid resource ID");
+
+export const badgeRuleBuilderPageQuerySchema = z
+  .object({
+    badgeTemplateId: z.preprocess(
+      emptyStringAsUndefined,
+      badgeRuleBuilderResourceIdQuerySchema.optional(),
+    ),
+    copyRuleId: z.preprocess(
+      emptyStringAsUndefined,
+      badgeRuleBuilderResourceIdQuerySchema.optional(),
+    ),
+  })
+  .strict();
+
 const badgeRuleRegistryStringCursorSchema = z.object({
   sort: z.enum(["rule", "badge", "lms", "updated"]),
   direction: badgeRuleRegistrySortDirectionSchema,
@@ -426,6 +444,7 @@ export type ResolveTenantLmsConnectionGradebookItemsRequest = z.infer<
 
 export type BadgeRuleRegistryPageQuery = z.infer<typeof badgeRuleRegistryPageQuerySchema>;
 export type BadgeRuleRegistryCursorPayload = z.infer<typeof badgeRuleRegistryCursorPayloadSchema>;
+export type BadgeRuleBuilderPageQuery = z.infer<typeof badgeRuleBuilderPageQuerySchema>;
 
 export const parseCreateTenantOrgUnitRequest = (input: unknown): CreateTenantOrgUnitRequest => {
   return createTenantOrgUnitRequestSchema.parse(input);
@@ -561,6 +580,10 @@ export const parseResolveTenantLmsConnectionGradebookItemsRequest = (
 
 export const parseBadgeRuleRegistryPageQuery = (input: unknown): BadgeRuleRegistryPageQuery => {
   return badgeRuleRegistryPageQuerySchema.parse(input);
+};
+
+export const parseBadgeRuleBuilderPageQuery = (input: unknown): BadgeRuleBuilderPageQuery => {
+  return badgeRuleBuilderPageQuerySchema.parse(input);
 };
 
 export const parseBadgeRuleRegistryCursorPayload = (

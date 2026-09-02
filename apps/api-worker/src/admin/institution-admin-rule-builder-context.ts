@@ -5,6 +5,7 @@ import type {
   TenantLmsConnectionRecord,
 } from "@credtrail/db";
 import {
+  type BadgeIssuanceRuleDefinition,
   parseBadgeIssuanceRuleBuilderDraftJson,
   type BadgeIssuanceRuleBuilderDraftPayload,
 } from "@credtrail/validation";
@@ -44,6 +45,10 @@ export interface InstitutionAdminRuleBuilderPageContext {
   fallbackCourseId: string;
   valueLists: readonly RuleValueListBuilderContextEntry[];
   editRule: InstitutionAdminRuleBuilderEditContext | null;
+  copySource: {
+    sourceDisplayName: string;
+    payload: BadgeIssuanceRuleBuilderDraftPayload;
+  } | null;
   lmsConnections: readonly {
     id: string;
     displayName: string;
@@ -131,6 +136,15 @@ export const buildInstitutionAdminRuleBuilderPageContext = (input: {
     latestVersion: BadgeIssuanceRuleVersionRecord;
     definition: unknown;
   } | null;
+  copySource: {
+    displayName: string;
+    name: string;
+    description: string;
+    badgeTemplateId: string;
+    lmsConnectionId: string;
+    lmsProviderKind: BadgeIssuanceRuleVersionRecord["snapshot"]["lmsProviderKind"];
+    definition: BadgeIssuanceRuleDefinition;
+  } | null;
   connectedLmsConnections: readonly TenantLmsConnectionRecord[];
 }): InstitutionAdminRuleBuilderPageContext => {
   const editRule =
@@ -148,6 +162,28 @@ export const buildInstitutionAdminRuleBuilderPageContext = (input: {
     )}/badge-rule-builder-drafts/${encodeURIComponent(input.builderDraftId)}`,
     builderDraftId: input.builderDraftId,
     builderDraft: buildInstitutionAdminRuleBuilderDraftContext(input.builderDraft, editRule),
+    copySource:
+      input.copySource === null
+        ? null
+        : {
+            sourceDisplayName: input.copySource.displayName,
+            payload: {
+              name: input.copySource.name,
+              description: input.copySource.description,
+              badgeTemplateId: input.copySource.badgeTemplateId,
+              lmsConnectionId: input.copySource.lmsConnectionId,
+              lmsProviderKind: input.copySource.lmsProviderKind,
+              definitionJson: JSON.stringify(input.copySource.definition),
+              builderState: {
+                rootLogic: "any" in input.copySource.definition.conditions ? "any" : "all",
+                issuanceTiming: input.copySource.definition.options?.issuanceTiming ?? "immediate",
+                changeSummary: "",
+                reviewOnMissingFacts:
+                  input.copySource.definition.options?.reviewOnMissingFacts ?? false,
+                lastTestSummary: "",
+              },
+            },
+          },
     badgeTemplates: input.badgeTemplateCourseContext,
     fallbackCourseId: input.initialTestCourseId,
     valueLists: input.valueLists,

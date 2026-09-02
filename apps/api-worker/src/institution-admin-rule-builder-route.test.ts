@@ -1,3 +1,4 @@
+import type { BadgeIssuanceRuleRecord, BadgeIssuanceRuleVersionRecord } from "@credtrail/db";
 import { describe, expect, it } from "vitest";
 import {
   createEnv,
@@ -25,6 +26,49 @@ const requestRuleBuilder = (env: ReturnType<typeof createEnv>, query = ""): Prom
     ),
   );
 };
+
+const copySourceRule = (): BadgeIssuanceRuleRecord => ({
+  id: "brl_copy",
+  tenantId: "tenant_123",
+  name: "Mutable rule head",
+  description: null,
+  badgeTemplateId: "mutable_template_head",
+  orgUnitId: "tenant_123:org:institution",
+  ownerOrgUnitId: "tenant_123:org:institution",
+  lmsProviderKind: "canvas",
+  lmsConnectionId: "lms_canvas",
+  activeVersionId: null,
+  createdByUserId: "usr_admin",
+  createdAt: "2026-02-18T12:00:00.000Z",
+  updatedAt: "2026-02-18T12:10:00.000Z",
+});
+
+const copySourceVersion = (
+  overrides: Partial<BadgeIssuanceRuleVersionRecord> = {},
+): BadgeIssuanceRuleVersionRecord =>
+  buildBadgeRuleVersionRecord({
+    id: "brv_copy",
+    ruleId: "brl_copy",
+    versionNumber: 3,
+    status: "draft",
+    ruleJson: JSON.stringify({
+      conditions: {
+        all: [
+          { type: "course_completion", courseId: "course_101", minCompletionPercent: 100 },
+          { type: "grade_threshold", courseId: "course_101", minScore: 85 },
+        ],
+      },
+      options: { issuanceTiming: "end_of_term", reviewOnMissingFacts: true },
+    }),
+    changeSummary: "Source governance history",
+    snapshot: {
+      name: "Versioned copy source",
+      description: "Immutable version description",
+      badgeTemplateId: "badge_template_001",
+      lmsConnectionId: "lms_canvas",
+    },
+    ...overrides,
+  });
 
 describe("rule-builder badge template availability", () => {
   it("keeps templates without canonical managed artwork out of the picker", async () => {
@@ -214,7 +258,8 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("used by 1 other rule");
     expect(body).toContain("I confirm this rule is another valid way to earn the same badge.");
     expect(body).not.toMatch(/value="badge_template_001"[^>]*selected/);
-    expect(body).toContain("Copy existing rule settings");
+    expect(body).not.toContain("Copy existing rule " + "settings");
+    expect(body).not.toContain('id="rule-builder-clone-' + 'rule"');
     expect(body).toContain("Edit requirement details");
     expect(body).toContain("Import and export");
     expect(body).toContain("Requirement catalog");
@@ -294,63 +339,85 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     );
   });
 
-  it("labels rules to copy with their immutable version names", async () => {
+  it("prefills a separate rule from the latest immutable source version", async () => {
     const env = createEnv();
-    mockedListBadgeIssuanceRules.mockResolvedValue([
-      {
-        id: "brl_copy",
-        tenantId: "tenant_123",
-        name: "Mutable rule head",
-        description: null,
-        badgeTemplateId: "mutable_template_head",
-        orgUnitId: "tenant_123:org:institution",
-        ownerOrgUnitId: "tenant_123:org:institution",
-        lmsProviderKind: "canvas",
-        lmsConnectionId: "lms_canvas",
-        activeVersionId: null,
-        createdByUserId: "usr_admin",
-        createdAt: "2026-02-18T12:00:00.000Z",
-        updatedAt: "2026-02-18T12:10:00.000Z",
-      },
-    ]);
-    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
-      buildBadgeRuleVersionRecord({
-        id: "brv_copy",
-        ruleId: "brl_copy",
-        versionNumber: 3,
-        status: "draft",
-        ruleJson: '{"conditions":{"type":"course_membership","courseId":"course_101"}}',
-        changeSummary: null,
-        createdByUserId: "usr_admin",
-        submittedByUserId: null,
-        submittedAt: null,
-        approvedByUserId: null,
-        approvedAt: null,
-        activatedByUserId: null,
-        activatedAt: null,
-        snapshot: {
-          name: "Versioned copy source",
-          description: "Immutable version description",
-          badgeTemplateId: "badge_template_001",
-          lmsConnectionId: "lms_canvas",
-        },
-        createdAt: "2026-02-18T12:10:00.000Z",
-        updatedAt: "2026-02-18T12:10:00.000Z",
-      }),
-    ]);
+    mockedListBadgeIssuanceRules.mockResolvedValue([copySourceRule()]);
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([copySourceVersion()]);
 
-    const response = await app.request(
-      "/tenants/tenant_123/admin/rules/new",
-      { headers: { Cookie: "better-auth.session_token=session-token" } },
-      env,
-    );
+    const response = await requestRuleBuilder(env, "?copyRuleId=brl_copy");
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Versioned copy source (brl_copy) · latest v3 draft");
+    expect(body).toContain("Copy Badge Awarding Rule");
+    expect(body).toContain("Creating a new rule from Versioned copy source.");
+    expect(body).toContain('name="name" type="hidden" value="Copy of Versioned copy source"');
+    expect(body).toContain('data-rule-builder-preserve-name="true"');
+    expect(body).toContain('name="description" type="text" value="Immutable version description"');
+    expect(body).toMatch(/value="badge_template_001"[^>]*selected/);
+    expect(body).toMatch(/value="lms_canvas"[^>]*selected/);
+    expect(body).toContain("&quot;issuanceTiming&quot;:&quot;end_of_term&quot;");
+    expect(body).toContain("&quot;reviewOnMissingFacts&quot;:true");
+    expect(body).toContain("\\&quot;minScore\\&quot;:85");
+    expect(body).toContain("&quot;changeSummary&quot;:&quot;&quot;");
+    expect(body).toContain("&quot;lastTestSummary&quot;:&quot;&quot;");
     expect(body).not.toContain("Mutable rule head");
-    expect(body).toContain(
-      "&quot;id&quot;:&quot;badge_template_001&quot;,&quot;title&quot;:&quot;TypeScript Foundations&quot;,&quot;slug&quot;:&quot;typescript-foundations&quot;,&quot;defaultCourseId&quot;:&quot;course_101&quot;",
-    );
+    expect(body).not.toContain("brv_copy");
+    expect(body).not.toContain("Source governance history");
+    expect(body).not.toContain("Copy existing rule " + "settings");
+  });
+
+  it("redirects unavailable, versionless, and cross-tenant copy sources to the rule list", async () => {
+    const missing = await requestRuleBuilder(createEnv(), "?copyRuleId=brl_missing");
+    expect(missing.status).toBe(303);
+    expect(missing.headers.get("location")).toBe("/tenants/tenant_123/admin/rules");
+    expect(missing.headers.get("set-cookie")).toContain("admin_flash");
+
+    mockedListBadgeIssuanceRules.mockResolvedValue([copySourceRule()]);
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([]);
+    const versionless = await requestRuleBuilder(createEnv(), "?copyRuleId=brl_copy");
+    expect(versionless.status).toBe(303);
+    expect(versionless.headers.get("location")).toBe("/tenants/tenant_123/admin/rules");
+
+    const crossTenant = await requestRuleBuilder(createEnv(), "?copyRuleId=brl_other_tenant");
+    expect(crossTenant.status).toBe(303);
+    expect(crossTenant.headers.get("location")).toBe("/tenants/tenant_123/admin/rules");
+  });
+
+  it("rejects copy sources with invalid definitions or unavailable dependencies", async () => {
+    mockedListBadgeIssuanceRules.mockResolvedValue([copySourceRule()]);
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
+      copySourceVersion({ ruleJson: '{"conditions":{"type":"unknown"}}' }),
+    ]);
+    const invalidDefinition = await requestRuleBuilder(createEnv(), "?copyRuleId=brl_copy");
+    expect(invalidDefinition.status).toBe(303);
+
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
+      copySourceVersion({
+        snapshot: {
+          ...copySourceVersion().snapshot,
+          badgeTemplateId: "badge_template_unavailable",
+        },
+      }),
+    ]);
+    const unavailableTemplate = await requestRuleBuilder(createEnv(), "?copyRuleId=brl_copy");
+    expect(unavailableTemplate.status).toBe(303);
+
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
+      copySourceVersion({
+        snapshot: {
+          ...copySourceVersion().snapshot,
+          lmsConnectionId: "lms_unavailable",
+        },
+      }),
+    ]);
+    const unavailableConnection = await requestRuleBuilder(createEnv(), "?copyRuleId=brl_copy");
+    expect(unavailableConnection.status).toBe(303);
+  });
+
+  it("redirects malformed rule-builder query values", async () => {
+    const response = await requestRuleBuilder(createEnv(), "?copyRuleId=not%20valid");
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/rules");
   });
 });

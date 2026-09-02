@@ -17,6 +17,7 @@ import {
 import { badgeRuleLmsProviderLabel } from "../../badges/badge-rule-lms-provider-label";
 import { formatIsoTimestamp } from "../../utils/display-format";
 import {
+  buildBadgeRuleCopyPath,
   buildBadgeRuleDetailPath,
   buildBadgeRuleVersionDetailPath,
   tenantBadgeRuleDeleteAdminPath,
@@ -226,6 +227,14 @@ const renderResolvedRuleRow = (
         <AdminActions>
           <AdminButtonLink href={detailPath} variant="secondary" size="tiny">
             View
+          </AdminButtonLink>
+          <AdminButtonLink
+            href={buildBadgeRuleCopyPath(input.tenantId, rule.id)}
+            variant="quiet"
+            size="tiny"
+            ariaLabel={`Copy ${displayFields.displayName}`}
+          >
+            Copy
           </AdminButtonLink>
           {canEditBadgeIssuanceRuleDraft(rule, versions) ? (
             <AdminButtonLink href={editRulePath} variant="quiet" size="tiny">

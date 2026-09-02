@@ -146,7 +146,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
     expect(body).toContain('id="rule-builder-save-draft"');
     expect(body).toContain("Save draft version");
     expect(body).toContain("Save and submit for approval");
-    expect(body).not.toContain("Copy existing rule settings");
+    expect(body).not.toContain("Copy existing rule " + "settings");
     expect(body).toContain('value="Versioned Draft QA Rule"');
     expect(body).not.toContain('value="Draft QA Rule"');
     expect(body).not.toContain("Mutable rule-row description.");

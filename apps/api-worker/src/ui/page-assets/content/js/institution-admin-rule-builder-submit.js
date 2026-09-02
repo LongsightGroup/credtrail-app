@@ -507,6 +507,25 @@ if (isRuleBuilderEditMode) {
     setStatus(ruleCreateStatus, "Saved rule JSON could not be loaded into the builder.", true);
     syncRuleBuilderSummary("Saved rule JSON could not be loaded into the builder.");
   }
+} else if (copySourceContext !== null) {
+  applyRuleBuilderPayload(
+    {
+      payload: copySourceContext.payload,
+      currentStep: "metadata",
+    },
+    "Copied rule settings",
+  );
+  const sourceDisplayName =
+    typeof copySourceContext.sourceDisplayName === "string"
+      ? copySourceContext.sourceDisplayName
+      : "the source rule";
+  setStatus(
+    ruleCreateStatus,
+    "Creating a separate rule from " + sourceDisplayName + ". Review every setting before saving.",
+    false,
+    "success",
+  );
+  syncRuleBuilderSummary("Copied settings are ready to review.");
 } else {
   syncSuggestedRuleName();
   applyTemplatePreset();

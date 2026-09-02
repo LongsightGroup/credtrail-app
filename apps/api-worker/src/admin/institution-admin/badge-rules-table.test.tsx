@@ -59,6 +59,7 @@ describe("badge rules table lifecycle states", () => {
     expect(html).toContain("Needs cleanup");
     expect(html).toContain('action="/tenants/tenant_123/admin/rules/brl_incomplete/delete"');
     expect(html).not.toContain('href="/tenants/tenant_123/admin/rules/brl_incomplete"');
+    expect(html).not.toContain("copyRuleId=");
   });
 
   it("surfaces an invalid active-version reference without calling it incomplete", async () => {
@@ -83,5 +84,23 @@ describe("badge rules table lifecycle states", () => {
     expect(html).not.toContain(
       'action="/tenants/tenant_123/admin/rules/brl_invalid_active/delete"',
     );
+    expect(html).not.toContain("copyRuleId=");
+  });
+
+  it("offers Copy on a resolved rule row with an encoded tenant-local source", async () => {
+    const rule = sampleRule({ id: "brl_copy/source", name: "Mutable rule head" });
+    const version = buildBadgeRuleVersionRecord({
+      id: "brv_copy",
+      ruleId: rule.id,
+      snapshot: { name: "Course completion source" },
+    });
+    const html = await renderRulesTable(rule, [version]);
+
+    expect(html).toContain(
+      'href="/tenants/tenant_123/admin/rules/new?copyRuleId=brl_copy%2Fsource"',
+    );
+    expect(html).toContain('aria-label="Copy Course completion source"');
+    expect(html).toContain(">Copy</a>");
+    expect(html).not.toContain("Mutable rule head");
   });
 });

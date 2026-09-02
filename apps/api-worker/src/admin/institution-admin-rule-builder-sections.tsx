@@ -1,5 +1,4 @@
 import type {
-  BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleVersionRecord,
   BadgeTemplateRecord,
   TenantLmsConnectionRecord,
@@ -122,44 +121,6 @@ export const RuleBuilderConditionCardTemplate = (): HonoElement => {
   );
 };
 
-export const RuleBuilderCloneSettings = (props: {
-  readonly ruleCloneOptions: readonly {
-    readonly rule: BadgeIssuanceRuleRecord;
-    readonly label: string;
-  }[];
-}): HonoElement => {
-  if (props.ruleCloneOptions.length === 0) {
-    return null;
-  }
-
-  return (
-    <details class="ct-admin__builder-clone ct-stack">
-      <summary>Copy existing rule settings</summary>
-      <p class="ct-admin__hint">
-        Preload settings from a rule you already use, then review the badge, source, and
-        requirements before submitting.
-      </p>
-      <AdminActions className="ct-admin__builder-inline">
-        <CtSelect
-          id="rule-builder-clone-rule"
-          name="cloneRuleId"
-          ariaLabel="Rule to copy settings from"
-        >
-          <option value="">Select rule to copy</option>
-          {props.ruleCloneOptions.map((option) => (
-            <option key={option.rule.id} value={option.rule.id}>
-              {option.label}
-            </option>
-          ))}
-        </CtSelect>
-        <AdminButton id="rule-builder-clone-load" type="button" size="tiny" variant="secondary">
-          Copy settings
-        </AdminButton>
-      </AdminActions>
-    </details>
-  );
-};
-
 // An editable ARIA combobox requires a listbox popup rather than another select.
 /* oxlint-disable jsx-a11y/prefer-tag-over-role */
 export const RuleBuilderMetadataStep = (props: {
@@ -175,6 +136,9 @@ export const RuleBuilderMetadataStep = (props: {
   readonly editRule: {
     readonly latestVersion: BadgeIssuanceRuleVersionRecord;
   } | null;
+  readonly initialName: string;
+  readonly initialDescription: string;
+  readonly preserveName: boolean;
 }): HonoElement => {
   const hasSelectedTemplate = props.templateOptions.some((option) => option.isSelected);
   const savedTemplateUnavailable =
@@ -404,7 +368,7 @@ export const RuleBuilderMetadataStep = (props: {
                 <CtInput
                   name="description"
                   type="text"
-                  value={props.editRule?.latestVersion.snapshot.description ?? ""}
+                  value={props.initialDescription}
                   placeholder="Award when learner completes the course with strong performance."
                 />
               </AdminField>
@@ -413,9 +377,9 @@ export const RuleBuilderMetadataStep = (props: {
               type="hidden"
               name="name"
               id="rule-builder-name"
-              value={props.editRule?.latestVersion.snapshot.name ?? ""}
+              value={props.initialName}
               dataAttributes={{
-                "data-rule-builder-preserve-name": props.isEditMode ? "true" : "false",
+                "data-rule-builder-preserve-name": props.preserveName ? "true" : "false",
               }}
             />
           </section>

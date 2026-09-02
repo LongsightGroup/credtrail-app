@@ -10,7 +10,7 @@ import {
   type TenantMembershipRole,
   type TenantRecord,
 } from "@credtrail/db";
-import { badgeRuleDisplayName } from "../badges/badge-rule-presentation";
+import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import type { RuleBuilderBadgeTemplateAvailabilityEntry } from "../badges/badge-template-rule-availability";
 import type { RuleValueListBuilderContextEntry } from "./rule-value-lists-presentation";
 import { buildInstitutionAdminRuleBuilderPageContext } from "./institution-admin-rule-builder-context";
@@ -26,7 +26,6 @@ import { buildInstitutionAdminSidebarSectionsForTenant } from "./institution-adm
 import { isLmsConnectionReady } from "./lms-connection-admin-helpers";
 import {
   RuleBuilderAdvancedJsonTools,
-  RuleBuilderCloneSettings,
   RuleBuilderConditionCardTemplate,
   RuleBuilderConditionsStep,
   RuleBuilderMetadataStep,
@@ -34,6 +33,16 @@ import {
   RuleBuilderTestStep,
   RuleBuilderWorkflowFooter,
 } from "./institution-admin-rule-builder-sections";
+
+export interface InstitutionAdminRuleBuilderCopySource {
+  readonly displayName: string;
+  readonly name: string;
+  readonly description: string;
+  readonly badgeTemplateId: string;
+  readonly lmsConnectionId: string;
+  readonly lmsProviderKind: BadgeIssuanceRuleVersionRecord["snapshot"]["lmsProviderKind"];
+  readonly definition: BadgeIssuanceRuleDefinition;
+}
 
 const serializeJsonScriptContent = (value: unknown): string => {
   return JSON.stringify(value)
@@ -145,6 +154,7 @@ export const institutionAdminRuleBuilderPage = (input: {
     rule: BadgeIssuanceRuleRecord;
     latestVersion: BadgeIssuanceRuleVersionRecord;
   };
+  copySource?: InstitutionAdminRuleBuilderCopySource;
   switchOrganizationPath?: string | null;
 }): AppPage => {
   const versionsByRuleId = indexBadgeIssuanceRuleVersionsByRuleId(input.badgeRuleVersions);
@@ -159,6 +169,7 @@ export const institutionAdminRuleBuilderPage = (input: {
   const switchOrganizationPath = input.switchOrganizationPath?.trim() ?? "";
   const userLabel = input.userEmail ?? input.userId;
   const editRule = input.editRule ?? null;
+  const copySource = input.copySource ?? null;
   const editSnapshot = editRule?.latestVersion.snapshot ?? null;
   const isEditMode = editRule !== null;
   const builderDraft = input.builderDraft ?? null;
@@ -182,7 +193,10 @@ export const institutionAdminRuleBuilderPage = (input: {
   })();
 
   const selectedBadgeTemplateId =
-    editSnapshot?.badgeTemplateId ?? input.selectedBadgeTemplateId ?? null;
+    editSnapshot?.badgeTemplateId ??
+    copySource?.badgeTemplateId ??
+    input.selectedBadgeTemplateId ??
+    null;
   const hasSelectedBadgeTemplate =
     selectedBadgeTemplateId !== null &&
     ruleReadyBadgeTemplates.some((template) => template.id === selectedBadgeTemplateId);
@@ -242,26 +256,17 @@ export const institutionAdminRuleBuilderPage = (input: {
     connectedLmsConnections.some((connection) => connection.id === editSnapshot.lmsConnectionId)
       ? editSnapshot.lmsConnectionId
       : null;
+  const copyLmsConnectionId =
+    copySource !== null &&
+    connectedLmsConnections.some((connection) => connection.id === copySource.lmsConnectionId)
+      ? copySource.lmsConnectionId
+      : null;
   const defaultLmsConnectionId = isEditMode
     ? (editLmsConnectionId ?? "")
-    : inferDefaultLmsConnectionId();
+    : (copyLmsConnectionId ?? inferDefaultLmsConnectionId());
   const defaultLmsConnection =
     connectedLmsConnections.find((connection) => connection.id === defaultLmsConnectionId) ??
     (isEditMode ? null : (connectedLmsConnections[0] ?? null));
-
-  const ruleCloneOptions = input.badgeRules.map((rule) => {
-    const versions = versionsByRuleId.get(rule.id) ?? [];
-    const latestVersion = latestBadgeIssuanceRuleVersion(versions);
-    const latestLabel =
-      latestVersion === null
-        ? "none"
-        : `v${String(latestVersion.versionNumber)} ${latestVersion.status}`;
-
-    return {
-      rule,
-      label: `${badgeRuleDisplayName(rule, versions)} (${rule.id}) · latest ${latestLabel}`,
-    };
-  });
 
   const courseIdByBadgeTemplateId = new Map<string, string>();
 
@@ -321,6 +326,7 @@ export const institutionAdminRuleBuilderPage = (input: {
               latestVersion: editRule.latestVersion,
               definition: editDefinition,
             },
+      copySource,
       connectedLmsConnections,
     }),
   });
@@ -371,16 +377,23 @@ export const institutionAdminRuleBuilderPage = (input: {
         contentClassName="ct-admin-content ct-admin-content--rule-builder"
       >
         <div class="ct-admin-page-header ct-admin-page-header--compact">
-          <h1>{isEditMode ? "Edit Badge Awarding Rule" : "Badge Awarding Rule"}</h1>
+          <h1>
+            {isEditMode
+              ? "Edit Badge Awarding Rule"
+              : copySource === null
+                ? "Badge Awarding Rule"
+                : "Copy Badge Awarding Rule"}
+          </h1>
           <p>
             {isEditMode
               ? "Review the current settings, test your changes, then submit a new version for approval."
-              : "Define when learners earn this badge. Complete each step, then submit the rule for approval."}
+              : copySource === null
+                ? "Define when learners earn this badge. Complete each step, then submit the rule for approval."
+                : `Creating a new rule from ${copySource.displayName}. Review every setting, then save or submit it as a separate rule.`}
           </p>
         </div>
 
         <section class="ct-admin__builder-shell ct-stack">
-          {!isEditMode ? <RuleBuilderCloneSettings ruleCloneOptions={ruleCloneOptions} /> : null}
           <section class="ct-admin__panel ct-admin__builder-workbench-panel ct-stack">
             <header class="ct-admin__builder-workflow-head">
               <h2 class="ct-admin__builder-steps-title">Build this rule</h2>
@@ -409,6 +422,11 @@ export const institutionAdminRuleBuilderPage = (input: {
                   createTemplateForRulePath={createTemplateForRulePath}
                   accessLmsConnectionsPath={accessLmsConnectionsPath}
                   editRule={editRule === null ? null : { latestVersion: editRule.latestVersion }}
+                  initialName={editRule?.latestVersion.snapshot.name ?? copySource?.name ?? ""}
+                  initialDescription={
+                    editRule?.latestVersion.snapshot.description ?? copySource?.description ?? ""
+                  }
+                  preserveName={isEditMode || copySource !== null}
                 />
                 <RuleBuilderConditionsStep rulesListPath={rulesListPath} />
                 <RuleBuilderTestStep />

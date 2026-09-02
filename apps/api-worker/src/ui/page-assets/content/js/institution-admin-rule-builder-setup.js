@@ -14,6 +14,16 @@ const builderDraftContext =
   !Array.isArray(ruleBuilderContext.builderDraft)
     ? ruleBuilderContext.builderDraft
     : null;
+const copySourceContext =
+  ruleBuilderContext &&
+  ruleBuilderContext.copySource &&
+  typeof ruleBuilderContext.copySource === "object" &&
+  !Array.isArray(ruleBuilderContext.copySource) &&
+  ruleBuilderContext.copySource.payload &&
+  typeof ruleBuilderContext.copySource.payload === "object" &&
+  !Array.isArray(ruleBuilderContext.copySource.payload)
+    ? ruleBuilderContext.copySource
+    : null;
 const isRuleBuilderEditMode = editRuleContext !== null;
 const savedEditLmsProviderKind =
   editRuleContext && typeof editRuleContext.lmsProviderKind === "string"
