@@ -312,6 +312,7 @@ if (reviewOnMissingFactsField instanceof HTMLInputElement) {
 
 if (ruleBuilderAddConditionButton instanceof HTMLButtonElement) {
   ruleBuilderAddConditionButton.addEventListener("click", () => {
+    ruleBuilderJsonOnlyDefinitionActive = false;
     addConditionToCanvas({
       type: "course_completion",
       courseId: getDefaultCourseId(),
@@ -323,6 +324,7 @@ if (ruleBuilderAddConditionButton instanceof HTMLButtonElement) {
 
 if (ruleBuilderAddAlternativePathButton instanceof HTMLButtonElement) {
   ruleBuilderAddAlternativePathButton.addEventListener("click", () => {
+    ruleBuilderJsonOnlyDefinitionActive = false;
     setRuleBuilderRootLogic("any");
     addConditionToCanvas({
       type: "grade_threshold",
@@ -338,6 +340,7 @@ if (ruleBuilderAddAlternativePathButton instanceof HTMLButtonElement) {
 
 if (ruleBuilderRequireEveryRequirementButton instanceof HTMLButtonElement) {
   ruleBuilderRequireEveryRequirementButton.addEventListener("click", () => {
+    ruleBuilderJsonOnlyDefinitionActive = false;
     setRuleBuilderRootLogic("all");
     syncDefinitionJsonFromBuilder();
     syncRuleBuilderSummary("Learner must meet every requirement.");

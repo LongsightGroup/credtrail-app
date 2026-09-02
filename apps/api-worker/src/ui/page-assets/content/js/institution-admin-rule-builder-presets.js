@@ -5,6 +5,7 @@ const applyTemplatePreset = () => {
       : "course_and_grade";
 
   if (presetKey === "blank") {
+    ruleBuilderJsonOnlyDefinitionActive = false;
     clearConditionCanvas();
     setRuleBuilderRootLogic("all");
     ruleBuilderDefinitionJson.value = "";

@@ -1,4 +1,5 @@
 let ruleBuilderLastTestSummary = "Not run";
+let ruleBuilderJsonOnlyDefinitionActive = false;
 
 const resetConditionEvaluationResults = () => {
   getConditionCards().forEach((card) => {
@@ -299,17 +300,34 @@ const syncRuleBuilderSummary = (statusOverride) => {
   syncRuleBuilderStepCompletion();
 };
 
-const syncDefinitionJsonFromBuilder = () => {
+const syncDefinitionJsonFromBuilder = (options) => {
+  const exitJsonOnlyMode = options && options.exitJsonOnlyMode === true;
+
+  if (exitJsonOnlyMode) {
+    ruleBuilderJsonOnlyDefinitionActive = false;
+  }
+
   syncConditionCanvasMeta();
   renderRuleFlowPreview();
   renderSourceReadiness();
 
-  try {
-    const definition = readDefinitionFromBuilder(false);
-    ruleBuilderDefinitionJson.value = JSON.stringify(definition, null, 2);
-    syncRuleBuilderPresetFromDefinition(definition);
-  } catch {
-    // Ignore transient editing errors while user updates fields.
+  if (!ruleBuilderJsonOnlyDefinitionActive) {
+    try {
+      const definition = readDefinitionFromBuilder(false);
+      ruleBuilderDefinitionJson.value = JSON.stringify(definition, null, 2);
+      syncRuleBuilderPresetFromDefinition(definition);
+    } catch {
+      // Ignore transient editing errors while user updates fields.
+    }
+  } else {
+    try {
+      const definition = JSON.parse(ruleBuilderDefinitionJson.value);
+      const definitionWithCurrentOptions = withRuleBuilderDefinitionOptions(definition);
+      ruleBuilderDefinitionJson.value = JSON.stringify(definitionWithCurrentOptions, null, 2);
+      syncRuleBuilderPresetFromDefinition(definitionWithCurrentOptions);
+    } catch {
+      // Preserve an in-progress JSON edit until it is valid and explicitly applied.
+    }
   }
 
   ruleBuilderLastTestSummary = "Not run";
@@ -455,11 +473,11 @@ const createConditionCard = (seed) => {
       });
     }
 
-    syncDefinitionJsonFromBuilder();
+    syncDefinitionJsonFromBuilder({ exitJsonOnlyMode: true });
   });
 
   card.addEventListener("input", () => {
-    syncDefinitionJsonFromBuilder();
+    syncDefinitionJsonFromBuilder({ exitJsonOnlyMode: true });
   });
 
   card.addEventListener("click", (event) => {
@@ -472,7 +490,7 @@ const createConditionCard = (seed) => {
         ruleBuilderConditionList.insertBefore(card, previous);
       }
 
-      syncDefinitionJsonFromBuilder();
+      syncDefinitionJsonFromBuilder({ exitJsonOnlyMode: true });
       return;
     }
 
@@ -483,7 +501,7 @@ const createConditionCard = (seed) => {
         ruleBuilderConditionList.insertBefore(next, card);
       }
 
-      syncDefinitionJsonFromBuilder();
+      syncDefinitionJsonFromBuilder({ exitJsonOnlyMode: true });
       return;
     }
 
@@ -492,7 +510,7 @@ const createConditionCard = (seed) => {
       target.classList.contains("ct-admin__condition-remove")
     ) {
       card.remove();
-      syncDefinitionJsonFromBuilder();
+      syncDefinitionJsonFromBuilder({ exitJsonOnlyMode: true });
     }
   });
 
@@ -502,7 +520,7 @@ const createConditionCard = (seed) => {
 
   card.addEventListener("dragend", () => {
     card.classList.remove("is-dragging");
-    syncDefinitionJsonFromBuilder();
+    syncDefinitionJsonFromBuilder({ exitJsonOnlyMode: true });
   });
 
   return card;
@@ -667,6 +685,7 @@ const applyDefinitionToBuilder = (definition, sourceLabel) => {
     .filter((condition) => condition !== null);
 
   if (normalizedChildren.length !== rawChildren.length) {
+    ruleBuilderJsonOnlyDefinitionActive = true;
     setStatus(
       ruleCreateStatus,
       sourceLabel +
@@ -680,6 +699,7 @@ const applyDefinitionToBuilder = (definition, sourceLabel) => {
     return false;
   }
 
+  ruleBuilderJsonOnlyDefinitionActive = false;
   clearConditionCanvas();
   setRuleBuilderRootLogic(rootLogic);
   normalizedChildren.forEach((seed) => {

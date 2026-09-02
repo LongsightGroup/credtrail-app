@@ -38,6 +38,12 @@ const fulfillLmsPickerRoute = async (route: Route): Promise<void> => {
     return;
   }
 
+  if (path.endsWith("/gradebook-items/first-page-item/workflow-states")) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await route.fulfill({ json: { states: [] } });
+    return;
+  }
+
   if (path.endsWith(`/gradebook-items/${savedAssignmentId}/workflow-states`)) {
     await route.fulfill({ json: { states: [] } });
     return;
