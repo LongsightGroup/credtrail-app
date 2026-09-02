@@ -312,7 +312,7 @@ if (reviewOnMissingFactsField instanceof HTMLInputElement) {
 
 if (ruleBuilderAddConditionButton instanceof HTMLButtonElement) {
   ruleBuilderAddConditionButton.addEventListener("click", () => {
-    ruleBuilderJsonOnlyDefinitionActive = false;
+    ruleBuilderDefinitionAuthority = "visual";
     addConditionToCanvas({
       type: "course_completion",
       courseId: getDefaultCourseId(),
@@ -324,7 +324,7 @@ if (ruleBuilderAddConditionButton instanceof HTMLButtonElement) {
 
 if (ruleBuilderAddAlternativePathButton instanceof HTMLButtonElement) {
   ruleBuilderAddAlternativePathButton.addEventListener("click", () => {
-    ruleBuilderJsonOnlyDefinitionActive = false;
+    ruleBuilderDefinitionAuthority = "visual";
     setRuleBuilderRootLogic("any");
     addConditionToCanvas({
       type: "grade_threshold",
@@ -340,7 +340,7 @@ if (ruleBuilderAddAlternativePathButton instanceof HTMLButtonElement) {
 
 if (ruleBuilderRequireEveryRequirementButton instanceof HTMLButtonElement) {
   ruleBuilderRequireEveryRequirementButton.addEventListener("click", () => {
-    ruleBuilderJsonOnlyDefinitionActive = false;
+    ruleBuilderDefinitionAuthority = "visual";
     setRuleBuilderRootLogic("all");
     syncDefinitionJsonFromBuilder();
     syncRuleBuilderSummary("Learner must meet every requirement.");
@@ -352,6 +352,10 @@ if (ruleBuilderApplyTemplateButton instanceof HTMLButtonElement) {
     applyTemplatePreset();
   });
 }
+
+ruleBuilderDefinitionJson.addEventListener("input", () => {
+  ruleBuilderDefinitionAuthority = "json_editing";
+});
 
 if (ruleBuilderApplyJsonButton instanceof HTMLButtonElement) {
   ruleBuilderApplyJsonButton.addEventListener("click", () => {

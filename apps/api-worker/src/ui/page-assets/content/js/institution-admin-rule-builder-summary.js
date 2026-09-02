@@ -1,5 +1,5 @@
 let ruleBuilderLastTestSummary = "Not run";
-let ruleBuilderJsonOnlyDefinitionActive = false;
+let ruleBuilderDefinitionAuthority = "visual";
 
 const resetConditionEvaluationResults = () => {
   getConditionCards().forEach((card) => {
@@ -304,14 +304,14 @@ const syncDefinitionJsonFromBuilder = (options) => {
   const exitJsonOnlyMode = options && options.exitJsonOnlyMode === true;
 
   if (exitJsonOnlyMode) {
-    ruleBuilderJsonOnlyDefinitionActive = false;
+    ruleBuilderDefinitionAuthority = "visual";
   }
 
   syncConditionCanvasMeta();
   renderRuleFlowPreview();
   renderSourceReadiness();
 
-  if (!ruleBuilderJsonOnlyDefinitionActive) {
+  if (ruleBuilderDefinitionAuthority === "visual") {
     try {
       const definition = readDefinitionFromBuilder(false);
       ruleBuilderDefinitionJson.value = JSON.stringify(definition, null, 2);
@@ -319,7 +319,7 @@ const syncDefinitionJsonFromBuilder = (options) => {
     } catch {
       // Ignore transient editing errors while user updates fields.
     }
-  } else {
+  } else if (ruleBuilderDefinitionAuthority === "json_applied") {
     try {
       const definition = JSON.parse(ruleBuilderDefinitionJson.value);
       const definitionWithCurrentOptions = withRuleBuilderDefinitionOptions(definition);
@@ -685,7 +685,7 @@ const applyDefinitionToBuilder = (definition, sourceLabel) => {
     .filter((condition) => condition !== null);
 
   if (normalizedChildren.length !== rawChildren.length) {
-    ruleBuilderJsonOnlyDefinitionActive = true;
+    ruleBuilderDefinitionAuthority = "json_applied";
     setStatus(
       ruleCreateStatus,
       sourceLabel +
@@ -699,7 +699,7 @@ const applyDefinitionToBuilder = (definition, sourceLabel) => {
     return false;
   }
 
-  ruleBuilderJsonOnlyDefinitionActive = false;
+  ruleBuilderDefinitionAuthority = "visual";
   clearConditionCanvas();
   setRuleBuilderRootLogic(rootLogic);
   normalizedChildren.forEach((seed) => {

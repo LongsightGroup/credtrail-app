@@ -10,7 +10,10 @@ const savedCourseId = "course-draft-restore";
 const savedAssignmentId = "assignment-outside-picker-page";
 const savedBadgeTemplateId = "badge_template_trusted_demo";
 
-const fulfillLmsPickerRoute = async (route: Route): Promise<void> => {
+const fulfillLmsPickerRoute = async (
+  route: Route,
+  firstPageWorkflowGate?: Promise<void>,
+): Promise<void> => {
   const request = route.request();
   const path = new URL(request.url()).pathname;
 
@@ -39,7 +42,7 @@ const fulfillLmsPickerRoute = async (route: Route): Promise<void> => {
   }
 
   if (path.endsWith("/gradebook-items/first-page-item/workflow-states")) {
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await firstPageWorkflowGate;
     await route.fulfill({ json: { states: [] } });
     return;
   }
@@ -71,8 +74,13 @@ const fulfillLmsPickerRoute = async (route: Route): Promise<void> => {
   await route.fallback();
 };
 
-const installLmsPickerRoutes = async (page: Page): Promise<void> => {
-  await page.route("**/v1/tenants/**/lms/connections/**", fulfillLmsPickerRoute);
+const installLmsPickerRoutes = async (
+  page: Page,
+  options: { readonly firstPageWorkflowGate?: Promise<void> } = {},
+): Promise<void> => {
+  await page.route("**/v1/tenants/**/lms/connections/**", async (route) => {
+    await fulfillLmsPickerRoute(route, options.firstPageWorkflowGate);
+  });
   await page.route("**/v1/tenants/**/badge-rules/preview-evaluate", async (route) => {
     await route.fulfill({
       json: {
@@ -91,12 +99,16 @@ const installLmsPickerRoutes = async (page: Page): Promise<void> => {
   });
 };
 
-const applyDefinitionJson = async (page: Page, definition: unknown): Promise<void> => {
+const stageDefinitionJson = async (page: Page, definition: unknown): Promise<void> => {
   const definitionField = page.locator("#rule-builder-definition-json");
   if (!(await definitionField.isVisible())) {
     await page.getByText("Generated rule JSON", { exact: true }).click();
   }
   await definitionField.fill(JSON.stringify(definition));
+};
+
+const applyDefinitionJson = async (page: Page, definition: unknown): Promise<void> => {
+  await stageDefinitionJson(page, definition);
   await page.getByRole("button", { name: "Apply JSON" }).click();
 };
 
@@ -279,6 +291,13 @@ const cleanupDraftRestoreRecords = async (input: {
       .run();
   }
 
+  await db
+    .prepare(
+      "DELETE FROM badge_issuance_rule_builder_drafts WHERE tenant_id = ? AND draft_json::jsonb ->> 'lmsConnectionId' = ?",
+    )
+    .bind(tenantId, input.lmsConnectionId)
+    .run();
+
   if (input.ruleId !== undefined) {
     await db
       .prepare("DELETE FROM badge_issuance_rules WHERE tenant_id = ? AND id = ?")
@@ -378,7 +397,11 @@ test("a formal assignment-rule draft restores every visible and submitted settin
 test("unfinished custom requirements restore without being replaced by a starter", async ({
   page,
 }) => {
-  await installLmsPickerRoutes(page);
+  let releaseFirstPageWorkflow = (): void => {};
+  const firstPageWorkflowGate = new Promise<void>((resolve) => {
+    releaseFirstPageWorkflow = resolve;
+  });
+  await installLmsPickerRoutes(page, { firstPageWorkflowGate });
   const ruleName = `Unfinished restore ${crypto.randomUUID().slice(0, 8)}`;
   const lmsConnectionId = await createReadyLmsConnection();
   let builderDraftId: string | undefined;
@@ -400,7 +423,15 @@ test("unfinished custom requirements restore without being replaced by a starter
       },
       options: { issuanceTiming: "manual", reviewOnMissingFacts: true },
     };
-    await applyDefinitionJson(page, customDefinition);
+    const firstPageWorkflowResponse = page.waitForResponse((response) => {
+      return new URL(response.url()).pathname.endsWith(
+        "/gradebook-items/first-page-item/workflow-states",
+      );
+    });
+    await stageDefinitionJson(page, customDefinition);
+    releaseFirstPageWorkflow();
+    await firstPageWorkflowResponse;
+    await page.getByRole("button", { name: "Apply JSON" }).click();
     await expect(page.getByLabel("Awarding pattern")).toHaveValue("custom");
 
     const saveResponsePromise = waitForBuilderDraftDefinitionSave(page, customDefinition);
