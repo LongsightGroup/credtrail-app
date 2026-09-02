@@ -1180,6 +1180,7 @@ describe("LTI 1.3 core launch flow", () => {
   const performInstructorDeepLinkingLaunch = async (input?: {
     deepLinkReturnUrl?: string;
     deepLinkingData?: string;
+    additionalDeepLinkingSettings?: Readonly<Record<string, unknown>>;
   }): Promise<{
     response: Response;
     body: string;
@@ -1226,6 +1227,7 @@ describe("LTI 1.3 core launch flow", () => {
           accept_types: ["ltiResourceLink"],
           accept_presentation_document_targets: [],
           ...(input?.deepLinkingData === undefined ? {} : { data: input.deepLinkingData }),
+          ...input?.additionalDeepLinkingSettings,
         },
       },
     });
@@ -3252,11 +3254,17 @@ describe("LTI 1.3 core launch flow", () => {
     });
   });
 
-  it("accepts instructor deep linking launch and renders badge template placement forms", async () => {
+  it("accepts Sakai instructor deep linking extensions and renders placement forms", async () => {
     const deepLinkReturnUrl = "https://canvas.example.edu/api/lti/deep_link_return";
     const { response, body } = await performInstructorDeepLinkingLaunch({
       deepLinkReturnUrl,
       deepLinkingData: "opaque-deep-link-state",
+      additionalDeepLinkingSettings: {
+        "https://www.sakailms.org/spec/lti-dl/placement": "lessons",
+        "https://www.sakailms.org/spec/lti-dl/accept_lineitem": true,
+        "https://www.sakailms.org/spec/lti-dl/accept_available": false,
+        "https://www.sakailms.org/spec/lti-dl/accept_submission": false,
+      },
     });
 
     expect(response.status).toBe(200);

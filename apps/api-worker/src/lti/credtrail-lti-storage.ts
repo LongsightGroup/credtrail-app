@@ -14,9 +14,8 @@ import {
   serializeLtiSession,
 } from "@longsightgroup/lti-tool";
 import {
-  deleteLtiDynamicRegistrationSessionById,
+  consumeLtiDynamicRegistrationSession,
   findLtiDeploymentByIssuerClientDeployment,
-  findLtiDynamicRegistrationSessionById,
   findLtiLaunchSessionById,
   listLtiDeploymentsForIssuer,
   listLtiIssuerRegistrationsForTenant,
@@ -398,12 +397,13 @@ export class CredTrailLtiStorage implements LTIStorage {
     });
   }
 
-  async getRegistrationSession(
+  async consumeRegistrationSession(
     sessionId: string,
   ): Promise<LTIDynamicRegistrationSession | undefined> {
-    const session = await findLtiDynamicRegistrationSessionById(this.db, {
+    const session = await consumeLtiDynamicRegistrationSession(this.db, {
       tenantId: this.options.tenantId,
       sessionId,
+      nowIso: new Date().toISOString(),
     });
 
     if (session === null) {
@@ -411,12 +411,5 @@ export class CredTrailLtiStorage implements LTIStorage {
     }
 
     return parsePersistedLtiDynamicRegistrationSession(session.dataJson);
-  }
-
-  async deleteRegistrationSession(sessionId: string): Promise<void> {
-    await deleteLtiDynamicRegistrationSessionById(this.db, {
-      tenantId: this.options.tenantId,
-      sessionId,
-    });
   }
 }

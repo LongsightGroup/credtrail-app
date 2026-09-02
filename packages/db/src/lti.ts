@@ -858,51 +858,35 @@ export const upsertLtiDynamicRegistrationSession = async (
   await insertStatement();
 };
 
-export const findLtiDynamicRegistrationSessionById = async (
+/**
+ * Atomically removes and returns one unexpired dynamic-registration session.
+ * Tenant, identifier, and expiration checks are part of the delete predicate so
+ * concurrent consumers cannot observe the same one-time session.
+ */
+export const consumeLtiDynamicRegistrationSession = async (
   db: SqlDatabase,
-  input: { tenantId: string; sessionId: string },
+  input: { readonly tenantId: string; readonly sessionId: string; readonly nowIso: string },
 ): Promise<LtiDynamicRegistrationSessionRecord | null> => {
-  const nowIso = new Date().toISOString();
-  const findStatement = (): Promise<LtiDynamicRegistrationSessionRow | null> =>
-    db
-      .prepare(
-        `
-        SELECT
-          tenant_id AS tenantId,
-          id,
-          data_json AS dataJson,
-          expires_at AS expiresAt,
-          created_at AS createdAt
-        FROM lti_dynamic_registration_sessions
-        WHERE tenant_id = ?
-          AND id = ?
-          AND expires_at > ?
-        LIMIT 1
-      `,
-      )
-      .bind(input.tenantId, input.sessionId, nowIso)
-      .first<LtiDynamicRegistrationSessionRow>();
-
-  const row = await findStatement();
-
-  return row === null ? null : mapLtiDynamicRegistrationSessionRow(row);
-};
-
-export const deleteLtiDynamicRegistrationSessionById = async (
-  db: SqlDatabase,
-  input: { tenantId: string; sessionId: string },
-): Promise<void> => {
-  const deleteStatement = (): Promise<SqlRunResult> =>
+  const consumeStatement = (): Promise<LtiDynamicRegistrationSessionRow | null> =>
     db
       .prepare(
         `
         DELETE FROM lti_dynamic_registration_sessions
         WHERE tenant_id = ?
           AND id = ?
+          AND expires_at > ?
+        RETURNING
+          tenant_id AS tenantId,
+          id,
+          data_json AS dataJson,
+          expires_at AS expiresAt,
+          created_at AS createdAt
       `,
       )
-      .bind(input.tenantId, input.sessionId)
-      .run();
+      .bind(input.tenantId, input.sessionId, input.nowIso)
+      .first<LtiDynamicRegistrationSessionRow>();
 
-  await deleteStatement();
+  const row = await consumeStatement();
+
+  return row === null ? null : mapLtiDynamicRegistrationSessionRow(row);
 };

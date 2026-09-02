@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  mockedFindLtiDynamicRegistrationSessionById,
   mockedFindLtiLaunchSessionById,
   mockedListLtiDeploymentsForIssuer,
   mockedListLtiIssuerRegistrations,
@@ -10,7 +9,6 @@ const {
   mockedUpsertLtiIssuerRegistration,
 } = vi.hoisted(() => {
   return {
-    mockedFindLtiDynamicRegistrationSessionById: vi.fn(),
     mockedFindLtiLaunchSessionById: vi.fn(),
     mockedListLtiDeploymentsForIssuer: vi.fn(),
     mockedListLtiIssuerRegistrations: vi.fn(),
@@ -25,7 +23,6 @@ vi.mock("@credtrail/db", async () => {
 
   return {
     ...actual,
-    findLtiDynamicRegistrationSessionById: mockedFindLtiDynamicRegistrationSessionById,
     findLtiLaunchSessionById: mockedFindLtiLaunchSessionById,
     listLtiDeploymentsForIssuer: mockedListLtiDeploymentsForIssuer,
     listLtiIssuerRegistrationsForTenant: mockedListLtiIssuerRegistrations,
@@ -38,16 +35,11 @@ vi.mock("@credtrail/db", async () => {
 import {
   LtiIssuerTenantConflictError,
   type LtiDeploymentRecord,
-  type LtiDynamicRegistrationSessionRecord,
   type LtiIssuerRegistrationRecord,
   type LtiLaunchSessionRecord,
   type SqlDatabase,
 } from "@credtrail/db";
-import {
-  LtiStorageConflictError,
-  type LTIDynamicRegistrationSession,
-  type LTISession,
-} from "@longsightgroup/lti-tool";
+import { LtiStorageConflictError, type LTISession } from "@longsightgroup/lti-tool";
 import { CredTrailLtiStorage } from "./credtrail-lti-storage";
 
 const fakeDb = {} as SqlDatabase;
@@ -154,55 +146,8 @@ const sampleLtiLaunchSessionRecord = (
   };
 };
 
-const sampleDynamicRegistrationSession = (
-  overrides?: Partial<LTIDynamicRegistrationSession>,
-): LTIDynamicRegistrationSession => {
-  return {
-    openIdConfiguration: {
-      issuer: "https://canvas.test",
-      authorization_endpoint: "https://canvas.test/api/lti/authorize_redirect",
-      registration_endpoint: "https://canvas.test/api/lti/registrations",
-      jwks_uri: "https://canvas.test/api/lti/security/jwks",
-      token_endpoint: "https://canvas.test/login/oauth2/token",
-      token_endpoint_auth_methods_supported: ["private_key_jwt"],
-      token_endpoint_auth_signing_alg_values_supported: ["RS256"],
-      scopes_supported: [],
-      response_types_supported: ["id_token"],
-      id_token_signing_alg_values_supported: ["RS256"],
-      claims_supported: ["iss", "sub"],
-      subject_types_supported: ["public"],
-      "https://purl.imsglobal.org/spec/lti-platform-configuration": {
-        product_family_code: "canvas",
-        version: "cloud",
-        messages_supported: [
-          {
-            type: "LtiResourceLinkRequest",
-          },
-        ],
-      },
-    },
-    registrationToken: "registration-token-1",
-    expiresAt: 1_800_000_000_000,
-    ...overrides,
-  };
-};
-
-const sampleDynamicRegistrationSessionRecord = (
-  overrides?: Partial<LtiDynamicRegistrationSessionRecord>,
-): LtiDynamicRegistrationSessionRecord => {
-  return {
-    tenantId: "tenant-a",
-    id: "dynamic-registration-session-1",
-    dataJson: JSON.stringify(sampleDynamicRegistrationSession()),
-    expiresAt: "2026-01-01T01:00:00.000Z",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    ...overrides,
-  };
-};
-
 describe("CredTrailLtiStorage dynamic registration writes", () => {
   beforeEach(() => {
-    mockedFindLtiDynamicRegistrationSessionById.mockReset();
     mockedFindLtiLaunchSessionById.mockReset();
     mockedListLtiDeploymentsForIssuer.mockReset();
     mockedListLtiIssuerRegistrations.mockReset();
@@ -210,7 +155,6 @@ describe("CredTrailLtiStorage dynamic registration writes", () => {
     mockedUpsertLtiDeployment.mockReset();
     mockedUpsertLtiIssuerRegistration.mockReset();
     mockedListLtiDeploymentsForIssuer.mockResolvedValue([]);
-    mockedFindLtiDynamicRegistrationSessionById.mockResolvedValue(null);
     mockedFindLtiLaunchSessionById.mockResolvedValue(null);
     mockedRecordLtiLaunchNonceUse.mockResolvedValue(true);
     mockedUpsertLtiIssuerRegistration.mockResolvedValue(sampleRegistration());
@@ -343,32 +287,5 @@ describe("CredTrailLtiStorage dynamic registration writes", () => {
     expect(Date.parse(recorded?.expiresAt ?? "")).toBeGreaterThan(
       Date.parse(recorded?.consumedAt ?? ""),
     );
-  });
-
-  it("round-trips valid dynamic registration sessions through the storage interface", async () => {
-    const session = sampleDynamicRegistrationSession();
-    mockedFindLtiDynamicRegistrationSessionById.mockResolvedValue(
-      sampleDynamicRegistrationSessionRecord({
-        dataJson: JSON.stringify(session),
-      }),
-    );
-    const storage = new CredTrailLtiStorage(fakeDb, { tenantId: "tenant-a" });
-
-    await expect(storage.getRegistrationSession("dynamic-registration-session-1")).resolves.toEqual(
-      session,
-    );
-  });
-
-  it("rejects malformed dynamic registration session JSON", async () => {
-    mockedFindLtiDynamicRegistrationSessionById.mockResolvedValue(
-      sampleDynamicRegistrationSessionRecord({
-        dataJson: "{not-json",
-      }),
-    );
-    const storage = new CredTrailLtiStorage(fakeDb, { tenantId: "tenant-a" });
-
-    await expect(
-      storage.getRegistrationSession("dynamic-registration-session-1"),
-    ).resolves.toBeUndefined();
   });
 });
