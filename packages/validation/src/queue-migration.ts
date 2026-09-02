@@ -286,6 +286,42 @@ export const processAutomatedBadgeRuleQueueJobSchema = z.strictObject({
   idempotencyKey: idempotencyKeySchema,
 });
 
+export const manualAutomatedBadgeRuleEvaluationRequestSchema = z.strictObject({
+  requestId: z.string().uuid(),
+});
+
+export type AutomatedBadgeRuleCommandKind =
+  | { readonly kind: "activation" }
+  | { readonly kind: "hour"; readonly scheduledFor: string }
+  | { readonly kind: "expiry"; readonly expiresAt: string }
+  | { readonly kind: "manual"; readonly requestId: string };
+
+/** Builds the durable command identity without exceeding the queue's 128-character contract. */
+export const automatedBadgeRuleCommandIdempotencyKey = (input: {
+  readonly versionId: string;
+  readonly command: AutomatedBadgeRuleCommandKind;
+}): string => {
+  const versionId = resourceIdSchema.parse(input.versionId);
+  let suffix: string;
+
+  switch (input.command.kind) {
+    case "activation":
+      suffix = "activation";
+      break;
+    case "hour":
+      suffix = `hour:${isoTimestampSchema.parse(input.command.scheduledFor).slice(0, 13)}`;
+      break;
+    case "expiry":
+      suffix = `expiry:${isoTimestampSchema.parse(input.command.expiresAt)}`;
+      break;
+    case "manual":
+      suffix = `manual:${z.string().uuid().parse(input.command.requestId)}`;
+      break;
+  }
+
+  return idempotencyKeySchema.parse(`automated-rule:${versionId}:${suffix}`);
+};
+
 const badgeRuleApprovalDecisionSchema = z.enum(["approved", "rejected", "changes_requested"]);
 
 export const sendBadgeRuleApprovalSubmittedNotificationJobPayloadSchema = z
@@ -395,6 +431,10 @@ export type ProcessAutomatedBadgeRuleQueueJob = z.infer<
   typeof processAutomatedBadgeRuleQueueJobSchema
 >;
 
+export type ManualAutomatedBadgeRuleEvaluationRequest = z.infer<
+  typeof manualAutomatedBadgeRuleEvaluationRequestSchema
+>;
+
 export type SendBadgeRuleApprovalNotificationQueueJob = z.infer<
   typeof sendBadgeRuleApprovalNotificationQueueJobSchema
 >;
@@ -405,6 +445,12 @@ export const parseQueueJob = (input: unknown): QueueJob => {
 
 export const parseProcessQueueRequest = (input: unknown): ProcessQueueRequest => {
   return processQueueRequestSchema.parse(input);
+};
+
+export const parseManualAutomatedBadgeRuleEvaluationRequest = (
+  input: unknown,
+): ManualAutomatedBadgeRuleEvaluationRequest => {
+  return manualAutomatedBadgeRuleEvaluationRequestSchema.parse(input);
 };
 
 export const parseMigrationBatchUploadQuery = (input: unknown): MigrationBatchUploadQuery => {

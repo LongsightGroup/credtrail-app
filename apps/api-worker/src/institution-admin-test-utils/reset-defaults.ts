@@ -41,6 +41,7 @@ import {
   mockedFindBadgeIssuanceRuleEvaluationByAssertionId,
   mockedFindBadgeIssuanceRuleEvaluationById,
   mockedFindBadgeIssuanceRuleVersionByIdDb,
+  mockedFindAutomatedBadgeRuleEvaluationStatusDb,
   mockedFindBadgeTemplateById,
   mockedFindBadgeTemplateImageRevisionById,
   mockedFindDelegatedIssuingAuthorityGrantByIdDb,
@@ -85,6 +86,7 @@ import {
   mockedListTenantOrgUnits,
   mockedMarkLearnerRecordImportPreviewQueuedDb,
   mockedRecertifyBadgeIssuanceRuleVersionDb,
+  mockedRequestManualAutomatedBadgeRuleEvaluationDb,
   mockedRecordAssertionLifecycleTransition,
   mockedRemoveBadgeRuleApproverGroupDb,
   mockedRemoveBadgeRuleApproverGroupMemberDb,
@@ -400,6 +402,8 @@ export const resetInstitutionAdminTestDefaults = (): void => {
   mockedFindBadgeIssuanceRuleEvaluationById.mockResolvedValue(null);
   mockedResolveBadgeIssuanceRuleEvaluationReview.mockResolvedValue(null);
   mockedFindBadgeIssuanceRuleById.mockResolvedValue(null);
+  mockedFindAutomatedBadgeRuleEvaluationStatusDb.mockResolvedValue(null);
+  mockedRequestManualAutomatedBadgeRuleEvaluationDb.mockResolvedValue("queued");
   mockedListTenantOrgUnits.mockResolvedValue(sampleReportingOrgUnits());
   mockedListTenantMembershipOrgUnitScopes.mockResolvedValue([
     {

@@ -309,11 +309,12 @@ const processQueuedJobs = createProcessQueuedJobs({
         ),
     }).then(() => undefined);
   },
-  processAutomatedBadgeRuleJob: (c, tenantId, payload) => {
+  processAutomatedBadgeRuleJob: (c, tenantId, payload, commandId) => {
     return processAutomatedBadgeRuleQueueJob({
       db: resolveDatabase(c.env),
       tenantId,
       payload,
+      commandId,
       sha256Hex,
       observability: observabilityContext(c.env),
     });

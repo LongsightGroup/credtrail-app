@@ -14,8 +14,11 @@ vi.mock("@credtrail/db", async (importOriginal) => {
     ...actual,
     createAuditLog: vi.fn(async () => undefined),
     ensureBadgeRuleRecertificationReview: vi.fn(async () => true),
+    enqueueAutomatedBadgeRuleEvaluation: vi.fn(async () => ({
+      status: "queued" as const,
+      commandId: "job_automated_123",
+    })),
     enqueueJobQueueMessageOnce: vi.fn(async () => true),
-    enqueueOrRetryFailedJobQueueMessage: vi.fn(async () => true),
     expireBadgeIssuanceRuleVersion: vi.fn(async () => ({ id: "brv_123" })),
     findBadgeIssuanceRuleById: vi.fn(async () => ({
       id: "brl_123",
@@ -101,6 +104,12 @@ vi.mock("@credtrail/db", async (importOriginal) => {
     ]),
     markBadgeIssuanceRuleVersionExpiryReminderSent: vi.fn(async () => true),
     markBadgeIssuanceRuleVersionRecertificationReminderSent: vi.fn(async () => true),
+    runSqlTransaction: vi.fn(
+      async <T>(
+        db: import("@credtrail/db").SqlDatabase,
+        callback: (transactionDb: import("@credtrail/db").SqlDatabase) => Promise<T>,
+      ): Promise<T> => callback(db),
+    ),
     suspendBadgeIssuanceRuleVersionForOverdueRecertification: vi.fn(async () => null),
   };
 });
@@ -133,11 +142,13 @@ describe("processBadgeRuleLifecycleForTenant", () => {
       recertificationReviewsOpened: 0,
       recertificationAutoSuspensions: 0,
     });
-    expect(dbModule.enqueueOrRetryFailedJobQueueMessage).toHaveBeenCalledWith(
+    expect(dbModule.enqueueAutomatedBadgeRuleEvaluation).toHaveBeenCalledWith(
       input.db,
       expect.objectContaining({
-        jobType: "process_automated_badge_rule",
         tenantId: "tenant_123",
+        ruleId: "brl_123",
+        versionId: "brv_123",
+        triggerKind: "expiry",
         payload: expect.objectContaining({ versionId: "brv_123" }),
       }),
     );

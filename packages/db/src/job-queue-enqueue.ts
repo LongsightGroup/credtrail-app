@@ -70,10 +70,10 @@ export const enqueueJobQueueMessagesOnce = async (
 };
 
 /** Inserts a queue message once, or atomically revives the matching terminal failure. */
-export const enqueueOrRetryFailedJobQueueMessage = async (
+export const enqueueOrRetryFailedJobQueueMessageReturningId = async (
   db: SqlDatabase,
   input: EnqueueJobQueueMessageOnceInput,
-): Promise<boolean> => {
+): Promise<string | null> => {
   const messageId = createPrefixedId("job");
   const nowIso = input.nowIso ?? new Date().toISOString();
   const payloadJson = serializeQueuePayload(input.payload);
@@ -129,5 +129,13 @@ export const enqueueOrRetryFailedJobQueueMessage = async (
     )
     .first<{ id: string }>();
 
-  return row !== null;
+  return row?.id ?? null;
+};
+
+/** Inserts a queue message once, or revives the matching terminal failure. */
+export const enqueueOrRetryFailedJobQueueMessage = async (
+  db: SqlDatabase,
+  input: EnqueueJobQueueMessageOnceInput,
+): Promise<boolean> => {
+  return (await enqueueOrRetryFailedJobQueueMessageReturningId(db, input)) !== null;
 };

@@ -4,6 +4,7 @@ import {
   findBadgeIssuanceRuleVersionById,
   listAssertionsByBadgeTemplatesAndRecipientEmails,
   normalizeEmail,
+  type AutomatedBadgeRuleEvaluationReasonTag,
   type SqlDatabase,
 } from "@credtrail/db";
 import {
@@ -75,11 +76,17 @@ export type ProcessAutomatedBadgeRuleResult =
     }
   | ({
       readonly status: "retry";
-      readonly reason: "learner_evaluation_unavailable";
+      readonly reason: Extract<
+        AutomatedBadgeRuleEvaluationReasonTag,
+        "learner_evaluation_unavailable"
+      >;
     } & AutomatedEvaluationCounts)
   | {
       readonly status: "noop";
-      readonly reason: string;
+      readonly reason: Exclude<
+        AutomatedBadgeRuleEvaluationReasonTag,
+        "learner_evaluation_unavailable"
+      >;
     };
 
 const countsFromLearnerOutcomes = (
@@ -241,8 +248,8 @@ const resultFromCommit = (
     status: "noop",
     reason:
       commit.status === "not_automated"
-        ? "Rule requires instructor confirmation."
-        : "Rule version changed before the evaluation could be committed.",
+        ? "instructor_confirmation_required"
+        : "rule_version_changed",
   };
 };
 
@@ -264,7 +271,7 @@ export const processAutomatedBadgeRule = async (input: {
   ]);
 
   if (rule === null || version === null) {
-    return { status: "noop", reason: "Rule or version was not found." };
+    return { status: "noop", reason: "rule_or_version_not_found" };
   }
 
   const definition = await resolveBadgeIssuanceRuleDefinitionValueLists(
@@ -275,7 +282,7 @@ export const processAutomatedBadgeRule = async (input: {
   const issuanceTiming = resolveAutomatedBadgeRuleIssuanceTiming(definition);
 
   if (issuanceTiming === null) {
-    return { status: "noop", reason: "Rule requires instructor confirmation." };
+    return { status: "noop", reason: "instructor_confirmation_required" };
   }
 
   if (
@@ -289,7 +296,7 @@ export const processAutomatedBadgeRule = async (input: {
       issuanceTiming,
     })
   ) {
-    return { status: "noop", reason: "Rule version is not active for this evaluation." };
+    return { status: "noop", reason: "rule_version_inactive" };
   }
 
   const courseIds = extractBadgeIssuanceRuleRequirements(definition).courseIds;

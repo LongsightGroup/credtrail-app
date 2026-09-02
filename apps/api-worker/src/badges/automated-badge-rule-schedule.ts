@@ -1,5 +1,6 @@
 import type { BadgeRuleLifecycleDueVersionRecord } from "@credtrail/db";
 import {
+  automatedBadgeRuleCommandIdempotencyKey,
   parseBadgeIssuanceRuleDefinitionJson,
   resolveAutomatedBadgeRuleIssuanceTiming,
   type AutomatedBadgeRuleIssuanceTiming,
@@ -10,14 +11,13 @@ export interface AutomatedBadgeRuleScheduleCommand {
   readonly tenantId: string;
   readonly payload: ProcessAutomatedBadgeRuleQueueJob["payload"];
   readonly idempotencyKey: string;
+  readonly triggerKind: "hourly" | "expiry";
 }
 
 export interface AutomatedBadgeRuleLifecyclePlan {
   readonly evaluationCommands: readonly AutomatedBadgeRuleScheduleCommand[];
   readonly versionsToExpire: readonly BadgeRuleLifecycleDueVersionRecord[];
 }
-
-const lifecycleHourBucket = (isoTimestamp: string): string => isoTimestamp.slice(0, 13);
 
 const issuanceTiming = (
   version: BadgeRuleLifecycleDueVersionRecord,
@@ -46,7 +46,11 @@ export const planAutomatedBadgeRuleLifecycle = (input: {
         versionId: version.id,
         scheduledFor: input.nowIso,
       },
-      idempotencyKey: `automated-rule:${version.ruleId}:${version.id}:hour:${lifecycleHourBucket(input.nowIso)}`,
+      idempotencyKey: automatedBadgeRuleCommandIdempotencyKey({
+        versionId: version.id,
+        command: { kind: "hour", scheduledFor: input.nowIso },
+      }),
+      triggerKind: "hourly",
     });
   }
 
@@ -63,7 +67,11 @@ export const planAutomatedBadgeRuleLifecycle = (input: {
         versionId: version.id,
         scheduledFor: input.nowIso,
       },
-      idempotencyKey: `automated-rule:${version.ruleId}:${version.id}:expiry:${version.expiresAt}`,
+      idempotencyKey: automatedBadgeRuleCommandIdempotencyKey({
+        versionId: version.id,
+        command: { kind: "expiry", expiresAt: version.expiresAt },
+      }),
+      triggerKind: "expiry",
     });
   }
 

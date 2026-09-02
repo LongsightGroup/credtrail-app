@@ -1,4 +1,5 @@
 import * as dbModule from "@credtrail/db";
+import { parseQueueJob } from "@credtrail/validation";
 import { expect, it } from "vitest";
 import { createTestBadgeIssuanceRule } from "../../../../packages/db/src/badge-issuance-rule-test-fixtures";
 import {
@@ -355,7 +356,7 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
 
       expect(result).toEqual({
         status: "noop",
-        reason: "Rule version changed before the evaluation could be committed.",
+        reason: "rule_version_changed",
       });
       expect(issueJobCount?.count).toBe("0");
     } finally {
@@ -558,13 +559,22 @@ describeDbIntegration("processAutomatedBadgeRule", () => {
 
       expect(result.automatedEvaluationJobsEnqueued).toBe(1);
       expect(scheduledJob.idempotencyKey).toBe(
-        `automated-rule:${created.rule.id}:${created.version.id}:hour:2026-08-04T11`,
+        `automated-rule:${created.version.id}:hour:2026-08-04T11`,
       );
-      expect(JSON.parse(scheduledJob.payloadJson)).toEqual({
+      const scheduledPayload: unknown = JSON.parse(scheduledJob.payloadJson);
+      expect(scheduledPayload).toEqual({
         ruleId: created.rule.id,
         versionId: created.version.id,
         scheduledFor,
       });
+      expect(() =>
+        parseQueueJob({
+          jobType: "process_automated_badge_rule",
+          tenantId: fixture.tenantId,
+          payload: scheduledPayload,
+          idempotencyKey: scheduledJob.idempotencyKey,
+        }),
+      ).not.toThrow();
       await fixture.db
         .prepare(
           `

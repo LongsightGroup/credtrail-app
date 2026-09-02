@@ -35,6 +35,8 @@ import {
   listBadgeIssuanceRuleVersionsForRules,
   findBadgeIssuanceRuleBuilderDraftById,
   findBadgeIssuanceRuleVersionById,
+  findAutomatedBadgeRuleEvaluationStatus,
+  requestManualAutomatedBadgeRuleEvaluation,
   submitBadgeIssuanceRuleVersionForApproval,
   listBadgeIssuanceRuleVersionApprovalSteps,
   resolveBadgeRuleApprovalPolicy,
@@ -149,6 +151,12 @@ export const mockedListBadgeIssuanceRuleVersionsForRules = vi.mocked(
 );
 export const mockedListBadgeTemplateRuleUsagesDb = mockedListBadgeTemplateRuleUsages;
 export const mockedFindBadgeIssuanceRuleVersionByIdDb = vi.mocked(findBadgeIssuanceRuleVersionById);
+export const mockedFindAutomatedBadgeRuleEvaluationStatusDb = vi.mocked(
+  findAutomatedBadgeRuleEvaluationStatus,
+);
+export const mockedRequestManualAutomatedBadgeRuleEvaluationDb = vi.mocked(
+  requestManualAutomatedBadgeRuleEvaluation,
+);
 export const mockedFindBadgeIssuanceRuleBuilderDraftDb = vi.mocked(
   findBadgeIssuanceRuleBuilderDraftById,
 );

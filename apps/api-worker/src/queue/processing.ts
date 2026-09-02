@@ -5,12 +5,14 @@ import {
   enqueueJobQueueMessageOnce,
   failJobQueueMessage,
   leaseJobQueueMessages,
+  markAutomatedBadgeRuleEvaluationQueueFailure,
   recordAssertionRevocation,
   reevaluateLearnerPathwaysForLearner,
   type SqlDatabase,
 } from "@credtrail/db";
 import {
   parseQueueJob,
+  isValidationParseError,
   type GenerateBadgeTemplateImageQueueJob,
   type ImportMigrationBatchQueueJob,
   type ProcessAutomatedBadgeRuleQueueJob,
@@ -21,6 +23,7 @@ import {
 } from "@credtrail/validation";
 import { applyLearnerRecordImportQueuePayload } from "../learner-record/learner-record-import-queue";
 import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
+import { GradebookProviderError } from "../lms/gradebook-provider-error";
 
 const DEFAULT_JOB_PROCESS_LIMIT = 10;
 const DEFAULT_JOB_PROCESS_LEASE_SECONDS = 300;
@@ -123,6 +126,7 @@ interface ProcessQueuedJobsDependencies<TBindings, TContext extends { env: TBind
     context: TContext,
     tenantId: string,
     payload: ProcessAutomatedBadgeRuleQueueJob["payload"],
+    commandId: string,
   ) => Promise<void>;
   processBadgeRuleApprovalNotificationJob: (
     context: TContext,
@@ -227,7 +231,12 @@ const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
       await dependencies.processBadgeRuleLifecycleJob(c, job.tenantId, job.payload);
       return;
     case "process_automated_badge_rule":
-      await dependencies.processAutomatedBadgeRuleJob(c, job.tenantId, job.payload);
+      await dependencies.processAutomatedBadgeRuleJob(
+        c,
+        job.tenantId,
+        job.payload,
+        sourceMessageId,
+      );
       return;
     case "send_badge_rule_approval_notification":
       await dependencies.processBadgeRuleApprovalNotificationJob(c, job.tenantId, job.payload);
@@ -319,6 +328,20 @@ export const createProcessQueuedJobs = <TBindings, TContext extends { env: TBind
           error: detail,
           retryDelaySeconds: requestInput.retryDelaySeconds,
         });
+
+        if (leasedMessage.jobType === "process_automated_badge_rule") {
+          await markAutomatedBadgeRuleEvaluationQueueFailure(dependencies.resolveDatabase(c.env), {
+            tenantId: leasedMessage.tenantId,
+            commandId: leasedMessage.id,
+            failedAt: new Date().toISOString(),
+            terminal: status === "failed",
+            failureTag: isValidationParseError(error)
+              ? "invalid_command"
+              : error instanceof GradebookProviderError
+                ? "provider_unavailable"
+                : "processing_error",
+          });
+        }
 
         result.processed += 1;
 

@@ -1,9 +1,9 @@
 import { logError, logInfo, type ObservabilityContext } from "@credtrail/core-domain";
 import {
   createAuditLog,
+  enqueueAutomatedBadgeRuleEvaluation,
   ensureBadgeRuleRecertificationReview,
   enqueueJobQueueMessageOnce,
-  enqueueOrRetryFailedJobQueueMessage,
   expireBadgeIssuanceRuleVersion,
   findTenantById,
   listActiveTenants,
@@ -14,6 +14,7 @@ import {
   listBadgeIssuanceRuleVersionsDueForRecertificationReminder,
   markBadgeIssuanceRuleVersionExpiryReminderSent,
   markBadgeIssuanceRuleVersionRecertificationReminderSent,
+  runSqlTransaction,
   suspendBadgeIssuanceRuleVersionForOverdueRecertification,
   type BadgeRuleLifecycleDueVersionRecord,
   type SqlDatabase,
@@ -211,13 +212,17 @@ export const processBadgeRuleLifecycleForTenant = async (
     automatedLifecyclePlan.evaluationCommands,
     { concurrency: 8 },
     (command) =>
-      enqueueOrRetryFailedJobQueueMessage(input.db, {
-        tenantId: command.tenantId,
-        jobType: "process_automated_badge_rule",
-        payload: command.payload,
-        idempotencyKey: command.idempotencyKey,
-        nowIso: input.nowIso,
-      }),
+      runSqlTransaction(input.db, (transactionDb) =>
+        enqueueAutomatedBadgeRuleEvaluation(transactionDb, {
+          tenantId: command.tenantId,
+          ruleId: command.payload.ruleId,
+          versionId: command.payload.versionId,
+          payload: command.payload,
+          idempotencyKey: command.idempotencyKey,
+          triggerKind: command.triggerKind,
+          queuedAt: input.nowIso,
+        }).then((result) => result.status === "queued"),
+      ),
   );
   const automatedEvaluationJobsEnqueued = automatedEvaluationEnqueueResults.filter(
     (inserted) => inserted,

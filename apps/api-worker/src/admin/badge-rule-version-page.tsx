@@ -1,11 +1,13 @@
 import type {
   BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleVersionRecord,
+  AutomatedBadgeRuleEvaluationStatusRecord,
   TenantMembershipRole,
   TenantOrgUnitRecord,
   TenantRecord,
 } from "@credtrail/db";
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
+import { resolveAutomatedBadgeRuleIssuanceTiming } from "@credtrail/validation";
 import { badgeRuleVersionDisplayFields } from "../badges/badge-rule-presentation";
 import type { AppPage } from "../ui/render-page";
 import { buildRulesAdminPath } from "./access-admin-helpers";
@@ -14,6 +16,7 @@ import {
   buildBadgeRuleVersionNavigationModel,
 } from "./badge-rule-version-navigator";
 import { BadgeRuleVersionOverview } from "./badge-rule-version-overview";
+import { BadgeRuleAutomatedEvaluationStatus } from "./badge-rule-automated-evaluation-status";
 import { renderInstitutionAdminShellPage } from "./institution-admin-shell";
 
 /** Builds the canonical institution-admin page for inspecting one badge-rule version. */
@@ -28,6 +31,9 @@ export const badgeRuleVersionPage = (input: {
   readonly versions: readonly BadgeIssuanceRuleVersionRecord[];
   readonly definition: BadgeIssuanceRuleDefinition;
   readonly orgUnit: TenantOrgUnitRecord | null;
+  readonly automaticEvaluationStatus: AutomatedBadgeRuleEvaluationStatusRecord | null;
+  readonly evaluationRequestId: string;
+  readonly evaluationFlash: { readonly tone: "success" | "error"; readonly message: string } | null;
 }): AppPage => {
   const navigation = buildBadgeRuleVersionNavigationModel({
     rule: input.rule,
@@ -36,6 +42,10 @@ export const badgeRuleVersionPage = (input: {
   });
 
   const displayFields = badgeRuleVersionDisplayFields(input.version);
+  const canRunAutomaticEvaluation =
+    input.rule.activeVersionId === input.version.id &&
+    input.version.status === "active" &&
+    resolveAutomatedBadgeRuleIssuanceTiming(input.definition) === "immediate";
 
   return renderInstitutionAdminShellPage({
     tenant: input.tenant,
@@ -77,6 +87,15 @@ export const badgeRuleVersionPage = (input: {
             latestVersion={navigation.latestVersion}
             definition={input.definition}
             orgUnit={input.orgUnit}
+          />
+          <BadgeRuleAutomatedEvaluationStatus
+            tenantId={input.tenant.id}
+            ruleId={input.rule.id}
+            versionId={input.version.id}
+            status={input.automaticEvaluationStatus}
+            canRunNow={canRunAutomaticEvaluation}
+            requestId={input.evaluationRequestId}
+            flash={input.evaluationFlash}
           />
         </section>
       </>

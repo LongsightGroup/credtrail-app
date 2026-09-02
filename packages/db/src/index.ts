@@ -12,6 +12,7 @@ export * from "./badge-templates";
 export * from "./badge-template-imports";
 export * from "./badge-template-images";
 export * from "./badge-issuance-rules";
+export * from "./badge-rule-automated-evaluation-status";
 export * from "./badge-rule-lifecycle-governance";
 export * from "./badge-rule-version-expiration";
 export * from "./badge-rule-approver-groups";

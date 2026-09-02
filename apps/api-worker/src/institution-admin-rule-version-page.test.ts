@@ -1,18 +1,51 @@
+import type { AutomatedBadgeRuleEvaluationStatusRecord } from "@credtrail/db";
 import { describe, expect, it } from "vitest";
 import {
   createEnv,
+  fakeDb,
+  mockedCreateAuditLogDb,
+  mockedFindAutomatedBadgeRuleEvaluationStatusDb,
   mockedFindBadgeIssuanceRuleById,
   mockedFindTenantOrgUnitById,
+  mockedFindTenantMembership,
   mockedListBadgeIssuanceRuleVersions,
   mockedListBadgeIssuanceRuleValueLists,
+  mockedRequestManualAutomatedBadgeRuleEvaluationDb,
   sampleDetailRule,
   sampleDetailVersion,
+  sampleMembership,
 } from "./institution-admin-test-utils/rules-test-harness";
 import { app } from "./index";
 import { readScriptAssetSource } from "./page-asset-test-utils";
 import { pageAssetPath } from "./ui/page-assets";
 
 const INSTITUTION_ADMIN_RULE_VERSION_JS = readScriptAssetSource("institutionAdminRuleVersionJs");
+const EVALUATION_REQUEST_ID = "123e4567-e89b-42d3-a456-426614174000";
+
+const sampleEvaluationStatus = (
+  overrides: Partial<AutomatedBadgeRuleEvaluationStatusRecord> = {},
+): AutomatedBadgeRuleEvaluationStatusRecord => ({
+  tenantId: "tenant_123",
+  ruleId: "brl_detail",
+  versionId: "brv_detail_active",
+  commandId: "job_evaluation_123",
+  triggerKind: "hourly",
+  status: "succeeded",
+  queuedAt: "2026-09-02T18:00:00.000Z",
+  startedAt: "2026-09-02T18:01:00.000Z",
+  completedAt: "2026-09-02T18:01:05.000Z",
+  candidateLearnerCount: 12,
+  matchedLearnerCount: 4,
+  issueJobsEnqueued: 3,
+  learnersMissingEmail: 0,
+  learnersAlreadyIssued: 1,
+  learnersUnavailable: 0,
+  learnerIdentityConflicts: 0,
+  reasonTag: null,
+  failureTag: null,
+  updatedAt: "2026-09-02T18:01:05.000Z",
+  ...overrides,
+});
 
 const requestRulePage = (path: string): Promise<Response> => {
   return Promise.resolve(
@@ -101,6 +134,135 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId", () => {
 });
 
 describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () => {
+  it("shows the latest automatic evaluation outcome and recovery action", async () => {
+    const activeVersion = sampleDetailVersion("brv_detail_active", 1, "active");
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleDetailRule(activeVersion.id));
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([activeVersion]);
+    mockedFindAutomatedBadgeRuleEvaluationStatusDb.mockResolvedValue(sampleEvaluationStatus());
+
+    const response = await requestRulePage(
+      "/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_active",
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Issuance health");
+    expect(body).toContain("Automatic evaluation");
+    expect(body).toContain("Completed");
+    expect(body).toContain("Learners checked");
+    expect(body).toContain(">12<");
+    expect(body).toContain("Awards queued");
+    expect(body).toContain(">3<");
+    expect(body).toContain("Run evaluation now");
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_active/run-evaluation"',
+    );
+    expect(body).toMatch(/name="requestId" value="[0-9a-f-]{36}"/);
+    expect(mockedFindAutomatedBadgeRuleEvaluationStatusDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_detail",
+      versionId: "brv_detail_active",
+    });
+  });
+
+  it("keeps health visible but hides run-now for instructor-confirmed versions", async () => {
+    const activeVersion = {
+      ...sampleDetailVersion("brv_detail_active", 1, "active"),
+      ruleJson: JSON.stringify({
+        conditions: {
+          type: "course_completion",
+          courseId: "course_101",
+          minCompletionPercent: 100,
+        },
+        options: { issuanceTiming: "manual" },
+      }),
+    };
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleDetailRule(activeVersion.id));
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([activeVersion]);
+
+    const response = await requestRulePage(
+      "/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_active",
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("No automatic evaluation has been recorded for this version yet.");
+    expect(body).not.toContain("Run evaluation now");
+    expect(body).not.toContain("/run-evaluation");
+  });
+
+  it.each([
+    {
+      status: "queued" as const,
+      label: "Queued",
+      summary: "CredTrail will check eligible learners",
+      startedAt: null,
+      completedAt: null,
+    },
+    {
+      status: "running" as const,
+      label: "Checking learners",
+      summary: "CredTrail is reading LMS facts",
+      startedAt: "2026-09-02T18:01:00.000Z",
+      completedAt: null,
+    },
+    {
+      status: "retrying" as const,
+      label: "Retrying",
+      summary: "Some LMS facts were unavailable",
+      startedAt: "2026-09-02T18:01:00.000Z",
+      completedAt: null,
+    },
+    {
+      status: "failed" as const,
+      label: "Needs attention",
+      summary: "saved command was invalid",
+      startedAt: null,
+      completedAt: "2026-09-02T18:01:05.000Z",
+    },
+    {
+      status: "noop" as const,
+      label: "No check needed",
+      summary: "no longer belongs to the active rule version",
+      startedAt: "2026-09-02T18:01:00.000Z",
+      completedAt: "2026-09-02T18:01:05.000Z",
+    },
+  ])("renders the $status operational state in administrator language", async (state) => {
+    const activeVersion = sampleDetailVersion("brv_detail_active", 1, "active");
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleDetailRule(activeVersion.id));
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([activeVersion]);
+    mockedFindAutomatedBadgeRuleEvaluationStatusDb.mockResolvedValue(
+      sampleEvaluationStatus({
+        status: state.status,
+        startedAt: state.startedAt,
+        completedAt: state.completedAt,
+        candidateLearnerCount: state.status === "retrying" ? 12 : null,
+        matchedLearnerCount: state.status === "retrying" ? 4 : null,
+        issueJobsEnqueued: state.status === "retrying" ? 0 : null,
+        learnersMissingEmail: state.status === "retrying" ? 0 : null,
+        learnersAlreadyIssued: state.status === "retrying" ? 1 : null,
+        learnersUnavailable: state.status === "retrying" ? 1 : null,
+        learnerIdentityConflicts: state.status === "retrying" ? 0 : null,
+        reasonTag:
+          state.status === "retrying"
+            ? "learner_evaluation_unavailable"
+            : state.status === "noop"
+              ? "rule_version_changed"
+              : null,
+        failureTag: state.status === "failed" ? "invalid_command" : null,
+      }),
+    );
+
+    const response = await requestRulePage(
+      "/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_active",
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain(state.label);
+    expect(body).toContain(state.summary);
+  });
+
   it("renders the canonical read-only version record with scoped assets", async () => {
     const activeVersion = sampleDetailVersion("brv_detail_active", 1, "active");
     const latestVersion = sampleDetailVersion("brv_detail_latest", 2, "draft");
@@ -267,5 +429,94 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () =>
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Badge rule version not found" });
+  });
+});
+
+describe("POST /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/run-evaluation", () => {
+  const requestEvaluation = (): Promise<Response> =>
+    Promise.resolve(
+      app.request(
+        "/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_active/run-evaluation",
+        {
+          method: "POST",
+          headers: {
+            Origin: "http://localhost",
+            Cookie: "better-auth.session_token=session-token",
+          },
+          body: new URLSearchParams({ requestId: EVALUATION_REQUEST_ID }),
+        },
+        createEnv(),
+      ),
+    );
+
+  it("queues an authorized request and records a safe audit event", async () => {
+    const response = await requestEvaluation();
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(
+      "/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_active",
+    );
+    expect(mockedRequestManualAutomatedBadgeRuleEvaluationDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      ruleId: "brl_detail",
+      versionId: "brv_detail_active",
+      requestId: EVALUATION_REQUEST_ID,
+      requestedAt: expect.any(String),
+    });
+    expect(mockedCreateAuditLogDb).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      actorUserId: "usr_admin",
+      action: "badge_rule.automated_evaluation_requested",
+      targetType: "badge_rule_version",
+      targetId: "brv_detail_active",
+      metadata: { role: "admin", ruleId: "brl_detail", trigger: "manual" },
+    });
+  });
+
+  it("treats a replayed request as successful without duplicating its audit event", async () => {
+    mockedRequestManualAutomatedBadgeRuleEvaluationDb.mockResolvedValue("duplicate");
+
+    const response = await requestEvaluation();
+
+    expect(response.status).toBe(303);
+    expect(mockedCreateAuditLogDb).not.toHaveBeenCalled();
+  });
+
+  it("rejects an expired request token before touching the queue", async () => {
+    const response = await app.request(
+      "/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_active/run-evaluation",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: new URLSearchParams({ requestId: "not-a-uuid" }),
+      },
+      createEnv(),
+    );
+
+    expect(response.status).toBe(303);
+    expect(mockedRequestManualAutomatedBadgeRuleEvaluationDb).not.toHaveBeenCalled();
+    expect(mockedCreateAuditLogDb).not.toHaveBeenCalled();
+  });
+
+  it("does not audit a version that is no longer eligible", async () => {
+    mockedRequestManualAutomatedBadgeRuleEvaluationDb.mockResolvedValue("not_eligible");
+
+    const response = await requestEvaluation();
+
+    expect(response.status).toBe(303);
+    expect(mockedCreateAuditLogDb).not.toHaveBeenCalled();
+  });
+
+  it("does not allow a non-admin member to request an evaluation", async () => {
+    mockedFindTenantMembership.mockResolvedValue(sampleMembership("viewer"));
+
+    const response = await requestEvaluation();
+
+    expect(response.status).toBe(403);
+    expect(mockedRequestManualAutomatedBadgeRuleEvaluationDb).not.toHaveBeenCalled();
+    expect(mockedCreateAuditLogDb).not.toHaveBeenCalled();
   });
 });

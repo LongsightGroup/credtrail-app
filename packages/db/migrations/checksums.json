@@ -78,5 +78,6 @@
   "0076_atomic_learner_record_imports.sql": "d8a5bfd2d2966e743a1dcdee6bb9d9a7ba1f006f0e24046d5891332c06c0e5fc",
   "0077_backfill_assertion_reporting_attributions.sql": "bbb198718f93e653c945aeca47f2cf1f8418284af925006e0349a21f0815fcc5",
   "0078_narrow_badge_rule_lms_providers.sql": "40cf76cf417a04c60f4d32359f0b01e13429130273328a84310fd1a330a26715",
-  "0079_validate_badge_rule_lms_provider_constraints.sql": "1eb2672dc94a8130c8785056106299f3192c5906eefa500f442bb6cec3c2fc5f"
+  "0079_validate_badge_rule_lms_provider_constraints.sql": "1eb2672dc94a8130c8785056106299f3192c5906eefa500f442bb6cec3c2fc5f",
+  "0080_badge_rule_automated_evaluation_status.sql": "2650129788b51f317cad38e20cfd8ab867e5563233538cbaeeeae872ab27188a"
 }

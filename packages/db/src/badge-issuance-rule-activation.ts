@@ -1,6 +1,7 @@
 import { findBadgeIssuanceRuleById } from "./badge-issuance-rule-reads.js";
 import { findBadgeIssuanceRuleVersionById } from "./badge-issuance-rule-version-reads.js";
 import {
+  automatedBadgeRuleCommandIdempotencyKey,
   badgeIssuanceRuleHasCompleteLmsLearnerPopulation,
   parseBadgeIssuanceRuleDefinitionJson,
   resolveAutomatedBadgeRuleIssuanceTiming,
@@ -11,7 +12,7 @@ import type {
   BadgeIssuanceRuleVersionRecord,
 } from "./badge-issuance-rule-types.js";
 import { addMonthsToIso } from "./shared-helpers.js";
-import { enqueueJobQueueMessageOnce } from "./job-queue.js";
+import { enqueueAutomatedBadgeRuleEvaluation } from "./badge-rule-automated-evaluation-status.js";
 import { runSqlTransaction, type SqlDatabase, type SqlRunResult } from "./tenant-scope.js";
 
 /** Activates an approved badge-rule version and deprecates the prior active version atomically. */
@@ -126,16 +127,21 @@ export const activateBadgeIssuanceRuleVersion = async (
     await updateRuleActiveVersionStatement();
 
     if (automatedIssuanceTiming === "immediate") {
-      await enqueueJobQueueMessageOnce(transactionDb, {
+      await enqueueAutomatedBadgeRuleEvaluation(transactionDb, {
         tenantId: input.tenantId,
-        jobType: "process_automated_badge_rule",
+        ruleId: input.ruleId,
+        versionId: input.versionId,
         payload: {
           ruleId: input.ruleId,
           versionId: input.versionId,
           scheduledFor: activatedAt,
         },
-        idempotencyKey: `automated-rule:${input.ruleId}:${input.versionId}:activation`,
-        nowIso: activatedAt,
+        idempotencyKey: automatedBadgeRuleCommandIdempotencyKey({
+          versionId: input.versionId,
+          command: { kind: "activation" },
+        }),
+        triggerKind: "activation",
+        queuedAt: activatedAt,
       });
     }
 

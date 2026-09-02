@@ -7,6 +7,7 @@ import {
   parseOptionalDateTimeInputToIso,
   recertifyBadgeIssuanceRuleVersion,
   reopenApprovedBadgeIssuanceRuleVersion,
+  requestManualAutomatedBadgeRuleEvaluation,
   resumeBadgeIssuanceRuleVersion,
   submitBadgeIssuanceRuleVersionForApproval,
   suspendBadgeIssuanceRuleVersion,
@@ -21,11 +22,13 @@ import {
   parseBadgeIssuanceRuleVersionPathParams,
   parseDecideBadgeIssuanceRuleVersionRequest,
   parseReopenApprovedBadgeIssuanceRuleVersionRequest,
+  parseManualAutomatedBadgeRuleEvaluationRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import {
   buildBadgeRuleApprovalsPath,
   buildBadgeRuleVersionReviewPath,
+  buildBadgeRuleVersionDetailPath,
   buildRulesAdminPath,
 } from "../admin/access-admin-helpers";
 import { readOptionalFormField } from "../admin/admin-form-helpers";
@@ -518,6 +521,75 @@ export const registerTenantBadgeRuleActionsAdminRoutes = (
       }),
     });
   });
+
+  app.post(
+    "/tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/run-evaluation",
+    async (c) => {
+      const pathParams = parseBadgeIssuanceRuleVersionPathParams(c.req.param());
+      const nextPath = buildBadgeRuleVersionDetailPath(
+        pathParams.tenantId,
+        pathParams.ruleId,
+        pathParams.versionId,
+      );
+      const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
+
+      if (roleCheck instanceof Response) {
+        return roleCheck;
+      }
+
+      const { principal, membershipRole } = roleCheck;
+      const formData = await c.req.formData();
+      let request: ReturnType<typeof parseManualAutomatedBadgeRuleEvaluationRequest>;
+
+      try {
+        request = parseManualAutomatedBadgeRuleEvaluationRequest({
+          requestId: readOptionalFormField(formData, "requestId"),
+        });
+      } catch {
+        await setAdminListMessageFlash(c, {
+          tenantId: pathParams.tenantId,
+          userId: principal.userId,
+          workspace: "rule_version",
+          tone: "error",
+          message: "This evaluation request expired. Reload the page and try again.",
+        });
+        return c.redirect(nextPath, 303);
+      }
+
+      const result = await requestManualAutomatedBadgeRuleEvaluation(resolveDatabase(c.env), {
+        ...pathParams,
+        requestId: request.requestId,
+        requestedAt: new Date().toISOString(),
+      });
+
+      if (result === "queued") {
+        await createAuditLog(resolveDatabase(c.env), {
+          tenantId: pathParams.tenantId,
+          actorUserId: principal.userId,
+          action: "badge_rule.automated_evaluation_requested",
+          targetType: "badge_rule_version",
+          targetId: pathParams.versionId,
+          metadata: {
+            role: membershipRole,
+            ruleId: pathParams.ruleId,
+            trigger: "manual",
+          },
+        });
+      }
+
+      const queued = result === "queued" || result === "duplicate";
+      await setAdminListMessageFlash(c, {
+        tenantId: pathParams.tenantId,
+        userId: principal.userId,
+        workspace: "rule_version",
+        tone: queued ? "success" : "error",
+        message: queued
+          ? "Evaluation queued. CredTrail will update this status after the check runs."
+          : "Only the active automatic version can be evaluated now.",
+      });
+      return c.redirect(nextPath, 303);
+    },
+  );
 
   app.post(
     "/tenants/:tenantId/admin/rules/:ruleId/versions/:versionId/update-lifecycle",

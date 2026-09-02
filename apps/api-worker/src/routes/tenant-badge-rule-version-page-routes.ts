@@ -1,4 +1,7 @@
-import { resolveBadgeIssuanceRuleVersionSelection } from "@credtrail/db";
+import {
+  findAutomatedBadgeRuleEvaluationStatus,
+  resolveBadgeIssuanceRuleVersionSelection,
+} from "@credtrail/db";
 import {
   parseBadgeIssuanceRulePathParams,
   parseBadgeIssuanceRuleVersionPathParams,
@@ -10,6 +13,7 @@ import {
   buildBadgeRuleVersionDetailPath,
 } from "../admin/access-admin-helpers";
 import { badgeRuleVersionPage } from "../admin/badge-rule-version-page";
+import { consumeAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import { renderAppPage } from "../ui/render-page";
@@ -31,6 +35,14 @@ interface RegisterTenantBadgeRuleVersionPageRoutesInput {
 
 interface AuthorizedRuleVersionPageData extends BadgeRuleVersionPageContext {
   readonly shell: InstitutionAdminShellData;
+}
+
+interface RuleVersionRenderData extends AuthorizedRuleVersionPageData {
+  readonly automaticEvaluationStatus: Awaited<
+    ReturnType<typeof findAutomatedBadgeRuleEvaluationStatus>
+  >;
+  readonly evaluationFlash: Awaited<ReturnType<typeof consumeAdminListMessageFlash>>;
+  readonly evaluationRequestId: string;
 }
 
 interface LoadAuthorizedRuleVersionPageDataInput {
@@ -79,7 +91,7 @@ const loadAuthorizedRuleVersionPageData = async (
 
 const renderRuleVersion = async (
   c: AppContext,
-  input: AuthorizedRuleVersionPageData,
+  input: RuleVersionRenderData,
 ): Promise<Response> => {
   return await renderAppPage(
     c,
@@ -94,6 +106,9 @@ const renderRuleVersion = async (
       versions: input.versions,
       definition: input.definition,
       orgUnit: input.orgUnit,
+      automaticEvaluationStatus: input.automaticEvaluationStatus,
+      evaluationFlash: input.evaluationFlash,
+      evaluationRequestId: input.evaluationRequestId,
     }),
   );
 };
@@ -173,6 +188,24 @@ export const registerTenantBadgeRuleVersionPageRoutes = (
       return loaded;
     }
 
-    return renderRuleVersion(c, loaded);
+    const [automaticEvaluationStatus, evaluationFlash] = await Promise.all([
+      findAutomatedBadgeRuleEvaluationStatus(resolveDatabase(c.env), {
+        tenantId: pathParams.tenantId,
+        ruleId: pathParams.ruleId,
+        versionId: pathParams.versionId,
+      }),
+      consumeAdminListMessageFlash(c, {
+        tenantId: pathParams.tenantId,
+        userId: loaded.principal.userId,
+        workspace: "rule_version",
+      }),
+    ]);
+
+    return renderRuleVersion(c, {
+      ...loaded,
+      automaticEvaluationStatus,
+      evaluationFlash,
+      evaluationRequestId: crypto.randomUUID(),
+    });
   });
 };

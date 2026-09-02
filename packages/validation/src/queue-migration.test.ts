@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { parseMigrationBatchPathParams } from "./path-params.js";
 import {
+  automatedBadgeRuleCommandIdempotencyKey,
   parseMigrationBatchRetryRequest,
   parseMigrationBatchUploadQuery,
   parseMigrationProgressQuery,
@@ -385,6 +386,45 @@ describe("parseQueueJob", () => {
     });
 
     expect(job.jobType).toBe("process_automated_badge_rule");
+  });
+
+  it("keeps production-shaped automated command keys inside the queue contract", () => {
+    const versionId = `brv_${"a".repeat(64)}`;
+    const commandKeys = [
+      automatedBadgeRuleCommandIdempotencyKey({
+        versionId,
+        command: { kind: "activation" },
+      }),
+      automatedBadgeRuleCommandIdempotencyKey({
+        versionId,
+        command: { kind: "hour", scheduledFor: "2026-09-02T18:00:59.000Z" },
+      }),
+      automatedBadgeRuleCommandIdempotencyKey({
+        versionId,
+        command: { kind: "expiry", expiresAt: "2026-12-31T23:59:59.000Z" },
+      }),
+      automatedBadgeRuleCommandIdempotencyKey({
+        versionId,
+        command: { kind: "manual", requestId: "123e4567-e89b-42d3-a456-426614174000" },
+      }),
+    ];
+
+    expect(commandKeys.every((key) => key.length <= 128)).toBe(true);
+
+    for (const idempotencyKey of commandKeys) {
+      expect(() =>
+        parseQueueJob({
+          jobType: "process_automated_badge_rule",
+          tenantId: "tenant_123",
+          payload: {
+            ruleId: `brl_${"b".repeat(64)}`,
+            versionId,
+            scheduledFor: "2026-09-02T18:00:59.000Z",
+          },
+          idempotencyKey,
+        }),
+      ).not.toThrow();
+    }
   });
 
   it("rejects the removed placement-bound end-of-term job", () => {

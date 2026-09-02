@@ -19,8 +19,20 @@ vi.mock("@credtrail/db", async () => {
     findUserById: vi.fn(),
     leaseJobQueueMessages: vi.fn(),
     listBadgeIssuanceRuleVersionApprovalSteps: vi.fn(),
+    markAutomatedBadgeRuleEvaluationQueueFailure: vi.fn(),
     recordAssertionRevocation: vi.fn(),
     reevaluateLearnerPathwaysForLearner: vi.fn(),
+  };
+});
+
+vi.mock("./badges/automated-badge-rule-job", async () => {
+  const actual = await vi.importActual<typeof import("./badges/automated-badge-rule-job")>(
+    "./badges/automated-badge-rule-job",
+  );
+
+  return {
+    ...actual,
+    processAutomatedBadgeRuleQueueJob: vi.fn(),
   };
 });
 
@@ -41,6 +53,7 @@ import {
   findUserById,
   leaseJobQueueMessages,
   listBadgeIssuanceRuleVersionApprovalSteps,
+  markAutomatedBadgeRuleEvaluationQueueFailure,
   recordAssertionRevocation,
   reevaluateLearnerPathwaysForLearner,
   type AuditLogRecord,
@@ -50,7 +63,9 @@ import {
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
+import { processAutomatedBadgeRuleQueueJob } from "./badges/automated-badge-rule-job";
 import { app } from "./index";
+import { GradebookProviderError } from "./lms/gradebook-provider-error";
 
 interface ErrorResponse {
   error: string;
@@ -68,6 +83,10 @@ const mockedLeaseJobQueueMessages = vi.mocked(leaseJobQueueMessages);
 const mockedListBadgeIssuanceRuleVersionApprovalSteps = vi.mocked(
   listBadgeIssuanceRuleVersionApprovalSteps,
 );
+const mockedMarkAutomatedBadgeRuleEvaluationQueueFailure = vi.mocked(
+  markAutomatedBadgeRuleEvaluationQueueFailure,
+);
+const mockedProcessAutomatedBadgeRuleQueueJob = vi.mocked(processAutomatedBadgeRuleQueueJob);
 const mockedRecordAssertionRevocation = vi.mocked(recordAssertionRevocation);
 const mockedReevaluateLearnerPathwaysForLearner = vi.mocked(reevaluateLearnerPathwaysForLearner);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
@@ -183,6 +202,8 @@ describe("POST /v1/jobs/process", () => {
     mockedFindTenantById.mockReset();
     mockedFindUserById.mockReset();
     mockedListBadgeIssuanceRuleVersionApprovalSteps.mockReset();
+    mockedMarkAutomatedBadgeRuleEvaluationQueueFailure.mockReset();
+    mockedProcessAutomatedBadgeRuleQueueJob.mockReset();
     mockedRecordAssertionRevocation.mockReset();
     mockedCreateAuditLog.mockReset();
     mockedEnqueueJobQueueMessageOnce.mockReset();
@@ -212,6 +233,8 @@ describe("POST /v1/jobs/process", () => {
     });
     mockedFindUserById.mockResolvedValue(null);
     mockedListBadgeIssuanceRuleVersionApprovalSteps.mockResolvedValue([]);
+    mockedMarkAutomatedBadgeRuleEvaluationQueueFailure.mockResolvedValue(true);
+    mockedProcessAutomatedBadgeRuleQueueJob.mockResolvedValue(undefined);
   });
 
   it("hides processor route when JOB_PROCESSOR_TOKEN is not configured", async () => {
@@ -411,6 +434,90 @@ describe("POST /v1/jobs/process", () => {
     expect(body.retried).toBe(1);
     expect(body.deadLettered).toBe(0);
     expect(mockedCompleteJobQueueMessage).not.toHaveBeenCalled();
+  });
+
+  it("classifies a legacy oversized automated command before LMS work starts", async () => {
+    const ruleId = `brl_${"a".repeat(64)}`;
+    const versionId = `brv_${"b".repeat(64)}`;
+    mockedLeaseJobQueueMessages.mockResolvedValue([
+      sampleLeasedQueueMessage({
+        jobType: "process_automated_badge_rule",
+        payloadJson: JSON.stringify({
+          ruleId,
+          versionId,
+          scheduledFor: "2026-09-02T18:00:00.000Z",
+        }),
+        idempotencyKey: `automated-rule:${ruleId}:${versionId}:hour:2026-09-02T18`,
+      }),
+    ]);
+    mockedFailJobQueueMessage.mockResolvedValue("pending");
+
+    const response = await app.request(
+      "/v1/jobs/process",
+      {
+        method: "POST",
+        headers: processorHeaders(),
+        body: JSON.stringify({}),
+      },
+      createProcessorEnv(),
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.retried).toBe(1);
+    expect(mockedProcessAutomatedBadgeRuleQueueJob).not.toHaveBeenCalled();
+    expect(mockedMarkAutomatedBadgeRuleEvaluationQueueFailure).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      commandId: "job_123",
+      failedAt: expect.any(String),
+      terminal: false,
+      failureTag: "invalid_command",
+    });
+  });
+
+  it("classifies an LMS adapter failure without exposing provider details", async () => {
+    mockedLeaseJobQueueMessages.mockResolvedValue([
+      sampleLeasedQueueMessage({
+        jobType: "process_automated_badge_rule",
+        payloadJson: JSON.stringify({
+          ruleId: "brl_123",
+          versionId: "brv_123",
+          scheduledFor: "2026-09-02T18:00:00.000Z",
+        }),
+        idempotencyKey: "automated-rule:brv_123:hour:2026-09-02T18",
+      }),
+    ]);
+    mockedProcessAutomatedBadgeRuleQueueJob.mockRejectedValue(
+      new GradebookProviderError({
+        providerKind: "sakai",
+        operation: "learner_search",
+        reason: "request_failed",
+        statusCode: null,
+        message: "Sanitized provider failure",
+      }),
+    );
+    mockedFailJobQueueMessage.mockResolvedValue("failed");
+
+    const response = await app.request(
+      "/v1/jobs/process",
+      {
+        method: "POST",
+        headers: processorHeaders(),
+        body: JSON.stringify({}),
+      },
+      createProcessorEnv(),
+    );
+    const body = await response.json<Record<string, unknown>>();
+
+    expect(response.status).toBe(200);
+    expect(body.deadLettered).toBe(1);
+    expect(mockedMarkAutomatedBadgeRuleEvaluationQueueFailure).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      commandId: "job_123",
+      failedAt: expect.any(String),
+      terminal: true,
+      failureTag: "provider_unavailable",
+    });
   });
 
   it("writes audit logs for processed revoke jobs", async () => {
