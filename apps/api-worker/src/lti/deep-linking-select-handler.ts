@@ -204,7 +204,7 @@ export const handleLtiDeepLinkingSelect = async (
 
   const launchUrl = new URL(ltiSession.launch.target);
   launchUrl.searchParams.set("badgeTemplateId", badgeTemplate.id);
-  launchUrl.searchParams.set("setupToken", setupToken);
+  launchUrl.searchParams.delete("setupToken");
   const ltiTool = await createCredTrailLtiTool({ db, env: c.env, tenantId });
   const deepLinkingResult = await ltiTool
     .createAdvantage(ltiSession)

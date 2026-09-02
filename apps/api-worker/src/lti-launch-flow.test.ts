@@ -3437,9 +3437,7 @@ describe("LTI 1.3 core launch flow", () => {
       expect.objectContaining({
         type: "ltiResourceLink",
         title: "TypeScript Foundations",
-        url: expect.stringMatching(
-          /^https:\/\/tool\.example\.edu\/v1\/lti\/launch\?badgeTemplateId=badge_template_001&setupToken=.+/,
-        ),
+        url: "https://tool.example.edu/v1/lti/launch?badgeTemplateId=badge_template_001",
         custom: expect.objectContaining({
           badgeTemplateId: "badge_template_001",
           setupToken: expect.any(String),
