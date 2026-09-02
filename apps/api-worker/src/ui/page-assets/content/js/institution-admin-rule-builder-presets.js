@@ -19,6 +19,13 @@ const applyTemplatePreset = () => {
     return;
   }
 
+  if (presetKey === "custom") {
+    setStatus(ruleCreateStatus, "Current custom requirements kept.", false, "success");
+    syncSuggestedRuleName();
+    syncRuleBuilderSummary("Current custom requirements kept.");
+    return;
+  }
+
   const selectedTemplate =
     buildDefaultTemplateDefinitions(getDefaultCourseId())[presetKey] ??
     buildDefaultTemplateDefinitions(getDefaultCourseId()).course_and_grade;

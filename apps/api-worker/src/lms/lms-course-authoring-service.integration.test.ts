@@ -87,6 +87,82 @@ describeDbIntegration("LMS course authoring service", () => {
     ]);
   });
 
+  it("resolves requested gradebook items in order beyond the bounded picker result", async () => {
+    const fixture = await createTestTenantFixture({ displayName: "Exact LMS Gradebook Items" });
+    tenantIds.push(fixture.tenantId);
+    const connection = await upsertTenantLmsConnection(fixture.db, {
+      tenantId: fixture.tenantId,
+      displayName: "Institution Sakai",
+      providerKind: "sakai",
+      apiBaseUrl: "https://sakai.example.edu",
+      accessToken: "SAKAIID=session",
+    });
+    const assignments = Array.from({ length: 205 }, (_, index) => ({
+      id: `assignment-${String(index)}`,
+      name: `Assignment ${String(index)}`,
+      points: 100,
+      released: true,
+    }));
+    const fetchImpl: typeof fetch = async (requestInput, requestInit) => {
+      const request = new Request(requestInput, requestInit);
+      const url = new URL(request.url);
+
+      if (url.pathname === "/direct/site/course-101.json") {
+        return Response.json({
+          id: "course-101",
+          title: "Course 101",
+          shortDescription: "CS101",
+          type: "course",
+          published: true,
+        });
+      }
+
+      if (url.pathname === "/api/sites/course-101/grading/full-gradebook") {
+        return Response.json({ siteId: "course-101", columns: assignments, students: [] });
+      }
+
+      throw new Error(`Unexpected Sakai request: ${url.pathname}${url.search}`);
+    };
+    const service = createLmsCourseAuthoringService({
+      currentTimestamp: () => "2026-08-16T09:00:00.000Z",
+      fetchImpl,
+      requestTimeoutMs: 15_000,
+    });
+
+    const ordinaryResult = await service.listGradebookItems({
+      db: fixture.db,
+      tenantId: fixture.tenantId,
+      connectionId: connection.id,
+      userId: "user-with-provider-access",
+      courseId: "course-101",
+    });
+    const exactResult = await service.resolveGradebookItems({
+      db: fixture.db,
+      tenantId: fixture.tenantId,
+      connectionId: connection.id,
+      userId: "user-with-provider-access",
+      courseId: "course-101",
+      assignmentIds: ["assignment-204", "missing-assignment", "assignment-1"],
+    });
+
+    expect(ordinaryResult.status).toBe("resolved");
+    if (ordinaryResult.status !== "resolved") {
+      throw new Error("Ordinary gradebook lookup did not resolve");
+    }
+    expect(ordinaryResult.items).toHaveLength(200);
+    expect(ordinaryResult.items.some((item) => item.assignmentId === "assignment-204")).toBe(false);
+    expect(exactResult).toEqual({
+      status: "resolved",
+      items: [
+        expect.objectContaining({
+          assignmentId: "assignment-204",
+          title: "Assignment 204",
+        }),
+        expect.objectContaining({ assignmentId: "assignment-1", title: "Assignment 1" }),
+      ],
+    });
+  });
+
   it("returns typed cancellation when the provider deadline expires", async () => {
     const fixture = await createTestTenantFixture({ displayName: "LMS Request Deadline" });
     tenantIds.push(fixture.tenantId);

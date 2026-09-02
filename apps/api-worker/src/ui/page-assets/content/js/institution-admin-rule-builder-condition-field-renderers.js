@@ -325,7 +325,12 @@ const renderAssignmentSubmissionFields = (card, fieldsContainer, seed, courseLab
           "data-selected-value": selectedAssignmentId,
           required: true,
         },
-        [createConditionOption("", "Select course first", false)],
+        [
+          createConditionOption("", "Select course first", selectedAssignmentId.length === 0),
+          ...(selectedAssignmentId.length === 0
+            ? []
+            : [createConditionOption(selectedAssignmentId, selectedAssignmentId, true)]),
+        ],
       ),
     ),
     createConditionLookupStatus("data-lms-gradebook-status", ""),

@@ -72,6 +72,12 @@ export interface ListLmsGradebookItemsInput extends LmsCourseAuthoringRequest {
   readonly searchTerm?: string;
 }
 
+/** Input for resolving exact gradebook items in one authorized LMS course. */
+export interface ResolveLmsGradebookItemsInput extends LmsCourseAuthoringRequest {
+  readonly courseId: string;
+  readonly assignmentIds: readonly string[];
+}
+
 /** Input for listing workflow states from one authorized LMS assignment. */
 export interface ListLmsWorkflowStatesInput extends LmsCourseAuthoringRequest {
   readonly courseId: string;
@@ -119,6 +125,12 @@ export interface LmsCourseAuthoringService {
   /** Lists gradebook items after verifying course authoring access. */
   listGradebookItems(
     input: ListLmsGradebookItemsInput,
+    options?: LmsCourseAuthoringOptions,
+  ): Promise<LmsCourseAuthoringResult<{ readonly items: readonly GradebookAssignmentRecord[] }>>;
+
+  /** Resolves exact gradebook items after verifying course authoring access. */
+  resolveGradebookItems(
+    input: ResolveLmsGradebookItemsInput,
     options?: LmsCourseAuthoringOptions,
   ): Promise<LmsCourseAuthoringResult<{ readonly items: readonly GradebookAssignmentRecord[] }>>;
 
@@ -394,6 +406,40 @@ export const createLmsCourseAuthoringService = (
           authorization.resolvedProvider,
           cause,
           "Unable to list gradebook items",
+          operationOptions,
+        );
+      }
+    },
+    resolveGradebookItems: async (input, options = {}) => {
+      const operationOptions = requestOptions(options);
+      const authorization = await authorizeCourses(
+        { ...input, courseIds: [input.courseId] },
+        operationOptions,
+      );
+
+      if (authorization.status !== "resolved") {
+        return authorization;
+      }
+
+      try {
+        const assignments = await authorization.resolvedProvider.provider.listAssignments(
+          { courseId: input.courseId },
+          operationOptions,
+        );
+        operationOptions.signal?.throwIfAborted();
+        const assignmentsById = new Map(
+          assignments.map((assignment) => [assignment.assignmentId, assignment]),
+        );
+        const items = input.assignmentIds.flatMap((assignmentId) => {
+          const assignment = assignmentsById.get(assignmentId);
+          return assignment === undefined ? [] : [assignment];
+        });
+        return { status: "resolved", items };
+      } catch (cause: unknown) {
+        return providerFailure(
+          authorization.resolvedProvider,
+          cause,
+          "Unable to resolve gradebook items",
           operationOptions,
         );
       }

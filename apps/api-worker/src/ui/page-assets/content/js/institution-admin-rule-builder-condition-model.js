@@ -215,6 +215,63 @@ const readConditionFromCard = (card, strict) => {
   return negate ? { not: condition } : condition;
 };
 
+const readRuleBuilderDefinitionOptions = () => {
+  const selectedTiming = getTextFieldValue("issuanceTiming");
+  const issuanceTiming =
+    selectedTiming === "manual" || selectedTiming === "end_of_term"
+      ? selectedTiming
+      : "immediate";
+
+  return {
+    issuanceTiming,
+    reviewOnMissingFacts: getCheckboxFieldValue("reviewOnMissingFacts"),
+  };
+};
+
+const withRuleBuilderDefinitionOptions = (definition) => {
+  const existingOptions =
+    definition &&
+    typeof definition === "object" &&
+    definition.options &&
+    typeof definition.options === "object" &&
+    !Array.isArray(definition.options)
+      ? definition.options
+      : {};
+
+  return {
+    ...definition,
+    options: {
+      ...existingOptions,
+      ...readRuleBuilderDefinitionOptions(),
+    },
+  };
+};
+
+const withNormalizedSerializedRuleBuilderDefinitionOptions = (definition) => {
+  const existingOptions =
+    definition &&
+    typeof definition === "object" &&
+    definition.options &&
+    typeof definition.options === "object" &&
+    !Array.isArray(definition.options)
+      ? definition.options
+      : {};
+  const issuanceTiming =
+    existingOptions.issuanceTiming === "manual" ||
+    existingOptions.issuanceTiming === "end_of_term"
+      ? existingOptions.issuanceTiming
+      : "immediate";
+
+  return {
+    ...definition,
+    options: {
+      ...existingOptions,
+      issuanceTiming,
+      reviewOnMissingFacts: existingOptions.reviewOnMissingFacts === true,
+    },
+  };
+};
+
 const readDefinitionFromBuilder = (strict) => {
   const cards = getConditionCards();
 
@@ -225,17 +282,9 @@ const readDefinitionFromBuilder = (strict) => {
   const conditions = cards.map((card) => readConditionFromCard(card, strict));
   const rootLogic = getRuleBuilderRootLogic();
 
-  const definition = {
+  return withRuleBuilderDefinitionOptions({
     conditions: rootLogic === "any" ? { any: conditions } : { all: conditions },
-  };
-
-  if (getCheckboxFieldValue("reviewOnMissingFacts")) {
-    definition.options = {
-      reviewOnMissingFacts: true,
-    };
-  }
-
-  return definition;
+  });
 };
 
 const leafConditionFromCondition = (condition) => {

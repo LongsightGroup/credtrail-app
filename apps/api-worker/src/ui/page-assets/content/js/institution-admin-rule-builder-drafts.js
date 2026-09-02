@@ -136,6 +136,8 @@ const persistRuleBuilderDraftOnStepChange = () => {
 
 const applyBuilderDraftPayload = (draftContext) => {
   const payload = draftContext.payload;
+  let savedDefinition = null;
+  let definitionAppliedToBuilder = true;
 
   if (typeof payload.name === "string") {
     setRuleCreateFieldValue("name", payload.name);
@@ -157,9 +159,9 @@ const applyBuilderDraftPayload = (draftContext) => {
 
   if (typeof payload.definitionJson === "string" && payload.definitionJson.trim().length > 0) {
     try {
-      const savedDefinition = JSON.parse(payload.definitionJson);
+      savedDefinition = JSON.parse(payload.definitionJson);
       ruleBuilderDefinitionJson.value = JSON.stringify(savedDefinition, null, 2);
-      applyDefinitionToBuilder(savedDefinition, "Saved draft");
+      definitionAppliedToBuilder = applyDefinitionToBuilder(savedDefinition, "Saved draft");
     } catch {
       setRuleBuilderDraftStatus("Saved draft requirements could not be restored.", "warning");
     }
@@ -192,6 +194,14 @@ const applyBuilderDraftPayload = (draftContext) => {
       builderState.lastTestSummary.length > 0
     ) {
       ruleBuilderLastTestSummary = builderState.lastTestSummary;
+    }
+
+    if (definitionAppliedToBuilder || savedDefinition === null) {
+      syncDefinitionJsonFromBuilder();
+    } else {
+      const definitionWithRestoredOptions = withRuleBuilderDefinitionOptions(savedDefinition);
+      ruleBuilderDefinitionJson.value = JSON.stringify(definitionWithRestoredOptions, null, 2);
+      syncRuleBuilderPresetFromDefinition(definitionWithRestoredOptions);
     }
   }
 
@@ -286,6 +296,13 @@ if (ruleBuilderSaveDraftButton instanceof HTMLButtonElement) {
 }
 
 const reviewOnMissingFactsField = getRuleCreateField("reviewOnMissingFacts");
+const issuanceTimingField = getRuleCreateField("issuanceTiming");
+
+if (issuanceTimingField instanceof HTMLSelectElement) {
+  issuanceTimingField.addEventListener("change", () => {
+    syncDefinitionJsonFromBuilder();
+  });
+}
 
 if (reviewOnMissingFactsField instanceof HTMLInputElement) {
   reviewOnMissingFactsField.addEventListener("change", () => {

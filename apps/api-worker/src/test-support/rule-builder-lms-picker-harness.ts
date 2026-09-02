@@ -10,7 +10,7 @@ import {
 
 /** Observable completion states returned by the LMS picker page asset. */
 export type LmsLookupOutcome =
-  | { readonly status: "complete" }
+  | { readonly status: "complete"; readonly warningMessage?: string }
   | { readonly status: "superseded" }
   | {
       readonly status: "failed";
@@ -33,6 +33,7 @@ export interface RuleBuilderLmsPickerHarness {
   readonly hydrateGradebookItemSelect: (input: {
     readonly itemSelect: FakeSelect;
     readonly itemsUrl: string;
+    readonly resolveItemsUrl?: string;
     readonly query: string;
     readonly fallbackMessage: string;
   }) => Promise<LmsLookupOutcome>;
@@ -46,12 +47,27 @@ export interface RuleBuilderLmsPickerHarness {
     readonly fallbackMessage: string;
   }) => Promise<LmsLookupOutcome>;
   readonly readConditionFromCard: (card: FakeElement, strict: boolean) => unknown;
+  readonly readDefinitionFromCards: (
+    cards: readonly FakeElement[],
+    input: {
+      readonly issuanceTiming: "immediate" | "manual" | "end_of_term";
+      readonly reviewOnMissingFacts: boolean;
+      readonly rootLogic?: "all" | "any";
+    },
+  ) => unknown;
+  readonly classifyStarterPreset: (definition: object) => string;
+  readonly normalizeSerializedDefinitionOptions: (definition: object) => unknown;
   readonly renderConditionFields: (card: FakeElement, seed: object) => void;
   readonly reportedErrors: readonly unknown[];
   readonly setSelectedLmsConnectionId: (connectionId: string) => void;
 }
 
-type RuntimePickerHarness = Omit<RuleBuilderLmsPickerHarness, "setSelectedLmsConnectionId">;
+type RuntimePickerHarness = Omit<
+  RuleBuilderLmsPickerHarness,
+  "readDefinitionFromCards" | "setSelectedLmsConnectionId"
+> & {
+  readonly readDefinitionFromBuilder: (strict: boolean) => unknown;
+};
 
 interface LoadPickerHarnessInput {
   readonly fetchImpl: typeof fetch;
@@ -95,7 +111,7 @@ const pickerAssetSource = (): string => {
     readFileSync(new URL(`../ui/page-assets/content/js/${sourceName}`, import.meta.url), "utf8"),
   );
   sources.push(
-    "globalThis.__pickerHarness = { bindDebouncedSearch: lmsBindDebouncedSearch, hydrateCourseSelect, hydrateGradebookItemSelect: lmsHydrateGradebookItemSelect, hydrateGradebookItemsForCard: hydrateGradebookItemSelect, hydrateWorkflowStateSelect: lmsHydrateWorkflowStateSelect, readConditionFromCard, renderConditionFields, reportedErrors };",
+    "globalThis.__pickerHarness = { bindDebouncedSearch: lmsBindDebouncedSearch, classifyStarterPreset: classifyRuleBuilderStarterPreset, hydrateCourseSelect, hydrateGradebookItemSelect: lmsHydrateGradebookItemSelect, hydrateGradebookItemsForCard: hydrateGradebookItemSelect, hydrateWorkflowStateSelect: lmsHydrateWorkflowStateSelect, normalizeSerializedDefinitionOptions: withNormalizedSerializedRuleBuilderDefinitionOptions, readConditionFromCard, readDefinitionFromBuilder, renderConditionFields, reportedErrors };",
   );
   return sources.join("\n");
 };
@@ -111,7 +127,10 @@ const isRuntimePickerHarness = (value: unknown): value is RuntimePickerHarness =
     "hydrateGradebookItemSelect",
     "hydrateGradebookItemsForCard",
     "hydrateWorkflowStateSelect",
+    "classifyStarterPreset",
+    "normalizeSerializedDefinitionOptions",
     "readConditionFromCard",
+    "readDefinitionFromBuilder",
     "renderConditionFields",
   ];
 
@@ -127,6 +146,11 @@ export const loadRuleBuilderLmsPickerHarness = (
 ): RuleBuilderLmsPickerHarness => {
   const reportedErrors: unknown[] = [];
   let selectedLmsConnectionId = "connection-1";
+  let issuanceTiming = "immediate";
+  let reviewOnMissingFacts = false;
+  const ruleBuilderConditionList = new FakeElement();
+  const ruleBuilderRootLogic = new FakeSelect();
+  ruleBuilderRootLogic.value = "all";
   const context = createContext({
     AbortController,
     AbortSignal,
@@ -135,7 +159,7 @@ export const loadRuleBuilderLmsPickerHarness = (
     HTMLInputElement: FakeInput,
     HTMLSelectElement: FakeSelect,
     HTMLTemplateElement: class {},
-    HTMLTextAreaElement: class {},
+    HTMLTextAreaElement: FakeInput,
     HTMLElement: FakeElement,
     Map,
     Promise,
@@ -164,13 +188,20 @@ export const loadRuleBuilderLmsPickerHarness = (
     bindExclusiveFieldPair: (): void => undefined,
     conditionTypeLabels: {},
     getDefaultCourseId: (): string => "",
+    getCheckboxFieldValue: (fieldName: string): boolean =>
+      fieldName === "reviewOnMissingFacts" && reviewOnMissingFacts,
+    getRuleBuilderRootLogic: (): string => ruleBuilderRootLogic.value,
+    getTextFieldValue: (fieldName: string): string =>
+      fieldName === "issuanceTiming" ? issuanceTiming : "",
     getSelectedLmsConnectionId: (): string => selectedLmsConnectionId,
     lmsConnectionsApiPath: "/v1/lms/connections",
     reportError: (error: unknown): void => {
       reportedErrors.push(error);
     },
     reportedErrors,
-    ruleBuilderConditionList: new FakeElement(),
+    ruleBuilderConditionList,
+    ruleBuilderRootLogic,
+    ruleBuilderTemplatePreset: new FakeSelect(),
     ruleValueLists: [],
     window: {
       clearTimeout: input.timers?.clearTimeout ?? clearTimeout,
@@ -187,6 +218,13 @@ export const loadRuleBuilderLmsPickerHarness = (
 
   return {
     ...runtimeHarness,
+    readDefinitionFromCards: (cards, input): unknown => {
+      ruleBuilderConditionList.replaceChildren(...cards);
+      ruleBuilderRootLogic.value = input.rootLogic ?? "all";
+      issuanceTiming = input.issuanceTiming;
+      reviewOnMissingFacts = input.reviewOnMissingFacts;
+      return runtimeHarness.readDefinitionFromBuilder(false);
+    },
     setSelectedLmsConnectionId: (connectionId): void => {
       selectedLmsConnectionId = connectionId;
     },

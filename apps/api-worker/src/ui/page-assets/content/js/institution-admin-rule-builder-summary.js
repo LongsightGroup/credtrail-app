@@ -307,6 +307,7 @@ const syncDefinitionJsonFromBuilder = () => {
   try {
     const definition = readDefinitionFromBuilder(false);
     ruleBuilderDefinitionJson.value = JSON.stringify(definition, null, 2);
+    syncRuleBuilderPresetFromDefinition(definition);
   } catch {
     // Ignore transient editing errors while user updates fields.
   }
@@ -317,6 +318,111 @@ const syncDefinitionJsonFromBuilder = () => {
     updateConditionPlainSummary(card);
   });
   syncRuleBuilderSummary();
+};
+
+const exactRuleBuilderLeafShape = (condition, conditionType, allowedKeys) => {
+  if (
+    condition === null ||
+    typeof condition !== "object" ||
+    Array.isArray(condition) ||
+    condition.type !== conditionType
+  ) {
+    return false;
+  }
+
+  const allowed = new Set(["type", ...allowedKeys]);
+  return Object.keys(condition).every((key) => allowed.has(key));
+};
+
+const classifyRuleBuilderStarterPreset = (definition) => {
+  if (
+    definition === null ||
+    typeof definition !== "object" ||
+    Array.isArray(definition) ||
+    definition.conditions === null ||
+    typeof definition.conditions !== "object" ||
+    Array.isArray(definition.conditions) ||
+    Object.keys(definition.conditions).length !== 1 ||
+    !Array.isArray(definition.conditions.all)
+  ) {
+    return "custom";
+  }
+
+  const conditions = definition.conditions.all;
+  const leafMatches = (index, type, allowedKeys) =>
+    exactRuleBuilderLeafShape(conditions[index], type, allowedKeys);
+
+  if (
+    conditions.length === 1 &&
+    leafMatches(0, "course_completion", ["courseId", "minCompletionPercent"])
+  ) {
+    return "course_completion";
+  }
+
+  if (
+    conditions.length === 2 &&
+    leafMatches(0, "course_completion", ["courseId", "minCompletionPercent"]) &&
+    leafMatches(1, "grade_threshold", [
+      "courseId",
+      "scoreField",
+      "minScore",
+      "maxScore",
+    ]) &&
+    conditions[0].courseId === conditions[1].courseId
+  ) {
+    return "course_and_grade";
+  }
+
+  if (
+    conditions.length === 1 &&
+    leafMatches(0, "program_completion", ["courseIds", "minimumCompleted"])
+  ) {
+    return "program_completion";
+  }
+
+  if (
+    conditions.length === 1 &&
+    leafMatches(0, "assignment_submission", [
+      "courseId",
+      "assignmentId",
+      "minScore",
+      "workflowStates",
+      "requireSubmitted",
+    ])
+  ) {
+    return "assignment_submission";
+  }
+
+  if (
+    conditions.length === 1 &&
+    leafMatches(0, "survey_completion", ["source", "surveyId", "requireCompleted"])
+  ) {
+    return "survey_completion";
+  }
+
+  if (
+    conditions.length === 2 &&
+    leafMatches(0, "prerequisite_badge", ["badgeTemplateId"]) &&
+    leafMatches(1, "course_completion", ["courseId", "minCompletionPercent"])
+  ) {
+    return "prerequisite_chain";
+  }
+
+  if (
+    conditions.length === 2 &&
+    leafMatches(0, "course_completion", ["courseId", "minCompletionPercent"]) &&
+    leafMatches(1, "time_window", ["notBefore", "notAfter"])
+  ) {
+    return "time_limited";
+  }
+
+  return "custom";
+};
+
+const syncRuleBuilderPresetFromDefinition = (definition) => {
+  if (ruleBuilderTemplatePreset instanceof HTMLSelectElement) {
+    ruleBuilderTemplatePreset.value = classifyRuleBuilderStarterPreset(definition);
+  }
 };
 
 const createConditionCard = (seed) => {
@@ -517,11 +623,22 @@ const applyDefinitionToBuilder = (definition, sourceLabel) => {
     throw new Error("Rule definition must include a conditions object.");
   }
 
+  syncRuleBuilderPresetFromDefinition(definition);
+
   const reviewOnMissingFacts =
     definition.options &&
     typeof definition.options === "object" &&
     definition.options.reviewOnMissingFacts === true;
   const reviewOnMissingFactsField = getRuleCreateField("reviewOnMissingFacts");
+  const selectedIssuanceTiming =
+    definition.options &&
+    typeof definition.options === "object" &&
+    (definition.options.issuanceTiming === "manual" ||
+      definition.options.issuanceTiming === "end_of_term")
+      ? definition.options.issuanceTiming
+      : "immediate";
+
+  setRuleCreateFieldValue("issuanceTiming", selectedIssuanceTiming);
 
   if (reviewOnMissingFactsField instanceof HTMLInputElement) {
     reviewOnMissingFactsField.checked = reviewOnMissingFacts;
@@ -560,7 +677,7 @@ const applyDefinitionToBuilder = (definition, sourceLabel) => {
       sourceLabel +
         " includes nested requirement groups not editable as rows. Adjust JSON manually.",
     );
-    return;
+    return false;
   }
 
   clearConditionCanvas();
@@ -581,6 +698,7 @@ const applyDefinitionToBuilder = (definition, sourceLabel) => {
   syncDefinitionJsonFromBuilder();
   setStatus(ruleCreateStatus, sourceLabel + " loaded into visual builder.", false, "success");
   syncRuleBuilderSummary(sourceLabel + " loaded into visual builder.");
+  return true;
 };
 
 const parseDefinitionJson = () => {
@@ -603,5 +721,5 @@ const parseDefinitionJson = () => {
     throw new Error("Rule JSON must include a top-level conditions object.");
   }
 
-  return parsed;
+  return withNormalizedSerializedRuleBuilderDefinitionOptions(parsed);
 };

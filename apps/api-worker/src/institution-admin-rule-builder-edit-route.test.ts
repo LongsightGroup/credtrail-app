@@ -94,7 +94,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
       versionNumber: 2,
       status: "rejected",
       ruleJson:
-        '{"conditions":{"type":"assignment_submission","courseId":"course_101","assignmentId":"assignment_1","minScore":90},"options":{"reviewOnMissingFacts":true}}',
+        '{"conditions":{"type":"assignment_submission","courseId":"course_101","assignmentId":"assignment_1","minScore":90},"options":{"issuanceTiming":"manual","reviewOnMissingFacts":true}}',
       changeSummary: "Raise final assignment score",
       createdByUserId: "usr_admin",
       submittedByUserId: "usr_admin",
@@ -166,6 +166,8 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
     expect(body).toContain("&quot;lmsProviderKind&quot;:&quot;canvas&quot;");
     expect(body).toContain("&quot;assignmentId&quot;:&quot;assignment_1&quot;");
     expect(body).toContain("&quot;minScore&quot;:90");
+    expect(body).toContain("&quot;issuanceTiming&quot;:&quot;manual&quot;");
+    expect(body).toContain('<option value="custom">Custom requirements</option>');
   });
 
   it("keeps the admin builder restricted to owner and admin roles", async () => {

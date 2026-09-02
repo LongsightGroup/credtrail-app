@@ -28,6 +28,15 @@ const setGradebookLookupStatus = (card, message, isError) => {
   setConditionLookupStatus(card, "[data-lms-gradebook-status]", message, isError);
 };
 
+const setGradebookLookupWarning = (card, message) => {
+  setGradebookLookupStatus(card, message, false);
+  const status = card.querySelector("[data-lms-gradebook-status]");
+
+  if (status instanceof HTMLElement) {
+    status.dataset.tone = "warning";
+  }
+};
+
 const courseLookupStatusMessage = (courseCount, hasMore, query) => {
   const normalizedQuery = query.trim();
 
@@ -342,6 +351,7 @@ const hydrateWorkflowStateSelect = async (card) => {
 };
 
 const hydrateGradebookItemSelect = async (card, query) => {
+  const connectionId = getSelectedLmsConnectionId();
   const courseId = readFieldFromCard(card, "courseId");
   const itemSelect = card.querySelector("[data-lms-gradebook-item-select]");
   const stateSelect = card.querySelector("[data-lms-workflow-state-select]");
@@ -358,6 +368,7 @@ const hydrateGradebookItemSelect = async (card, query) => {
     itemSelect,
     stateSelect,
     itemsUrl: path,
+    resolveItemsUrl: path.length === 0 ? "" : path + "/resolve",
     query,
     itemFallbackMessage: "Unable to load gradebook items.",
     workflowFallbackMessage: "Unable to load workflow states.",
@@ -366,9 +377,45 @@ const hydrateGradebookItemSelect = async (card, query) => {
 
   if (outcome.status === "failed") {
     setGradebookLookupStatus(card, outcome.message, true);
+  } else if (
+    outcome.status === "complete" &&
+    typeof outcome.warningMessage === "string" &&
+    outcome.warningMessage.length > 0
+  ) {
+    setGradebookLookupWarning(card, outcome.warningMessage);
+  }
+
+  if (
+    outcome.status !== "superseded" &&
+    (getSelectedLmsConnectionId() !== connectionId || readFieldFromCard(card, "courseId") !== courseId)
+  ) {
+    return lmsLookupSuperseded();
   }
 
   return outcome;
+};
+
+const clearGradebookItemSelectionForCourseChange = (card) => {
+  const itemSelect = card.querySelector("[data-lms-gradebook-item-select]");
+
+  if (!(itemSelect instanceof HTMLSelectElement)) {
+    return;
+  }
+
+  lmsCancelRequest(itemSelect);
+  itemSelect.dataset.selectedValue = "";
+  itemSelect.dataset.selectedValues = "";
+  itemSelect.value = "";
+};
+
+const cancelRuleBuilderGradebookItemLookups = () => {
+  getConditionCards().forEach((card) => {
+    const itemSelect = card.querySelector("[data-lms-gradebook-item-select]");
+
+    if (itemSelect instanceof HTMLSelectElement) {
+      lmsCancelRequest(itemSelect);
+    }
+  });
 };
 
 const bindSearchableCourseSelect = (card, fieldName) => {
@@ -411,6 +458,7 @@ const bindSearchableCourseSelect = (card, fieldName) => {
       .map((option) => option.value)
       .join(",");
     if (fieldName === "courseId") {
+      clearGradebookItemSelectionForCourseChange(card);
       lmsRunDetached(async () => {
         const outcome = await hydrateGradebookItemSelect(card, "");
 
@@ -448,6 +496,7 @@ const bindSearchableGradebookItemSelect = (card) => {
 
   itemSelect.addEventListener("change", () => {
     itemSelect.dataset.selectedValue = itemSelect.value;
+    itemSelect.dataset.selectedValues = itemSelect.value;
     lmsRunDetached(async () => {
       const outcome = await hydrateWorkflowStateSelect(card);
 

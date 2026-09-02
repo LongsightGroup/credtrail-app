@@ -313,7 +313,6 @@ ruleCreateForm.addEventListener("submit", async (event) => {
   const description = getTextFieldValue("description");
   const badgeTemplateId = getTextFieldValue("badgeTemplateId");
   const lmsConnectionId = getTextFieldValue("lmsConnectionId");
-  const issuanceTiming = getTextFieldValue("issuanceTiming");
   const changeSummaryInput = getTextFieldValue("changeSummary");
 
   if (name.length === 0 || badgeTemplateId.length === 0 || lmsConnectionId.length === 0) {
@@ -348,24 +347,8 @@ ruleCreateForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  const definitionWithOptions = {
-    ...definition,
-    options: {
-      ...(definition &&
-      typeof definition === "object" &&
-      definition.options &&
-      typeof definition.options === "object"
-        ? definition.options
-        : {}),
-      issuanceTiming:
-        issuanceTiming === "manual" || issuanceTiming === "end_of_term"
-          ? issuanceTiming
-          : "immediate",
-    },
-  };
-
   let changeSummary = changeSummaryInput;
-  const issuanceLabel = definitionWithOptions.options.issuanceTiming.replaceAll("_", " ");
+  const issuanceLabel = definition.options.issuanceTiming.replaceAll("_", " ");
 
   if (changeSummary.length === 0) {
     changeSummary =
@@ -397,7 +380,7 @@ ruleCreateForm.addEventListener("submit", async (event) => {
       badgeTemplateId,
       badgeTemplateReuseAcknowledged: ruleBuilderBadgeTemplatePicker.isReuseAcknowledged(),
       lmsConnectionId,
-      definition: definitionWithOptions,
+      definition,
       ...(changeSummary.length > 0 ? { changeSummary } : {}),
       action,
     },
@@ -476,6 +459,7 @@ if (badgeTemplateField instanceof HTMLSelectElement) {
 
 if (ruleBuilderLmsConnectionSelect instanceof HTMLSelectElement) {
   ruleBuilderLmsConnectionSelect.addEventListener("change", () => {
+    cancelRuleBuilderGradebookItemLookups();
     resetRuleBuilderLearnerPicker(
       "Learners load when this step opens",
       "CredTrail loads learners from the courses configured in this rule.",

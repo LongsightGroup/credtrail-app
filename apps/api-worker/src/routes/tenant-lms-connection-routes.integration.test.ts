@@ -218,6 +218,19 @@ describeDbIntegration("tenant LMS connection routes", () => {
     const itemsBody = await itemsResponse.json<{
       items: Array<{ assignmentId: string; title: string }>;
     }>();
+    const resolvedItemsResponse = await app.request(
+      `${routeBase}/courses/course-101/gradebook-items/resolve`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assignmentIds: [" assignment-2 ", "missing-assignment", "assignment-2"],
+        }),
+      },
+    );
+    const resolvedItemsBody = await resolvedItemsResponse.json<{
+      items: Array<{ assignmentId: string; title: string }>;
+    }>();
     const statesResponse = await app.request(
       `${routeBase}/courses/course-101/gradebook-items/assignment-1/workflow-states`,
     );
@@ -259,6 +272,10 @@ describeDbIntegration("tenant LMS connection routes", () => {
     expect(itemsBody.items).toEqual([
       expect.objectContaining({ assignmentId: "assignment-1", title: "Final project" }),
     ]);
+    expect(resolvedItemsResponse.status).toBe(200);
+    expect(resolvedItemsBody.items).toEqual([
+      expect.objectContaining({ assignmentId: "assignment-2", title: "Weekly quiz" }),
+    ]);
     expect(statesResponse.status).toBe(200);
     expect(statesBody.states).toContainEqual(
       expect.objectContaining({ value: "graded", preselected: true }),
@@ -269,6 +286,7 @@ describeDbIntegration("tenant LMS connection routes", () => {
         resolvedCoursesResponse,
         learnersResponse,
         itemsResponse,
+        resolvedItemsResponse,
         statesResponse,
       ].every((response) => response.headers.get("cache-control") === "no-store"),
     ).toBe(true);
@@ -386,6 +404,24 @@ describeDbIntegration("tenant LMS connection routes", () => {
     expect(unauthorizedResponse.headers.get("cache-control")).toBe("no-store");
     expect(unauthorizedBody.error).toContain("not available");
     expect(providerRequestCount).toBe(1);
+
+    const gradebookResolveUrl = `/v1/tenants/${fixture.tenantId}/lms/connections/${connection.id}/courses/course-denied/gradebook-items/resolve`;
+    const invalidGradebookResponse = await app.request(gradebookResolveUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assignmentIds: [] }),
+    });
+    expect(invalidGradebookResponse.status).toBe(400);
+    expect(providerRequestCount).toBe(1);
+
+    const unauthorizedGradebookResponse = await app.request(gradebookResolveUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assignmentIds: ["assignment-1"] }),
+    });
+    expect(unauthorizedGradebookResponse.status).toBe(403);
+    expect(unauthorizedGradebookResponse.headers.get("cache-control")).toBe("no-store");
+    expect(providerRequestCount).toBe(2);
   });
 
   it("rejects roles outside the issuer boundary before reading LMS state", async () => {

@@ -15,6 +15,7 @@ import {
   parseCreateTenantApiKeyRequest,
   parseRevokeTenantApiKeyRequest,
   parseResolveTenantLmsConnectionCoursesRequest,
+  parseResolveTenantLmsConnectionGradebookItemsRequest,
   parseTenantLmsConnectionCoursePathParams,
   parseTenantLmsConnectionCourseSearchQuery,
   parseTenantLmsConnectionGradebookItemPathParams,
@@ -146,6 +147,41 @@ describe("tenant LMS connection parsers", () => {
       parseResolveTenantLmsConnectionCoursesRequest({
         courseIds: ["course-101"],
         query: "ignored",
+      }),
+    ).toThrow(/./);
+  });
+
+  it("normalizes a bounded set of exact LMS gradebook-item references", () => {
+    expect(
+      parseResolveTenantLmsConnectionGradebookItemsRequest({
+        assignmentIds: [" assignment-202 ", "assignment-101", "assignment-202"],
+      }),
+    ).toEqual({
+      assignmentIds: ["assignment-202", "assignment-101"],
+    });
+  });
+
+  it("rejects invalid exact LMS gradebook-item reference requests", () => {
+    expect(() =>
+      parseResolveTenantLmsConnectionGradebookItemsRequest({ assignmentIds: [] }),
+    ).toThrow(/./);
+    expect(() =>
+      parseResolveTenantLmsConnectionGradebookItemsRequest({ assignmentIds: ["  "] }),
+    ).toThrow(/./);
+    expect(() =>
+      parseResolveTenantLmsConnectionGradebookItemsRequest({
+        assignmentIds: Array.from({ length: 201 }, (_, index) => `assignment-${String(index)}`),
+      }),
+    ).toThrow(/./);
+    expect(() =>
+      parseResolveTenantLmsConnectionGradebookItemsRequest({
+        assignmentIds: ["a".repeat(256)],
+      }),
+    ).toThrow(/./);
+    expect(() =>
+      parseResolveTenantLmsConnectionGradebookItemsRequest({
+        assignmentIds: ["assignment-101"],
+        unexpected: true,
       }),
     ).toThrow(/./);
   });

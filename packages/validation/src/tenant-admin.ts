@@ -257,6 +257,15 @@ export const resolveTenantLmsConnectionCoursesRequestSchema = z
     courseIds: [...new Set(request.courseIds)],
   }));
 
+/** Exact LMS gradebook-item references requested by an authenticated authoring flow. */
+export const resolveTenantLmsConnectionGradebookItemsRequestSchema = z
+  .strictObject({
+    assignmentIds: z.array(z.string().trim().min(1).max(255)).min(1).max(200),
+  })
+  .transform((request) => ({
+    assignmentIds: [...new Set(request.assignmentIds)],
+  }));
+
 export const badgeRuleRegistrySortSchema = z.enum([
   "rule",
   "badge",
@@ -411,6 +420,10 @@ export type ResolveTenantLmsConnectionCoursesRequest = z.infer<
   typeof resolveTenantLmsConnectionCoursesRequestSchema
 >;
 
+export type ResolveTenantLmsConnectionGradebookItemsRequest = z.infer<
+  typeof resolveTenantLmsConnectionGradebookItemsRequestSchema
+>;
+
 export type BadgeRuleRegistryPageQuery = z.infer<typeof badgeRuleRegistryPageQuerySchema>;
 export type BadgeRuleRegistryCursorPayload = z.infer<typeof badgeRuleRegistryCursorPayloadSchema>;
 
@@ -537,6 +550,13 @@ export const parseResolveTenantLmsConnectionCoursesRequest = (
   input: unknown,
 ): ResolveTenantLmsConnectionCoursesRequest => {
   return resolveTenantLmsConnectionCoursesRequestSchema.parse(input);
+};
+
+/** Parses a bounded set of exact LMS gradebook-item references for authoring. */
+export const parseResolveTenantLmsConnectionGradebookItemsRequest = (
+  input: unknown,
+): ResolveTenantLmsConnectionGradebookItemsRequest => {
+  return resolveTenantLmsConnectionGradebookItemsRequestSchema.parse(input);
 };
 
 export const parseBadgeRuleRegistryPageQuery = (input: unknown): BadgeRuleRegistryPageQuery => {

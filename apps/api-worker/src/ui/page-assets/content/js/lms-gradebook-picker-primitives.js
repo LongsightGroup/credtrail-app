@@ -13,6 +13,65 @@ const lmsGradebookItemLabel = (item) => {
   return title + points + (itemId.length > 0 ? " (" + itemId + ")" : "");
 };
 
+const lmsGradebookItemLabelByIdentity = new Map();
+
+const lmsGradebookItemIdentity = (itemsUrl, assignmentId) => {
+  return itemsUrl + "\n" + assignmentId;
+};
+
+const lmsRememberGradebookItemLabels = (itemsUrl, items) => {
+  items.forEach((item) => {
+    lmsGradebookItemLabelByIdentity.set(
+      lmsGradebookItemIdentity(itemsUrl, item.assignmentId),
+      lmsGradebookItemLabel(item),
+    );
+  });
+};
+
+const lmsSelectedGradebookItemSnapshots = (itemSelect, itemsUrl, selectedValues) => {
+  const snapshots = new Map();
+
+  Array.from(itemSelect.selectedOptions).forEach((option) => {
+    if (option.value.length > 0) {
+      snapshots.set(option.value, option.textContent ?? option.value);
+    }
+  });
+
+  selectedValues.forEach((assignmentId) => {
+    const cachedLabel = lmsGradebookItemLabelByIdentity.get(
+      lmsGradebookItemIdentity(itemsUrl, assignmentId),
+    );
+
+    if (cachedLabel !== undefined) {
+      snapshots.set(assignmentId, cachedLabel);
+    }
+  });
+
+  return snapshots;
+};
+
+const lmsGradebookItemsWithSavedSelections = (input) => {
+  const itemById = new Map(input.items.map((item) => [item.assignmentId, item]));
+  const selectedItems = input.selectedValues.map((assignmentId) => {
+    const item = itemById.get(assignmentId);
+
+    if (item !== undefined) {
+      return item;
+    }
+
+    return {
+      assignmentId,
+      savedLabel: input.selectedSnapshots.get(assignmentId) ?? assignmentId,
+    };
+  });
+  const selectedSet = new Set(input.selectedValues);
+  return [...selectedItems, ...input.items.filter((item) => !selectedSet.has(item.assignmentId))];
+};
+
+const lmsGradebookItemOptionLabel = (item) => {
+  return typeof item.savedLabel === "string" ? item.savedLabel : lmsGradebookItemLabel(item);
+};
+
 const lmsLookupComplete = () => ({ status: "complete" });
 
 const lmsLookupSuperseded = () => ({ status: "superseded" });
@@ -277,7 +336,7 @@ const lmsHydrateWorkflowStateSelect = async (input) => {
 };
 
 const lmsHydrateGradebookItemSelect = async (input) => {
-  const { itemSelect, itemsUrl, query, fallbackMessage } = input;
+  const { itemSelect, itemsUrl, query, fallbackMessage, resolveItemsUrl } = input;
 
   if (!(itemSelect instanceof HTMLSelectElement)) {
     throw new TypeError("Gradebook-item select is unavailable.");
@@ -298,15 +357,23 @@ const lmsHydrateGradebookItemSelect = async (input) => {
   }
 
   const selected = lmsSelectedValuesForSelect(itemSelect);
+  const selectedSnapshots = lmsSelectedGradebookItemSnapshots(itemSelect, itemsUrl, selected);
+  const setItems = (items, emptyLabel) => {
+    lmsSetSelectOptions(
+      itemSelect,
+      lmsGradebookItemsWithSavedSelections({
+        items,
+        selectedValues: selected,
+        selectedSnapshots,
+      }),
+      emptyLabel,
+      selected,
+      lmsGradebookItemOptionLabel,
+      (item) => item.assignmentId,
+    );
+  };
   itemSelect.disabled = true;
-  lmsSetSelectOptions(
-    itemSelect,
-    [],
-    "Loading gradebook items...",
-    selected,
-    lmsGradebookItemLabel,
-    (item) => item.assignmentId,
-  );
+  setItems([], "Loading gradebook items...");
   const url = lmsUrlWithSearchQuery(itemsUrl, query);
   const result = await lmsFetchLatestJson(
     itemSelect,
@@ -318,40 +385,103 @@ const lmsHydrateGradebookItemSelect = async (input) => {
   }
 
   if (result.status === "failed") {
-    return lmsFailSelectLookup(
+    const outcome = lmsFailSelectLookup(
       itemSelect,
       "Gradebook items unavailable",
       "gradebook-items",
       result.message,
       fallbackMessage ?? "Unable to load gradebook items.",
     );
+    return selected.length === 0
+      ? outcome
+      : {
+          ...outcome,
+          message: outcome.message + " The saved gradebook item remains selected.",
+        };
   }
 
   const items = lmsParseGradebookItems(result.payload);
 
   if (items === null) {
-    return lmsFailSelectLookup(
+    const outcome = lmsFailSelectLookup(
       itemSelect,
       "Gradebook items unavailable",
       "gradebook-items",
       null,
       fallbackMessage ?? "Unable to load gradebook items.",
     );
+    return selected.length === 0
+      ? outcome
+      : {
+          ...outcome,
+          message: outcome.message + " The saved gradebook item remains selected.",
+        };
   }
 
-  lmsSetSelectOptions(
-    itemSelect,
-    items,
+  lmsRememberGradebookItemLabels(itemsUrl, items);
+  const discoveredItemIds = new Set(items.map((item) => item.assignmentId));
+  const unresolvedAssignmentIds = selected.filter(
+    (assignmentId) => !discoveredItemIds.has(assignmentId),
+  );
+  let resolvedItems = [];
+  let warningMessage = "";
+
+  if (
+    unresolvedAssignmentIds.length > 0 &&
+    typeof resolveItemsUrl === "string" &&
+    resolveItemsUrl.length > 0
+  ) {
+    const resolution = await lmsFetchLatestJson(
+      itemSelect,
+      resolveItemsUrl,
+      "Unable to restore the saved gradebook item.",
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ assignmentIds: unresolvedAssignmentIds }),
+      },
+    );
+
+    if (resolution.status === "superseded") {
+      return resolution;
+    }
+
+    if (resolution.status === "failed") {
+      warningMessage = resolution.message + " The saved gradebook item remains selected.";
+    } else {
+      const parsedResolution = lmsParseGradebookItems(resolution.payload);
+
+      if (parsedResolution === null) {
+        warningMessage =
+          "Unable to restore the saved gradebook item name. The saved item remains selected.";
+      } else {
+        resolvedItems = parsedResolution;
+        lmsRememberGradebookItemLabels(itemsUrl, resolvedItems);
+        const resolvedItemIds = new Set(resolvedItems.map((item) => item.assignmentId));
+
+        if (unresolvedAssignmentIds.some((assignmentId) => !resolvedItemIds.has(assignmentId))) {
+          warningMessage =
+            "The LMS no longer returns the saved gradebook item. Its saved ID remains selected.";
+        }
+      }
+    }
+  }
+
+  const combinedItems = [...resolvedItems, ...items];
+  setItems(
+    combinedItems,
     items.length === 0 ? "No matching gradebook items" : "Select gradebook item",
-    selected,
-    lmsGradebookItemLabel,
-    (item) => item.assignmentId,
   );
   itemSelect.disabled = false;
-  itemSelect.dataset.selectedValue = itemSelect.value;
-  itemSelect.dataset.selectedValues = lmsSelectedValuesFromSelect(itemSelect).join(",");
+  itemSelect.dataset.selectedValue = selected[0] ?? "";
+  itemSelect.dataset.selectedValues = selected.join(",");
 
-  return lmsLookupComplete();
+  return warningMessage.length === 0
+    ? lmsLookupComplete()
+    : { status: "complete", warningMessage };
 };
 
 const lmsHydrateGradebookItemWorkflowSelects = async (input) => {
@@ -370,6 +500,7 @@ const lmsHydrateGradebookItemWorkflowSelects = async (input) => {
       itemsUrl,
       query,
       fallbackMessage: itemFallbackMessage,
+      resolveItemsUrl: input.resolveItemsUrl,
     }),
     lmsHydrateWorkflowStateSelect({
       stateSelect,
@@ -386,11 +517,15 @@ const lmsHydrateGradebookItemWorkflowSelects = async (input) => {
     return itemOutcome;
   }
 
-  return lmsHydrateWorkflowStateSelect({
+  const workflowOutcome = await lmsHydrateWorkflowStateSelect({
     stateSelect,
     workflowStatesUrl: workflowStatesUrlForAssignment(itemSelect.value),
     fallbackMessage: workflowFallbackMessage,
   });
+
+  return workflowOutcome.status === "complete" && itemOutcome.warningMessage !== undefined
+    ? itemOutcome
+    : workflowOutcome;
 };
 
 const lmsBindDebouncedSearch = (input) => {

@@ -5,6 +5,7 @@ import {
   FakeOption,
   FakeSelect,
   FakeTimers,
+  waitForBrowserCondition,
 } from "./test-support/browser-page-asset-harness";
 import {
   createAssignmentLookupFixture,
@@ -14,6 +15,162 @@ import {
 } from "./test-support/rule-builder-lms-picker-harness";
 
 describe("rule-builder LMS course picker", () => {
+  it("projects issuance timing and missing-fact review through one builder definition", () => {
+    const harness = loadRuleBuilderLmsPickerHarness({
+      fetchImpl: (() => Promise.reject(new Error("not called"))) as typeof fetch,
+    });
+    const timings = ["immediate", "manual", "end_of_term"] as const;
+
+    for (const issuanceTiming of timings) {
+      for (const reviewOnMissingFacts of [false, true]) {
+        const { card } = createRuleBuilderConditionCard("course_completion");
+        harness.renderConditionFields(card, {
+          type: "course_completion",
+          courseId: "course-101",
+          minCompletionPercent: 100,
+        });
+
+        expect(
+          harness.readDefinitionFromCards([card], {
+            issuanceTiming,
+            reviewOnMissingFacts,
+          }),
+        ).toEqual({
+          conditions: {
+            all: [
+              {
+                type: "course_completion",
+                courseId: "course-101",
+                minCompletionPercent: 100,
+              },
+            ],
+          },
+          options: { issuanceTiming, reviewOnMissingFacts },
+        });
+      }
+    }
+  });
+
+  it("preserves valid serialized definition options when applying advanced JSON", () => {
+    const harness = loadRuleBuilderLmsPickerHarness({
+      fetchImpl: (() => Promise.reject(new Error("not called"))) as typeof fetch,
+    });
+
+    expect(
+      harness.normalizeSerializedDefinitionOptions({
+        conditions: { all: [{ type: "course_completion", courseId: "course-101" }] },
+        options: { issuanceTiming: "manual", reviewOnMissingFacts: true },
+      }),
+    ).toEqual({
+      conditions: { all: [{ type: "course_completion", courseId: "course-101" }] },
+      options: { issuanceTiming: "manual", reviewOnMissingFacts: true },
+    });
+  });
+
+  it("classifies only exact supported starter shapes and treats custom trees truthfully", () => {
+    const harness = loadRuleBuilderLmsPickerHarness({
+      fetchImpl: (() => Promise.reject(new Error("not called"))) as typeof fetch,
+    });
+    const definitions = new Map<string, object>([
+      [
+        "course_completion",
+        { conditions: { all: [{ type: "course_completion", courseId: "course-101" }] } },
+      ],
+      [
+        "course_and_grade",
+        {
+          conditions: {
+            all: [
+              { type: "course_completion", courseId: "course-101" },
+              { type: "grade_threshold", courseId: "course-101", minScore: 92 },
+            ],
+          },
+        },
+      ],
+      [
+        "program_completion",
+        {
+          conditions: {
+            all: [
+              {
+                type: "program_completion",
+                courseIds: ["course-101", "course-202"],
+                minimumCompleted: 2,
+              },
+            ],
+          },
+        },
+      ],
+      [
+        "assignment_submission",
+        {
+          conditions: {
+            all: [
+              {
+                type: "assignment_submission",
+                courseId: "course-101",
+                assignmentId: "assignment-42",
+                minScore: 90,
+              },
+            ],
+          },
+        },
+      ],
+      [
+        "survey_completion",
+        {
+          conditions: {
+            all: [{ type: "survey_completion", source: "qualtrics", surveyId: "survey-1" }],
+          },
+        },
+      ],
+      [
+        "prerequisite_chain",
+        {
+          conditions: {
+            all: [
+              { type: "prerequisite_badge", badgeTemplateId: "badge-1" },
+              { type: "course_completion", courseId: "course-202" },
+            ],
+          },
+        },
+      ],
+      [
+        "time_limited",
+        {
+          conditions: {
+            all: [
+              { type: "course_completion", courseId: "course-101" },
+              { type: "time_window", notAfter: "2026-12-31T23:59:59.000Z" },
+            ],
+          },
+        },
+      ],
+    ]);
+
+    for (const [preset, definition] of definitions) {
+      expect(harness.classifyStarterPreset(definition)).toBe(preset);
+    }
+
+    expect(
+      harness.classifyStarterPreset({
+        conditions: {
+          any: [
+            { type: "course_completion", courseId: "course-101" },
+            { type: "survey_completion", surveyId: "survey-1" },
+          ],
+        },
+      }),
+    ).toBe("custom");
+    expect(
+      harness.classifyStarterPreset({
+        conditions: {
+          all: [{ type: "assignment_submission", courseId: "course-101", custom: true }],
+        },
+      }),
+    ).toBe("custom");
+  });
+
   it("keeps an unfinished course requirement empty instead of inventing a course ID", () => {
     const harness = loadRuleBuilderLmsPickerHarness({
       fetchImpl: (() => Promise.reject(new Error("not called"))) as typeof fetch,
@@ -286,6 +443,113 @@ describe("rule-builder LMS course picker", () => {
     expect(status.textContent).toBe("Gradebook access denied.");
   });
 
+  it("resolves and keeps a saved gradebook item omitted from discovery", async () => {
+    const requests: Array<{
+      readonly body: string | null;
+      readonly method: string;
+      readonly url: string;
+    }> = [];
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+      const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+      const body = typeof init?.body === "string" ? init.body : null;
+      requests.push({ body, method, url });
+
+      if (url.endsWith("/gradebook-items")) {
+        return Response.json({ items: [{ assignmentId: "other-item", title: "Other item" }] });
+      }
+
+      if (url.endsWith("/gradebook-items/resolve")) {
+        return Response.json({
+          items: [{ assignmentId: "saved-item", title: "Saved capstone", pointsPossible: 100 }],
+        });
+      }
+
+      if (url.endsWith("/gradebook-items/saved-item/workflow-states")) {
+        return Response.json({ states: [] });
+      }
+
+      throw new Error(`Unexpected request: ${url}`);
+    }) as typeof fetch;
+    const harness = loadRuleBuilderLmsPickerHarness({ fetchImpl });
+    const { card, itemSelect, status } = createAssignmentLookupFixture();
+    itemSelect.dataset.selectedValue = "saved-item";
+
+    await expect(harness.hydrateGradebookItemsForCard(card, "")).resolves.toEqual({
+      status: "complete",
+    });
+    expect(itemSelect.selectedOptions.map((option) => option.value)).toEqual(["saved-item"]);
+    expect(itemSelect.options.map((option) => option.textContent)).toEqual([
+      "Select gradebook item",
+      "Saved capstone · 100 pts (saved-item)",
+      "Other item (other-item)",
+    ]);
+    expect(status.hidden).toBe(true);
+    expect(requests.map((request) => [request.method, request.url])).toEqual([
+      ["GET", "/v1/lms/connections/connection-1/courses/course-101/gradebook-items"],
+      ["POST", "/v1/lms/connections/connection-1/courses/course-101/gradebook-items/resolve"],
+      [
+        "GET",
+        "/v1/lms/connections/connection-1/courses/course-101/gradebook-items/saved-item/workflow-states",
+      ],
+    ]);
+    expect(JSON.parse(requests[1]?.body ?? "null") as unknown).toEqual({
+      assignmentIds: ["saved-item"],
+    });
+  });
+
+  it("keeps a stable saved gradebook ID when exact resolution cannot find it", async () => {
+    const fetchImpl = ((input: RequestInfo | URL): Promise<Response> => {
+      const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+
+      if (url.endsWith("/gradebook-items") || url.endsWith("/gradebook-items/resolve")) {
+        return Promise.resolve(Response.json({ items: [] }));
+      }
+
+      if (url.endsWith("/gradebook-items/saved-item/workflow-states")) {
+        return Promise.resolve(Response.json({ states: [] }));
+      }
+
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    }) as typeof fetch;
+    const harness = loadRuleBuilderLmsPickerHarness({ fetchImpl });
+    const { card, itemSelect, status } = createAssignmentLookupFixture();
+    itemSelect.dataset.selectedValue = "saved-item";
+
+    await expect(harness.hydrateGradebookItemsForCard(card, "")).resolves.toEqual({
+      status: "complete",
+      warningMessage:
+        "The LMS no longer returns the saved gradebook item. Its saved ID remains selected.",
+    });
+    expect(itemSelect.selectedOptions.map((option) => option.value)).toEqual(["saved-item"]);
+    expect(itemSelect.options.map((option) => option.textContent)).toEqual([
+      "No matching gradebook items",
+      "saved-item",
+    ]);
+    expect(status.dataset.tone).toBe("warning");
+    expect(status.textContent).toContain("saved ID remains selected");
+  });
+
+  it("keeps the saved gradebook item selected when discovery fails", async () => {
+    const harness = loadRuleBuilderLmsPickerHarness({
+      fetchImpl: (() => Promise.reject(new Error("Gradebook unavailable."))) as typeof fetch,
+    });
+    const { card, itemSelect, status } = createAssignmentLookupFixture();
+    itemSelect.dataset.selectedValue = "saved-item";
+
+    await expect(harness.hydrateGradebookItemsForCard(card, "")).resolves.toEqual({
+      status: "failed",
+      source: "gradebook-items",
+      message: "Gradebook unavailable. The saved gradebook item remains selected.",
+    });
+    expect(itemSelect.selectedOptions.map((option) => option.value)).toEqual(["saved-item"]);
+    expect(itemSelect.options.map((option) => option.textContent)).toEqual([
+      "Gradebook items unavailable",
+      "saved-item",
+    ]);
+    expect(status.textContent).toContain("saved gradebook item remains selected");
+  });
+
   it("rejects malformed gradebook-item payloads at the response boundary", async () => {
     const harness = loadRuleBuilderLmsPickerHarness({
       fetchImpl: (() => Promise.resolve(Response.json({ items: [null] }))) as typeof fetch,
@@ -478,6 +742,57 @@ describe("rule-builder LMS course picker", () => {
     await expect(staleRequest).resolves.toEqual({ status: "superseded" });
     expect(select.options.map((option) => option.value)).toEqual(["", "new-item"]);
     expect(requestCacheModes).toEqual(["no-store", "no-store"]);
+  });
+
+  it("ignores exact-item results superseded by an LMS connection switch", async () => {
+    let exactRequestStarted = false;
+    const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+
+      if (url.includes("connection-1") && url.endsWith("/gradebook-items")) {
+        return Promise.resolve(
+          Response.json({ items: [{ assignmentId: "other-item", title: "Other item" }] }),
+        );
+      }
+
+      if (url.includes("connection-1") && url.endsWith("/gradebook-items/resolve")) {
+        exactRequestStarted = true;
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        });
+      }
+
+      if (url.includes("connection-2") && url.endsWith("/gradebook-items")) {
+        return Promise.resolve(
+          Response.json({ items: [{ assignmentId: "saved-item", title: "Current item" }] }),
+        );
+      }
+
+      if (url.includes("connection-2") && url.endsWith("/workflow-states")) {
+        return Promise.resolve(Response.json({ states: [] }));
+      }
+
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    }) as typeof fetch;
+    const harness = loadRuleBuilderLmsPickerHarness({ fetchImpl });
+    const { card, itemSelect } = createAssignmentLookupFixture();
+    itemSelect.dataset.selectedValue = "saved-item";
+
+    const staleRequest = harness.hydrateGradebookItemsForCard(card, "");
+    await waitForBrowserCondition(
+      () => exactRequestStarted,
+      "Exact gradebook-item request did not start",
+    );
+    harness.setSelectedLmsConnectionId("connection-2");
+    const currentRequest = harness.hydrateGradebookItemsForCard(card, "");
+
+    await expect(currentRequest).resolves.toEqual({ status: "complete" });
+    await expect(staleRequest).resolves.toEqual({ status: "superseded" });
+    expect(itemSelect.selectedOptions.map((option) => option.value)).toEqual(["saved-item"]);
+    expect(itemSelect.options.map((option) => option.textContent)).toEqual([
+      "Select gradebook item",
+      "Current item (saved-item)",
+    ]);
   });
 
   it("keeps a cleared course empty when its previous gradebook request finishes", async () => {

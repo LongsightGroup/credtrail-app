@@ -7,6 +7,7 @@ import {
 } from "@credtrail/db";
 import {
   parseResolveTenantLmsConnectionCoursesRequest,
+  parseResolveTenantLmsConnectionGradebookItemsRequest,
   parseTenantLmsConnectionCoursePathParams,
   parseTenantLmsConnectionCourseSearchQuery,
   parseTenantLmsConnectionGradebookItemPathParams,
@@ -319,6 +320,50 @@ export const registerTenantLmsConnectionRoutes = (
           userId: roleCheck.principal.userId,
           courseId: pathParams.courseId,
           ...(query.q === undefined ? {} : { searchTerm: query.q }),
+        },
+        { signal: c.req.raw.signal },
+      );
+
+      if (result.status !== "resolved") {
+        return lmsCourseAuthoringFailureResponse(result);
+      }
+
+      return c.json({
+        tenantId: pathParams.tenantId,
+        connectionId: pathParams.connectionId,
+        courseId: pathParams.courseId,
+        items: result.items,
+      });
+    },
+  );
+
+  app.post(
+    "/v1/tenants/:tenantId/lms/connections/:connectionId/courses/:courseId/gradebook-items/resolve",
+    async (c) => {
+      const pathParams = parseTenantLmsConnectionCoursePathParams(c.req.param());
+      c.header("Cache-Control", "no-store");
+      let request;
+
+      try {
+        request = parseResolveTenantLmsConnectionGradebookItemsRequest(await c.req.json<unknown>());
+      } catch {
+        return jsonError(c, 400, "Invalid LMS gradebook-item resolution payload");
+      }
+
+      const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+
+      if (roleCheck instanceof Response) {
+        return roleCheck;
+      }
+
+      const result = await lmsCourseAuthoring.resolveGradebookItems(
+        {
+          db: resolveDatabase(c.env),
+          tenantId: pathParams.tenantId,
+          connectionId: pathParams.connectionId,
+          userId: roleCheck.principal.userId,
+          courseId: pathParams.courseId,
+          assignmentIds: request.assignmentIds,
         },
         { signal: c.req.raw.signal },
       );

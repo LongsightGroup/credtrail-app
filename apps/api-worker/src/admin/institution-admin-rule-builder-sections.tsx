@@ -397,6 +397,7 @@ export const RuleBuilderMetadataStep = (props: {
                   <option value="survey_completion">Survey completed</option>
                   <option value="prerequisite_chain">Prerequisite badge required</option>
                   <option value="time_limited">Date-limited earning window</option>
+                  <option value="custom">Custom requirements</option>
                 </CtSelect>
               </AdminField>
               <AdminField label="Description (optional)" className="ct-admin__builder-field-span">
