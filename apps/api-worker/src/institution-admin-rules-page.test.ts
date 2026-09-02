@@ -1823,7 +1823,10 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
       imageUri: "https://example.edu/badges/typescript.png",
       createdByUserId: "usr_admin",
       ownerOrgUnitId: "tenant_123:org:institution",
-      governanceMetadataJson: null,
+      governanceMetadataJson: JSON.stringify({
+        stability: "institution_registry",
+        ltiInstructorPlacement: { enabled: true },
+      }),
       isArchived: false,
       createdAt: "2026-02-18T12:00:00.000Z",
       updatedAt: "2026-02-18T12:00:00.000Z",
@@ -1874,6 +1877,18 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain('value="typescript-foundations"');
     expect(body).toContain(">Criteria page URL<");
     expect(body).toContain('value="https://example.edu/criteria"');
+    expect(body).toContain('id="template-editor-lms-placement"');
+    expect(body).toContain("LMS placement");
+    expect(body).toContain("Allow instructors to place this template from an LMS course");
+    expect(body).toContain('name="ltiInstructorPlacement"');
+    expect(body).toContain('value="enabled"');
+    expect(body).toContain('aria-describedby="badge-template-placement-hint"');
+    expect(body).toMatch(/name="ltiInstructorPlacement"[^>]*checked=""/);
+    expect(body).toContain(
+      'action="/tenants/tenant_123/admin/rules/templates/badge_template_001/lti-placement-policy"',
+    );
+    expect(body).toContain("Save LMS placement policy");
+    expect(body).toContain("Turning this off prevents new placements");
     expect(body).not.toContain('name="trustedCriteriaUri"');
     expect(body).toContain('id="template-editor-trusted-credential"');
     expect(body).toContain("TrustEd readiness");

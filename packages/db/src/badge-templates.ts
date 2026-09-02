@@ -69,6 +69,11 @@ export interface UpdateBadgeTemplateInput {
   trustedCredentialMetadataJson?: string | null | undefined;
 }
 
+type CompareAndSetBadgeTemplateGovernanceMetadataResult =
+  | { readonly status: "updated"; readonly template: BadgeTemplateRecord }
+  | { readonly status: "not_found" }
+  | { readonly status: "conflict" };
+
 export interface SetBadgeTemplateArchiveStateInput {
   tenantId: string;
   id: string;
@@ -600,6 +605,62 @@ export const updateBadgeTemplate = async (
     .run();
 
   return findBadgeTemplateById(db, input.tenantId, input.id);
+};
+
+/**
+ * Replaces governance metadata only when it still matches the caller's previously read value.
+ */
+export const compareAndSetBadgeTemplateGovernanceMetadata = async (
+  db: SqlDatabase,
+  input: {
+    readonly tenantId: string;
+    readonly id: string;
+    readonly expectedGovernanceMetadataJson: string | null;
+    readonly governanceMetadataJson: string;
+  },
+): Promise<CompareAndSetBadgeTemplateGovernanceMetadataResult> => {
+  const updatedAt = new Date().toISOString();
+  const row = await db
+    .prepare(
+      `
+      UPDATE badge_templates
+      SET governance_metadata_json = ?,
+          updated_at = ?
+      WHERE tenant_id = ?
+        AND id = ?
+        AND governance_metadata_json IS NOT DISTINCT FROM ?
+      RETURNING
+        id,
+        tenant_id AS tenantId,
+        slug,
+        title,
+        description,
+        criteria_uri AS criteriaUri,
+        image_uri AS imageUri,
+        trusted_credential_metadata_json AS trustedCredentialMetadataJson,
+        created_by_user_id AS createdByUserId,
+        owner_org_unit_id AS ownerOrgUnitId,
+        governance_metadata_json AS governanceMetadataJson,
+        is_archived AS isArchived,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+    `,
+    )
+    .bind(
+      input.governanceMetadataJson,
+      updatedAt,
+      input.tenantId,
+      input.id,
+      input.expectedGovernanceMetadataJson,
+    )
+    .first<BadgeTemplateRow>();
+
+  if (row !== null) {
+    return { status: "updated", template: mapBadgeTemplateRow(row) };
+  }
+
+  const current = await findBadgeTemplateById(db, input.tenantId, input.id);
+  return current === null ? { status: "not_found" } : { status: "conflict" };
 };
 
 export const setBadgeTemplateArchivedState = async (

@@ -7,6 +7,7 @@ import {
   parseBadgeTemplateImageRevisionPathParams,
   parseBadgeTemplatePathParams,
   parseCreateBadgeTemplateRequest,
+  parseLtiInstructorPlacementPolicyRequest,
   parseUpdateBadgeTemplateRequest,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
@@ -27,6 +28,7 @@ import { restoreBadgeTemplateImageRevision } from "../badges/badge-template-imag
 import {
   createBadgeTemplateWithAudit,
   isBadgeTemplateSlugConflict,
+  updateBadgeTemplateLtiPlacementPolicyWithAudit,
   updateBadgeTemplateWithAudit,
 } from "../badges/badge-template-write-workflows";
 import {
@@ -307,6 +309,105 @@ export const registerBadgeTemplateListAdminRoutes = (
       },
     );
   });
+
+  app.post(
+    "/tenants/:tenantId/admin/rules/templates/:badgeTemplateId/lti-placement-policy",
+    async (c) => {
+      const pathParams = parseBadgeTemplatePathParams(c.req.param());
+      const listPageQuery = parseBadgeTemplateListPageQuery(c.req.query());
+      const editorPath = badgeTemplateAdminEditorHref(
+        pathParams.tenantId,
+        pathParams.badgeTemplateId,
+      );
+
+      return withBadgeTemplateIssuerAccess(
+        {
+          c,
+          tenantId: pathParams.tenantId,
+          badgeTemplateId: pathParams.badgeTemplateId,
+          nextPath: editorPath,
+          resolveDatabase,
+          resolveInstitutionAdminAdminRole,
+          requireScopedOrgUnitPermission,
+          notFound: ({ principal }) =>
+            redirectToTemplateListWithFlash(c, {
+              tenantId: pathParams.tenantId,
+              userId: principal.userId,
+              listPageQuery,
+              tone: "error",
+              message: "Badge template not found",
+            }),
+        },
+        async ({ db, principal, membershipRole, template: existingTemplate }) => {
+          const formData = await c.req.formData();
+          const placementValues = formData.getAll("ltiInstructorPlacement");
+
+          let request: ReturnType<typeof parseLtiInstructorPlacementPolicyRequest>;
+
+          try {
+            const enabledInput: unknown =
+              placementValues.length === 0
+                ? false
+                : placementValues.length === 1 && placementValues[0] === "enabled"
+                  ? true
+                  : placementValues;
+            request = parseLtiInstructorPlacementPolicyRequest({ enabled: enabledInput });
+          } catch {
+            return redirectToTemplateEditor(c, pathParams.tenantId, pathParams.badgeTemplateId, {
+              placementError: "Choose a valid LMS placement setting and try again.",
+            });
+          }
+
+          const result = await updateBadgeTemplateLtiPlacementPolicyWithAudit(db, {
+            tenantId: pathParams.tenantId,
+            badgeTemplateId: pathParams.badgeTemplateId,
+            existingTemplate,
+            request,
+            actorUserId: principal.userId,
+            membershipRole,
+          });
+
+          if (result.status === "invalid_existing_metadata") {
+            return redirectToTemplateEditor(c, pathParams.tenantId, pathParams.badgeTemplateId, {
+              placementError:
+                "CredTrail could not save this setting because the template's governance metadata is invalid. Repair the stored metadata and try again.",
+            });
+          }
+
+          if (result.status === "not_found") {
+            return redirectToTemplateListWithFlash(c, {
+              tenantId: pathParams.tenantId,
+              userId: principal.userId,
+              listPageQuery,
+              tone: "error",
+              message: "Badge template not found",
+            });
+          }
+
+          if (result.status === "conflict") {
+            return redirectToTemplateEditor(c, pathParams.tenantId, pathParams.badgeTemplateId, {
+              placementError:
+                "This template changed in another session. Reload the page and save the LMS placement policy again.",
+            });
+          }
+
+          if (result.status === "persistence_failed") {
+            throw new Error("Unable to save the badge template LMS placement policy", {
+              cause: result.cause,
+            });
+          }
+
+          return redirectToTemplateEditor(
+            c,
+            pathParams.tenantId,
+            pathParams.badgeTemplateId,
+            { placement: "saved" },
+            "template-editor-lms-placement",
+          );
+        },
+      );
+    },
+  );
 
   const runArchiveAction = async (
     c: AppContext,

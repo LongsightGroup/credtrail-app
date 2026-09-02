@@ -534,6 +534,7 @@ export const AdminCheckboxRow = ({
   type = "checkbox",
   disabled,
   form,
+  describedBy,
   dataAttributes,
 }: {
   name: string;
@@ -543,6 +544,7 @@ export const AdminCheckboxRow = ({
   type?: CtCheckboxType;
   disabled?: boolean;
   form?: string;
+  describedBy?: string | readonly string[];
   dataAttributes?: DataAttributes;
 }): HonoElement => {
   return (
@@ -554,6 +556,7 @@ export const AdminCheckboxRow = ({
       type={type}
       disabled={disabled}
       form={form}
+      describedBy={describedBy}
       dataAttributes={dataAttributes}
       className="ct-admin__checkbox-row"
     />

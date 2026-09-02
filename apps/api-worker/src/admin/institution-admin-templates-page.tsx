@@ -4,6 +4,7 @@ import type {
   TenantMembershipRole,
   TenantRecord,
 } from "@credtrail/db";
+import { isLtiInstructorPlacementEnabled } from "@credtrail/validation";
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
   AdminActions,
@@ -98,6 +99,7 @@ export interface InstitutionAdminRuleTemplateEditorPageInput {
   returnToRuleBuilder: boolean;
   listPageQuery?: BadgeTemplateListPageQueryOptions;
   detailsNotice?: { tone: "success" | "error"; message: string } | null;
+  placementNotice?: { tone: "success" | "error"; message: string } | null;
   artworkNotice?: { tone: "success" | "error"; message: string } | null;
   switchOrganizationPath?: string | null;
 }
@@ -163,10 +165,12 @@ const renderTemplateEditorFields = (input: {
   rulesTemplatesPath: string;
   templateHistoryHref: string;
   detailsNotice?: { tone: "success" | "error"; message: string } | null;
+  placementNotice?: { tone: "success" | "error"; message: string } | null;
   artworkNotice?: { tone: "success" | "error"; message: string } | null;
 }): HonoElement => {
   const template = input.selectedTemplate;
   const detailsFormAction = `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/details`;
+  const placementPolicyFormAction = `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/lti-placement-policy`;
   const imageUploadPath = `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/image-upload`;
   const imageApplyPath = `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/image-generations/apply`;
   const revisionLabel =
@@ -245,6 +249,44 @@ const renderTemplateEditorFields = (input: {
               Save template details
             </AdminButton>
           </div>
+        </AdminPanel>
+        <AdminPanel
+          as="section"
+          id="template-editor-lms-placement"
+          className="ct-admin__template-editor-page-panel ct-admin__template-editor-section"
+        >
+          <header class="ct-admin__template-editor-section-header">
+            <h2>LMS placement</h2>
+            <p>Control whether instructors can choose this template while adding course content.</p>
+          </header>
+          {input.placementNotice === null || input.placementNotice === undefined ? null : (
+            <AdminStatus
+              id="badge-template-placement-notice"
+              data-tone={input.placementNotice.tone}
+            >
+              {input.placementNotice.message}
+            </AdminStatus>
+          )}
+          <AdminForm
+            method="post"
+            action={placementPolicyFormAction}
+            className="ct-admin__form ct-stack"
+          >
+            <AdminCheckboxRow
+              name="ltiInstructorPlacement"
+              value="enabled"
+              label="Allow instructors to place this template from an LMS course"
+              checked={isLtiInstructorPlacementEnabled(template.governanceMetadataJson)}
+              describedBy="badge-template-placement-hint"
+            />
+            <CtFieldHint id="badge-template-placement-hint">
+              Instructors also need delegated “Set up LTI course badges” authority. Turning this off
+              prevents new placements; it does not remove existing course links.
+            </CtFieldHint>
+            <div class="ct-admin__template-editor-submit">
+              <AdminButton type="submit">Save LMS placement policy</AdminButton>
+            </div>
+          </AdminForm>
         </AdminPanel>
         {renderTrustEdCredentialPanel(template)}
         <AdminPanel
@@ -699,6 +741,7 @@ export const institutionAdminRuleTemplateEditorPage = (
             rulesTemplatesPath: paths.rulesTemplatesPath,
             templateHistoryHref,
             detailsNotice: input.detailsNotice ?? null,
+            placementNotice: input.placementNotice ?? null,
             artworkNotice: input.artworkNotice ?? null,
           })}
           {renderBadgeTemplateHistoryDialog({

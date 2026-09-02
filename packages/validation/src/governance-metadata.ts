@@ -5,6 +5,10 @@ export const ltiInstructorPlacementGovernanceSchema = z.object({
   enabled: z.boolean(),
 });
 
+const ltiInstructorPlacementPolicyRequestSchema = z.strictObject({
+  enabled: z.boolean(),
+});
+
 export const governanceMetadataSchema = jsonObjectSchema.superRefine((value, ctx) => {
   const placement = value.ltiInstructorPlacement;
 
@@ -24,6 +28,21 @@ export const governanceMetadataSchema = jsonObjectSchema.superRefine((value, ctx
 });
 
 export type GovernanceMetadata = JsonObject;
+/** Parsed request to allow or prevent future instructor-created LMS placements. */
+export type LtiInstructorPlacementPolicyRequest = z.infer<
+  typeof ltiInstructorPlacementPolicyRequestSchema
+>;
+
+type SetLtiInstructorPlacementPolicyResult =
+  | { readonly status: "updated"; readonly governanceMetadataJson: string }
+  | { readonly status: "invalid_existing_metadata" };
+
+/** Parses an LMS instructor-placement policy command at an external boundary. */
+export const parseLtiInstructorPlacementPolicyRequest = (
+  input: unknown,
+): LtiInstructorPlacementPolicyRequest => {
+  return ltiInstructorPlacementPolicyRequestSchema.parse(input);
+};
 
 export const parseGovernanceMetadataJson = (
   governanceMetadataJson: string | null,
@@ -61,4 +80,28 @@ export const isLtiInstructorPlacementEnabled = (governanceMetadataJson: string |
   const parsedPlacement = ltiInstructorPlacementGovernanceSchema.safeParse(placement);
 
   return parsedPlacement.success && parsedPlacement.data.enabled === true;
+};
+
+/**
+ * Sets the instructor-placement policy while preserving every other valid governance field.
+ * Invalid stored metadata is reported instead of being overwritten.
+ */
+export const setLtiInstructorPlacementPolicy = (
+  governanceMetadataJson: string | null,
+  enabled: boolean,
+): SetLtiInstructorPlacementPolicyResult => {
+  const metadata =
+    governanceMetadataJson === null ? {} : parseGovernanceMetadataJson(governanceMetadataJson);
+
+  if (metadata === null) {
+    return { status: "invalid_existing_metadata" };
+  }
+
+  return {
+    status: "updated",
+    governanceMetadataJson: JSON.stringify({
+      ...metadata,
+      ltiInstructorPlacement: { enabled },
+    }),
+  };
 };
