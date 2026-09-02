@@ -225,7 +225,7 @@ const renderResolvedRuleRow = (
       </td>
       <td>{formatIsoTimestamp(displayFields.updatedAt)}</td>
       <td>
-        <AdminActions>
+        <AdminActions className="ct-admin__rule-row-actions">
           <AdminButtonLink href={detailPath} variant="secondary" size="tiny">
             View
           </AdminButtonLink>

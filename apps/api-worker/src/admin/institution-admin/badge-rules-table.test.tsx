@@ -106,6 +106,7 @@ describe("badge rules table lifecycle states", () => {
     expect(html).toContain('href="/tenants/tenant_123/admin/rules/brl_copy%2Fsource/availability"');
     expect(html).toContain('aria-label="Set course availability for Course completion source"');
     expect(html).toContain(">Set course availability</a>");
+    expect(html).toContain('class="ct-admin__rule-row-actions ct-action-group"');
     expect(html).not.toContain("Mutable rule head");
   });
 });

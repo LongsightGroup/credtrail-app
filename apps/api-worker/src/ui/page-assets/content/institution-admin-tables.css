@@ -156,6 +156,13 @@
   text-decoration-thickness: 1px;
   text-underline-offset: 0.18em;
 }
+.ct-admin__table .ct-admin__rule-row-actions {
+  flex-wrap: wrap;
+  white-space: normal;
+}
+.ct-admin__table .ct-admin__rule-row-actions .ct-admin__button {
+  white-space: nowrap;
+}
 .ct-admin__empty {
   color: var(--ct-theme-text-muted);
   text-align: center;
