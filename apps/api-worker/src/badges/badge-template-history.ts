@@ -35,7 +35,6 @@ const auditFieldLabels: Readonly<Record<string, string>> = {
   description: "Description",
   criteriaUri: "Criteria URL",
   imageUri: "Image URL",
-  ltiInstructorPlacement: "LMS instructor placement",
 };
 
 const ownershipReasonLabels: Readonly<Record<BadgeTemplateOwnershipReasonCode, string>> = {

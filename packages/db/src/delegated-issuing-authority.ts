@@ -5,11 +5,7 @@ import { findTenantOrgUnitById } from "./tenant-org-units";
 import { isOrgUnitWithinAncestorScope } from "./tenant-org-unit-hierarchy";
 import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "./tenant-scope";
 
-export type DelegatedIssuingAuthorityAction =
-  | "issue_badge"
-  | "revoke_badge"
-  | "manage_lifecycle"
-  | "configure_course_rule";
+export type DelegatedIssuingAuthorityAction = "issue_badge" | "revoke_badge" | "manage_lifecycle";
 
 export type DelegatedIssuingAuthorityGrantStatus = "scheduled" | "active" | "expired" | "revoked";
 
@@ -128,7 +124,6 @@ const DELEGATED_ISSUING_AUTHORITY_ACTIONS = new Set<DelegatedIssuingAuthorityAct
   "issue_badge",
   "revoke_badge",
   "manage_lifecycle",
-  "configure_course_rule",
 ]);
 
 const normalizeDelegatedIssuingAuthorityActions = (
@@ -172,8 +167,7 @@ const parseDelegatedIssuingAuthorityActionsJson = (
       typeof candidate !== "string" ||
       (candidate !== "issue_badge" &&
         candidate !== "revoke_badge" &&
-        candidate !== "manage_lifecycle" &&
-        candidate !== "configure_course_rule")
+        candidate !== "manage_lifecycle")
     ) {
       throw new Error(
         `delegated_issuing_authority_grants.allowed_actions_json contains unsupported action: ${String(candidate)}`,
@@ -183,7 +177,7 @@ const parseDelegatedIssuingAuthorityActionsJson = (
     parsedActions.push(candidate);
   }
 
-  return normalizeDelegatedIssuingAuthorityActions(parsedActions);
+  return Array.from(new Set(parsedActions)).sort();
 };
 
 const normalizeDelegatedIssuingAuthorityBadgeTemplateIds = (

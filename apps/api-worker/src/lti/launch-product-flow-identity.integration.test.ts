@@ -159,7 +159,6 @@ const resourceLinkLaunchMessage = (
     resourceContextId: "course-123",
     badgeTemplateId: null,
     ruleId: null,
-    setupToken: null,
   };
 };
 

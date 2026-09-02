@@ -215,15 +215,6 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     stem: "lti-course-summary",
     sources: ["lti-course-summary.js"],
   },
-  ltiDeepLinkSetupJs: {
-    kind: "script",
-    stem: "lti-deep-link-setup",
-    sources: [
-      "lms-picker-payload-parsers.js",
-      "lms-gradebook-picker-primitives.js",
-      "lti-deep-link-setup.js",
-    ],
-  },
   ltiPostMessageStorageJs: {
     kind: "script",
     stem: "lti-post-message-storage",

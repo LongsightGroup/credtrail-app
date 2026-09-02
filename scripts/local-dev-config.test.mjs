@@ -16,10 +16,11 @@ test("local Wrangler example uses localhost issuer config", async () => {
   assert.doesNotMatch(source, /credtrail\.example/);
 });
 
-test("local environment example provides the admin cookie signing secret", async () => {
+test("local environment example provides browser and LTI signing secrets", async () => {
   const source = await readFile(new URL("../.dev.vars.local.example", import.meta.url), "utf8");
 
   assert.match(source, /^BETTER_AUTH_SECRET=\S+$/m);
+  assert.match(source, /^LTI_STATE_SIGNING_SECRET=\S+$/m);
   assert.match(source, /^PUBLIC_APP_ORIGIN=http:\/\/localhost:8787$/m);
 });
 

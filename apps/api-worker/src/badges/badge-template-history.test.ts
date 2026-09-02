@@ -53,22 +53,6 @@ describe("badge template history", () => {
     ).toBe("Title: Old title → New title");
   });
 
-  it("formats LMS placement policy changes in administrator-facing language", () => {
-    expect(
-      formatBadgeTemplateAuditDetail(
-        JSON.stringify({
-          changes: [
-            {
-              field: "ltiInstructorPlacement",
-              from: "Not allowed",
-              to: "Allowed",
-            },
-          ],
-        }),
-      ),
-    ).toBe("LMS instructor placement: Not allowed → Allowed");
-  });
-
   it("skips legacy title and slug metadata when field-level changes are present", () => {
     expect(
       formatBadgeTemplateAuditDetail(

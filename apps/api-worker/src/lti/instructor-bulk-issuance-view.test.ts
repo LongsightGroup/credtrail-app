@@ -145,7 +145,6 @@ const launchMessage = (): ResourceLinkLaunchMessage => {
     resourceContextId: contextId,
     badgeTemplateId: selectedBadge.badgeTemplateId,
     ruleId: "brl_123",
-    setupToken: null,
   };
 };
 
@@ -212,6 +211,7 @@ const resolveViewInput = (
     ltiLaunchSession: ltiSession(),
     roster: roster(),
     issuerClientId: clientId,
+    resolvedRuleId: "brl_123",
     linkedUserId: "instructor-user-123",
     selectedBadge,
     courseContextTitle: "Course 123",

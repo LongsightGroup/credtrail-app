@@ -687,17 +687,13 @@ describe("tenant membership and delegation parsers", () => {
     const payload = parseCreateDelegatedIssuingAuthorityGrantRequest({
       orgUnitId: "tenant_123:org:department-math",
       badgeTemplateIds: ["badge_template_001", "badge_template_002"],
-      allowedActions: ["issue_badge", "revoke_badge", "configure_course_rule"],
+      allowedActions: ["issue_badge", "revoke_badge"],
       startsAt: "2026-02-13T12:00:00.000Z",
       endsAt: "2026-03-13T12:00:00.000Z",
       reason: "Spring term delegation",
     });
 
-    expect(payload.allowedActions).toEqual([
-      "issue_badge",
-      "revoke_badge",
-      "configure_course_rule",
-    ]);
+    expect(payload.allowedActions).toEqual(["issue_badge", "revoke_badge"]);
     expect(payload.badgeTemplateIds).toEqual(["badge_template_001", "badge_template_002"]);
 
     expect(() => {

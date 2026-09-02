@@ -161,7 +161,8 @@ const mapLtiResourceLinkPlacementRow = (
   throw new Error(`LTI resource-link placement "${row.id}" has an invalid lifecycle state`);
 };
 
-const findLtiResourceLinkPlacementForUpdate = async (
+/** Locks and returns one exact placement identity inside an existing transaction. */
+export const findLtiResourceLinkPlacementForUpdateWithinTransaction = async (
   db: SqlDatabase,
   input: {
     issuer: string;
@@ -198,7 +199,7 @@ export const upsertLtiResourceLinkPlacementWithinTransaction = async (
   const normalizedIssuer = normalizeLtiIssuer(input.issuer);
   const nowIso = new Date().toISOString();
   const id = input.id ?? `lti_place_${crypto.randomUUID().replace(/-/g, "")}`;
-  const previous = await findLtiResourceLinkPlacementForUpdate(db, {
+  const previous = await findLtiResourceLinkPlacementForUpdateWithinTransaction(db, {
     issuer: normalizedIssuer,
     clientId: input.clientId,
     deploymentId: input.deploymentId,

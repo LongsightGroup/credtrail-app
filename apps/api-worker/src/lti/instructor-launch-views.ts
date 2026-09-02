@@ -263,6 +263,7 @@ const resolveSelectedInstructorResourceLinkViews = async (
         ltiLaunchSession: input.ltiLaunchSession,
         roster,
         issuerClientId: input.issuerClientId,
+        resolvedRuleId: input.launch.rule.id,
         linkedUserId: input.linkedUserId,
         selectedBadge,
         courseContextTitle: launchContext.courseContextTitle,

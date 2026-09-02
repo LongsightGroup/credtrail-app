@@ -1,20 +1,12 @@
 import {
-  compareAndSetBadgeTemplateGovernanceMetadata,
   createAuditLog,
   createBadgeTemplate,
-  runSqlTransaction,
   updateBadgeTemplate,
   type BadgeTemplateRecord,
   type SqlDatabase,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import {
-  isLtiInstructorPlacementEnabled,
-  setLtiInstructorPlacementPolicy,
-  type CreateBadgeTemplateRequest,
-  type LtiInstructorPlacementPolicyRequest,
-  type UpdateBadgeTemplateRequest,
-} from "@credtrail/validation";
+import type { CreateBadgeTemplateRequest, UpdateBadgeTemplateRequest } from "@credtrail/validation";
 import { buildBadgeTemplateFieldChanges } from "./badge-template-audit-metadata";
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -117,76 +109,4 @@ export const updateBadgeTemplateWithAudit = async (
   }
 
   return template;
-};
-
-type UpdateBadgeTemplateLtiPlacementPolicyResult =
-  | { readonly status: "updated"; readonly template: BadgeTemplateRecord }
-  | { readonly status: "not_found" }
-  | { readonly status: "invalid_existing_metadata" }
-  | { readonly status: "conflict" }
-  | { readonly status: "persistence_failed"; readonly cause: unknown };
-
-/** Updates the governed LMS placement policy without exposing or replacing raw metadata. */
-export const updateBadgeTemplateLtiPlacementPolicyWithAudit = async (
-  db: SqlDatabase,
-  input: {
-    readonly tenantId: string;
-    readonly badgeTemplateId: string;
-    readonly existingTemplate: BadgeTemplateRecord;
-    readonly request: LtiInstructorPlacementPolicyRequest;
-    readonly actorUserId: string;
-    readonly membershipRole: TenantMembershipRole;
-  },
-): Promise<UpdateBadgeTemplateLtiPlacementPolicyResult> => {
-  const updatedMetadata = setLtiInstructorPlacementPolicy(
-    input.existingTemplate.governanceMetadataJson,
-    input.request.enabled,
-  );
-
-  if (updatedMetadata.status === "invalid_existing_metadata") {
-    return updatedMetadata;
-  }
-
-  const wasEnabled = isLtiInstructorPlacementEnabled(input.existingTemplate.governanceMetadataJson);
-
-  if (wasEnabled === input.request.enabled) {
-    return { status: "updated", template: input.existingTemplate };
-  }
-
-  try {
-    return await runSqlTransaction(db, async (transactionDb) => {
-      const updateResult = await compareAndSetBadgeTemplateGovernanceMetadata(transactionDb, {
-        tenantId: input.tenantId,
-        id: input.badgeTemplateId,
-        expectedGovernanceMetadataJson: input.existingTemplate.governanceMetadataJson,
-        governanceMetadataJson: updatedMetadata.governanceMetadataJson,
-      });
-
-      if (updateResult.status !== "updated") {
-        return updateResult;
-      }
-
-      await createAuditLog(transactionDb, {
-        tenantId: input.tenantId,
-        actorUserId: input.actorUserId,
-        action: "badge_template.updated",
-        targetType: "badge_template",
-        targetId: updateResult.template.id,
-        metadata: {
-          role: input.membershipRole,
-          changes: [
-            {
-              field: "ltiInstructorPlacement",
-              from: wasEnabled ? "Allowed" : "Not allowed",
-              to: input.request.enabled ? "Allowed" : "Not allowed",
-            },
-          ],
-        },
-      });
-
-      return updateResult;
-    });
-  } catch (cause: unknown) {
-    return { status: "persistence_failed", cause };
-  }
 };

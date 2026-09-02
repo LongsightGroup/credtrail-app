@@ -24,8 +24,7 @@ describeDbIntegration("badge template governance policy updates with Postgres", 
       const badgeTemplateId = await seedBadgeTemplate(fixture.db, {
         tenantId: fixture.tenantId,
       });
-      const governanceMetadataJson =
-        '{"stability":"institution_registry","ltiInstructorPlacement":{"enabled":true}}';
+      const governanceMetadataJson = '{"stability":"institution_registry","approval":"registrar"}';
 
       await expect(
         compareAndSetBadgeTemplateGovernanceMetadata(fixture.db, {

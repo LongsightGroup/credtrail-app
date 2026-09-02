@@ -41,6 +41,7 @@ export interface ResolveInstructorBulkIssuanceViewInput {
   ltiLaunchSession: LTISession;
   roster: LtiNrpsRoster;
   issuerClientId: string;
+  resolvedRuleId: string;
   linkedUserId: string;
   selectedBadge: LtiBadgeSummaryCard;
   courseContextTitle: string | null;
@@ -207,7 +208,7 @@ const resolveInstructorBulkIssuanceViewWithDependencies = async (
     clientId: input.issuerClientId,
     deploymentId: input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
     resourceLinkId: input.launchMessage.resourceLinkId,
-    launchRuleId: input.launchMessage.ruleId,
+    launchRuleId: input.resolvedRuleId,
     members: input.roster.learnerMembers,
     issuedStatesByUserId: issuedBadgeStatesByUserId,
     nowIso: input.nowIso,

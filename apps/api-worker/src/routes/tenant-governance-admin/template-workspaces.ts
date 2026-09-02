@@ -318,34 +318,6 @@ export const createTenantGovernanceTemplateAdminWorkspaces = (input: {
     return null;
   };
 
-  const parseBadgeTemplateEditorPlacementNotice = (
-    query: Record<string, string | string[] | undefined>,
-  ): { tone: "success" | "error"; message: string } | null => {
-    const placementErrorRaw = query["placementError"];
-    const placementError =
-      typeof placementErrorRaw === "string"
-        ? placementErrorRaw.trim()
-        : Array.isArray(placementErrorRaw)
-          ? (placementErrorRaw[0]?.trim() ?? "")
-          : "";
-
-    if (placementError.length > 0) {
-      return { tone: "error", message: placementError };
-    }
-
-    const placementRaw = query["placement"];
-    const placement =
-      typeof placementRaw === "string"
-        ? placementRaw.trim()
-        : Array.isArray(placementRaw)
-          ? (placementRaw[0]?.trim() ?? "")
-          : "";
-
-    return placement === "saved"
-      ? { tone: "success", message: "LMS placement policy saved." }
-      : null;
-  };
-
   const renderInstitutionAdminTemplateEditorWorkspace = async (
     c: AppContext,
     tenantId: string,
@@ -401,7 +373,6 @@ export const createTenantGovernanceTemplateAdminWorkspaces = (input: {
         returnToRuleBuilder: c.req.query("returnTo") === "rule-builder",
         listPageQuery: parseBadgeTemplateListPageQuery(c.req.query()),
         detailsNotice: parseBadgeTemplateEditorDetailsNotice(c.req.query()),
-        placementNotice: parseBadgeTemplateEditorPlacementNotice(c.req.query()),
         artworkNotice: parseBadgeTemplateEditorArtworkNotice(c.req.query()),
       }),
     );

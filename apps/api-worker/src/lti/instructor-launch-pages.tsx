@@ -377,7 +377,7 @@ export const CourseBadgeSummarySection = (input: {
                         ) : (
                           <a href={row.badgeDetailPath} target="_blank" rel="noopener noreferrer">
                             {row.badgeTitle}
-                            <span class="lti-launch__sr-only"> badge setup for this course</span>
+                            <span class="lti-launch__sr-only"> badge details</span>
                           </a>
                         )}
                       </td>

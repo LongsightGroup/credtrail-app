@@ -4,8 +4,10 @@ import type { LtiAuthenticatedPrincipal, LtiSessionInput } from "../auth/auth-pr
 import type { LinkedLtiLaunchAccount } from "./launch-account-linking";
 import type { ResolvedLtiLaunchMessage } from "./launch-message";
 import type { ResolvedLtiLaunch } from "./launch-verification";
-import type { UpsertLtiLaunchResourceLinkPlacementResult } from "./resource-link-placement";
-import type { ValidatedResourceLinkLaunch } from "./resource-link-launch-types";
+import type {
+  UnresolvedResourceLinkLaunch,
+  ValidatedResourceLinkLaunch,
+} from "./resource-link-launch-types";
 
 export type DeepLinkingLaunchMessage = Extract<ResolvedLtiLaunchMessage, { kind: "deep-linking" }>;
 
@@ -26,6 +28,7 @@ export type HandleVerifiedLtiLaunch = (input: HandleVerifiedLtiLaunchInput) => P
 
 export interface ProductFlowFailure {
   status: 400 | 403 | 409 | 500;
+  surface?: "lti_rule_unavailable" | undefined;
   body: {
     error: string;
     reason?: string;
@@ -47,7 +50,7 @@ export interface ValidatedDeepLinkingLaunch {
   launchMessage: DeepLinkingLaunchMessage;
 }
 
-export type ValidatedLtiLaunchMessage = ValidatedDeepLinkingLaunch | ValidatedResourceLinkLaunch;
+export type ValidatedLtiLaunchMessage = ValidatedDeepLinkingLaunch | UnresolvedResourceLinkLaunch;
 
 export interface EstablishedLtiLaunchSession {
   linkedAccount: LinkedLtiLaunchAccount;
@@ -56,7 +59,6 @@ export interface EstablishedLtiLaunchSession {
 
 export interface PreparedResourceLinkLaunch {
   launch: ValidatedResourceLinkLaunch;
-  placementResult: UpsertLtiLaunchResourceLinkPlacementResult | null;
 }
 
 export interface PrepareLaunchedResourceLinkPlacementInput {
@@ -66,7 +68,7 @@ export interface PrepareLaunchedResourceLinkPlacementInput {
   issuerEntryClientId: string;
   launchClaims: ResolvedLtiLaunch["launchClaims"];
   resolvedLaunch: ResolvedLtiLaunch;
-  launch: ValidatedResourceLinkLaunch;
+  launch: UnresolvedResourceLinkLaunch;
   linkedUserId: string;
   linkedMembershipRole: TenantMembershipRole;
 }

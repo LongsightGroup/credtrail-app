@@ -16,8 +16,10 @@ import {
   listAssertionLifecycleStatesByAssertionIds,
   listLearnerBadgeSummaries,
   type AssertionEngagementEventRecord,
+  type BadgeIssuanceRuleRecord,
   type BadgeTemplateRecord,
   type LearnerBadgeSummaryRecord,
+  type LtiResourceLinkPlacementRecord,
   type SqlDatabase,
 } from "@credtrail/db";
 import {
@@ -29,6 +31,7 @@ import {
   createLearnerResourceLinkViewResolver,
   resolveLearnerResourceLinkView,
 } from "./learner-launch-views";
+import { buildBadgeRuleVersionRecord } from "../test-support/badge-rule-version";
 import type {
   ValidatedCourseResourceLinkLaunch,
   ValidatedSelectedResourceLinkLaunch,
@@ -95,6 +98,41 @@ const sampleAssertionEngagementEvent = (
   };
 };
 
+const sampleRule = (): BadgeIssuanceRuleRecord => ({
+  id: "brl_123",
+  tenantId: "tenant_123",
+  name: "TypeScript completion",
+  description: "Awards the TypeScript badge.",
+  badgeTemplateId: "badge_template_001",
+  orgUnitId: "tenant_123:org:institution",
+  ownerOrgUnitId: "tenant_123:org:institution",
+  lmsProviderKind: "canvas",
+  lmsConnectionId: "lms_123",
+  activeVersionId: "brv_123",
+  createdByUserId: "usr_admin",
+  createdAt: "2026-02-10T22:00:00.000Z",
+  updatedAt: "2026-02-10T22:00:00.000Z",
+});
+
+const samplePlacement = (): LtiResourceLinkPlacementRecord => ({
+  id: "lti_place_123",
+  tenantId: "tenant_123",
+  issuer: "https://tool.example.edu",
+  clientId: "client_123",
+  deploymentId: "deployment_123",
+  contextId: "course-123",
+  resourceLinkId: "resource-link-selected-badge",
+  badgeTemplateId: "badge_template_001",
+  ruleId: "brl_123",
+  createdByUserId: "usr_admin",
+  status: "active",
+  lastSeenAt: "2026-02-10T22:00:00.000Z",
+  retiredAt: null,
+  retiredByUserId: null,
+  createdAt: "2026-02-10T22:00:00.000Z",
+  updatedAt: "2026-02-10T22:00:00.000Z",
+});
+
 const sampleSelectedLaunch = (
   badgeTemplate = sampleBadgeTemplate(),
 ): ValidatedSelectedResourceLinkLaunch => {
@@ -109,10 +147,15 @@ const sampleSelectedLaunch = (
       resourceLinkId: "resource-link-selected-badge",
       resourceContextId: "course-123",
       badgeTemplateId: badgeTemplate.id,
-      ruleId: null,
-      setupToken: null,
+      ruleId: "brl_123",
     },
     launchedBadgeTemplate: badgeTemplate,
+    rule: sampleRule(),
+    version: buildBadgeRuleVersionRecord({
+      status: "active",
+      snapshot: { badgeTemplateId: badgeTemplate.id },
+    }),
+    placement: samplePlacement(),
   };
 };
 
@@ -127,7 +170,6 @@ const sampleCourseLaunch = (): ValidatedCourseResourceLinkLaunch => ({
     resourceContextId: "course-123",
     badgeTemplateId: null,
     ruleId: null,
-    setupToken: null,
   },
 });
 

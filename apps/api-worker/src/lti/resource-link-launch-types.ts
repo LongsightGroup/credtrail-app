@@ -1,4 +1,9 @@
-import type { BadgeTemplateRecord } from "@credtrail/db";
+import type {
+  BadgeIssuanceRuleRecord,
+  BadgeIssuanceRuleVersionRecord,
+  BadgeTemplateRecord,
+  LtiResourceLinkPlacementRecord,
+} from "@credtrail/db";
 import type { ResolvedLtiLaunchMessage } from "./launch-message";
 
 export type ResourceLinkLaunchMessage = Extract<
@@ -14,11 +19,19 @@ export type CourseResourceLinkLaunchMessage = ResourceLinkLaunchMessage & {
   badgeTemplateId: null;
 };
 
+export interface UnresolvedResourceLinkLaunch {
+  kind: "unresolved";
+  launchMessage: ResourceLinkLaunchMessage;
+}
+
 export type ValidatedResourceLinkLaunch =
   | {
       kind: "selected";
       launchMessage: SelectedResourceLinkLaunchMessage;
       launchedBadgeTemplate: BadgeTemplateRecord;
+      rule: BadgeIssuanceRuleRecord;
+      version: BadgeIssuanceRuleVersionRecord;
+      placement: LtiResourceLinkPlacementRecord;
     }
   | {
       kind: "course";

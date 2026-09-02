@@ -1,10 +1,8 @@
 import type { TenantMembershipRole } from "@credtrail/db";
 import type { PropsWithChildren } from "hono/jsx";
-import { CtButtonLink } from "../ui/actions";
-import { CtCheckboxField, CtField, CtFieldHint, CtForm, CtInput, CtSelect } from "../ui/forms";
+import { CtForm, CtInput } from "../ui/forms";
 import { appPage, type AppPage } from "../ui/render-page";
 import type { PageAssetKey } from "../ui/page-assets";
-import { LTI_COURSE_BADGE_SETUP_PRESETS } from "./course-badge-setup";
 import { BulkIssuanceSection, CourseBadgeSummarySection } from "./instructor-launch-pages";
 import { LearnerBadgeSummarySection } from "./learner-launch-pages";
 import {
@@ -253,6 +251,26 @@ export const ltiLaunchResultPage = (input: {
   });
 };
 
+export const ltiRuleUnavailablePage = (input: { readonly message: string }): AppPage => {
+  return ltiPage({
+    title: "Badge rule unavailable | CredTrail",
+    body: (
+      <section class="lti-launch">
+        <header class="lti-launch__hero">
+          <h1>This badge rule isn’t available in this course</h1>
+          <p>{input.message}</p>
+        </header>
+        <LtiLaunchCard stack={true}>
+          <p>
+            Contact the course instructor or your institution’s CredTrail administrator to update
+            this LMS link or its course availability.
+          </p>
+        </LtiLaunchCard>
+      </section>
+    ),
+  });
+};
+
 export const ltiRosterIssuanceResultPage = (input: {
   tenantId: string;
   badgeTemplateId: string;
@@ -333,121 +351,30 @@ const DeepLinkOption = (input: {
   signedSelectionActionUrl: string;
   ltiSessionId: string;
 }): HonoElement => {
-  const thresholdHintId = `score-threshold-hint-${input.option.badgeTemplateId}`;
-  const itemHintId = `gradebook-item-hint-${input.option.badgeTemplateId}`;
-  const completionHintId = `completion-percent-hint-${input.option.badgeTemplateId}`;
-  const workflowHintId = `workflow-state-hint-${input.option.badgeTemplateId}`;
-  const gradebookLookupBase = `/v1/lti/deep-linking/sessions/${encodeURIComponent(
-    input.ltiSessionId,
-  )}`;
-
   return (
-    <article
-      class="lti-deep-link__option"
-      data-lti-gradebook-setup="true"
-      data-lti-gradebook-api-base={gradebookLookupBase}
-    >
-      <h2>{input.option.title}</h2>
-      <p class="lti-deep-link__meta">Template ID: {input.option.badgeTemplateId}</p>
-      {input.option.description === null ? (
-        <p class="lti-deep-link__description">No template description provided.</p>
+    <article class="lti-deep-link__option">
+      <div class="lti-deep-link__option-heading">
+        <div>
+          <p class="lti-deep-link__eyebrow">{input.option.badgeTitle}</p>
+          <h2>{input.option.ruleName}</h2>
+        </div>
+        <span class="lti-deep-link__version">Version {String(input.option.versionNumber)}</span>
+      </div>
+      {input.option.badgeDescription === null ? (
+        <p class="lti-deep-link__description">No badge description provided.</p>
       ) : (
-        <p class="lti-deep-link__description">{input.option.description}</p>
+        <p class="lti-deep-link__description">{input.option.badgeDescription}</p>
       )}
-      <p class="lti-deep-link__meta">
-        Launch URL:{" "}
-        <a href={input.option.launchUrl} target="_blank" rel="noopener noreferrer">
-          {input.option.launchUrl}
-        </a>
-      </p>
+      <dl class="lti-deep-link__rule-summary">
+        <div>
+          <dt>Requirements</dt>
+          <dd>{input.option.requirementSummary}</dd>
+        </div>
+      </dl>
       <LtiDeepLinkForm action={input.signedSelectionActionUrl}>
         <CtInput type="hidden" name="lti_session_id" value={input.ltiSessionId} />
-        <CtInput type="hidden" name="badge_template_id" value={input.option.badgeTemplateId} />
-        <fieldset class="lti-deep-link__setup">
-          <legend>Course earning criteria</legend>
-          <div class="lti-deep-link__criteria">
-            {LTI_COURSE_BADGE_SETUP_PRESETS.map((preset) => (
-              <CtCheckboxField
-                type="radio"
-                name="criteria_preset"
-                value={preset.value}
-                label={preset.label}
-                checked={preset.checkedByDefault === true}
-              />
-            ))}
-          </div>
-          <div class="lti-deep-link__setup-fields">
-            <div class="lti-deep-link__notice" data-lti-gradebook-status role="status" hidden>
-              <span data-lti-gradebook-status-message></span>
-            </div>
-            <CtField label="Score threshold" compact={true}>
-              <CtInput
-                name="score_threshold"
-                type="number"
-                value="80"
-                min="0"
-                max="100"
-                step="0.01"
-                describedBy={thresholdHintId}
-              />
-              <CtFieldHint id={thresholdHintId}>Used by score threshold presets.</CtFieldHint>
-            </CtField>
-            <CtField label="Search gradebook item" compact={true}>
-              <CtInput
-                type="search"
-                placeholder="Search by gradebook item, assignment, assessment, or activity title"
-                dataAttributes={{ "data-lti-gradebook-item-query": "true" }}
-              />
-              <CtSelect
-                name="gradebook_item_id"
-                describedBy={itemHintId}
-                dataAttributes={{ "data-lti-gradebook-item-select": "true" }}
-              >
-                <option value="">Loading gradebook items...</option>
-              </CtSelect>
-              <CtFieldHint id={itemHintId}>
-                Used by gradebook item score and assignment/assessment/activity presets.
-              </CtFieldHint>
-            </CtField>
-            <CtField label="Workflow states" compact={true}>
-              <CtSelect
-                name="workflow_states"
-                multiple={true}
-                size={4}
-                describedBy={workflowHintId}
-                dataAttributes={{ "data-lti-workflow-state-select": "true" }}
-              >
-                <option value="">Select a gradebook item first</option>
-              </CtSelect>
-              <CtFieldHint id={workflowHintId}>
-                Used by the assignment/assessment/activity submitted or graded preset.
-              </CtFieldHint>
-            </CtField>
-            <CtField label="Completion percentage" compact={true}>
-              <CtInput
-                name="completion_percent"
-                type="number"
-                value="100"
-                min="0"
-                max="100"
-                step="0.01"
-                describedBy={completionHintId}
-              />
-              <CtFieldHint id={completionHintId}>Used by the completion preset.</CtFieldHint>
-            </CtField>
-          </div>
-        </fieldset>
-        <div class="lti-deep-link__actions">
-          <LtiSubmitButton>Save setup and place badge</LtiSubmitButton>
-          <CtButtonLink
-            href={input.option.advancedSetupUrl}
-            variant="secondary"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Advanced setup in CredTrail
-          </CtButtonLink>
-        </div>
+        <CtInput type="hidden" name="rule_id" value={input.option.ruleId} />
+        <LtiSubmitButton>Add to this course</LtiSubmitButton>
       </LtiDeepLinkForm>
     </article>
   );
@@ -456,37 +383,23 @@ const DeepLinkOption = (input: {
 export const ltiDeepLinkSelectionPage = (input: LtiDeepLinkSelectionPageInput): AppPage => {
   return ltiPage({
     title: "LTI Deep Linking | CredTrail",
-    scripts: ["ltiDeepLinkSetupJs"],
     body: (
       <section class="lti-deep-link">
         <header class="lti-deep-link__hero">
-          <h1>Select badge template placement</h1>
-          <p>Choose a badge template and return it to your LMS via LTI Deep Linking.</p>
+          <p class="lti-deep-link__eyebrow">{input.courseTitle}</p>
+          <h1>Add a badge rule</h1>
+          <p>Choose a governed awarding rule that your institution offers in this course.</p>
         </header>
-        <article class="lti-deep-link__details-card">
-          <dl class="lti-deep-link__details">
-            <DetailRows
-              rows={[
-                { label: "Issuer", value: input.issuer },
-                { label: "Deployment ID", value: input.deploymentId },
-                { label: "Tenant", value: input.tenantId },
-                { label: "User ID", value: input.userId },
-                { label: "Membership role", value: input.membershipRole },
-                { label: "Deep link return URL", value: input.deepLinkReturnUrl },
-                { label: "Target link URI", value: input.targetLinkUri },
-              ]}
-            />
-          </dl>
-        </article>
         <section class="lti-deep-link__options">
           {input.options.length === 0 ? (
             <p class="lti-deep-link__empty">
-              No active badge templates are available for this tenant.
+              No badge rules are currently offered in this course. Contact your institution’s
+              CredTrail administrator.
             </p>
           ) : (
             input.options.map((option) => (
               <DeepLinkOption
-                key={option.badgeTemplateId}
+                key={option.ruleId}
                 option={option}
                 signedSelectionActionUrl={input.signedSelectionActionUrl}
                 ltiSessionId={input.ltiSessionId}

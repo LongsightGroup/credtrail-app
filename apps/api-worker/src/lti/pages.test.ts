@@ -130,45 +130,52 @@ const sampleLearnerBadgeSummaryView = (
 };
 
 describe("ltiDeepLinkSelectionPage", () => {
-  it("renders the setup form with Sakai gradebook evidence pickers", () => {
+  it("renders governed rule options without exposing internal identifiers", () => {
     const html = renderAppPageToString(
       ltiDeepLinkSelectionPage({
-        issuer: "https://canvas.example.edu",
-        deploymentId: "deployment_123",
-        tenantId: "tenant_123",
-        userId: "usr_lti_123",
-        membershipRole: "issuer",
         ltiSessionId: "lti-session-123",
-        deepLinkReturnUrl: "https://canvas.example.edu/deep-link-return",
-        targetLinkUri: "https://credtrail.example.edu/v1/lti/launch",
+        courseTitle: "Foundations 101",
         mode: "signed",
         signedSelectionActionUrl: "/v1/lti/deep-linking/select",
         options: [
           {
-            badgeTemplateId: "badge_template_001",
-            title: "TypeScript Foundations",
-            description: "Awarded for completing TypeScript fundamentals.",
-            launchUrl:
-              "https://credtrail.example.edu/v1/lti/launch?badgeTemplateId=badge_template_001",
-            advancedSetupUrl:
-              "/tenants/tenant_123/admin/rules/new?badgeTemplateId=badge_template_001",
+            ruleId: "rule_internal_001",
+            ruleName: "Complete the foundations pathway",
+            badgeTitle: "TypeScript Foundations",
+            badgeDescription: "Awarded for completing TypeScript fundamentals.",
+            requirementSummary: "Complete all 3 required learning activities.",
+            versionNumber: 4,
           },
         ],
       }),
     );
 
-    expect(html).toContain("/assets/ui/lti-deep-link-setup.");
-    expect(html).toContain('data-lti-gradebook-setup="true"');
-    expect(html).toContain(
-      'data-lti-gradebook-api-base="/v1/lti/deep-linking/sessions/lti-session-123"',
+    expect(html).toContain("Add a badge rule");
+    expect(html).toContain("Foundations 101");
+    expect(html).toContain("TypeScript Foundations");
+    expect(html).toContain("Complete the foundations pathway");
+    expect(html).toContain("Complete all 3 required learning activities.");
+    expect(html).toContain("Version 4");
+    expect(html).toContain('name="lti_session_id"');
+    expect(html).toContain('name="rule_id"');
+    expect(html).toContain("Add to this course");
+    expect(html).not.toContain("rule_internal_001</");
+  });
+
+  it("renders the exact empty state when no rule is offered", () => {
+    const html = renderAppPageToString(
+      ltiDeepLinkSelectionPage({
+        ltiSessionId: "lti-session-123",
+        courseTitle: "Foundations 101",
+        mode: "signed",
+        signedSelectionActionUrl: "/v1/lti/deep-linking/select",
+        options: [],
+      }),
     );
-    expect(html).toContain("Search gradebook item");
-    expect(html).toContain("assignment/assessment/activity");
-    expect(html).toContain('name="gradebook_item_id"');
-    expect(html).toContain('data-lti-gradebook-item-select="true"');
-    expect(html).toContain('name="workflow_states"');
-    expect(html).toContain("Loading gradebook items...");
-    expect(html).not.toContain("Gradebook item or assignment ID");
+
+    expect(html).toContain(
+      "No badge rules are currently offered in this course. Contact your institution’s CredTrail administrator.",
+    );
   });
 });
 

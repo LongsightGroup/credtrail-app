@@ -1,15 +1,14 @@
-import { findBadgeTemplateById, type SqlDatabase } from "@credtrail/db";
+import {
+  findTenantLmsConnectionByLtiRegistration,
+  observeVerifiedLtiCourseContext,
+  placeStableLtiBadgeRule,
+  type PlaceStableLtiBadgeRuleResult,
+  type SqlDatabase,
+} from "@credtrail/db";
 import { LTI_CLAIM_DEPLOYMENT_ID } from "@longsightgroup/lti-tool";
 import type { AppContext } from "../app/types";
-import type { AppLogger } from "../app/observability";
 import { renderAppPage } from "../ui/render-page";
 import { LTI_SESSION_HANDOFF_TTL_SECONDS } from "./constants";
-import { createCourseBadgePlacementRule } from "./course-badge-setup";
-import { resolveLtiCourseBadgeAuthority } from "./course-badge-governance";
-import {
-  verifyLtiCourseBadgeSetupToken,
-  type LtiCourseBadgeSetupPayload,
-} from "./course-badge-setup-token";
 import type { LinkedLtiLaunchAccount } from "./launch-account-linking";
 import {
   type EstablishedLtiLaunchSession,
@@ -20,223 +19,155 @@ import {
   productFlowSuccess,
 } from "./launch-product-types";
 import type { ResolvedLtiLaunch } from "./launch-verification";
-import { ltiLogger } from "./log";
 import { ltiDisplayNameFromClaims, ltiLearnerDashboardPath } from "./lti-helpers";
-import {
-  upsertLtiLaunchResourceLinkPlacement,
-  type UpsertLtiLaunchResourceLinkPlacementResult,
-} from "./resource-link-placement";
 import { resolveLtiResourceLinkLaunchViews } from "./resource-link-launch-views";
 import type {
   CourseResourceLinkLaunchMessage,
-  ResourceLinkLaunchMessage,
   SelectedResourceLinkLaunchMessage,
   ValidatedResourceLinkLaunch,
 } from "./resource-link-launch-types";
 import { createLtiSessionHandoffToken } from "./session-handoff";
 import { ltiLaunchResultPage } from "./pages";
 
-/**
- * Validates product-owned Resource Link launch data after protocol verification.
- */
-export const validateLaunchedResourceLinkBadgeTemplate = async (input: {
-  db: SqlDatabase;
-  tenantId: string;
-  launchMessage: ResourceLinkLaunchMessage;
-}): Promise<ProductFlowResult<ValidatedResourceLinkLaunch>> => {
-  if (input.launchMessage.badgeTemplateId === null) {
-    return productFlowSuccess({
-      kind: "course",
-      launchMessage: {
-        ...input.launchMessage,
-        badgeTemplateId: null,
-      } satisfies CourseResourceLinkLaunchMessage,
-    });
-  }
-
-  const launchMessage = {
-    ...input.launchMessage,
-    badgeTemplateId: input.launchMessage.badgeTemplateId,
-  } satisfies SelectedResourceLinkLaunchMessage;
-  const launchedBadgeTemplate = await findBadgeTemplateById(
-    input.db,
-    input.tenantId,
-    launchMessage.badgeTemplateId,
-  );
-
-  if (launchedBadgeTemplate === null || launchedBadgeTemplate.isArchived) {
-    return productFlowFailure({
-      status: 400,
-      body: {
-        error: "LTI resource-link badge template is not available for this tenant",
-      },
-    });
-  }
-
-  return productFlowSuccess({
-    kind: "selected",
-    launchMessage,
-    launchedBadgeTemplate,
-  });
+const courseCode = (label: string | undefined): string | null => {
+  const normalized = label?.trim() ?? "";
+  return normalized.length === 0 ? null : normalized;
 };
 
-const recordLaunchedResourceLinkPlacement = async (input: {
-  db: SqlDatabase;
-  tenantId: string;
-  issuerEntryClientId: string;
-  launchClaims: ResolvedLtiLaunch["launchClaims"];
-  launch: ValidatedResourceLinkLaunch;
-  linkedUserId: string;
-  ltiLog?: AppLogger | undefined;
-}): Promise<UpsertLtiLaunchResourceLinkPlacementResult | null> => {
-  if (input.launch.kind === "course") {
-    return null;
+const placementDenialMessage = (
+  result: Exclude<
+    PlaceStableLtiBadgeRuleResult,
+    { readonly status: "placed" | "reactivated" | "existing" }
+  >,
+): string => {
+  switch (result.status) {
+    case "replace_link_required":
+      return "This older LMS link does not identify a governed badge rule. Replace the link from the LMS add-content workflow.";
+    case "placement_conflict":
+      return "This LMS link conflicts with its saved CredTrail placement. Replace the link or contact your administrator.";
+    case "rule_not_found":
+      return "The governed badge rule for this LMS link could not be found.";
+    case "rule_not_active":
+      return "The governed badge rule for this LMS link is not currently active.";
+    case "template_mismatch":
+      return "The badge attached to this LMS link no longer matches its governed rule.";
+    case "course_context_not_found":
+      return "CredTrail could not verify this LMS course against the connected registration.";
+    case "course_unmapped":
+      return "This LMS course must be mapped to an organizational area before this badge rule can be used here.";
+    case "outside_availability":
+      return "This badge rule is not currently offered in this course.";
+    case "course_relative_rule_not_supported":
+      return "This older course-specific rule cannot be copied into a new LMS placement.";
   }
-
-  return upsertLtiLaunchResourceLinkPlacement({
-    db: input.db,
-    tenantId: input.tenantId,
-    issuer: input.launchClaims.iss,
-    clientId: input.issuerEntryClientId,
-    deploymentId: input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
-    contextId: input.launch.launchMessage.resourceContextId,
-    resourceLinkId: input.launch.launchMessage.resourceLinkId,
-    badgeTemplateId: input.launch.launchMessage.badgeTemplateId,
-    ruleId: input.launch.launchMessage.ruleId,
-    createdByUserId: input.linkedUserId,
-    ltiLog: input.ltiLog,
-  });
-};
-
-const ltiCourseBadgeSetupMatchesLaunch = (input: {
-  setup: LtiCourseBadgeSetupPayload;
-  tenantId: string;
-  issuerEntryClientId: string;
-  launchClaims: ResolvedLtiLaunch["launchClaims"];
-  launch: ValidatedResourceLinkLaunch;
-}): boolean => {
-  if (input.launch.kind !== "selected") {
-    return false;
-  }
-
-  return (
-    input.setup.tenantId === input.tenantId &&
-    input.setup.issuer === input.launchClaims.iss &&
-    input.setup.clientId === input.issuerEntryClientId &&
-    input.setup.deploymentId === input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID] &&
-    input.setup.contextId === input.launch.launchMessage.resourceContextId &&
-    input.setup.badgeTemplateId === input.launch.launchMessage.badgeTemplateId
-  );
 };
 
 /**
- * Records or creates the CredTrail placement state implied by a Resource Link launch.
+ * Reauthorizes and records the stable rule implied by a verified Resource Link launch.
  */
 export const prepareLaunchedResourceLinkPlacement = async (
   input: PrepareLaunchedResourceLinkPlacementInput,
 ): Promise<ProductFlowResult<PreparedResourceLinkLaunch>> => {
-  if (input.launch.kind !== "selected" || input.launch.launchMessage.setupToken === null) {
-    return productFlowSuccess({
-      launch: input.launch,
-      placementResult: await recordLaunchedResourceLinkPlacement({
-        db: input.db,
-        tenantId: input.tenantId,
-        issuerEntryClientId: input.issuerEntryClientId,
-        launchClaims: input.launchClaims,
-        launch: input.launch,
-        linkedUserId: input.linkedUserId,
-        ltiLog: ltiLogger(input.c),
-      }),
-    });
-  }
-
-  const setup = await verifyLtiCourseBadgeSetupToken(
-    input.c.env,
-    input.launch.launchMessage.setupToken,
-  );
-
-  if (input.launch.launchMessage.roleKind !== "instructor") {
-    return productFlowFailure({
-      status: 403,
-      body: {
-        error: "LTI course badge setup requires an instructor resource-link launch",
-      },
-    });
-  }
-
-  if (
-    setup === null ||
-    !ltiCourseBadgeSetupMatchesLaunch({
-      setup,
-      tenantId: input.tenantId,
-      issuerEntryClientId: input.issuerEntryClientId,
-      launchClaims: input.launchClaims,
-      launch: input.launch,
-    })
-  ) {
-    return productFlowFailure({
-      status: 400,
-      body: {
-        error: "LTI course badge setup token does not match this resource-link launch",
-      },
-    });
-  }
-
-  const authority = await resolveLtiCourseBadgeAuthority(input.db, {
-    tenantId: input.tenantId,
-    userId: input.linkedUserId,
-    badgeTemplate: input.launch.launchedBadgeTemplate,
-  });
-
-  if (!authority.ok) {
-    return productFlowFailure({
-      status: 403,
-      body: {
-        error: authority.message,
-        reason: authority.reason,
-      },
-    });
-  }
-
-  const setupResult = await createCourseBadgePlacementRule({
-    db: input.db,
-    store: input.c.env.BADGE_OBJECTS,
-    publicAppOrigin: input.c.env.PUBLIC_APP_ORIGIN,
+  const deploymentId = input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID];
+  const lmsConnection = await findTenantLmsConnectionByLtiRegistration(input.db, {
     tenantId: input.tenantId,
     issuer: input.launchClaims.iss,
     clientId: input.issuerEntryClientId,
-    deploymentId: input.launchClaims[LTI_CLAIM_DEPLOYMENT_ID],
-    ltiSession: input.resolvedLaunch.ltiLaunchSession,
-    badgeTemplate: input.launch.launchedBadgeTemplate,
-    contextId: input.launch.launchMessage.resourceContextId,
-    resourceLinkId: input.launch.launchMessage.resourceLinkId,
-    createdByUserId: input.linkedUserId,
-    createdByRole: input.linkedMembershipRole,
-    delegatedGrantId: authority.grant.id,
-    courseParentOrgUnitId: authority.grant.orgUnitId,
-    setupRequest: setup.setupRequest,
+    deploymentId,
   });
 
-  if (!setupResult.ok) {
+  if (lmsConnection === null) {
     return productFlowFailure({
-      status: setupResult.reason === "course_rule_already_configured" ? 409 : 400,
+      status: 403,
+      surface: "lti_rule_unavailable",
       body: {
-        error: setupResult.message,
-        reason: setupResult.reason,
+        error: "This LTI registration is not connected to an LMS in CredTrail.",
+        reason: "course_context_not_found",
+      },
+    });
+  }
+
+  const sessionContextId = input.resolvedLaunch.ltiLaunchSession.context.id.trim();
+  const messageContextId = input.launch.launchMessage.resourceContextId?.trim() ?? "";
+  const contextId = messageContextId.length === 0 ? sessionContextId : messageContextId;
+
+  if (contextId.length === 0 || (sessionContextId.length > 0 && contextId !== sessionContextId)) {
+    return productFlowFailure({
+      status: 403,
+      surface: "lti_rule_unavailable",
+      body: {
+        error: "CredTrail could not verify the LMS course for this link.",
+        reason: "course_context_not_found",
+      },
+    });
+  }
+
+  const contextTitle = input.resolvedLaunch.ltiLaunchSession.context.title.trim();
+  await observeVerifiedLtiCourseContext(input.db, {
+    tenantId: input.tenantId,
+    lmsConnectionId: lmsConnection.id,
+    contextId,
+    displayName: contextTitle.length === 0 ? "LMS course" : contextTitle,
+    courseCode: courseCode(input.resolvedLaunch.ltiLaunchSession.context.label),
+  });
+  const placement = await placeStableLtiBadgeRule(input.db, {
+    tenantId: input.tenantId,
+    lmsConnectionId: lmsConnection.id,
+    contextId,
+    issuer: input.launchClaims.iss,
+    clientId: input.issuerEntryClientId,
+    deploymentId,
+    resourceLinkId: input.launch.launchMessage.resourceLinkId,
+    incomingRuleId: input.launch.launchMessage.ruleId,
+    incomingBadgeTemplateId: input.launch.launchMessage.badgeTemplateId,
+    linkedUserId: input.linkedUserId,
+    roleKind: input.launch.launchMessage.roleKind,
+  });
+
+  if (placement.status === "replace_link_required") {
+    if (
+      input.launch.launchMessage.ruleId === null &&
+      input.launch.launchMessage.badgeTemplateId === null
+    ) {
+      return productFlowSuccess({
+        launch: {
+          kind: "course",
+          launchMessage: {
+            ...input.launch.launchMessage,
+            badgeTemplateId: null,
+          } satisfies CourseResourceLinkLaunchMessage,
+        },
+      });
+    }
+  }
+
+  if (
+    placement.status !== "placed" &&
+    placement.status !== "reactivated" &&
+    placement.status !== "existing"
+  ) {
+    return productFlowFailure({
+      status: 403,
+      surface: "lti_rule_unavailable",
+      body: {
+        error: placementDenialMessage(placement),
+        reason: placement.status,
       },
     });
   }
 
   return productFlowSuccess({
     launch: {
-      ...input.launch,
+      kind: "selected",
       launchMessage: {
         ...input.launch.launchMessage,
-        ruleId: setupResult.rule.id,
-      },
-    },
-    placementResult: {
-      ok: true,
+        badgeTemplateId: placement.badgeTemplate.id,
+        ruleId: placement.rule.id,
+      } satisfies SelectedResourceLinkLaunchMessage,
+      launchedBadgeTemplate: placement.badgeTemplate,
+      rule: placement.rule,
+      version: placement.version,
+      placement: placement.placement,
     },
   });
 };
@@ -273,7 +204,7 @@ export const renderLtiResourceLinkLaunchResponse = async (input: {
   db: SqlDatabase;
   tenantId: string;
   launchClaims: ResolvedLtiLaunch["launchClaims"];
-  launchMessage: ResourceLinkLaunchMessage;
+  launchMessage: ValidatedResourceLinkLaunch["launchMessage"];
   linkedAccount: LinkedLtiLaunchAccount;
   establishedSession: EstablishedLtiLaunchSession;
   resolvedLaunch: ResolvedLtiLaunch;
@@ -294,7 +225,6 @@ export const renderLtiResourceLinkLaunchResponse = async (input: {
       resolvedLaunch: input.resolvedLaunch,
       validatedResourceLinkLaunch: input.validatedResourceLinkLaunch,
       linkedAccount: input.linkedAccount,
-      ltiLog: ltiLogger(input.c),
       sha256Hex: input.sha256Hex,
       sessionHandoffTtlSeconds: LTI_SESSION_HANDOFF_TTL_SECONDS,
     }),
@@ -319,26 +249,4 @@ export const renderLtiResourceLinkLaunchResponse = async (input: {
       learnerView: resourceLinkViews.learnerView,
     }),
   );
-};
-
-/**
- * Logs non-fatal Resource Link placement write failures after launch rendering can continue.
- */
-export const logResourceLinkPlacementFailure = (input: {
-  c: AppContext;
-  tenantId: string;
-  launch: ValidatedResourceLinkLaunch;
-  placementResult: UpsertLtiLaunchResourceLinkPlacementResult;
-}): void => {
-  if (input.placementResult.ok) {
-    return;
-  }
-
-  ltiLogger(input.c)?.warn("LTI launch continuing without recording resource-link placement", {
-    tenantId: input.tenantId,
-    resourceLinkId: input.launch.launchMessage.resourceLinkId,
-    badgeTemplateId: input.launch.launchMessage.badgeTemplateId ?? "",
-    reason: input.placementResult.reason,
-    ...(input.placementResult.detail === undefined ? {} : { detail: input.placementResult.detail }),
-  });
 };

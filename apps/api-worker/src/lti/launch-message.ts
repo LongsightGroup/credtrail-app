@@ -27,7 +27,6 @@ export type ResolvedLtiLaunchMessage =
       resourceContextId: string | null;
       badgeTemplateId: string | null;
       ruleId: string | null;
-      setupToken: string | null;
     }
   | {
       kind: "deep-linking";
@@ -62,16 +61,6 @@ export const ruleIdFromTargetLinkUri = (targetLinkUri: string): string | null =>
     const parsed = new URL(targetLinkUri);
     const ruleId = parsed.searchParams.get("ruleId")?.trim() ?? "";
     return ruleId.length === 0 ? null : ruleId;
-  } catch {
-    return null;
-  }
-};
-
-export const setupTokenFromTargetLinkUri = (targetLinkUri: string): string | null => {
-  try {
-    const parsed = new URL(targetLinkUri);
-    const setupToken = parsed.searchParams.get("setupToken")?.trim() ?? "";
-    return setupToken.length === 0 ? null : setupToken;
   } catch {
     return null;
   }
@@ -137,9 +126,6 @@ export const resolveCredTrailLtiLaunchMessage = (input: {
         badgeTemplateIdFromTargetLinkUri(resolvedTargetLinkUri),
       ruleId:
         asNonEmptyString(customParameters.ruleId) ?? ruleIdFromTargetLinkUri(resolvedTargetLinkUri),
-      setupToken:
-        asNonEmptyString(customParameters.setupToken) ??
-        setupTokenFromTargetLinkUri(resolvedTargetLinkUri),
     };
   }
 

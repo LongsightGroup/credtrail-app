@@ -1,6 +1,7 @@
 import { attachLtiLaunchSessionPrincipal } from "@credtrail/db";
 import { LTI_CLAIM_DEPLOYMENT_ID } from "@longsightgroup/lti-tool";
 import type { AppContext } from "../app/types";
+import { renderAppPage } from "../ui/render-page";
 import {
   linkInstructorLmsIdentity,
   type InstructorLmsIdentityLinkFailure,
@@ -19,15 +20,14 @@ import {
   productFlowSuccess,
 } from "./launch-product-types";
 import {
-  logResourceLinkPlacementFailure,
   prepareLaunchedResourceLinkPlacement,
   renderLtiResourceLinkLaunchResponse,
-  validateLaunchedResourceLinkBadgeTemplate,
 } from "./launch-resource-link-flow";
 import type { ResolvedLtiLaunch } from "./launch-verification";
 import { ltiLogger } from "./log";
 import { ltiEmailFromClaims, ltiSourcedIdFromClaims } from "./lti-helpers";
 import { ltiErrorDetail } from "./redaction";
+import { ltiRuleUnavailablePage } from "./pages";
 
 export type { HandleVerifiedLtiLaunch, HandleVerifiedLtiLaunchInput };
 
@@ -40,24 +40,25 @@ const isValidatedDeepLinkingLaunch = (
 export const responseFromProductFailure = (
   c: AppContext,
   failure: ProductFlowFailure,
-): Response => {
+): Response | Promise<Response> => {
+  if (failure.surface === "lti_rule_unavailable") {
+    return renderAppPage(c, ltiRuleUnavailablePage({ message: failure.body.error }), 403);
+  }
+
   return c.json(failure.body, failure.status);
 };
 
-const validateResolvedLtiLaunchMessage = async (input: {
-  db: HandleVerifiedLtiLaunchInput["db"];
-  tenantId: string;
+const validateResolvedLtiLaunchMessage = (input: {
   launchMessage: ResolvedLtiLaunchMessage;
-}): Promise<ProductFlowResult<ValidatedLtiLaunchMessage>> => {
+}): ProductFlowResult<ValidatedLtiLaunchMessage> => {
   if (input.launchMessage.kind === "deep-linking") {
     return productFlowSuccess({
       launchMessage: input.launchMessage,
     });
   }
 
-  return validateLaunchedResourceLinkBadgeTemplate({
-    db: input.db,
-    tenantId: input.tenantId,
+  return productFlowSuccess({
+    kind: "unresolved",
     launchMessage: input.launchMessage,
   });
 };
@@ -214,17 +215,6 @@ export const handleResourceLinkLaunch = async (input: {
   }
 
   const preparedResourceLinkLaunch = preparedResourceLinkLaunchResult.value;
-  const attemptedPlacementResult = preparedResourceLinkLaunch.placementResult;
-
-  if (attemptedPlacementResult?.ok === false) {
-    logResourceLinkPlacementFailure({
-      c: input.c,
-      tenantId: input.tenantId,
-      launch: preparedResourceLinkLaunch.launch,
-      placementResult: attemptedPlacementResult,
-    });
-  }
-
   return renderLtiResourceLinkLaunchResponse({
     c: input.c,
     db: input.db,
@@ -243,9 +233,7 @@ export const handleResourceLinkLaunch = async (input: {
  * CredTrail product decisions after an LTI launch is cryptographically verified.
  */
 export const handleVerifiedLtiLaunch: HandleVerifiedLtiLaunch = async (input) => {
-  const validatedLaunchResult = await validateResolvedLtiLaunchMessage({
-    db: input.db,
-    tenantId: input.tenantId,
+  const validatedLaunchResult = validateResolvedLtiLaunchMessage({
     launchMessage: input.launchMessage,
   });
 

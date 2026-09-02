@@ -87,7 +87,6 @@ export const delegatedIssuingAuthorityActionSchema = z.enum([
   "issue_badge",
   "revoke_badge",
   "manage_lifecycle",
-  "configure_course_rule",
 ]);
 export const orgUnitSlugSchema = z
   .string()

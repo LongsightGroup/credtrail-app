@@ -300,7 +300,7 @@ describe("resolveInstructorCourseBadgeSummaryView", () => {
       "/tenants/tenant_123/admin/operations/issued-badges?recipientQuery=learner-two%40example.edu&badgeTemplateId=badge_template_001&source=lti-course-summary",
     );
     expect(view.rows[0]?.badgeDetailPath).toBe(
-      "/tenants/tenant_123/admin/rules/templates/badge_template_001?ltiContextId=course-123&ltiResourceLinkId=resource-link-123&source=lti-course-summary&ltiCourse=Course+123",
+      "/tenants/tenant_123/admin/rules/templates/badge_template_001",
     );
   });
 

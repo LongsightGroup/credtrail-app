@@ -2,6 +2,7 @@ import {
   createTenantOrgUnit,
   ensureInstitutionOrgUnitForTenant,
   upsertTenant,
+  upsertLtiIssuerRegistration,
   upsertTenantLmsConnection,
   upsertTenantMembershipRole,
   upsertUserByEmail,
@@ -9,7 +10,7 @@ import {
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 import { managedBadgeTemplateImagePath } from "@credtrail/validation";
-import { createServer } from "node:http";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { createTestBadgeIssuanceRule } from "../../../packages/db/src/badge-issuance-rule-test-fixtures";
 import { loadLocalDevEnv, requireEnv } from "../../../scripts/local-dev-env.mjs";
@@ -25,7 +26,27 @@ export interface LiveRulePlacementAvailabilityFixture {
   readonly rulesPath: string;
   readonly initialRuleState: LiveRuleState;
   readonly readRuleState: () => Promise<LiveRuleState>;
+  readonly ltiPlatform: LiveLtiPlatform;
+  readonly readPlacementContexts: () => Promise<readonly string[]>;
   readonly dispose: () => Promise<void>;
+}
+
+export interface LiveLtiContentItem {
+  readonly title: string;
+  readonly url: string;
+  readonly custom: {
+    readonly badgeTemplateId: string;
+    readonly ruleId: string;
+  };
+}
+
+export interface LiveLtiPlatform {
+  readonly issuer: string;
+  readonly clientId: string;
+  readonly deploymentId: string;
+  readonly instructorEmail: string;
+  readonly deepLinkReturnUrl: string;
+  readonly readContentItem: () => LiveLtiContentItem;
 }
 
 export interface LiveRuleState {
@@ -38,22 +59,41 @@ const deleteFixture = async (
   db: SqlDatabase,
   input: { readonly tenantId: string; readonly userId: string },
 ): Promise<void> => {
-  const authUsers = await db
+  const ltiUsers = await db
     .prepare(
       `
-        SELECT auth_user_id AS authUserId
-        FROM auth_identity_links
-        WHERE credtrail_user_id = ?
+        SELECT DISTINCT user_id AS userId
+        FROM tenant_lms_user_identities
+        WHERE tenant_id = ?
       `,
     )
-    .bind(input.userId)
-    .all<{ readonly authUserId: string }>();
+    .bind(input.tenantId)
+    .all<{ readonly userId: string }>();
+  const userIds = [...new Set([input.userId, ...ltiUsers.results.map((entry) => entry.userId)])];
+  const authUserIds: string[] = [];
+
+  for (const userId of userIds) {
+    const authUsers = await db
+      .prepare(
+        `
+          SELECT auth_user_id AS authUserId
+          FROM auth_identity_links
+          WHERE credtrail_user_id = ?
+        `,
+      )
+      .bind(userId)
+      .all<{ readonly authUserId: string }>();
+    authUserIds.push(...authUsers.results.map((entry) => entry.authUserId));
+  }
 
   await db.prepare("DELETE FROM tenants WHERE id = ?").bind(input.tenantId).run();
-  await db.prepare("DELETE FROM users WHERE id = ?").bind(input.userId).run();
 
-  for (const authUser of authUsers.results) {
-    await db.prepare("DELETE FROM auth.user WHERE id = ?").bind(authUser.authUserId).run();
+  for (const userId of userIds) {
+    await db.prepare("DELETE FROM users WHERE id = ?").bind(userId).run();
+  }
+
+  for (const authUserId of authUserIds) {
+    await db.prepare("DELETE FROM auth.user WHERE id = ?").bind(authUserId).run();
   }
 };
 
@@ -125,6 +165,331 @@ const startMockSakai = async (): Promise<{
   };
 };
 
+const ltiClaim = {
+  context: "https://purl.imsglobal.org/spec/lti/claim/context",
+  custom: "https://purl.imsglobal.org/spec/lti/claim/custom",
+  deepLinkingSettings: "https://purl.imsglobal.org/spec/lti-dl/claim/deep_linking_settings",
+  deploymentId: "https://purl.imsglobal.org/spec/lti/claim/deployment_id",
+  messageType: "https://purl.imsglobal.org/spec/lti/claim/message_type",
+  resourceLink: "https://purl.imsglobal.org/spec/lti/claim/resource_link",
+  roles: "https://purl.imsglobal.org/spec/lti/claim/roles",
+  targetLinkUri: "https://purl.imsglobal.org/spec/lti/claim/target_link_uri",
+  version: "https://purl.imsglobal.org/spec/lti/claim/version",
+} as const;
+
+const base64Url = (value: string | Uint8Array): string => {
+  return Buffer.from(value).toString("base64url");
+};
+
+const signPlatformJwt = async (
+  privateKey: CryptoKey,
+  keyId: string,
+  payload: Readonly<Record<string, unknown>>,
+): Promise<string> => {
+  const headerSegment = base64Url(JSON.stringify({ alg: "RS256", kid: keyId, typ: "JWT" }));
+  const payloadSegment = base64Url(JSON.stringify(payload));
+  const signingInput = `${headerSegment}.${payloadSegment}`;
+  const signature = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    privateKey,
+    new TextEncoder().encode(signingInput),
+  );
+  return `${signingInput}.${base64Url(new Uint8Array(signature))}`;
+};
+
+const readRequestBody = async (request: IncomingMessage): Promise<string> => {
+  const chunks: Buffer[] = [];
+
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  return Buffer.concat(chunks).toString("utf8");
+};
+
+const respondJson = (response: ServerResponse, body: unknown, statusCode = 200): void => {
+  response.writeHead(statusCode, { "content-type": "application/json" });
+  response.end(JSON.stringify(body));
+};
+
+const requireQuery = (url: URL, name: string): string => {
+  const value = url.searchParams.get(name)?.trim() ?? "";
+
+  if (value.length === 0) {
+    throw new Error(`Mock LTI authorization request is missing ${name}`);
+  }
+
+  return value;
+};
+
+const parseRecord = (value: unknown, label: string): Record<string, unknown> => {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+
+  return value as Record<string, unknown>;
+};
+
+const requireRecordText = (record: Record<string, unknown>, field: string): string => {
+  const value = record[field];
+
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`Mock LTI value ${field} must be text`);
+  }
+
+  return value;
+};
+
+const contentItemFromDeepLinkResponse = (compactJwt: string): LiveLtiContentItem => {
+  const payloadSegment = compactJwt.split(".")[1];
+
+  if (payloadSegment === undefined) {
+    throw new Error("Deep Linking response is not a compact JWT");
+  }
+
+  const payload = parseRecord(
+    JSON.parse(Buffer.from(payloadSegment, "base64url").toString("utf8")) as unknown,
+    "Deep Linking response",
+  );
+  const rawItems = payload["https://purl.imsglobal.org/spec/lti-dl/claim/content_items"];
+
+  if (!Array.isArray(rawItems) || rawItems.length !== 1) {
+    throw new Error("Deep Linking response must contain exactly one content item");
+  }
+
+  const item = parseRecord(rawItems[0], "Deep Linking content item");
+  const custom = parseRecord(item.custom, "Deep Linking custom parameters");
+
+  return {
+    title: requireRecordText(item, "title"),
+    url: requireRecordText(item, "url"),
+    custom: {
+      badgeTemplateId: requireRecordText(custom, "badgeTemplateId"),
+      ruleId: requireRecordText(custom, "ruleId"),
+    },
+  };
+};
+
+interface MockLaunchHint {
+  readonly kind: "deep-link" | "resource";
+  readonly contextId: string;
+  readonly contextTitle: string;
+  readonly targetLinkUri: string;
+  readonly resourceLinkId?: string | undefined;
+  readonly custom?: Readonly<Record<string, string>> | undefined;
+}
+
+const parseLaunchHint = (raw: string): MockLaunchHint => {
+  const parsed = parseRecord(JSON.parse(raw) as unknown, "LTI message hint");
+  const kind = requireRecordText(parsed, "kind");
+
+  if (kind !== "deep-link" && kind !== "resource") {
+    throw new Error("LTI message hint has an unsupported kind");
+  }
+
+  const customRecord = parsed.custom;
+  const custom =
+    customRecord === undefined
+      ? undefined
+      : Object.fromEntries(
+          Object.entries(parseRecord(customRecord, "LTI message hint custom parameters")).map(
+            ([key, value]) => {
+              if (typeof value !== "string") {
+                throw new Error(`LTI custom parameter ${key} must be text`);
+              }
+
+              return [key, value];
+            },
+          ),
+        );
+
+  return {
+    kind,
+    contextId: requireRecordText(parsed, "contextId"),
+    contextTitle: requireRecordText(parsed, "contextTitle"),
+    targetLinkUri: requireRecordText(parsed, "targetLinkUri"),
+    ...(parsed.resourceLinkId === undefined
+      ? {}
+      : { resourceLinkId: requireRecordText(parsed, "resourceLinkId") }),
+    ...(custom === undefined ? {} : { custom }),
+  };
+};
+
+const startMockLtiPlatform = async (
+  suffix: string,
+): Promise<{
+  readonly platform: LiveLtiPlatform;
+  readonly authorizationEndpoint: string;
+  readonly platformJwksEndpoint: string;
+  readonly tokenEndpoint: string;
+  readonly close: () => Promise<void>;
+}> => {
+  const keyId = `platform-key-${suffix}`;
+  const keyPair = await crypto.subtle.generateKey(
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      hash: "SHA-256",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+    },
+    true,
+    ["sign", "verify"],
+  );
+  const publicJwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+  const clientId = `lti-client-${suffix}`;
+  const deploymentId = `lti-deployment-${suffix}`;
+  const instructorEmail = `lti-instructor-${suffix}@example.edu`;
+  let issuer = "";
+  let capturedContentItem: LiveLtiContentItem | null = null;
+  const server = createServer((request, response) => {
+    void (async () => {
+      const requestUrl = new URL(request.url ?? "/", issuer || "http://127.0.0.1");
+
+      if (requestUrl.pathname === "/jwks") {
+        respondJson(response, {
+          keys: [{ ...publicJwk, alg: "RS256", kid: keyId, use: "sig" }],
+        });
+        return;
+      }
+
+      if (requestUrl.pathname === "/token") {
+        respondJson(response, {
+          access_token: "mock-token",
+          expires_in: 300,
+          token_type: "Bearer",
+        });
+        return;
+      }
+
+      if (requestUrl.pathname === "/deep-link-return" && request.method === "POST") {
+        const form = new URLSearchParams(await readRequestBody(request));
+        const compactJwt = form.get("JWT");
+
+        if (compactJwt === null) {
+          throw new Error("Deep Linking return is missing JWT");
+        }
+
+        capturedContentItem = contentItemFromDeepLinkResponse(compactJwt);
+        response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+        response.end("<!doctype html><html><body><h1>Content added to course</h1></body></html>");
+        return;
+      }
+
+      if (requestUrl.pathname !== "/authorize") {
+        respondJson(
+          response,
+          { error: `No mock route configured for ${requestUrl.pathname}` },
+          404,
+        );
+        return;
+      }
+
+      const state = requireQuery(requestUrl, "state");
+      const nonce = requireQuery(requestUrl, "nonce");
+      const redirectUri = requireQuery(requestUrl, "redirect_uri");
+      const hint = parseLaunchHint(requireQuery(requestUrl, "lti_message_hint"));
+      const nowEpochSeconds = Math.floor(Date.now() / 1000);
+      const commonClaims: Record<string, unknown> = {
+        iss: issuer,
+        sub: "stable-rule-instructor",
+        aud: clientId,
+        exp: nowEpochSeconds + 300,
+        iat: nowEpochSeconds - 5,
+        nonce,
+        email: instructorEmail,
+        name: "Stable Rule Instructor",
+        [ltiClaim.deploymentId]: deploymentId,
+        [ltiClaim.version]: "1.3.0",
+        [ltiClaim.targetLinkUri]: hint.targetLinkUri,
+        [ltiClaim.context]: {
+          id: hint.contextId,
+          label: hint.contextId.toUpperCase(),
+          title: hint.contextTitle,
+        },
+        [ltiClaim.roles]: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
+      };
+      const payload =
+        hint.kind === "deep-link"
+          ? {
+              ...commonClaims,
+              [ltiClaim.messageType]: "LtiDeepLinkingRequest",
+              [ltiClaim.deepLinkingSettings]: {
+                deep_link_return_url: `${issuer}/deep-link-return`,
+                accept_types: ["ltiResourceLink"],
+                accept_presentation_document_targets: ["iframe", "window"],
+                accept_multiple: false,
+                auto_create: false,
+                data: `deep-link-data-${suffix}`,
+              },
+            }
+          : {
+              ...commonClaims,
+              [ltiClaim.messageType]: "LtiResourceLinkRequest",
+              [ltiClaim.resourceLink]: {
+                id: hint.resourceLinkId ?? `resource-${suffix}`,
+                title: "Stable rule badge",
+              },
+              [ltiClaim.custom]: hint.custom ?? {},
+            };
+      const idToken = await signPlatformJwt(keyPair.privateKey, keyId, payload);
+      response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      response.end(`<!doctype html>
+        <html><body>
+          <form id="launch" method="post" action="${redirectUri}">
+            <input type="hidden" name="id_token" value="${idToken}">
+            <input type="hidden" name="state" value="${state}">
+          </form>
+          <script>document.getElementById("launch").submit()</script>
+        </body></html>`);
+    })().catch((error: unknown) => {
+      response.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+      response.end(error instanceof Error ? error.message : "Mock LTI platform failed");
+    });
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+
+  if (address === null || typeof address === "string") {
+    server.close();
+    throw new Error("Mock LTI platform did not bind to a TCP port");
+  }
+
+  issuer = `http://127.0.0.1:${String(address.port)}`;
+  return {
+    platform: {
+      issuer,
+      clientId,
+      deploymentId,
+      instructorEmail,
+      deepLinkReturnUrl: `${issuer}/deep-link-return`,
+      readContentItem: () => {
+        if (capturedContentItem === null) {
+          throw new Error("Mock LTI platform has not received a content item");
+        }
+
+        return capturedContentItem;
+      },
+    },
+    authorizationEndpoint: `${issuer}/authorize`,
+    platformJwksEndpoint: `${issuer}/jwks`,
+    tokenEndpoint: `${issuer}/token`,
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error === undefined) {
+            resolve();
+          } else {
+            reject(error);
+          }
+        });
+      }),
+  };
+};
+
 /** Creates a disposable tenant and LMS for the live course-availability browser workflow. */
 export const createLiveRulePlacementAvailabilityFixture =
   async (): Promise<LiveRulePlacementAvailabilityFixture> => {
@@ -148,6 +513,7 @@ export const createLiveRulePlacementAvailabilityFixture =
       },
     });
     const mockSakai = await startMockSakai();
+    const mockLti = await startMockLtiPlatform(suffix);
     let tenantCreated = false;
     let adminUserId: string | null = null;
 
@@ -224,6 +590,17 @@ export const createLiveRulePlacementAvailabilityFixture =
         providerKind: "sakai",
         apiBaseUrl: mockSakai.apiBaseUrl,
         accessToken: "SAKAIID=availability-e2e-session",
+        ltiIssuer: mockLti.platform.issuer,
+        ltiClientId: mockLti.platform.clientId,
+        ltiDeploymentId: mockLti.platform.deploymentId,
+      });
+      await upsertLtiIssuerRegistration(db, {
+        issuer: mockLti.platform.issuer,
+        tenantId,
+        authorizationEndpoint: mockLti.authorizationEndpoint,
+        clientId: mockLti.platform.clientId,
+        platformJwksEndpoint: mockLti.platformJwksEndpoint,
+        tokenEndpoint: mockLti.tokenEndpoint,
       });
       const created = await createTestBadgeIssuanceRule(db, {
         tenantId,
@@ -271,6 +648,24 @@ export const createLiveRulePlacementAvailabilityFixture =
           ruleJson,
           versionCount: 1,
         },
+        ltiPlatform: mockLti.platform,
+        readPlacementContexts: async () => {
+          const placements = await db
+            .prepare(
+              `
+              SELECT context_id AS contextId
+              FROM lti_resource_link_placements
+              WHERE tenant_id = ?
+                AND rule_id = ?
+                AND status = 'active'
+              ORDER BY context_id ASC
+            `,
+            )
+            .bind(tenantId, created.rule.id)
+            .all<{ readonly contextId: string }>();
+
+          return placements.results.map((placement) => placement.contextId);
+        },
         readRuleState: async () => {
           const state = await db
             .prepare(
@@ -303,6 +698,7 @@ export const createLiveRulePlacementAvailabilityFixture =
         dispose: async () => {
           await deleteFixture(db, { tenantId, userId: admin.id });
           await mockSakai.close();
+          await mockLti.close();
         },
       };
     } catch (error) {
@@ -314,6 +710,7 @@ export const createLiveRulePlacementAvailabilityFixture =
         }
       }
       await mockSakai.close();
+      await mockLti.close();
       throw error;
     }
   };

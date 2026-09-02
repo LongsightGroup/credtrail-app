@@ -44,8 +44,6 @@ const formatDelegatedIssuingActionLabel = (action: string): string => {
       return "Revoke badges";
     case "manage_lifecycle":
       return "Change badge status";
-    case "configure_course_rule":
-      return "Set up LTI course badges";
     default:
       return action;
   }

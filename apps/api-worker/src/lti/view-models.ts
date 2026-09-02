@@ -1,4 +1,3 @@
-import type { TenantMembershipRole } from "@credtrail/db";
 import type { LtiRosterIssuanceBehaviorKey } from "./issuance-behavior";
 import type { LtiRosterEligibilityStatus } from "./roster-eligibility";
 
@@ -105,30 +104,22 @@ export interface LtiRosterIssuanceResultEntry {
   assertionId: string | null;
 }
 
-interface LtiDeepLinkSelectionBaseInput {
-  tenantId: string;
-  userId: string;
-  membershipRole: TenantMembershipRole;
-  issuer: string;
-  deploymentId: string;
-  deepLinkReturnUrl: string;
-  targetLinkUri: string;
-}
-
 export interface LtiDeepLinkSelectionOption {
-  badgeTemplateId: string;
-  title: string;
-  description: string | null;
-  launchUrl: string;
-  advancedSetupUrl: string;
+  ruleId: string;
+  ruleName: string;
+  badgeTitle: string;
+  badgeDescription: string | null;
+  requirementSummary: string;
+  versionNumber: number;
 }
 
-export type LtiDeepLinkSelectionPageInput = LtiDeepLinkSelectionBaseInput & {
+export interface LtiDeepLinkSelectionPageInput {
   mode: "signed";
   signedSelectionActionUrl: string;
   ltiSessionId: string;
+  courseTitle: string;
   options: readonly LtiDeepLinkSelectionOption[];
-};
+}
 
 export type InstructorResourceLinkViews =
   | {

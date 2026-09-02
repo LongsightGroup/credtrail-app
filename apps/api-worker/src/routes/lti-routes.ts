@@ -11,7 +11,6 @@ import {
 } from "../lti/constants";
 import { handleLtiDeepLinkingSelect } from "../lti/deep-linking-select-handler";
 import { registerLtiDynamicRegistrationRoutes } from "../lti/dynamic-registration-routes";
-import { registerLtiGradebookLookupRoutes } from "../lti/gradebook-lookup-routes";
 import { registerLtiJwksRoute } from "../lti/jwks-routes";
 import { handleLtiLaunchPost } from "../lti/launch-post-handler";
 import type { LtiIssuerRegistry } from "../lti/lti-issuer-registry";
@@ -64,12 +63,6 @@ export const registerLtiRoutes = (input: RegisterLtiRoutesInput): void => {
   registerLtiDynamicRegistrationRoutes({
     app,
     resolveDatabase,
-  });
-
-  registerLtiGradebookLookupRoutes({
-    app,
-    resolveDatabase,
-    resolveLtiIssuerRegistry,
   });
 
   app.post(LTI_DEEP_LINKING_SELECT_PATH, async (c): Promise<Response> => {

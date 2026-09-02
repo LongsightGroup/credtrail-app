@@ -16,7 +16,7 @@ import {
   type LtiCourseBadgeTemplatePlacementGroup,
 } from "./course-badge-placements";
 import {
-  ltiCourseSummaryBadgeSetupPath,
+  ltiCourseSummaryBadgeDetailsPath,
   ltiCourseSummaryIssuedBadgesPath,
 } from "./lti-admin-links";
 import type { LtiNrpsRoster } from "./nrps";
@@ -196,8 +196,6 @@ const ltiCourseBadgeSummaryViewFromRoster = async (
       assertion === null ? "not_issued" : courseBadgeSummaryStatus(lifecycle?.state ?? null);
     const learnerName = candidate.member.displayName;
     const assertionId = assertion?.id;
-    const linkedPlacement = candidate.placementGroup.primaryPlacement;
-    const placementContextId = linkedPlacement.contextId ?? input.contextId;
 
     rows.push({
       learnerUserId: candidate.member.userId,
@@ -215,12 +213,9 @@ const ltiCourseBadgeSummaryViewFromRoster = async (
       badgeTemplateId: candidate.template.id,
       badgeTitle: candidate.template.title,
       badgeDetailPath: input.canOpenAdminLinks
-        ? ltiCourseSummaryBadgeSetupPath({
+        ? ltiCourseSummaryBadgeDetailsPath({
             tenantId: input.tenantId,
             badgeTemplateId: candidate.template.id,
-            contextId: placementContextId,
-            resourceLinkId: linkedPlacement.resourceLinkId,
-            courseContextTitle: input.courseContextTitle,
           })
         : null,
       status,
