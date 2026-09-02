@@ -15,6 +15,7 @@ import {
 import { createLtiCourseBadgeSetupToken } from "./course-badge-setup-token";
 import { createCredTrailLtiTool } from "./credtrail-lti-tool";
 import { badgeTemplateDeepLinkContentItem } from "./deep-linking-helpers";
+import { secureLtiDeepLinkingHtmlResponse } from "./deep-linking-response-security";
 import { findLtiIssuerRegistryEntry, type LtiIssuerRegistry } from "./lti-issuer-registry";
 
 const LTI_COURSE_BADGE_SETUP_TOKEN_TTL_SECONDS = 60 * 60;
@@ -226,5 +227,8 @@ export const handleLtiDeepLinkingSelect = async (
     );
   }
 
-  return deepLinkingResult.data;
+  return secureLtiDeepLinkingHtmlResponse(
+    deepLinkingResult.data,
+    ltiCapabilities.deepLinking.returnUrl,
+  );
 };
