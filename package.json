@@ -24,6 +24,7 @@
     "dev:seed": "pnpm exec tsx scripts/seed-local-dev.ts",
     "dev:login-as": "node scripts/create-local-login-url.mjs",
     "dev:demo": "node scripts/run-local-demo.mjs",
+    "benchmark:badge-images": "pnpm exec tsx apps/api-worker/src/devtools/run-badge-image-model-benchmark.ts",
     "preview": "pnpm build && pnpm exec vite preview --host 127.0.0.1 --port 8787",
     "test:e2e": "pnpm exec playwright test --config playwright.config.mjs --project chromium",
     "audit:prod": "pnpm audit --prod --audit-level high",

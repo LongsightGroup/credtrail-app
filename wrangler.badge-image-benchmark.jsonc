@@ -1,0 +1,10 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "credtrail-badge-image-model-benchmark",
+  "main": "apps/api-worker/src/devtools/badge-image-model-benchmark-worker.ts",
+  "compatibility_date": "2026-09-03",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "ai": {
+    "binding": "AI",
+  },
+}
