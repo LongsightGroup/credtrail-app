@@ -12,6 +12,7 @@ import {
   mockedFindTenantOrgUnitById,
   mockedFindTenantMembership,
   mockedListBadgeIssuanceRuleVersions,
+  mockedListBadgeIssuanceRuleVersionApprovalStepsDb,
   mockedListBadgeIssuanceRuleValueLists,
   mockedListLtiResourceLinkPlacementsForRuleDb,
   mockedRequestManualAutomatedBadgeRuleEvaluationDb,
@@ -172,6 +173,66 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId", () => {
 });
 
 describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () => {
+  it("gives an assigned reviewer the next approval action", async () => {
+    const pendingVersion = {
+      ...sampleDetailVersion("brv_detail_pending", 1, "pending_approval"),
+      createdByUserId: "usr_author",
+      submittedByUserId: "usr_author",
+    };
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleDetailRule(null));
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([pendingVersion]);
+    mockedListBadgeIssuanceRuleVersionApprovalStepsDb.mockResolvedValue([
+      {
+        id: "approval_step_1",
+        tenantId: "tenant_123",
+        versionId: pendingVersion.id,
+        stepNumber: 1,
+        targetType: "role_threshold",
+        requiredRole: "admin",
+        targetUserId: null,
+        targetApproverGroupId: null,
+        orgUnitId: null,
+        label: "Institution review",
+        status: "pending",
+        decidedByUserId: null,
+        decidedAt: null,
+        decisionComment: null,
+        createdAt: "2026-09-02T12:00:00.000Z",
+        updatedAt: "2026-09-02T12:00:00.000Z",
+      },
+    ]);
+
+    const response = await requestRulePage(
+      "/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_pending",
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Review the submitted rule");
+    expect(body).toContain("<dd>You</dd>");
+    expect(body).toContain('data-rule-next-step="review_approval"');
+    expect(body).toContain(
+      'href="/tenants/tenant_123/admin/rules/approvals/brl_detail/versions/brv_detail_pending"',
+    );
+  });
+
+  it("shows the submitter that an independent reviewer owns the next step", async () => {
+    const pendingVersion = sampleDetailVersion("brv_detail_pending", 1, "pending_approval");
+    mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleDetailRule(null));
+    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([pendingVersion]);
+
+    const response = await requestRulePage(
+      "/tenants/tenant_123/admin/rules/brl_detail/versions/brv_detail_pending",
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("Wait for an independent review");
+    expect(body).toContain("<dd>Assigned reviewer</dd>");
+    expect(body).toContain("Withdraw submission");
+    expect(body).toContain('data-rule-next-step="await_approval"');
+  });
+
   it("lists active and retired placements with row-owned retirement guidance", async () => {
     const activeVersion = sampleDetailVersion("brv_detail_active", 1, "active");
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleDetailRule(activeVersion.id));
@@ -187,6 +248,9 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () =>
     const body = await response.text();
 
     expect(response.status).toBe(200);
+    expect(body).toContain("What happens next");
+    expect(body).toContain("CredTrail is checking eligibility automatically");
+    expect(body).toContain('href="#automatic-evaluation"');
     expect(body).toContain("LTI placements");
     expect(body).toContain("Only active placements backed by an active rule");
     expect(body).toContain("Retire placement");
@@ -208,6 +272,9 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () =>
     const body = await response.text();
 
     expect(response.status).toBe(200);
+    expect(body).toContain("What happens next");
+    expect(body).toContain("Make the rule available in the LMS");
+    expect(body).toContain('href="/tenants/tenant_123/admin/rules/brl_detail/availability"');
     expect(body).toContain("Issuance health");
     expect(body).toContain("Automatic evaluation");
     expect(body).toContain("Completed");
@@ -381,7 +448,8 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () =>
     expect(body).toContain("Version 2 of 2");
     expect(body).toContain("← Previous version");
     expect(body).toContain("Next version →");
-    expect(body).toContain("This draft is read-only here and cannot issue badges");
+    expect(body).toContain("Submit this draft for approval");
+    expect(body).toContain("The rule is saved, but it cannot issue badges yet");
     expect(body).toContain("Version note:");
     expect(body).toContain("Technical details");
     expect(body).toContain("Rule ID");

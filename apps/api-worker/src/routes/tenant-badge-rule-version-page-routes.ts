@@ -1,5 +1,7 @@
 import {
   findAutomatedBadgeRuleEvaluationStatus,
+  latestBadgeIssuanceRuleVersion,
+  listBadgeIssuanceRuleVersionApprovalSteps,
   listLtiResourceLinkPlacementsForRule,
   resolveBadgeIssuanceRuleVersionSelection,
 } from "@credtrail/db";
@@ -17,6 +19,7 @@ import { badgeRuleVersionPage } from "../admin/badge-rule-version-page";
 import { consumeAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import type { AppContext, AppEnv } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
+import { actorCanDecideBadgeRuleVersionApproval } from "../badges/badge-rule-approval-access";
 import { renderAppPage } from "../ui/render-page";
 import {
   loadBadgeRuleVersionPageContext,
@@ -45,6 +48,7 @@ interface RuleVersionRenderData extends AuthorizedRuleVersionPageData {
   readonly evaluationFlash: Awaited<ReturnType<typeof consumeAdminListMessageFlash>>;
   readonly placements: Awaited<ReturnType<typeof listLtiResourceLinkPlacementsForRule>>;
   readonly evaluationRequestId: string;
+  readonly canReviewPendingVersion: boolean;
 }
 
 interface LoadAuthorizedRuleVersionPageDataInput {
@@ -112,6 +116,7 @@ const renderRuleVersion = async (
       placements: input.placements,
       actionFlash: input.evaluationFlash,
       evaluationRequestId: input.evaluationRequestId,
+      canReviewPendingVersion: input.canReviewPendingVersion,
     }),
   );
 };
@@ -191,22 +196,42 @@ export const registerTenantBadgeRuleVersionPageRoutes = (
       return loaded;
     }
 
-    const [automaticEvaluationStatus, placements, evaluationFlash] = await Promise.all([
-      findAutomatedBadgeRuleEvaluationStatus(resolveDatabase(c.env), {
-        tenantId: pathParams.tenantId,
-        ruleId: pathParams.ruleId,
-        versionId: pathParams.versionId,
-      }),
-      listLtiResourceLinkPlacementsForRule(resolveDatabase(c.env), {
-        tenantId: pathParams.tenantId,
-        ruleId: pathParams.ruleId,
-      }),
-      consumeAdminListMessageFlash(c, {
-        tenantId: pathParams.tenantId,
-        userId: loaded.principal.userId,
-        workspace: "rule_version",
-      }),
-    ]);
+    const latestVersion = latestBadgeIssuanceRuleVersion(loaded.versions);
+    const [automaticEvaluationStatus, placements, evaluationFlash, approvalSteps] =
+      await Promise.all([
+        findAutomatedBadgeRuleEvaluationStatus(loaded.db, {
+          tenantId: pathParams.tenantId,
+          ruleId: pathParams.ruleId,
+          versionId: pathParams.versionId,
+        }),
+        listLtiResourceLinkPlacementsForRule(loaded.db, {
+          tenantId: pathParams.tenantId,
+          ruleId: pathParams.ruleId,
+        }),
+        consumeAdminListMessageFlash(c, {
+          tenantId: pathParams.tenantId,
+          userId: loaded.principal.userId,
+          workspace: "rule_version",
+        }),
+        latestVersion?.status === "pending_approval"
+          ? listBadgeIssuanceRuleVersionApprovalSteps(loaded.db, {
+              tenantId: pathParams.tenantId,
+              ruleId: pathParams.ruleId,
+              versionId: latestVersion.id,
+            })
+          : Promise.resolve([]),
+      ]);
+
+    const canReviewPendingVersion =
+      latestVersion === null
+        ? false
+        : await actorCanDecideBadgeRuleVersionApproval(loaded.db, {
+            tenantId: pathParams.tenantId,
+            actorUserId: loaded.principal.userId,
+            actorRole: loaded.membershipRole,
+            version: latestVersion,
+            approvalSteps,
+          });
 
     return renderRuleVersion(c, {
       ...loaded,
@@ -214,6 +239,7 @@ export const registerTenantBadgeRuleVersionPageRoutes = (
       placements,
       evaluationFlash,
       evaluationRequestId: crypto.randomUUID(),
+      canReviewPendingVersion,
     });
   });
 };

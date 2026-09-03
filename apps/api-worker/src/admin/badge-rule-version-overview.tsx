@@ -140,6 +140,7 @@ export const BadgeRuleVersionOverview = (input: {
   readonly definition: BadgeIssuanceRuleDefinition;
   readonly orgUnit: TenantOrgUnitRecord | null;
   readonly submittedByEmail?: string | undefined;
+  readonly showLifecycleSummary?: boolean | undefined;
 }): HonoElement => {
   const ruleSummaryMarkup = createRuleDefinitionSummaryMarkup(formatIsoTimestamp, {
     renderLmsReference: adminLmsReferenceMarkup,
@@ -188,9 +189,11 @@ export const BadgeRuleVersionOverview = (input: {
             {input.version.changeSummary ?? "No change summary was provided for this version."}
           </p>
           <p>{input.version.snapshot.description ?? "No rule description was provided."}</p>
-          <p class="ct-admin__rule-version-lifecycle-summary">
-            {badgeRuleVersionLifecycleSummary(input)}
-          </p>
+          {input.showLifecycleSummary === false ? null : (
+            <p class="ct-admin__rule-version-lifecycle-summary">
+              {badgeRuleVersionLifecycleSummary(input)}
+            </p>
+          )}
         </div>
       </div>
 

@@ -19,6 +19,7 @@ import {
 import { BadgeRuleVersionOverview } from "./badge-rule-version-overview";
 import { BadgeRuleAutomatedEvaluationStatus } from "./badge-rule-automated-evaluation-status";
 import { BadgeRuleLtiPlacements } from "./badge-rule-lti-placements";
+import { BadgeRuleNextStepPanel } from "./badge-rule-next-step-panel";
 import { AdminStatus } from "./components";
 import { renderInstitutionAdminShellPage } from "./institution-admin-shell";
 
@@ -37,6 +38,7 @@ export const badgeRuleVersionPage = (input: {
   readonly automaticEvaluationStatus: AutomatedBadgeRuleEvaluationStatusRecord | null;
   readonly placements: readonly LtiResourceLinkPlacementRecord[];
   readonly evaluationRequestId: string;
+  readonly canReviewPendingVersion: boolean;
   readonly actionFlash: { readonly tone: "success" | "error"; readonly message: string } | null;
 }): AppPage => {
   const navigation = buildBadgeRuleVersionNavigationModel({
@@ -87,6 +89,18 @@ export const badgeRuleVersionPage = (input: {
           {input.actionFlash === null ? null : (
             <AdminStatus tone={input.actionFlash.tone}>{input.actionFlash.message}</AdminStatus>
           )}
+          <BadgeRuleNextStepPanel
+            tenantId={input.tenant.id}
+            userId={input.userId}
+            rule={input.rule}
+            selectedVersion={input.version}
+            latestVersion={navigation.latestVersion}
+            definition={input.definition}
+            activePlacementCount={
+              input.placements.filter((placement) => placement.status === "active").length
+            }
+            canReviewPendingVersion={input.canReviewPendingVersion}
+          />
           <BadgeRuleVersionOverview
             tenantId={input.tenant.id}
             rule={input.rule}
@@ -94,6 +108,7 @@ export const badgeRuleVersionPage = (input: {
             latestVersion={navigation.latestVersion}
             definition={input.definition}
             orgUnit={input.orgUnit}
+            showLifecycleSummary={false}
           />
           <BadgeRuleAutomatedEvaluationStatus
             tenantId={input.tenant.id}

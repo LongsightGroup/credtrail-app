@@ -133,7 +133,7 @@ export const BadgeRuleAutomatedEvaluationStatus = (input: {
   const action = `/tenants/${encodeURIComponent(input.tenantId)}/admin/rules/${encodeURIComponent(input.ruleId)}/versions/${encodeURIComponent(input.versionId)}/run-evaluation`;
 
   return (
-    <AdminPanel as="section" className="ct-admin__rule-evaluation-status">
+    <AdminPanel as="section" id="automatic-evaluation" className="ct-admin__rule-evaluation-status">
       <div class="ct-admin__rule-evaluation-heading">
         <div>
           <p class="ct-admin__eyebrow">Issuance health</p>

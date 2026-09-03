@@ -63,6 +63,93 @@
   white-space: nowrap;
 }
 
+.ct-admin__rule-next-step {
+  background: var(--ct-theme-surface-card-strong);
+}
+
+.ct-admin__rule-next-step-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, auto);
+  align-items: center;
+  gap: var(--ct-space-5);
+}
+
+.ct-admin__rule-next-step-copy {
+  display: grid;
+  gap: var(--ct-space-2);
+  min-inline-size: 0;
+}
+
+.ct-admin__rule-next-step-copy h2,
+.ct-admin__rule-next-step-copy p,
+.ct-admin__rule-next-step-ownership {
+  margin: 0;
+}
+
+.ct-admin__rule-next-step-copy h2 {
+  font-family: var(--ct-font-sans);
+  font-size: 1.08rem;
+}
+
+.ct-admin__rule-next-step-copy > p {
+  max-inline-size: 72ch;
+  color: var(--ct-theme-text-muted);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.ct-admin__rule-next-step-copy .ct-admin__rule-next-step-title {
+  color: var(--ct-theme-text-title);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.ct-admin__rule-next-step-ownership {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.45fr) minmax(15rem, 1fr);
+  gap: var(--ct-space-3) var(--ct-space-5);
+  padding-block-start: var(--ct-space-3);
+  border-block-start: 1px solid var(--ct-theme-border-soft);
+}
+
+.ct-admin__rule-next-step-ownership div {
+  display: grid;
+  gap: var(--ct-space-1);
+}
+
+.ct-admin__rule-next-step-ownership dt {
+  color: var(--ct-theme-text-subtle);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.ct-admin__rule-next-step-ownership dd {
+  margin: 0;
+  color: var(--ct-theme-text-body);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.ct-admin__rule-next-step-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.ct-admin__rule-next-step-schedule {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) auto;
+  align-items: end;
+  gap: var(--ct-space-2);
+}
+
+.ct-admin__rule-next-step-schedule label {
+  grid-column: 1 / -1;
+  color: var(--ct-theme-text-body);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
 .ct-admin__rule-version-record {
   gap: var(--ct-space-5);
   background: var(--ct-theme-surface-card-strong);
@@ -256,6 +343,10 @@
   background: var(--ct-theme-surface-card-strong);
 }
 
+#automatic-evaluation {
+  scroll-margin-block-start: var(--ct-space-5);
+}
+
 .ct-admin__rule-evaluation-heading {
   display: flex;
   align-items: center;
@@ -402,6 +493,14 @@
 }
 
 @media (max-width: 700px) {
+  .ct-admin__rule-next-step-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-admin__rule-next-step-action {
+    justify-content: flex-start;
+  }
+
   .ct-admin__rule-version-navigation {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: center;
@@ -433,6 +532,22 @@
 }
 
 @media (max-width: 560px) {
+  .ct-admin__rule-next-step-ownership,
+  .ct-admin__rule-next-step-schedule {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-admin__rule-next-step-schedule label {
+    grid-column: auto;
+  }
+
+  .ct-admin__rule-next-step-action,
+  .ct-admin__rule-next-step-action .ct-action-group,
+  .ct-admin__rule-next-step-action .ct-admin__inline-form,
+  .ct-admin__rule-next-step-action .ct-admin__button {
+    inline-size: 100%;
+  }
+
   .ct-admin__rule-version-identity {
     grid-template-columns: minmax(0, 1fr);
   }
