@@ -17,9 +17,7 @@ type AuthoringOperationForSubmit = (input: {
 
 type UnconfirmedAuthoringMessage = (input: {
   readonly operation: AuthoringOperation;
-  readonly ruleName: string;
-  readonly attemptCount: number;
-  readonly requestId: string;
+  readonly referenceId: string;
 }) => string;
 
 const loadAuthoringPolicy = (): {
@@ -72,50 +70,19 @@ describe("rule builder authoring policy", () => {
     },
   );
 
-  it.each<{
-    readonly operation: AuthoringOperation;
-    readonly attemptCount: number;
-    readonly confirmationMessage: string;
-    readonly nextStep: string;
-  }>([
-    {
-      operation: "create_draft",
-      attemptCount: 2,
-      confirmationMessage: "CredTrail retried but did not receive confirmation.",
-      nextStep: "If it is not listed, try creating the draft again.",
-    },
-    {
-      operation: "create_and_submit",
-      attemptCount: 2,
-      confirmationMessage: "CredTrail retried but did not receive confirmation.",
-      nextStep: "If it is not listed, try creating and submitting it again.",
-    },
-    {
-      operation: "save_new_draft_version",
-      attemptCount: 1,
-      confirmationMessage: "CredTrail did not receive confirmation.",
-      nextStep: "If the latest draft is unchanged, try saving again.",
-    },
-    {
-      operation: "save_and_submit",
-      attemptCount: 1,
-      confirmationMessage: "CredTrail did not receive confirmation.",
-      nextStep:
-        "If the latest version is not pending approval or approved, try saving and submitting it again.",
-    },
-  ])(
-    "renders the $operation recovery policy",
-    ({ operation, attemptCount, confirmationMessage, nextStep }) => {
-      expect(
-        unconfirmedMessage({
-          operation,
-          ruleName: "Attendance award",
-          attemptCount,
-          requestId: "request-42",
-        }),
-      ).toBe(
-        `${confirmationMessage} In Rules, look for “Attendance award”. ${nextStep} Reference: request-42.`,
-      );
-    },
-  );
+  it.each<AuthoringOperation>([
+    "create_draft",
+    "create_and_submit",
+    "save_new_draft_version",
+    "save_and_submit",
+  ])("renders the safe $operation recovery policy", (operation) => {
+    expect(
+      unconfirmedMessage({
+        operation,
+        referenceId: "brd_42",
+      }),
+    ).toBe(
+      "CredTrail could not confirm this save after checking automatically. It is safe to try again: CredTrail will reuse the same save identity instead of creating another rule or version. If the problem continues, contact support with reference brd_42.",
+    );
+  });
 });

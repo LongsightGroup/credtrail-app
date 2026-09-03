@@ -338,6 +338,103 @@ describeDbIntegration("badge issuance rule draft DB helpers with Postgres", () =
     }
   });
 
+  it("replays an edit with one builder identity without appending another version", async () => {
+    const fixture = await createBadgeRuleIntegrationFixture();
+
+    try {
+      const initial = await createBadgeIssuanceRule(fixture.db, {
+        tenantId: fixture.tenantId,
+        name: "Initial editable rule",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
+        createdByUserId: fixture.userId,
+      });
+      await dbModule.saveBadgeIssuanceRuleBuilderDraft(fixture.db, {
+        id: "brd_update_replay",
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        target: {
+          kind: "formal_rule",
+          ruleId: initial.rule.id,
+          versionId: initial.version.id,
+        },
+        currentStep: "test",
+        draftJson: JSON.stringify({ name: "Updated rule" }),
+      });
+      const expectedBadgeTemplateRevision = await loadExpectedBadgeTemplateRevision(fixture.db, {
+        tenantId: fixture.tenantId,
+        badgeTemplateId: fixture.badgeTemplateId,
+      });
+      const updateInput = {
+        tenantId: fixture.tenantId,
+        ruleId: initial.rule.id,
+        builderDraftId: "brd_update_replay",
+        name: "Updated rule",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas" as const,
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":90}}',
+        action: "save_draft" as const,
+        actorUserId: fixture.userId,
+        actorRole: "admin" as const,
+        expectedBadgeTemplateRevision,
+        badgeTemplateReuseAcknowledged: false,
+      };
+      const updated = await dbModule.updateBadgeIssuanceRuleWithAction(fixture.db, updateInput);
+      const replayed = await dbModule.updateBadgeIssuanceRuleWithAction(fixture.db, {
+        ...updateInput,
+        name: "A retry must not create this version",
+        ruleJson:
+          '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":100}}',
+      });
+      const otherRule = await createBadgeIssuanceRule(fixture.db, {
+        tenantId: fixture.tenantId,
+        name: "Different editable rule",
+        badgeTemplateId: fixture.badgeTemplateId,
+        lmsProviderKind: "canvas",
+        lmsConnectionId: fixture.lmsConnectionId,
+        ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_102","minScore":80}}',
+        createdByUserId: fixture.userId,
+      });
+      const identityCollision = await dbModule.updateBadgeIssuanceRuleWithAction(fixture.db, {
+        ...updateInput,
+        ruleId: otherRule.rule.id,
+      });
+      const versions = await dbModule.listBadgeIssuanceRuleVersions(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: initial.rule.id,
+      });
+      const otherRuleVersions = await dbModule.listBadgeIssuanceRuleVersions(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: otherRule.rule.id,
+      });
+      const remainingDraft = await dbModule.findBadgeIssuanceRuleBuilderDraftById(fixture.db, {
+        tenantId: fixture.tenantId,
+        userId: fixture.userId,
+        draftId: "brd_update_replay",
+      });
+
+      expect(updated.status).toBe("completed");
+      expect(replayed.status).toBe("completed");
+      expect(replayed.status === "completed" ? replayed.writeStatus : null).toBe("replayed");
+      expect(replayed.status === "completed" ? replayed.version.id : null).toBe(
+        updated.status === "completed" ? updated.version.id : null,
+      );
+      expect(replayed.status === "completed" ? replayed.rule.name : null).toBe("Updated rule");
+      expect(identityCollision).toEqual({ status: "failed", reason: "unavailable" });
+      expect(versions).toHaveLength(2);
+      expect(otherRuleVersions).toHaveLength(1);
+      expect(remainingDraft).toBeNull();
+    } finally {
+      await cleanupTestResources(fixture.db, {
+        tenantIds: [fixture.tenantId],
+        userIds: [fixture.userId],
+      });
+    }
+  });
+
   it("never advances a replayed builder identity through a new lifecycle transition", async () => {
     const fixture = await createBadgeRuleIntegrationFixture();
 

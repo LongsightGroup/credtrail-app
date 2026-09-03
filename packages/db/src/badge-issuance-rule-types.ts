@@ -308,6 +308,7 @@ export type UpdateBadgeIssuanceRuleAuthoringInput = Omit<
   readonly actorRole: TenantMembershipRole;
   readonly expectedBadgeTemplateRevision: ExpectedBadgeTemplateRevision;
   readonly badgeTemplateReuseAcknowledged: boolean;
+  readonly builderDraftId?: string | undefined;
 };
 
 /** Optimistic-concurrency value used to reject a template changed during authoring. */

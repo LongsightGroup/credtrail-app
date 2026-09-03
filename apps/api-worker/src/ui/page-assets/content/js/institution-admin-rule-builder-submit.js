@@ -362,14 +362,18 @@ ruleCreateForm.addEventListener("submit", async (event) => {
   }
 
   const builderDraftId =
-    !isRuleBuilderEditMode &&
     ruleBuilderContext &&
     typeof ruleBuilderContext.builderDraftId === "string"
       ? ruleBuilderContext.builderDraftId
       : "";
+  const authoringResultApiPath =
+    ruleBuilderContext &&
+    typeof ruleBuilderContext.badgeRuleAuthoringResultApiPath === "string"
+      ? ruleBuilderContext.badgeRuleAuthoringResultApiPath
+      : "";
   const delivery =
-    builderDraftId.length > 0
-      ? { kind: "replay_safe_create", builderDraftId }
+    builderDraftId.length > 0 && authoringResultApiPath.length > 0
+      ? { kind: "reconciled", builderDraftId, resultApiPath: authoringResultApiPath }
       : { kind: "single_attempt" };
   const authoringPromise = ruleBuilderAuthoringController.execute({
     apiPath: ruleBuilderSubmitApiPath,
@@ -418,9 +422,7 @@ ruleCreateForm.addEventListener("submit", async (event) => {
     });
     const message = ruleBuilderUnconfirmedAuthoringMessage({
       operation,
-      ruleName: name,
-      attemptCount: result.attemptCount,
-      requestId: result.requestId,
+      referenceId: result.referenceId,
     });
     setStatus(ruleCreateStatus, message, true);
     syncRuleBuilderSummary(message);
@@ -437,10 +439,16 @@ ruleCreateForm.addEventListener("submit", async (event) => {
           : "Rule draft created.";
   setStatus(ruleCreateStatus, successMessage, false, "success");
   syncRuleBuilderSummary(successMessage);
+  const savedRuleVersionPath =
+    rulesListPath +
+    "/" +
+    encodeURIComponent(result.ruleId) +
+    "/versions/" +
+    encodeURIComponent(result.versionId);
   setTimeout(() => {
     ruleBuilderAuthoringController.resetCompleted();
     updateStepNavigationState();
-    window.location.assign(rulesListPath);
+    window.location.assign(savedRuleVersionPath);
   }, 900);
 });
 

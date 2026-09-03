@@ -953,6 +953,64 @@ describe("badge rule routes", () => {
     expect(mockedCreateAuditLog).not.toHaveBeenCalled();
   });
 
+  it("reports a completed builder authoring result with its exact resource identity", async () => {
+    const env = createEnv();
+    mockedFindBadgeIssuanceRuleAuthoringReplay.mockResolvedValue({
+      status: "completed",
+      outcome: "pending_approval",
+      pendingStepNumber: 1,
+      writeStatus: "replayed",
+      rule: sampleRule(),
+      version: sampleVersion({ status: "pending_approval" }),
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rule-authoring-results/brd_saved?ruleId=brl_123",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      env,
+    );
+    const body = await response.json<{
+      status: string;
+      outcome: string;
+      ruleId: string;
+      versionId: string;
+    }>();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(body).toEqual({
+      status: "completed",
+      outcome: "pending_approval",
+      ruleId: "brl_123",
+      versionId: "brv_123",
+    });
+    expect(mockedFindBadgeIssuanceRuleAuthoringReplay).toHaveBeenCalledWith(fakeDb, {
+      tenantId: "tenant_123",
+      actorUserId: "usr_123",
+      builderDraftId: "brd_saved",
+      ruleId: "brl_123",
+    });
+  });
+
+  it("reports a pending authoring result before a builder identity has been committed", async () => {
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rule-authoring-results/brd_pending",
+      {
+        headers: {
+          Cookie: "better-auth.session_token=session-token",
+        },
+      },
+      createEnv(),
+    );
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({ status: "pending" });
+  });
+
   it("saves incomplete rule builder drafts without creating rule versions", async () => {
     const env = createEnv();
     mockedSaveBadgeIssuanceRuleBuilderDraft.mockResolvedValue({
@@ -1077,6 +1135,7 @@ describe("badge rule routes", () => {
           badgeTemplateId: "badge_template_cs101",
           badgeTemplateReuseAcknowledged: false,
           lmsConnectionId: "lms_123",
+          builderDraftId: "brd_update",
           action: "save_draft",
           definition: {
             conditions: {
@@ -1133,10 +1192,58 @@ describe("badge rule routes", () => {
       action: "save_draft",
       actorUserId: "usr_123",
       actorRole: "issuer",
+      builderDraftId: "brd_update",
     });
     expect(body.version.id).toBe("brv_124");
     expect(body.version.versionNumber).toBe(2);
     expect(body.version.definition.conditions.minScore).toBe(90);
+  });
+
+  it("replays a completed edit before repeating external preparation", async () => {
+    const env = createEnv();
+    mockedFindBadgeIssuanceRuleAuthoringReplay.mockResolvedValue({
+      status: "completed",
+      outcome: "draft_saved",
+      pendingStepNumber: null,
+      writeStatus: "replayed",
+      rule: sampleRule({ name: "Saved edit", activeVersionId: null }),
+      version: sampleVersion({ id: "brv_saved_edit", versionNumber: 2 }),
+    });
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/badge-rules/brl_123/draft",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          Cookie: "better-auth.session_token=session-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "A retry must not replace the saved edit",
+          badgeTemplateId: "badge_template_cs101",
+          badgeTemplateReuseAcknowledged: false,
+          lmsConnectionId: "lms_123",
+          builderDraftId: "brd_saved_edit",
+          action: "save_draft",
+          definition: {
+            conditions: {
+              type: "grade_threshold",
+              courseId: "course_101",
+              minScore: 100,
+            },
+          },
+        }),
+      },
+      env,
+    );
+    const body = await response.json<{ rule: { name: string }; version: { id: string } }>();
+
+    expect(response.status).toBe(200);
+    expect(body.rule.name).toBe("Saved edit");
+    expect(body.version.id).toBe("brv_saved_edit");
+    expect(mockedUpdateBadgeIssuanceRuleWithAction).not.toHaveBeenCalled();
+    expect(mockedCreateGradebookProvider).not.toHaveBeenCalled();
   });
 
   it("returns conflict when saving a protected badge issuance rule draft", async () => {

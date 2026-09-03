@@ -299,6 +299,9 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toMatch(
       /&quot;badgeRuleBuilderDraftApiPath&quot;:&quot;\/v1\/tenants\/tenant_123\/badge-rule-builder-drafts\/brd_[^&]+&quot;/,
     );
+    expect(body).toMatch(
+      /&quot;badgeRuleAuthoringResultApiPath&quot;:&quot;\/v1\/tenants\/tenant_123\/badge-rule-authoring-results\/brd_[^&]+&quot;/,
+    );
     expect(mockedFindBadgeIssuanceRuleBuilderDraftDb).not.toHaveBeenCalled();
   });
 

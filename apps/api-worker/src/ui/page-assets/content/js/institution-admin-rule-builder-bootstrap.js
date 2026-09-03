@@ -91,6 +91,12 @@ const ruleBuilderAuthoringController = createRuleBuilderAuthoringController({
     new Promise((resolve) => {
       window.setTimeout(resolve, delayMs);
     }),
+  onReconciliationStarted: () => {
+    const message =
+      "Still confirming this save. Stay on this page while CredTrail checks the saved result.";
+    setStatus(ruleCreateStatus, message, false);
+    syncRuleBuilderSummary(message);
+  },
 });
 const ruleBuilderSaveDraftButton = document.getElementById("rule-builder-save-draft");
 const ruleBuilderDraftStatus = document.getElementById("rule-builder-draft-status");

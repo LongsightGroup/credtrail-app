@@ -4,6 +4,7 @@ import {
   automatedBadgeRuleLifecycleWindowMatches,
   badgeIssuanceRuleHasCompleteLmsLearnerPopulation,
   parseBadgeIssuanceRuleAuditLogQuery,
+  parseBadgeIssuanceRuleAuthoringResultQuery,
   parseBadgeIssuanceRulePathParams,
   parseBadgeIssuanceRuleReviewQueueQuery,
   parseBadgeIssuanceRuleVersionDiffQuery,
@@ -294,6 +295,14 @@ describe("badge issuance rule parsers", () => {
 
     expect(rulePathParams.ruleId).toBe("brl_123");
     expect(versionPathParams.versionId).toBe("brv_123");
+  });
+
+  it("parses an optional formal-rule scope for authoring reconciliation", () => {
+    expect(parseBadgeIssuanceRuleAuthoringResultQuery({})).toEqual({});
+    expect(parseBadgeIssuanceRuleAuthoringResultQuery({ ruleId: "brl_123" })).toEqual({
+      ruleId: "brl_123",
+    });
+    expect(() => parseBadgeIssuanceRuleAuthoringResultQuery({ ruleId: "" })).toThrow(/./);
   });
 
   it("parses placement retirement path and form identities", () => {

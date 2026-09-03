@@ -62,8 +62,14 @@ export const findPreparedBadgeRuleReplay = async (input: {
   readonly tenantId: string;
   readonly actorUserId: string;
   readonly builderDraftId: string;
+  readonly ruleId?: string | undefined;
 }): Promise<PreparedBadgeRuleAuthoringResult | null> => {
-  const replay = await findBadgeIssuanceRuleAuthoringReplay(input.db, input);
+  const replay = await findBadgeIssuanceRuleAuthoringReplay(input.db, {
+    tenantId: input.tenantId,
+    actorUserId: input.actorUserId,
+    builderDraftId: input.builderDraftId,
+    ruleId: input.ruleId,
+  });
   return replay === null ? null : withPersistedDefinition(replay);
 };
 
@@ -151,6 +157,7 @@ export const authorPreparedBadgeRule = async (
           action: input.request.action,
           actorUserId: input.actorUserId,
           actorRole: input.actorRole,
+          builderDraftId: input.request.builderDraftId,
         });
 
   if (authored.status === "failed") {

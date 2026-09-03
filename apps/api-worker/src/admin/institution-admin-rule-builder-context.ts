@@ -26,6 +26,7 @@ export interface InstitutionAdminRuleBuilderEditContext {
 }
 
 export interface InstitutionAdminRuleBuilderPageContext {
+  badgeRuleAuthoringResultApiPath: string;
   badgeRuleBuilderDraftApiPath: string;
   builderDraftId: string;
   builderDraft: {
@@ -157,6 +158,11 @@ export const buildInstitutionAdminRuleBuilderPageContext = (input: {
         });
 
   return {
+    badgeRuleAuthoringResultApiPath: `/v1/tenants/${encodeURIComponent(
+      input.tenantId,
+    )}/badge-rule-authoring-results/${encodeURIComponent(input.builderDraftId)}${
+      editRule === null ? "" : `?ruleId=${encodeURIComponent(editRule.id)}`
+    }`,
     badgeRuleBuilderDraftApiPath: `/v1/tenants/${encodeURIComponent(
       input.tenantId,
     )}/badge-rule-builder-drafts/${encodeURIComponent(input.builderDraftId)}`,

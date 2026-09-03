@@ -273,6 +273,13 @@ export const badgeIssuanceRuleBuilderDraftPathParamsSchema = tenantPathParamsSch
   draftId: badgeIssuanceRuleBuilderDraftIdSchema,
 });
 
+/** Optional formal-rule scope for resolving a retry-stable builder authoring result. */
+export const badgeIssuanceRuleAuthoringResultQuerySchema = z
+  .object({
+    ruleId: resourceIdSchema.optional(),
+  })
+  .strict();
+
 export const badgeIssuanceRuleVersionPathParamsSchema = badgeIssuanceRulePathParamsSchema.extend({
   versionId: resourceIdSchema,
 });
@@ -320,6 +327,7 @@ export const updateBadgeIssuanceRuleDraftRequestSchema = z
     lmsConnectionId: resourceIdSchema,
     definition: badgeIssuanceRuleDefinitionSchema,
     changeSummary: z.string().trim().min(1).max(1000).optional(),
+    builderDraftId: badgeIssuanceRuleBuilderDraftIdSchema.optional(),
     action: z.enum(["save_draft", "submit_for_approval"]),
   })
   .strict();
@@ -530,6 +538,10 @@ export type BadgeIssuanceRuleBuilderDraftPathParams = z.infer<
   typeof badgeIssuanceRuleBuilderDraftPathParamsSchema
 >;
 
+export type BadgeIssuanceRuleAuthoringResultQuery = z.infer<
+  typeof badgeIssuanceRuleAuthoringResultQuerySchema
+>;
+
 export type BadgeIssuanceRuleVersionPathParams = z.infer<
   typeof badgeIssuanceRuleVersionPathParamsSchema
 >;
@@ -616,6 +628,12 @@ export const parseBadgeIssuanceRuleBuilderDraftPathParams = (
   input: unknown,
 ): BadgeIssuanceRuleBuilderDraftPathParams => {
   return badgeIssuanceRuleBuilderDraftPathParamsSchema.parse(input);
+};
+
+export const parseBadgeIssuanceRuleAuthoringResultQuery = (
+  input: unknown,
+): BadgeIssuanceRuleAuthoringResultQuery => {
+  return badgeIssuanceRuleAuthoringResultQuerySchema.parse(input);
 };
 
 export const parseBadgeIssuanceRuleVersionPathParams = (

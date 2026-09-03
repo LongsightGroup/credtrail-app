@@ -4,6 +4,7 @@ import {
   submitPreparedBadgeRuleVersionWithinTransaction,
 } from "./badge-issuance-rule-submission.js";
 import { deleteBadgeIssuanceRuleBuilderDraftForRule } from "./badge-issuance-rule-builder-drafts.js";
+import { badgeIssuanceRuleIdentityForBuilderDraft } from "./badge-issuance-rule-builder-identity.js";
 import { findBadgeTemplateById, type BadgeTemplateRecord } from "./badge-templates.js";
 import { badgeTemplateArtworkUsesManagedReference } from "./badge-template-artwork-policy.js";
 import { listBadgeTemplateRuleUsages } from "./badge-template-rule-usage.js";
@@ -28,6 +29,8 @@ import {
   updateLockedBadgeIssuanceRuleDraft,
 } from "./badge-issuance-rule-writes.js";
 import { listBadgeIssuanceRuleVersionApprovalSteps } from "./badge-issuance-rule-approval-reads.js";
+import { findBadgeIssuanceRuleById } from "./badge-issuance-rule-reads.js";
+import { findBadgeIssuanceRuleVersionById } from "./badge-issuance-rule-version-reads.js";
 import { runSqlTransaction, type SqlDatabase } from "./tenant-scope.js";
 
 type AuthoringWriteStatus = "created" | "replayed" | "updated";
@@ -177,8 +180,59 @@ export const findBadgeIssuanceRuleAuthoringReplay = async (
     readonly tenantId: string;
     readonly builderDraftId: string;
     readonly actorUserId: string;
+    readonly ruleId?: string | undefined;
   },
 ): Promise<BadgeIssuanceRuleAuthoringResult | null> => {
+  if (input.ruleId !== undefined) {
+    const identity = await badgeIssuanceRuleIdentityForBuilderDraft(
+      input.tenantId,
+      input.builderDraftId,
+    );
+    const persistedIdentity = await db
+      .prepare(
+        `
+        SELECT
+          rule_id AS ruleId,
+          created_by_user_id AS createdByUserId
+        FROM badge_issuance_rule_versions
+        WHERE tenant_id = ?
+          AND id = ?
+        LIMIT 1
+      `,
+      )
+      .bind(input.tenantId, identity.versionId)
+      .first<{ readonly ruleId: string; readonly createdByUserId: string | null }>();
+
+    if (persistedIdentity === null) {
+      return null;
+    }
+
+    if (
+      persistedIdentity.ruleId !== input.ruleId ||
+      persistedIdentity.createdByUserId !== input.actorUserId
+    ) {
+      return { status: "failed", reason: "unavailable" };
+    }
+
+    const rule = await findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId);
+
+    if (rule === null) {
+      throw new Error(`Authored badge rule "${input.ruleId}" could not be reloaded`);
+    }
+
+    const version = await findBadgeIssuanceRuleVersionById(db, {
+      tenantId: input.tenantId,
+      ruleId: input.ruleId,
+      versionId: identity.versionId,
+    });
+
+    if (version === null) {
+      throw new Error(`Authored badge rule version "${identity.versionId}" could not be reloaded`);
+    }
+
+    return completeReplay(db, { rule, version });
+  }
+
   const replay = await findBadgeIssuanceRuleBuilderPromotionReplay(db, {
     tenantId: input.tenantId,
     builderDraftId: input.builderDraftId,
@@ -397,6 +451,28 @@ export const updateBadgeIssuanceRuleWithAction = async (
   input: UpdateBadgeIssuanceRuleAuthoringInput,
 ): Promise<BadgeIssuanceRuleAuthoringResult> => {
   return runSqlTransaction(db, async (transactionDb) => {
+    const authoringIdentity =
+      input.builderDraftId === undefined
+        ? null
+        : await badgeIssuanceRuleIdentityForBuilderDraft(input.tenantId, input.builderDraftId);
+
+    if (input.builderDraftId !== undefined) {
+      await transactionDb
+        .prepare("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")
+        .bind(`${input.tenantId}:${input.builderDraftId}`)
+        .run();
+      const replay = await findBadgeIssuanceRuleAuthoringReplay(transactionDb, {
+        tenantId: input.tenantId,
+        builderDraftId: input.builderDraftId,
+        actorUserId: input.actorUserId,
+        ruleId: input.ruleId,
+      });
+
+      if (replay !== null) {
+        return replay;
+      }
+    }
+
     const locked = await lockBadgeIssuanceRuleDraftUpdate(transactionDb, input);
 
     if (locked.status !== "ready") {
@@ -440,6 +516,7 @@ export const updateBadgeIssuanceRuleWithAction = async (
           createdByUserId: input.actorUserId,
           existingRule: locked.rule,
           badgeTemplate: reusePolicy.badgeTemplate,
+          ...(authoringIdentity === null ? {} : { versionId: authoringIdentity.versionId }),
         });
 
         return {

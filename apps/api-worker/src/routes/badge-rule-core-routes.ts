@@ -11,6 +11,7 @@ import {
 import {
   badgeIssuanceRuleHasCompleteLmsLearnerPopulation,
   parseBadgeIssuanceRuleAuditLogQuery,
+  parseBadgeIssuanceRuleAuthoringResultQuery,
   parseBadgeIssuanceRuleBuilderDraftPathParams,
   parseBadgeIssuanceRulePathParams,
   parseCreateBadgeIssuanceRuleRequest,
@@ -354,6 +355,48 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
     );
   });
 
+  app.get("/v1/tenants/:tenantId/badge-rule-authoring-results/:draftId", async (c) => {
+    const pathParams = parseBadgeIssuanceRuleBuilderDraftPathParams(c.req.param());
+    let query;
+
+    try {
+      query = parseBadgeIssuanceRuleAuthoringResultQuery(c.req.query());
+    } catch {
+      return c.json({ error: "Invalid badge rule authoring result query" }, 400);
+    }
+
+    const roleCheck = await requireTenantRole(c, pathParams.tenantId, ISSUER_ROLES);
+
+    if (roleCheck instanceof Response) {
+      return roleCheck;
+    }
+
+    const result = await findPreparedBadgeRuleReplay({
+      db: resolveDatabase(c.env),
+      tenantId: pathParams.tenantId,
+      actorUserId: roleCheck.principal.userId,
+      builderDraftId: pathParams.draftId,
+      ruleId: query.ruleId,
+    });
+    c.header("Cache-Control", "no-store");
+
+    if (result === null) {
+      return c.json({ status: "pending" as const }, 202);
+    }
+
+    if (result.status === "failed") {
+      const failure = badgeRuleAuthoringHttpFailure(result.reason);
+      return c.json({ error: failure.error }, failure.statusCode);
+    }
+
+    return c.json({
+      status: "completed" as const,
+      outcome: result.outcome,
+      ruleId: result.rule.id,
+      versionId: result.version.id,
+    });
+  });
+
   app.put("/v1/tenants/:tenantId/badge-rule-builder-drafts/:draftId", async (c) => {
     const pathParams = parseBadgeIssuanceRuleBuilderDraftPathParams(c.req.param());
     let request;
@@ -415,40 +458,63 @@ export const registerBadgeRuleCoreRoutes = (input: RegisterBadgeRuleCoreRoutesIn
 
     const { principal, membershipRole } = roleCheck;
     const db = resolveDatabase(c.env);
-    const prepared = await prepareBadgeRuleDraft(
-      {
-        db,
-        tenantId: pathParams.tenantId,
-        userId: principal.userId,
-        request,
-        missingLmsConnectionMessage:
-          "Select a connected LMS gradebook source before saving a rule draft.",
-      },
-      gradebookRequestOptionsWithDeadline({ signal: c.req.raw.signal }),
-    );
+    let result: PreparedBadgeRuleAuthoringResult | null =
+      request.builderDraftId === undefined
+        ? null
+        : await findPreparedBadgeRuleReplay({
+            db,
+            tenantId: pathParams.tenantId,
+            actorUserId: principal.userId,
+            builderDraftId: request.builderDraftId,
+            ruleId: pathParams.ruleId,
+          });
 
-    if (prepared.status === "error") {
-      return c.json(
+    if (result === null) {
+      const prepared = await prepareBadgeRuleDraft(
         {
-          error: prepared.error,
+          db,
+          tenantId: pathParams.tenantId,
+          userId: principal.userId,
+          request,
+          missingLmsConnectionMessage:
+            "Select a connected LMS gradebook source before saving a rule draft.",
         },
-        prepared.statusCode,
+        gradebookRequestOptionsWithDeadline({ signal: c.req.raw.signal }),
       );
-    }
 
-    const result = await authorPreparedBadgeRule({
-      kind: "update",
-      db,
-      store: c.env.BADGE_OBJECTS,
-      publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
-      tenantId: pathParams.tenantId,
-      ruleId: pathParams.ruleId,
-      actorUserId: principal.userId,
-      actorRole: membershipRole,
-      lmsConnection: prepared.resolvedProvider.connection,
-      ruleJson: prepared.ruleJson,
-      request,
-    });
+      if (prepared.status === "error") {
+        const replay =
+          request.builderDraftId === undefined
+            ? null
+            : await findPreparedBadgeRuleReplay({
+                db,
+                tenantId: pathParams.tenantId,
+                actorUserId: principal.userId,
+                builderDraftId: request.builderDraftId,
+                ruleId: pathParams.ruleId,
+              });
+
+        if (replay === null) {
+          return c.json({ error: prepared.error }, prepared.statusCode);
+        }
+
+        result = replay;
+      } else {
+        result = await authorPreparedBadgeRule({
+          kind: "update",
+          db,
+          store: c.env.BADGE_OBJECTS,
+          publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
+          tenantId: pathParams.tenantId,
+          ruleId: pathParams.ruleId,
+          actorUserId: principal.userId,
+          actorRole: membershipRole,
+          lmsConnection: prepared.resolvedProvider.connection,
+          ruleJson: prepared.ruleJson,
+          request,
+        });
+      }
+    }
 
     if (result.status === "failed") {
       const failure = badgeRuleAuthoringHttpFailure(result.reason);

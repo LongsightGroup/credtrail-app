@@ -162,6 +162,9 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
       '<option value="lms_canvas" data-provider-kind="canvas" selected="">Canvas Test (Canvas)</option>',
     );
     expect(body).toContain("&quot;editRule&quot;:{&quot;id&quot;:&quot;brl_draft&quot;");
+    expect(body).toMatch(
+      /&quot;badgeRuleAuthoringResultApiPath&quot;:&quot;\/v1\/tenants\/tenant_123\/badge-rule-authoring-results\/brd_[^?&]+\?ruleId=brl_draft&quot;/,
+    );
     expect(body).toContain("&quot;latestVersionStatus&quot;:&quot;rejected&quot;");
     expect(body).toContain("&quot;lmsProviderKind&quot;:&quot;canvas&quot;");
     expect(body).toContain("&quot;assignmentId&quot;:&quot;assignment_1&quot;");

@@ -406,10 +406,12 @@ export const createBadgeIssuanceRuleFromBuilderDraft = async (
 
 const createBadgeIssuanceRuleVersionInDatabase = async (
   db: SqlDatabase,
-  input: CreateBadgeIssuanceRuleVersionInput,
+  input: CreateBadgeIssuanceRuleVersionInput & {
+    readonly versionId?: string | undefined;
+  },
 ): Promise<BadgeIssuanceRuleVersionRecord> => {
   const nowIso = new Date().toISOString();
-  const versionId = createPrefixedId("brv");
+  const versionId = input.versionId ?? createPrefixedId("brv");
   const rule = await findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId);
 
   if (rule === null) {
@@ -612,6 +614,7 @@ export const updateLockedBadgeIssuanceRuleDraft = async (
   input: UpdateBadgeIssuanceRuleDraftInput & {
     readonly existingRule: BadgeIssuanceRuleRecord;
     readonly badgeTemplate: BadgeTemplateRecord;
+    readonly versionId?: string | undefined;
   },
 ): Promise<Extract<UpdateBadgeIssuanceRuleDraftResult, { readonly status: "updated" }>> => {
   const nowIso = new Date().toISOString();
@@ -673,6 +676,7 @@ export const updateLockedBadgeIssuanceRuleDraft = async (
     ruleJson: input.ruleJson,
     changeSummary: input.changeSummary,
     createdByUserId: input.createdByUserId,
+    versionId: input.versionId,
   });
   const rule = await findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId);
 
