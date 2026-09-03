@@ -264,15 +264,20 @@ test("a copied rule keeps its settings and starts a separate lifecycle", async (
     });
     await submitButton.click();
     await expect((await createResponse).ok()).toBe(true);
-    await expect(page).toHaveURL(demoRoutes.rules);
+    await expect(page).toHaveURL(/\/admin\/rules\/[^/]+\/versions\/[^/]+$/);
+    await expect(page.getByRole("heading", { name: copiedRuleName, exact: true })).toBeVisible();
+    const copiedDetailHref = new URL(page.url()).pathname;
+    expect(copiedDetailHref).not.toBe(sourceDetailHref);
+
+    await page.goto(demoRoutes.rules);
 
     const copiedRow = page.locator("tbody tr").filter({ hasText: copiedRuleName });
     await expect(copiedRow).toBeVisible();
     await expect(copiedRow.getByText(/Draft|Awaiting approval|Approved/)).toBeVisible();
-    const copiedDetailHref = await copiedRow
-      .getByRole("link", { name: copiedRuleName, exact: true })
-      .getAttribute("href");
-    expect(copiedDetailHref).not.toBe(sourceDetailHref);
+    await expect(copiedRow.getByRole("link", { name: copiedRuleName, exact: true })).toHaveAttribute(
+      "href",
+      copiedDetailHref,
+    );
 
     const unchangedSourceRow = page.locator("tbody tr").filter({ hasText: sourceRuleName });
     await expect(
