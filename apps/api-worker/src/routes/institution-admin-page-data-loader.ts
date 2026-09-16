@@ -1,5 +1,9 @@
+import { loadBadgeWorkflowResponsibilities } from "./badge-workflow-data";
 import {
+  latestBadgeIssuanceRuleVersion,
+  indexBadgeIssuanceRuleVersionsByRuleId,
   findTenantAuthPolicy,
+  loadBadgeWorkflowHomeSummary,
   findTenantById,
   findUserById,
   listAccessibleTenantContextsForUser,
@@ -189,6 +193,33 @@ export const loadInstitutionAdminPageData = async (
     return shellData;
   }
 
+  if (input.view === "home") {
+    const db = input.resolveDatabase(input.c.env);
+    const scope = await resolveListBadgeIssuanceRulesInput(db, {
+      tenantId: input.tenantId,
+      userId: input.sessionUserId,
+      membershipRole: input.membershipRole,
+    });
+    const workflowHome = await loadBadgeWorkflowHomeSummary(db, {
+      ...scope,
+      actorUserId: input.sessionUserId,
+      actorRole: input.membershipRole,
+    });
+    return {
+      ...emptyInstitutionAdminPageData(shellData),
+      workflowHome,
+      badgeWorkflowResponsibilities: await loadBadgeWorkflowResponsibilities(db, {
+        tenantId: input.tenantId,
+        actorUserId: input.sessionUserId,
+        rules: [],
+        versions: workflowHome.tasks.map((task) => task.version),
+        activeVersionIds: workflowHome.tasks
+          .filter((task) => task.current)
+          .map((task) => task.version.id),
+      }),
+    };
+  }
+
   const datasets =
     input.view === undefined
       ? new Set<InstitutionAdminDataset>([
@@ -303,6 +334,13 @@ export const loadInstitutionAdminPageData = async (
   const badgeRuleApprovalPolicy = datasets.has("badgeRuleApprovalPolicy")
     ? await resolveTenantDefaultBadgeRuleApprovalPolicy(db, input.tenantId)
     : null;
+  const versionsByRule = indexBadgeIssuanceRuleVersionsByRuleId(badgeRuleVersions);
+  const visibleVersionIds = new Set(
+    badgeRules.flatMap((rule) => [
+      rule.activeVersionId,
+      latestBadgeIssuanceRuleVersion(versionsByRule.get(rule.id) ?? [])?.id,
+    ]),
+  );
   const activeApiKeys = apiKeys.filter((apiKey) => apiKey.revokedAt === null);
   const revokedApiKeyCount = apiKeys.length - activeApiKeys.length;
 
@@ -319,6 +357,12 @@ export const loadInstitutionAdminPageData = async (
     revokedApiKeyCount,
     badgeRules,
     badgeRuleVersions,
+    badgeWorkflowResponsibilities: await loadBadgeWorkflowResponsibilities(db, {
+      tenantId: input.tenantId,
+      actorUserId: input.sessionUserId,
+      rules: badgeRules,
+      versions: badgeRuleVersions.filter((version) => visibleVersionIds.has(version.id)),
+    }),
     ...(badgeRulesData.registryPage === null
       ? {}
       : { badgeRuleRegistryPage: badgeRulesData.registryPage }),

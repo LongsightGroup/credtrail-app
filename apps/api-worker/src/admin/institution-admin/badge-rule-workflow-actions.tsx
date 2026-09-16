@@ -1,3 +1,4 @@
+import type { BadgeWorkflowApproval } from "../badge-workflow-responsibility";
 import type { BadgeIssuanceRuleRecord, BadgeIssuanceRuleVersionRecord } from "@credtrail/db";
 import type { Child } from "hono/jsx";
 import {
@@ -16,6 +17,7 @@ export const buildBadgeRuleWorkflowMenuActions = (input: {
   readonly rule: BadgeIssuanceRuleRecord;
   readonly latestVersion: BadgeIssuanceRuleVersionRecord;
   readonly canDeleteRule: boolean;
+  readonly approval?: BadgeWorkflowApproval | undefined;
 }): Child[] => {
   const { tenantId, userId, rule, latestVersion } = input;
   const menuActions: Child[] = [];
@@ -27,7 +29,7 @@ export const buildBadgeRuleWorkflowMenuActions = (input: {
         action={tenantBadgeRuleSubmitApprovalAdminPath(tenantId, rule.id, latestVersion.id)}
         className="ct-admin__inline-form"
         dataAttributes={{
-          "data-confirm-message": `Submit draft version for "${latestVersion.snapshot.name}" for approval? You will not be able to approve it yourself.`,
+          "data-confirm-message": `Submit draft version for "${latestVersion.snapshot.name}" for approval? ${input.approval?.submissionNotice ?? "You will not be able to approve it yourself."}`,
         }}
       >
         <button type="submit" class="ct-admin__action-menu-item">

@@ -122,23 +122,31 @@ test("a distinct reviewer can approve a submitted rule and reload the persisted 
 
     const ruleRow = authorPage.locator("tr").filter({ hasText: fixture.ruleName });
     await expect(ruleRow).toBeVisible();
-    await authorPage
-      .getByRole("button", { name: `More actions for ${fixture.ruleName}` })
-      .click();
+    await ruleRow.getByRole("link", { name: "View", exact: true }).click();
+    await expect(authorPage.getByRole("heading", { name: "Who does what" })).toBeVisible();
+    await expect(authorPage.locator(".ct-admin__workflow-summary")).toContainText(
+      "CredTrail awards automatically",
+    );
     authorPage.once("dialog", (dialog) => dialog.accept());
-    await ruleRow.getByRole("button", { name: "Submit for approval" }).click();
+    await authorPage.getByRole("button", { name: "Submit for approval" }).click();
     await expect(authorPage.getByText("Rule version submitted for approval.")).toBeVisible();
+
+    await authorPage.goto(new URL(`/tenants/${fixture.tenantId}/admin`, baseURL).toString());
+    await expect(authorPage.getByText(/waiting for another reviewer/)).toBeVisible();
+    await expect(authorPage.locator(".ct-admin__workflow-task-list")).toHaveCount(0);
 
     const reviewerPage = await reviewerContext.newPage();
     const reviewerLoginUrl = new URL("/v1/dev/auth/login-as", baseURL);
     reviewerLoginUrl.searchParams.set("tenantId", fixture.tenantId);
     reviewerLoginUrl.searchParams.set("email", fixture.reviewerEmail);
-    reviewerLoginUrl.searchParams.set("next", fixture.approvalsPath);
+    reviewerLoginUrl.searchParams.set("next", `/tenants/${fixture.tenantId}/admin`);
     await reviewerPage.goto(reviewerLoginUrl.toString());
 
-    const approvalRow = reviewerPage.locator("tr").filter({ hasText: fixture.ruleName });
-    await expect(approvalRow).toBeVisible();
-    await approvalRow.getByRole("link", { name: "Review" }).click();
+    const reviewTask = reviewerPage
+      .locator(".ct-admin__workflow-task-list > li")
+      .filter({ hasText: fixture.ruleName });
+    await expect(reviewTask).toBeVisible();
+    await reviewTask.getByRole("link", { name: "Review submission" }).click();
     await expect(reviewerPage.getByRole("heading", { name: fixture.ruleName })).toBeVisible();
     await reviewerPage.getByLabel("Approve version").check();
     await reviewerPage.getByLabel("Reviewer comment").fill("Approved in the live browser flow.");
@@ -146,14 +154,16 @@ test("a distinct reviewer can approve a submitted rule and reload the persisted 
 
     await expect(reviewerPage.getByText("Rule version approved.")).toBeVisible();
     await reviewerPage.reload();
-    await expect(reviewerPage.getByRole("heading", { name: "Correct this approval" })).toBeVisible();
+    await expect(
+      reviewerPage.getByRole("heading", { name: "Correct this approval" }),
+    ).toBeVisible();
     await expect(
       reviewerPage
         .locator(".ct-admin__review-approval-chain")
-        .getByText("Approved in the live browser flow.")
+        .getByText("Approved in the live browser flow."),
     ).toBeVisible();
   } finally {
-    await Promise.all([authorContext.close(), reviewerContext.close()]);
+    await Promise.allSettled([authorContext.close(), reviewerContext.close()]);
     await fixture.dispose();
   }
 });

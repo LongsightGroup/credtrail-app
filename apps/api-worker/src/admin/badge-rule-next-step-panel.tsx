@@ -1,3 +1,4 @@
+import type { BadgeWorkflowApproval } from "./badge-workflow-responsibility";
 import type { BadgeIssuanceRuleRecord, BadgeIssuanceRuleVersionRecord } from "@credtrail/db";
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import type { HtmlEscapedString } from "hono/utils/html";
@@ -28,10 +29,37 @@ interface BadgeRuleNextStepPanelInput {
   readonly definition: BadgeIssuanceRuleDefinition;
   readonly activePlacementCount: number;
   readonly canReviewPendingVersion: boolean;
+  readonly approval?: BadgeWorkflowApproval | undefined;
 }
 
 const editRulePath = (tenantId: string, ruleId: string): string => {
   return `${buildBadgeRuleDetailPath(tenantId, ruleId)}/edit`;
+};
+
+const WithdrawSubmission = ({
+  panel,
+}: {
+  readonly panel: BadgeRuleNextStepPanelInput;
+}): HonoElement => {
+  const ruleName = panel.latestVersion.snapshot.name;
+  return (
+    <AdminForm
+      method="post"
+      action={tenantBadgeRuleWithdrawSubmissionAdminPath(
+        panel.tenantId,
+        panel.rule.id,
+        panel.latestVersion.id,
+      )}
+      className="ct-admin__inline-form"
+      dataAttributes={{
+        "data-confirm-message": `Withdraw "${ruleName}" from approval and return it to draft?`,
+      }}
+    >
+      <AdminButton type="submit" variant="quiet">
+        Withdraw submission
+      </AdminButton>
+    </AdminForm>
+  );
 };
 
 const NextStepAction = (input: {
@@ -42,6 +70,25 @@ const NextStepAction = (input: {
   const ruleName = panel.latestVersion.snapshot.name;
 
   switch (action._tag) {
+    case "configure_approval":
+      return (
+        <AdminActions>
+          <AdminButtonLink
+            href={`/tenants/${encodeURIComponent(panel.tenantId)}/admin/access/governance`}
+          >
+            Check Rule Approval
+          </AdminButtonLink>
+          {panel.latestVersion.status === "pending_approval" &&
+          panel.latestVersion.submittedByUserId === panel.userId ? (
+            <WithdrawSubmission panel={panel} />
+          ) : null}
+          {panel.latestVersion.status === "draft" || panel.latestVersion.status === "rejected" ? (
+            <AdminButtonLink href={editRulePath(panel.tenantId, panel.rule.id)} variant="quiet">
+              Edit draft
+            </AdminButtonLink>
+          ) : null}
+        </AdminActions>
+      );
     case "view_latest":
       return (
         <AdminButtonLink
@@ -66,7 +113,7 @@ const NextStepAction = (input: {
             )}
             className="ct-admin__inline-form"
             dataAttributes={{
-              "data-confirm-message": `Submit draft version for "${ruleName}" for approval? You will not be able to approve it yourself.`,
+              "data-confirm-message": `Submit draft version for "${ruleName}" for approval? ${panel.approval?.submissionNotice ?? "You will not be able to approve it yourself."}`,
             }}
           >
             <AdminButton type="submit">Submit for approval</AdminButton>
@@ -107,24 +154,7 @@ const NextStepAction = (input: {
           >
             View submission
           </AdminButtonLink>
-          {action.canWithdraw ? (
-            <AdminForm
-              method="post"
-              action={tenantBadgeRuleWithdrawSubmissionAdminPath(
-                panel.tenantId,
-                panel.rule.id,
-                panel.latestVersion.id,
-              )}
-              className="ct-admin__inline-form"
-              dataAttributes={{
-                "data-confirm-message": `Withdraw "${ruleName}" from approval and return it to draft?`,
-              }}
-            >
-              <AdminButton type="submit" variant="quiet">
-                Withdraw submission
-              </AdminButton>
-            </AdminForm>
-          ) : null}
+          {action.canWithdraw ? <WithdrawSubmission panel={panel} /> : null}
         </AdminActions>
       );
     case "activate":
@@ -243,7 +273,7 @@ export const BadgeRuleNextStepPanel = (input: BadgeRuleNextStepPanelInput): Hono
           <p>{model.description}</p>
           <dl class="ct-admin__rule-next-step-ownership">
             <div>
-              <dt>Next owner</dt>
+              <dt>Who acts next</dt>
               <dd>{model.owner}</dd>
             </div>
             <div>

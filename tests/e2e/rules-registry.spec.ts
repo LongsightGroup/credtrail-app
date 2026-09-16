@@ -23,6 +23,11 @@ test("an administrator can search, filter, and sort the governed rules registry"
   ).toBeVisible();
   await expect(page.getByText("1 shown · 1 matching rule").first()).toBeVisible();
 
+  const row = page.locator("tr").filter({ hasText: "Local Demo: Applied Analytics Completion" });
+  await expect(row.getByText(/Badge owner:/)).toBeVisible();
+  await expect(row.getByText(/Rule author:/)).toBeVisible();
+  await expect(row.getByText(/When active: CredTrail awards automatically/)).toBeVisible();
+
   await page.getByRole("link", { name: "Sort by Rule, ascending" }).click();
   await expect(page).toHaveURL(/sort=rule/);
   await expect(page).toHaveURL(/direction=asc/);

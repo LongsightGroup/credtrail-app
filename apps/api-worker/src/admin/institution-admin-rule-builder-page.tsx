@@ -1,4 +1,8 @@
 import {
+  describeBadgeWorkflowAwardingTiming,
+  type BadgeTemplateWorkflow,
+} from "./badge-workflow-responsibility";
+import {
   indexBadgeTemplateRuleUsages,
   indexBadgeIssuanceRuleVersionsByRuleId,
   latestBadgeIssuanceRuleVersion,
@@ -138,6 +142,7 @@ const extractCourseIdsFromRuleJson = (ruleJson: string): readonly string[] => {
 
 export const institutionAdminRuleBuilderPage = (input: {
   tenant: TenantRecord;
+  workflowByTemplateId?: Readonly<Record<string, BadgeTemplateWorkflow>>;
   userId: string;
   userEmail?: string;
   membershipRole: TenantMembershipRole;
@@ -311,6 +316,13 @@ export const institutionAdminRuleBuilderPage = (input: {
     rulesListPath,
     badgeRuleApiPath,
     lmsConnectionsApiPath,
+    workflowByTemplateId: input.workflowByTemplateId ?? {},
+    awardingByTiming: Object.fromEntries(
+      (["immediate", "manual", "end_of_term"] as const).map((timing) => [
+        timing,
+        describeBadgeWorkflowAwardingTiming(timing === "manual" ? null : timing, false, false),
+      ]),
+    ),
     ruleBuilderContext: buildInstitutionAdminRuleBuilderPageContext({
       tenantId: input.tenant.id,
       builderDraftId: input.builderDraftId,

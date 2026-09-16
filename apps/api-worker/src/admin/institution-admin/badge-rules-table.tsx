@@ -1,3 +1,4 @@
+import type { BadgeWorkflowResponsibility } from "../badge-workflow-responsibility";
 import {
   canDeleteNeverActiveBadgeIssuanceRule,
   canEditBadgeIssuanceRuleDraft,
@@ -49,6 +50,7 @@ import { buildBadgeRuleWorkflowMenuActions } from "./badge-rule-workflow-actions
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
 interface RenderBadgeRulesTableInput {
+  readonly responsibilities?: ReadonlyMap<string, BadgeWorkflowResponsibility> | undefined;
   readonly tenantId: string;
   readonly userId: string;
   readonly ruleBuilderPath: string;
@@ -180,6 +182,10 @@ const renderResolvedRuleRow = (
   selection: ResolvedBadgeRuleVersionSelection,
 ): HonoElement => {
   const { activeVersion, defaultVersion, latestVersion } = selection;
+  const responsibility = input.responsibilities?.get(defaultVersion.id);
+  const latestResponsibility = input.responsibilities?.get(latestVersion.id);
+  const currentResponsibility =
+    activeVersion === null ? undefined : input.responsibilities?.get(activeVersion.id);
   const displayFields = badgeRuleVersionDisplayFields(defaultVersion);
   const detailPath = buildBadgeRuleVersionDetailPath(input.tenantId, rule.id, defaultVersion.id);
   const editRulePath = `${buildBadgeRuleDetailPath(input.tenantId, rule.id)}/edit`;
@@ -189,6 +195,7 @@ const renderResolvedRuleRow = (
     rule,
     latestVersion,
     canDeleteRule: canDeleteNeverActiveBadgeIssuanceRule(rule, versions),
+    approval: latestResponsibility?.approval,
   });
 
   return (
@@ -197,8 +204,16 @@ const renderResolvedRuleRow = (
         <a class="ct-admin__rule-name-link" href={detailPath}>
           <strong>{displayFields.displayName}</strong>
         </a>
+        {responsibility === undefined ? null : (
+          <AdminMeta>Rule author: {responsibility.ruleAuthor}</AdminMeta>
+        )}
       </td>
-      <td>{displayFields.badgeTitle}</td>
+      <td>
+        {displayFields.badgeTitle}
+        {responsibility === undefined ? null : (
+          <AdminMeta>Badge owner: {responsibility.badgeOwner}</AdminMeta>
+        )}
+      </td>
       <td>{displayFields.lmsProviderLabel}</td>
       <td>
         {activeVersion === null ? (
@@ -209,6 +224,9 @@ const renderResolvedRuleRow = (
             <AdminStatusPill tone={activeVersion.status}>
               {badgeRuleVersionStatusLabel(activeVersion.status)}
             </AdminStatusPill>
+            {currentResponsibility === undefined ? null : (
+              <AdminMeta>{currentResponsibility.awarding}</AdminMeta>
+            )}
           </>
         )}
       </td>
@@ -217,6 +235,31 @@ const renderResolvedRuleRow = (
         <AdminStatusPill tone={latestVersion.status}>
           {badgeRuleVersionStatusLabel(latestVersion.status)}
         </AdminStatusPill>
+        {latestResponsibility === undefined ? null : (
+          <>
+            <AdminMeta>Approval: {latestResponsibility.approval.label}</AdminMeta>
+            {activeVersion !== null &&
+            latestResponsibility.badgeOwner !== currentResponsibility?.badgeOwner ? (
+              <AdminMeta>Badge owner: {latestResponsibility.badgeOwner}</AdminMeta>
+            ) : null}
+            {activeVersion !== null &&
+            latestResponsibility.ruleAuthor !== currentResponsibility?.ruleAuthor ? (
+              <AdminMeta>Rule author: {latestResponsibility.ruleAuthor}</AdminMeta>
+            ) : null}
+            {latestVersion.id === activeVersion?.id ? null : (
+              <AdminMeta>When active: {latestResponsibility.awarding}</AdminMeta>
+            )}
+            <a href={buildBadgeRuleVersionDetailPath(input.tenantId, rule.id, latestVersion.id)}>
+              {latestResponsibility.approval.kind === "blocked"
+                ? "Check approval setup"
+                : latestResponsibility.approval.canReview
+                  ? "Review submission"
+                  : latestVersion.status === "approved"
+                    ? "Review and activate"
+                    : "View next step"}
+            </a>
+          </>
+        )}
         {latestVersion.recertificationDueAt === null ? null : (
           <AdminMeta>
             Recertification due {formatIsoTimestamp(latestVersion.recertificationDueAt)}

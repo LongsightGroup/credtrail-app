@@ -178,6 +178,19 @@ vi.mock("@credtrail/db", async () => {
     submitBadgeIssuanceRuleVersionForApproval: mockedSubmitBadgeIssuanceRuleVersionForApproval,
     resolveBadgeRuleApprovalPolicy: mockedResolveBadgeRuleApprovalPolicy,
     resolveTenantDefaultBadgeRuleApprovalPolicy: mockedResolveTenantDefaultBadgeRuleApprovalPolicy,
+    resolveBadgeRuleApprovalPolicies: async (
+      ...[db, input]: Parameters<typeof actual.resolveBadgeRuleApprovalPolicies>
+    ) => {
+      const policy = await mockedResolveTenantDefaultBadgeRuleApprovalPolicy(db, input.tenantId);
+      return new Map(input.orgUnitIds.map((id) => [id, policy]));
+    },
+    loadBadgeWorkflowHomeSummary: async () => ({
+      ruleCount: 0,
+      activeRuleCount: 0,
+      actionCount: 0,
+      waitingCount: 0,
+      tasks: [],
+    }),
     upsertBadgeRuleApprovalPolicy: mockedUpsertBadgeRuleApprovalPolicy,
     createBadgeRuleApproverGroup: mockedCreateBadgeRuleApproverGroup,
     addBadgeRuleApproverGroupMember: mockedAddBadgeRuleApproverGroupMember,
@@ -185,6 +198,9 @@ vi.mock("@credtrail/db", async () => {
     removeBadgeRuleApproverGroupMember: mockedRemoveBadgeRuleApproverGroupMember,
     removeBadgeRuleApproverGroup: mockedRemoveBadgeRuleApproverGroup,
     listBadgeIssuanceRuleVersionApprovalSteps: mockedListBadgeIssuanceRuleVersionApprovalSteps,
+    listBadgeIssuanceRuleVersionApprovalStepsForVersions: async (
+      ...[db, input]: Parameters<typeof actual.listBadgeIssuanceRuleVersionApprovalStepsForVersions>
+    ) => mockedListBadgeIssuanceRuleVersionApprovalSteps(db, input),
     listBadgeIssuanceRuleVersionApprovalEvents: mockedListBadgeIssuanceRuleVersionApprovalEvents,
     listPendingBadgeIssuanceRuleApprovalsForActor:
       mockedListPendingBadgeIssuanceRuleApprovalsForActor,

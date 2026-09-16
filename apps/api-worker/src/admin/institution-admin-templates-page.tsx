@@ -1,3 +1,4 @@
+import type { BadgeTemplateWorkflow } from "./badge-workflow-responsibility";
 import { BadgePreparationActions } from "./badge-preparation-actions";
 import type {
   BadgeTemplateImageRevisionRecord,
@@ -83,6 +84,7 @@ export interface InstitutionAdminRuleTemplatesPageInput {
   membershipRole: TenantMembershipRole;
   badgeTemplates: readonly BadgeTemplateRecord[];
   preparedTemplateIds?: readonly string[];
+  templateWorkflows?: Readonly<Record<string, BadgeTemplateWorkflow>>;
   badgeTemplateImageRevisionCountsById?: Readonly<Record<string, number>>;
   badgeTemplatesPage: InstitutionAdminBadgeTemplatesPageOptions;
   historyPanel?: BadgeTemplateHistoryPanel | null;
@@ -441,6 +443,7 @@ const listPageQueryOptions = (
 
 const renderBadgeTemplatesTable = (input: {
   preparedTemplateIds: readonly string[];
+  templateWorkflows: Readonly<Record<string, BadgeTemplateWorkflow>>;
   badgeTemplates: readonly BadgeTemplateRecord[];
   badgeTemplatesPage: InstitutionAdminBadgeTemplatesPageOptions;
   badgeTemplateImageRevisionCountsById: Readonly<Record<string, number>>;
@@ -463,6 +466,7 @@ const renderBadgeTemplatesTable = (input: {
             tenantId={input.tenantId}
             template={template}
             prepared={input.preparedTemplateIds.includes(template.id)}
+            workflow={input.templateWorkflows[template.id]}
             imageRevisionCount={imageRevisionCount}
             historyHref={badgeTemplateHistoryHref(
               input.rulesTemplatesPath,
@@ -592,6 +596,7 @@ export const institutionAdminRuleTemplatesPage = (
           ) : null}
           {renderBadgeTemplatesTable({
             preparedTemplateIds: input.preparedTemplateIds ?? [],
+            templateWorkflows: input.templateWorkflows ?? {},
             badgeTemplates: input.badgeTemplates,
             badgeTemplatesPage: input.badgeTemplatesPage,
             badgeTemplateImageRevisionCountsById: input.badgeTemplateImageRevisionCountsById ?? {},

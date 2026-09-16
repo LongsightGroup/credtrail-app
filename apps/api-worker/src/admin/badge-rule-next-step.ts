@@ -1,3 +1,4 @@
+import type { BadgeWorkflowApproval } from "./badge-workflow-responsibility";
 import type { BadgeIssuanceRuleRecord, BadgeIssuanceRuleVersionRecord } from "@credtrail/db";
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import { resolveAutomatedBadgeRuleIssuanceTiming } from "@credtrail/validation";
@@ -5,6 +6,7 @@ import { badgeRuleVersionStatusLabel } from "../badges/badge-rule-presentation";
 
 /** The bounded action represented by the rule-detail next-step panel. */
 export type BadgeRuleNextStepAction =
+  | { readonly _tag: "configure_approval" }
   | { readonly _tag: "view_latest" }
   | { readonly _tag: "submit_for_approval" }
   | { readonly _tag: "edit_rule" }
@@ -36,6 +38,7 @@ export const buildBadgeRuleNextStepModel = (input: {
   readonly definition: BadgeIssuanceRuleDefinition;
   readonly activePlacementCount: number;
   readonly canReviewPendingVersion: boolean;
+  readonly approval?: BadgeWorkflowApproval | undefined;
 }): BadgeRuleNextStepModel => {
   if (input.selectedVersion.id !== input.latestVersion.id) {
     return {
@@ -47,6 +50,19 @@ export const buildBadgeRuleNextStepModel = (input: {
     };
   }
 
+  if (
+    input.approval?.kind === "blocked" &&
+    ["draft", "rejected", "pending_approval"].includes(input.latestVersion.status)
+  ) {
+    return {
+      title: "Set up an eligible reviewer",
+      description: input.approval.detail,
+      owner: "Institution administrator",
+      outcome: "The rule can move forward once an approval path is available.",
+      action: { _tag: "configure_approval" },
+    };
+  }
+
   switch (input.latestVersion.status) {
     case "draft":
       return {
@@ -54,7 +70,9 @@ export const buildBadgeRuleNextStepModel = (input: {
         description:
           "The rule is saved, but it cannot issue badges yet. Submit it to begin the institution's approval workflow.",
         owner: "Rule author or administrator",
-        outcome: "An independent reviewer decides whether the rule can be activated.",
+        outcome:
+          input.approval?.detail ??
+          "An independent reviewer decides whether the rule can be activated.",
         action: { _tag: "submit_for_approval" },
       };
     case "rejected":
@@ -80,7 +98,7 @@ export const buildBadgeRuleNextStepModel = (input: {
       }
 
       return {
-        title: "Wait for an independent review",
+        title: input.approval?.label ?? "Wait for an independent review",
         description:
           "This version is submitted and cannot move forward until an assigned reviewer records a decision.",
         owner: "Assigned reviewer",
@@ -112,6 +130,20 @@ export const buildBadgeRuleNextStepModel = (input: {
         };
       }
 
+      if (
+        resolveAutomatedBadgeRuleIssuanceTiming(input.definition) === "end_of_term" &&
+        input.latestVersion.expiresAt === null
+      ) {
+        return {
+          title: "Set the term end date",
+          description:
+            "This rule uses end-of-term awarding, but no end date is scheduled. CredTrail needs that date before it can run the batch.",
+          owner: "Institution administrator",
+          outcome: "CredTrail evaluates eligible learners when the rule reaches its end date.",
+          action: { _tag: "schedule_end_of_term" },
+        };
+      }
+
       if (input.activePlacementCount === 0) {
         return {
           title: "Make the rule available in the LMS",
@@ -137,17 +169,6 @@ export const buildBadgeRuleNextStepModel = (input: {
       }
 
       if (issuanceTiming === "end_of_term") {
-        if (input.latestVersion.expiresAt === null) {
-          return {
-            title: "Set the term end date",
-            description:
-              "This rule uses end-of-term awarding, but no end date is scheduled. CredTrail needs that date before it can run the batch.",
-            owner: "Institution administrator",
-            outcome: "CredTrail evaluates eligible learners when the rule reaches its end date.",
-            action: { _tag: "schedule_end_of_term" },
-          };
-        }
-
         return {
           title: "CredTrail will run the end-of-term batch",
           description:

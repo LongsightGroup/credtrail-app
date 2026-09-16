@@ -1,3 +1,4 @@
+import { loadBadgeWorkflowResponsibilities } from "./badge-workflow-data";
 import {
   findAutomatedBadgeRuleEvaluationStatus,
   latestBadgeIssuanceRuleVersion,
@@ -99,9 +100,20 @@ const renderRuleVersion = async (
   c: AppContext,
   input: RuleVersionRenderData,
 ): Promise<Response> => {
+  const responsibilities = await loadBadgeWorkflowResponsibilities(input.db, {
+    tenantId: input.rule.tenantId,
+    actorUserId: input.principal.userId,
+    rules: [input.rule],
+    versions: input.versions.filter(
+      (version) =>
+        version.id === input.version.id ||
+        version.id === latestBadgeIssuanceRuleVersion(input.versions)?.id,
+    ),
+  });
   return await renderAppPage(
     c,
     badgeRuleVersionPage({
+      responsibilities,
       tenant: input.shell.tenant,
       userId: input.shell.userId,
       ...(input.shell.userEmail === undefined ? {} : { userEmail: input.shell.userEmail }),

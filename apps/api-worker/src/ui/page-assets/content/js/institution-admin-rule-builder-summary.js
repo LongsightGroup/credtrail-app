@@ -207,6 +207,26 @@ const syncRuleBuilderStepCompletion = () => {
 const syncRuleBuilderSummary = (statusOverride) => {
   renderRuleFlowPreview();
   renderSourceReadiness();
+  const workflow = parsedContext.workflowByTemplateId?.[getTextFieldValue("badgeTemplateId")];
+  const setWorkflowText = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  };
+  setWorkflowText("builder-badge-owner", workflow?.badgeOwner ?? "Choose a badge first.");
+  setWorkflowText("builder-rule-author", workflow?.ruleAuthor ?? "Choose a badge first.");
+  setWorkflowText("builder-rule-approval", workflow?.approval.label ?? "Choose a badge to see its approval policy.");
+  setWorkflowText("builder-rule-approval-detail", workflow?.approval.detail ?? "");
+  let awarding;
+  try {
+    const timing = ruleBuilderDefinitionAuthority === "visual"
+      ? getTextFieldValue("issuanceTiming") || "immediate"
+      : parseDefinitionJson().options?.issuanceTiming ?? "immediate";
+    awarding = parsedContext.awardingByTiming?.[timing];
+  } catch {
+    awarding = undefined;
+  }
+  setWorkflowText("builder-rule-awarding", awarding?.awarding ?? "Check awarding settings");
+  setWorkflowText("builder-rule-awarding-detail", awarding?.awardingDetail ?? "Complete or repair the requirements to confirm how this badge will be awarded.");
   ruleBuilderExampleTestController.sync(readConditionsForPreview());
 
   const ruleName = getTextFieldValue("name");

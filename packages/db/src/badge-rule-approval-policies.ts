@@ -426,6 +426,40 @@ export const resolveTenantDefaultBadgeRuleApprovalPolicy = async (
   return tenantPolicy ?? buildDefaultBadgeRuleApprovalPolicy(tenantId, null);
 };
 
+/** Resolves inherited approval policies for a set of org units with two bounded queries. */
+export const resolveBadgeRuleApprovalPolicies = async (
+  db: SqlDatabase,
+  input: { readonly tenantId: string; readonly orgUnitIds: readonly string[] },
+): Promise<ReadonlyMap<string, BadgeRuleApprovalPolicyRecord>> => {
+  const ids = [...new Set(input.orgUnitIds)];
+  if (ids.length === 0) return new Map();
+  const [fallback, rows] = await Promise.all([
+    resolveTenantDefaultBadgeRuleApprovalPolicy(db, input.tenantId),
+    db
+      .prepare(`
+      WITH RECURSIVE ancestors AS (
+        SELECT id AS requested_org_unit_id, id AS ancestor_id, parent_org_unit_id, 0 AS depth
+        FROM tenant_org_units WHERE tenant_id = ? AND id IN (${ids.map(() => "?").join(", ")})
+        UNION ALL
+        SELECT ancestors.requested_org_unit_id, parent.id, parent.parent_org_unit_id, ancestors.depth + 1
+        FROM ancestors JOIN tenant_org_units AS parent ON parent.id = ancestors.parent_org_unit_id
+        WHERE parent.tenant_id = ?
+      )
+      SELECT DISTINCT ON (requested_org_unit_id)
+        requested_org_unit_id AS requestedOrgUnitId, ${BADGE_RULE_APPROVAL_POLICY_SELECT_COLUMNS}
+      FROM ancestors JOIN badge_rule_approval_policies AS policies
+        ON policies.org_unit_id = ancestors.ancestor_id AND policies.tenant_id = ?
+      ORDER BY requested_org_unit_id, depth
+    `)
+      .bind(input.tenantId, ...ids, input.tenantId, input.tenantId)
+      .all<BadgeRuleApprovalPolicyRow & { requestedOrgUnitId: string }>(),
+  ]);
+  const policies = new Map(ids.map((id) => [id, fallback]));
+  for (const row of rows.results)
+    policies.set(row.requestedOrgUnitId, mapBadgeRuleApprovalPolicyRow(row));
+  return policies;
+};
+
 export const ensureTenantDefaultBadgeRuleApprovalPolicy = async (
   db: SqlDatabase,
   tenantId: string,

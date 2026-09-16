@@ -79,7 +79,7 @@ describe("BadgeRuleNextStepPanel", () => {
     ).toString();
 
     expect(html).toContain("CredTrail is checking eligibility automatically");
-    expect(html).toContain("Next owner");
+    expect(html).toContain("Who acts next");
     expect(html).toContain(">CredTrail<");
     expect(html).toContain('href="#automatic-evaluation"');
   });

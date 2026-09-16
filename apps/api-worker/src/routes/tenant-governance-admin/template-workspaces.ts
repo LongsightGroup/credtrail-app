@@ -1,3 +1,4 @@
+import { loadBadgeTemplateWorkflows } from "../badge-workflow-data";
 import { classifyRuleBuilderBadgeTemplateAvailability } from "../../badges/badge-template-rule-availability";
 import {
   findBadgeTemplateById,
@@ -71,6 +72,11 @@ export const createTenantGovernanceTemplateAdminWorkspaces = (input: {
     return {
       ...shellData,
       badgeTemplates,
+      templateWorkflows: await loadBadgeTemplateWorkflows(db, {
+        tenantId,
+        actorUserId: sessionUserId,
+        templates: badgeTemplates,
+      }),
       preparedTemplateIds: classifyRuleBuilderBadgeTemplateAvailability({
         publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
         badgeTemplates,

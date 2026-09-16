@@ -129,6 +129,7 @@ export const buildInstitutionAdminRulesViewResources = (input: {
       rulesTemplatesPath: input.paths.rulesTemplatesPath,
       badgeRules: input.page.badgeRules,
       badgeRuleVersions: input.page.badgeRuleVersions,
+      responsibilities: input.page.badgeWorkflowResponsibilities,
       builderDraftRows,
       builderDraftCount: builderDrafts.length,
       registry: input.page.rulesWorkspace?.registry ?? {

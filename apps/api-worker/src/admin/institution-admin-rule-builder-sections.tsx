@@ -750,14 +750,36 @@ export const RuleBuilderTestStep = (): HonoElement => {
               </div>
             </div>
           </details>
-          <div class="ct-admin__builder-approval-note ct-stack">
-            <strong>CredTrail follows your institution's approval policy.</strong>
-            <p>
-              You cannot approve a rule version you create or submit. Rules that require review go
-              to another eligible approver; automatic-approval policies approve the version
-              immediately.
-            </p>
-          </div>
+          <section
+            class="ct-admin__builder-approval-note ct-stack"
+            aria-labelledby="builder-responsibility-title"
+          >
+            <h3 id="builder-responsibility-title">Who does what</h3>
+            <dl class="ct-admin__workflow-facts">
+              <div>
+                <dt>Badge owner</dt>
+                <dd id="builder-badge-owner">Choose a badge first.</dd>
+              </div>
+              <div>
+                <dt>Rule author</dt>
+                <dd id="builder-rule-author">Choose a badge first.</dd>
+              </div>
+              <div>
+                <dt>Rule approval</dt>
+                <dd>
+                  <span id="builder-rule-approval"></span>
+                  <p class="ct-admin__hint" id="builder-rule-approval-detail"></p>
+                </dd>
+              </div>
+              <div>
+                <dt>Who awards the badge</dt>
+                <dd>
+                  <span id="builder-rule-awarding"></span>
+                  <p class="ct-admin__hint" id="builder-rule-awarding-detail"></p>
+                </dd>
+              </div>
+            </dl>
+          </section>
         </section>
       </div>
     </li>

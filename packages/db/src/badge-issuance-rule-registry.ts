@@ -24,7 +24,10 @@ interface RegistryScopeSql {
   readonly empty: boolean;
 }
 
-const registryScopeSql = (input: ListBadgeIssuanceRuleRegistryPageInput): RegistryScopeSql => {
+/** Shares tenant/org scoping between registry pages and bounded workflow summaries. */
+export const badgeRuleRegistryScopeSql = (
+  input: Pick<ListBadgeIssuanceRuleRegistryPageInput, "scope" | "tenantId">,
+): RegistryScopeSql => {
   if (input.scope?.type === "org_unit") {
     return {
       cte: "",
@@ -175,7 +178,7 @@ export const listBadgeIssuanceRuleRegistryPage = async (
     throw new Error("Badge rule registry page limit must be between 1 and 100");
   }
 
-  const scope = registryScopeSql(input);
+  const scope = badgeRuleRegistryScopeSql(input);
   if (scope.empty) {
     return { rules: [], totalCount: 0, previousCursor: null, nextCursor: null };
   }

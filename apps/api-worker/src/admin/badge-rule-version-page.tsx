@@ -20,6 +20,8 @@ import { BadgeRuleVersionOverview } from "./badge-rule-version-overview";
 import { BadgeRuleAutomatedEvaluationStatus } from "./badge-rule-automated-evaluation-status";
 import { BadgeRuleLtiPlacements } from "./badge-rule-lti-placements";
 import { BadgeRuleNextStepPanel } from "./badge-rule-next-step-panel";
+import type { BadgeWorkflowResponsibility } from "./badge-workflow-responsibility";
+import { BadgeWorkflowSummary } from "./badge-workflow-summary";
 import { AdminStatus } from "./components";
 import { renderInstitutionAdminShellPage } from "./institution-admin-shell";
 
@@ -39,6 +41,7 @@ export const badgeRuleVersionPage = (input: {
   readonly placements: readonly LtiResourceLinkPlacementRecord[];
   readonly evaluationRequestId: string;
   readonly canReviewPendingVersion: boolean;
+  readonly responsibilities?: ReadonlyMap<string, BadgeWorkflowResponsibility> | undefined;
   readonly actionFlash: { readonly tone: "success" | "error"; readonly message: string } | null;
 }): AppPage => {
   const navigation = buildBadgeRuleVersionNavigationModel({
@@ -89,6 +92,7 @@ export const badgeRuleVersionPage = (input: {
           {input.actionFlash === null ? null : (
             <AdminStatus tone={input.actionFlash.tone}>{input.actionFlash.message}</AdminStatus>
           )}
+          <BadgeWorkflowSummary responsibility={input.responsibilities?.get(input.version.id)} />
           <BadgeRuleNextStepPanel
             tenantId={input.tenant.id}
             userId={input.userId}
@@ -100,6 +104,7 @@ export const badgeRuleVersionPage = (input: {
               input.placements.filter((placement) => placement.status === "active").length
             }
             canReviewPendingVersion={input.canReviewPendingVersion}
+            approval={input.responsibilities?.get(navigation.latestVersion.id)?.approval}
           />
           <BadgeRuleVersionOverview
             tenantId={input.tenant.id}

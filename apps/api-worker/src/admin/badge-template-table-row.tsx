@@ -1,3 +1,4 @@
+import type { BadgeTemplateWorkflow } from "./badge-workflow-responsibility";
 import { issuePreparedBadgePath } from "./badge-awarding-links";
 /** Server-rendered badge template table row for the admin UI. */
 import type { BadgeTemplateRecord } from "@credtrail/db";
@@ -13,6 +14,7 @@ import {
   badgeTemplateShowcaseHref,
 } from "../badges/badge-template-public-links";
 import {
+  AdminMeta,
   AdminActionMenu,
   AdminActionMenuLink,
   AdminActions,
@@ -28,6 +30,7 @@ export const BadgeTemplateAdminTableRow = ({
   tenantId,
   prepared = false,
   template,
+  workflow,
   imageRevisionCount = 0,
   historyHref,
   rulesTemplatesPath,
@@ -36,6 +39,7 @@ export const BadgeTemplateAdminTableRow = ({
   tenantId: string;
   prepared?: boolean;
   template: BadgeTemplateRecord;
+  workflow?: BadgeTemplateWorkflow | undefined;
   imageRevisionCount?: number;
   historyHref: string;
   rulesTemplatesPath: string;
@@ -67,6 +71,12 @@ export const BadgeTemplateAdminTableRow = ({
       </td>
       <td>
         <strong>{template.title}</strong>
+        {workflow === undefined ? null : (
+          <>
+            <AdminMeta>Badge owner: {workflow.badgeOwner}</AdminMeta>
+            <AdminMeta>Created by: {workflow.badgeCreator}</AdminMeta>
+          </>
+        )}
       </td>
       <td>
         {template.isArchived ? (

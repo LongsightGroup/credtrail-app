@@ -1,8 +1,10 @@
+import type { BadgeWorkflowResponsibility } from "../badge-workflow-responsibility";
 import type { ManualIssueSelection } from "../manual-issue-selection";
 import type { IssuedBadgeStatusFormError } from "../issued-badge-status-form";
 import type { IssuedBadgeStatusSelection } from "../issued-badge-status-panel";
 import type { IssuedBadgeLifecycleMode } from "../issued-badges-admin-helpers";
 import type {
+  BadgeWorkflowHomeSummary,
   BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleBuilderDraftRecord,
   BadgeIssuanceRuleRegistryPage,
@@ -196,6 +198,8 @@ export interface InstitutionAdminLearnerRecordImportWorkflow {
 }
 
 export interface InstitutionAdminPageInput {
+  workflowHome?: BadgeWorkflowHomeSummary | undefined;
+  badgeWorkflowResponsibilities?: ReadonlyMap<string, BadgeWorkflowResponsibility> | undefined;
   tenant: TenantRecord;
   userId: string;
   userEmail?: string;

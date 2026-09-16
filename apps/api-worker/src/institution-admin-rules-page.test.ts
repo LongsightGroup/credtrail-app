@@ -163,7 +163,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).toContain(">View</a>");
     expect(body).toContain("Submit for approval");
     expect(body).toContain(
-      "Submit draft version for &quot;CS101 Excellence Rule&quot; for approval? You will not be able to approve it yourself.",
+      "Submit draft version for &quot;CS101 Excellence Rule&quot; for approval? This rule has an approval step without an eligible reviewer. Check Rule Approval before submitting.",
     );
     expect(body).toContain('method="post"');
     expect(body).toContain("/versions/brv_123/submit-approval");

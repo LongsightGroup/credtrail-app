@@ -1,3 +1,4 @@
+import { loadBadgeTemplateWorkflows } from "./badge-workflow-data";
 import type { SqlDatabase, TenantMembershipRole } from "@credtrail/db";
 import {
   BADGE_ISSUANCE_RULE_BUILDER_EDIT_DENIED_MESSAGE,
@@ -640,6 +641,11 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
           ? {}
           : { userEmail: sharedData.currentUser.email }),
         membershipRole,
+        workflowByTemplateId: await loadBadgeTemplateWorkflows(db, {
+          tenantId: tenant.id,
+          actorUserId: principal.userId,
+          templates: sharedData.badgeTemplates,
+        }),
         badgeTemplateAvailability,
         badgeRules,
         badgeRuleVersions,
@@ -791,6 +797,13 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
           ? {}
           : { userEmail: sharedData.currentUser.email }),
         membershipRole,
+        workflowByTemplateId: await loadBadgeTemplateWorkflows(db, {
+          tenantId: tenant.id,
+          actorUserId: principal.userId,
+          templates: sharedData.badgeTemplates,
+          ruleOrgUnitId: latestVersion.snapshot.orgUnitId,
+          ruleAuthorId: latestVersion.createdByUserId,
+        }),
         badgeTemplateAvailability,
         badgeRules,
         badgeRuleVersions,

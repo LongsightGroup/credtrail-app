@@ -216,7 +216,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () =>
     );
   });
 
-  it("shows the submitter that an independent reviewer owns the next step", async () => {
+  it("shows a missing reviewer without removing the submitter withdrawal action", async () => {
     const pendingVersion = sampleDetailVersion("brv_detail_pending", 1, "pending_approval");
     mockedFindBadgeIssuanceRuleById.mockResolvedValue(sampleDetailRule(null));
     mockedListBadgeIssuanceRuleVersions.mockResolvedValue([pendingVersion]);
@@ -227,10 +227,10 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () =>
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Wait for an independent review");
-    expect(body).toContain("<dd>Assigned reviewer</dd>");
+    expect(body).toContain("Set up an eligible reviewer");
+    expect(body).toContain("<dd>Institution administrator</dd>");
     expect(body).toContain("Withdraw submission");
-    expect(body).toContain('data-rule-next-step="await_approval"');
+    expect(body).toContain('data-rule-next-step="configure_approval"');
   });
 
   it("lists active and retired placements with row-owned retirement guidance", async () => {
@@ -448,8 +448,8 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () =>
     expect(body).toContain("Version 2 of 2");
     expect(body).toContain("← Previous version");
     expect(body).toContain("Next version →");
-    expect(body).toContain("Submit this draft for approval");
-    expect(body).toContain("The rule is saved, but it cannot issue badges yet");
+    expect(body).toContain("Set up an eligible reviewer");
+    expect(body).toContain("No eligible independent reviewer");
     expect(body).toContain("Version note:");
     expect(body).toContain("Technical details");
     expect(body).toContain("Rule ID");
