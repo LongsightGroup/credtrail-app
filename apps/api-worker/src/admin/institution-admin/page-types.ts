@@ -1,3 +1,4 @@
+import type { ManualIssueSelection } from "../manual-issue-selection";
 import type { IssuedBadgeStatusFormError } from "../issued-badge-status-form";
 import type { IssuedBadgeStatusSelection } from "../issued-badge-status-panel";
 import type { IssuedBadgeLifecycleMode } from "../issued-badges-admin-helpers";
@@ -151,10 +152,8 @@ export interface InstitutionAdminAccessOrgUnitsWorkspace extends InstitutionAdmi
 export interface InstitutionAdminManualIssueWorkspace {
   listNotice: string | null;
   listError: string | null;
-  pathwayIssuance: {
-    readonly handoffId: string;
-    readonly badgeTemplateId: string;
-  } | null;
+  selection: ManualIssueSelection;
+  pathwayHandoffId: string | null;
 }
 
 export interface InstitutionAdminLearnerRecordImportWorkflow {

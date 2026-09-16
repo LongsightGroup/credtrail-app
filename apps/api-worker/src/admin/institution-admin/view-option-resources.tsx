@@ -83,25 +83,16 @@ const buildTemplateOptions = (
   optionalBadgeTemplateScopeOptions: HonoElement;
   templateSelectOptions: HonoElement;
 } => {
-  const selectedPathwayTemplateId = page.manualIssueWorkspace?.pathwayIssuance?.badgeTemplateId;
   const options = dataNeeds.templateSelectOptions
-    ? page.badgeTemplates.map((template, index) => (
-        <option
-          value={template.id}
-          selected={
-            selectedPathwayTemplateId === undefined
-              ? index === 0
-              : template.id === selectedPathwayTemplateId
-          }
-        >
-          {`${template.title} (${template.id})`}
-        </option>
-      ))
+    ? page.badgeTemplates.map((template) => <option value={template.id}>{template.title}</option>)
     : [];
   const templateSelectOptions = !dataNeeds.templateSelectOptions ? (
     emptyOptions
   ) : options.length > 0 ? (
-    <>{options}</>
+    <>
+      <option value="">Choose a badge</option>
+      {options}
+    </>
   ) : (
     <option value="">No badge templates available</option>
   );

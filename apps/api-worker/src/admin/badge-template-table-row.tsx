@@ -1,3 +1,4 @@
+import { issuePreparedBadgePath } from "./badge-awarding-links";
 /** Server-rendered badge template table row for the admin UI. */
 import type { BadgeTemplateRecord } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
@@ -25,6 +26,7 @@ type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
 export const BadgeTemplateAdminTableRow = ({
   tenantId,
+  prepared = false,
   template,
   imageRevisionCount = 0,
   historyHref,
@@ -32,6 +34,7 @@ export const BadgeTemplateAdminTableRow = ({
   listPageQuery,
 }: {
   tenantId: string;
+  prepared?: boolean;
   template: BadgeTemplateRecord;
   imageRevisionCount?: number;
   historyHref: string;
@@ -82,6 +85,15 @@ export const BadgeTemplateAdminTableRow = ({
           >
             Edit template
           </AdminButtonLink>
+          {prepared && !template.isArchived ? (
+            <AdminButtonLink
+              href={issuePreparedBadgePath(tenantId, template.id)}
+              variant="secondary"
+              size="tiny"
+            >
+              Issue this badge
+            </AdminButtonLink>
+          ) : null}
           <AdminActionMenu
             menuId={`badge-template-action-menu-${template.id}`}
             ariaLabel={`More actions for ${template.title}`}

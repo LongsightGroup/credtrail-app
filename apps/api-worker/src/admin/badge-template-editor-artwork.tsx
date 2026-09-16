@@ -33,7 +33,7 @@ export const badgeTemplateEditorReadyState = (
     return { label: "Image check unavailable", tone: "warning" };
   }
 
-  return { label: "Ready for rules", tone: "active" };
+  return { label: "Ready to award", tone: "active" };
 };
 
 export const BadgeTemplateEditorPreviewFrame = ({
@@ -101,13 +101,13 @@ export const BadgeTemplateEditorCurrentArtwork = ({
   const artworkDetail = (() => {
     switch (artworkReadiness) {
       case "ready":
-        return "Artwork is set. This template is ready for rules.";
+        return "Artwork is set. This badge is ready to award.";
       case "missing_artwork":
-        return "Upload an image or use a generated draft before using this template in rules.";
+        return "Upload an image or use a generated draft before awarding this badge.";
       case "unmanaged_artwork":
-        return "Replace this image with artwork uploaded or generated in CredTrail before using the template in rules.";
+        return "Replace this image with artwork uploaded or generated in CredTrail before awarding this badge.";
       case "invalid_artwork":
-        return "The stored image cannot be verified. Replace it before using this template in rules.";
+        return "The stored image cannot be verified. Replace it before awarding this badge.";
       case "storage_unavailable":
         return "CredTrail cannot check the stored image right now. Try again before replacing it.";
     }

@@ -37,6 +37,22 @@ export const presentationVerifyRequestSchema = z.object({
   presentation: jsonObjectSchema,
 });
 
+/** Optional badge handoff; governed pathway issuance always requires its badge. */
+export const manualIssuePageQuerySchema = z
+  .object({
+    badgeTemplateId: resourceIdSchema.optional(),
+    pathwayHandoffId: resourceIdSchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.pathwayHandoffId !== undefined && value.badgeTemplateId === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["badgeTemplateId"],
+        message: "Choose the badge for this pathway.",
+      });
+    }
+  });
+
 export const ASSERTION_REASON_MAX_LENGTH = 512;
 
 export const assertionLifecycleTransitionRequestSchema = z.object({

@@ -172,15 +172,19 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
         <>
           {renderPageHeader(
             "Issue Badge",
-            "Issue a badge for one learner by choosing the template and recipient email.",
+            input.manualIssueWorkspace?.selection.kind === "ready"
+              ? "Enter the learner’s email to issue the selected badge."
+              : "Issue a badge for one learner by choosing the template and recipient email.",
           )}
           <section class="ct-admin ct-stack">
             {renderManualIssueSection({
+              hasReadyTemplates: input.badgeTemplates.length > 0,
               tenantId: input.tenant.id,
               templateSelectOptions: content.controls.templateSelectOptions,
               listError: input.manualIssueWorkspace?.listError ?? null,
               listNotice: input.manualIssueWorkspace?.listNotice ?? null,
-              pathwayHandoffId: input.manualIssueWorkspace?.pathwayIssuance?.handoffId ?? null,
+              pathwayHandoffId: input.manualIssueWorkspace?.pathwayHandoffId ?? null,
+              selection: input.manualIssueWorkspace?.selection ?? { kind: "choose" },
             })}
           </section>
         </>

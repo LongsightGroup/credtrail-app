@@ -91,7 +91,8 @@ describeDbIntegration("persisted issuance receipts", () => {
       expect(html).toContain("Issuance receipt");
       expect(html).toContain("learner@example.edu");
       expect(html).toContain("View badge record");
-      expect(html).toContain("Issue another badge");
+      expect(html).toContain("Issue this badge to another learner");
+      expect(html).toContain(`/operations/issue?badgeTemplateId=${data.badgeTemplateId}`);
       expect(html).toContain("/verification");
       expect(html).toContain("/jsonld");
       expect(html).not.toContain('id="manual-issue-form"');

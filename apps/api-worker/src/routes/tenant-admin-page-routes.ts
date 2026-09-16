@@ -545,11 +545,24 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       badgeTemplates: sharedData.badgeTemplates,
     });
     const requestedBadgeTemplateId = builderPageQuery.badgeTemplateId ?? "";
-    const selectedBadgeTemplateId = sharedData.badgeTemplates.some(
-      (template) => template.id === requestedBadgeTemplateId,
-    )
-      ? requestedBadgeTemplateId
-      : undefined;
+    const requestedTemplate = badgeTemplateAvailability.find(
+      (entry) => entry.template.id === requestedBadgeTemplateId,
+    );
+    if (
+      requestedBadgeTemplateId.length > 0 &&
+      (requestedTemplate === undefined || requestedTemplate.artworkAvailability !== "available")
+    ) {
+      await setAdminListMessageFlash(c, {
+        tenantId: route.tenantId,
+        userId: principal.userId,
+        workspace: "badge_templates",
+        tone: "error",
+        message:
+          "That badge is not ready for automatic awarding. Prepare its artwork or choose another badge.",
+      });
+      return c.redirect(buildBadgeTemplateListPath(route.tenantId), 303);
+    }
+    const selectedBadgeTemplateId = requestedTemplate?.template.id;
     let copySource: InstitutionAdminRuleBuilderCopySource | undefined;
 
     if (builderPageQuery.copyRuleId !== undefined) {

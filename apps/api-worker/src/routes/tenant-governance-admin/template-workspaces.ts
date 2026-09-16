@@ -1,3 +1,4 @@
+import { classifyRuleBuilderBadgeTemplateAvailability } from "../../badges/badge-template-rule-availability";
 import {
   findBadgeTemplateById,
   listBadgeTemplateImageRevisionCountsByTenant,
@@ -70,6 +71,12 @@ export const createTenantGovernanceTemplateAdminWorkspaces = (input: {
     return {
       ...shellData,
       badgeTemplates,
+      preparedTemplateIds: classifyRuleBuilderBadgeTemplateAvailability({
+        publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
+        badgeTemplates,
+      })
+        .filter((entry) => !entry.template.isArchived && entry.artworkAvailability === "available")
+        .map((entry) => entry.template.id),
       badgeTemplateImageRevisionCountsById,
       badgeTemplatesPage: {
         searchQuery: "",
@@ -307,7 +314,7 @@ export const createTenantGovernanceTemplateAdminWorkspaces = (input: {
     if (details === "created") {
       return {
         tone: "success",
-        message: "Badge template created. Add artwork before using it in rules.",
+        message: "Badge template created. Add artwork, then choose how to award it.",
       };
     }
 

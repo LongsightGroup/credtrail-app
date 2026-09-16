@@ -1,13 +1,12 @@
+import { classifyRuleBuilderBadgeTemplateAvailability } from "../badges/badge-template-rule-availability";
+import { resolveManualIssueSelection } from "./manual-issue-selection";
 import {
   findTenantLmsConnectionById,
   listBadgeIssuanceRuleBuilderDraftsForUser,
   type ListBadgeIssuanceRuleRegistryPageInput,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import {
-  parseTenantLmsConnectionPathParams,
-  safeParseLearnerPathwayIssuanceQuery,
-} from "@credtrail/validation";
+import { parseTenantLmsConnectionPathParams } from "@credtrail/validation";
 import type { AppContext } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import { loadBadgeRuleReviewQueueEntries } from "../badge-rule-review-queue-workspace";
@@ -623,17 +622,13 @@ export const renderInstitutionAdminManualIssueWorkspace = async <
     userId: principal.userId,
     workspace: "operations_manual_issue",
   });
-  const pathwayIssuanceQuery = safeParseLearnerPathwayIssuanceQuery({
-    pathwayHandoffId: c.req.query("pathwayHandoffId"),
-    badgeTemplateId: c.req.query("badgeTemplateId"),
+  const { selection, pathwayHandoffId } = await resolveManualIssueSelection({
+    query: c.req.query(),
+    templates: pageData.badgeTemplates,
+    store: c.env.BADGE_OBJECTS,
+    publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
   });
-  const pathwayIssuance = pathwayIssuanceQuery.ok
-    ? {
-        handoffId: pathwayIssuanceQuery.value.pathwayHandoffId,
-        badgeTemplateId: pathwayIssuanceQuery.value.badgeTemplateId,
-      }
-    : null;
-  const manualIssueWorkspace = { ...flash, pathwayIssuance };
+  const manualIssueWorkspace = { ...flash, selection, pathwayHandoffId };
 
   return await renderInstitutionAdminWorkspacePage(
     c,
@@ -641,6 +636,12 @@ export const renderInstitutionAdminManualIssueWorkspace = async <
     institutionAdminManualIssuePage({
       ...pageData,
       manualIssueWorkspace,
+      badgeTemplates: classifyRuleBuilderBadgeTemplateAvailability({
+        publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
+        badgeTemplates: pageData.badgeTemplates,
+      })
+        .filter((entry) => !entry.template.isArchived && entry.artworkAvailability === "available")
+        .map((entry) => entry.template),
     }),
   );
 };

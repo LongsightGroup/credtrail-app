@@ -122,7 +122,13 @@ describe("rule-builder badge template availability", () => {
       },
     ]);
 
-    const response = await requestRuleBuilder(createEnv(), "?badgeTemplateId=badge_template_002");
+    const unavailable = await requestRuleBuilder(
+      createEnv(),
+      "?badgeTemplateId=badge_template_002",
+    );
+    expect(unavailable.status).toBe(303);
+    expect(unavailable.headers.get("location")).toBe("/tenants/tenant_123/admin/rules/templates");
+    const response = await requestRuleBuilder(createEnv());
     const body = await response.text();
 
     expect(response.status).toBe(200);

@@ -1,3 +1,4 @@
+import { issuePreparedBadgePath } from "../admin/badge-awarding-links";
 import {
   createAuditLog,
   findAssertionById,
@@ -6,6 +7,7 @@ import {
 } from "@credtrail/db";
 import {
   parseManualIssueBadgeRequest,
+  manualIssuePageQuerySchema,
   parseTenantPathParams,
   parseAssertionPathParams,
 } from "@credtrail/validation";
@@ -76,6 +78,19 @@ export const registerTenantOperationsAdminRoutes = (
       "learnerPathwayCompletionHandoffId",
     );
 
+    const handoffQuery = manualIssuePageQuerySchema.safeParse({
+      badgeTemplateId,
+      pathwayHandoffId: learnerPathwayCompletionHandoffId,
+    });
+    const returnPath =
+      handoffQuery.success && handoffQuery.data.badgeTemplateId !== undefined
+        ? issuePreparedBadgePath(
+            pathParams.tenantId,
+            handoffQuery.data.badgeTemplateId,
+            handoffQuery.data.pathwayHandoffId,
+          )
+        : nextPath;
+
     let request: ReturnType<typeof parseManualIssueBadgeRequest>;
 
     try {
@@ -89,7 +104,7 @@ export const registerTenantOperationsAdminRoutes = (
             identifier: recipientIdentity,
           },
         ],
-        ...(learnerPathwayCompletionHandoffId === null
+        ...(learnerPathwayCompletionHandoffId === undefined
           ? {}
           : { learnerPathwayCompletionHandoffId }),
       });
@@ -102,22 +117,22 @@ export const registerTenantOperationsAdminRoutes = (
         message: "Recipient email and badge template are required.",
       });
 
-      return c.redirect(buildOperationsManualIssuePath(pathParams.tenantId), 303);
+      return c.redirect(returnPath, 303);
     }
 
     const db = resolveDatabase(c.env);
     const template = await findBadgeTemplateById(db, pathParams.tenantId, request.badgeTemplateId);
 
-    if (template === null) {
+    if (template === null || template.isArchived) {
       await setAdminListMessageFlash(c, {
         workspace: "operations_manual_issue",
         tenantId: pathParams.tenantId,
         userId: principal.userId,
         tone: "error",
-        message: "Choose a badge template that belongs to this organization.",
+        message: "Choose an active badge template that belongs to this organization.",
       });
 
-      return c.redirect(buildOperationsManualIssuePath(pathParams.tenantId), 303);
+      return c.redirect(returnPath, 303);
     }
 
     const delegatedPermission = await requireDelegatedIssuingAuthorityPermission(c, {
@@ -188,7 +203,7 @@ export const registerTenantOperationsAdminRoutes = (
       });
     }
 
-    return c.redirect(buildOperationsManualIssuePath(pathParams.tenantId), 303);
+    return c.redirect(returnPath, 303);
   };
 
   app.get("/tenants/:tenantId/admin/operations/issue/:assertionId/receipt", async (c) => {

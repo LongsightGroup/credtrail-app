@@ -1,3 +1,4 @@
+import { BadgePreparationActions } from "./badge-preparation-actions";
 import type {
   BadgeTemplateImageRevisionRecord,
   BadgeTemplateRecord,
@@ -81,6 +82,7 @@ export interface InstitutionAdminRuleTemplatesPageInput {
   userEmail?: string;
   membershipRole: TenantMembershipRole;
   badgeTemplates: readonly BadgeTemplateRecord[];
+  preparedTemplateIds?: readonly string[];
   badgeTemplateImageRevisionCountsById?: Readonly<Record<string, number>>;
   badgeTemplatesPage: InstitutionAdminBadgeTemplatesPageOptions;
   historyPanel?: BadgeTemplateHistoryPanel | null;
@@ -438,6 +440,7 @@ const listPageQueryOptions = (
 };
 
 const renderBadgeTemplatesTable = (input: {
+  preparedTemplateIds: readonly string[];
   badgeTemplates: readonly BadgeTemplateRecord[];
   badgeTemplatesPage: InstitutionAdminBadgeTemplatesPageOptions;
   badgeTemplateImageRevisionCountsById: Readonly<Record<string, number>>;
@@ -459,6 +462,7 @@ const renderBadgeTemplatesTable = (input: {
           <BadgeTemplateAdminTableRow
             tenantId={input.tenantId}
             template={template}
+            prepared={input.preparedTemplateIds.includes(template.id)}
             imageRevisionCount={imageRevisionCount}
             historyHref={badgeTemplateHistoryHref(
               input.rulesTemplatesPath,
@@ -587,6 +591,7 @@ export const institutionAdminRuleTemplatesPage = (
             </AdminStatus>
           ) : null}
           {renderBadgeTemplatesTable({
+            preparedTemplateIds: input.preparedTemplateIds ?? [],
             badgeTemplates: input.badgeTemplates,
             badgeTemplatesPage: input.badgeTemplatesPage,
             badgeTemplateImageRevisionCountsById: input.badgeTemplateImageRevisionCountsById ?? {},
@@ -653,7 +658,7 @@ export const institutionAdminRuleTemplateEditorPage = (
       <>
         {renderInstitutionAdminPageHeader(
           "Edit Badge Template",
-          "Prepare the badge details, artwork, criteria, and public record before using it in rules.",
+          "Prepare the badge details and artwork, then choose how to award it.",
         )}
         <section class="ct-admin ct-stack">
           <AdminPanel className="ct-admin__template-editor-overview">
@@ -672,6 +677,10 @@ export const institutionAdminRuleTemplateEditorPage = (
                     "Add a short description so learners and public viewers know what this badge represents."}
                 </p>
               </div>
+              <BadgePreparationActions
+                template={template}
+                readiness={input.badgeTemplateArtworkReadiness}
+              />
               <AdminActions>
                 <AdminButtonLink
                   href={badgeTemplateShowcaseHref(input.tenant.id, template.id)}

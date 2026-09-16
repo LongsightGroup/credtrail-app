@@ -9,6 +9,7 @@ it("keeps the issue form available with validation feedback and pathway context"
       body: (
         <>
           {renderManualIssueSection({
+            hasReadyTemplates: true,
             tenantId: "tenant_123",
             templateSelectOptions: <option value="badge_1">Analytics</option>,
             listError: "Choose a badge template.",

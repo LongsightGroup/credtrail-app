@@ -1,3 +1,4 @@
+import { issuePreparedBadgePath } from "./badge-awarding-links";
 import type { AssertionRecord } from "@credtrail/db";
 import { AdminActions, AdminButtonLink, AdminPanel } from "./components";
 import {
@@ -74,10 +75,10 @@ export const issuanceReceiptPage = (
                   Open public badge
                 </AdminButtonLink>
                 <AdminButtonLink
-                  href={tenantOperationsManualIssuePath(input.tenant.id)}
+                  href={issuePreparedBadgePath(input.tenant.id, input.assertion.badgeTemplateId)}
                   variant="quiet"
                 >
-                  Issue another badge
+                  Issue this badge to another learner
                 </AdminButtonLink>
               </AdminActions>
               <details>

@@ -1843,7 +1843,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain(">Edit Badge Template<");
-    expect(body).toContain("Prepare the badge details, artwork, criteria, and public record");
+    expect(body).toContain("Prepare the badge details and artwork, then choose how to award it.");
     expect(body).not.toContain("Back to badge templates");
     expect(body).toContain('id="badge-template-editor-preview-frame"');
     expect(body).toContain(
@@ -1898,7 +1898,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body).toContain("Current artwork");
     expect(body).toContain("Needs managed image");
     expect(body).toContain(
-      "Replace this image with artwork uploaded or generated in CredTrail before using the template in rules.",
+      "Replace this image with artwork uploaded or generated in CredTrail before awarding this badge.",
     );
     expect(body).toContain("Replace artwork");
     expect(body).toContain("Upload an image or generate a draft to review.");

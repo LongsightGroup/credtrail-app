@@ -24,7 +24,7 @@ const sampleTemplate = (input: Partial<BadgeTemplateRecord> = {}): BadgeTemplate
 describe("badgeTemplateEditorReadyState", () => {
   it("reports ready when artwork exists", () => {
     expect(badgeTemplateEditorReadyState(sampleTemplate(), "ready")).toEqual({
-      label: "Ready for rules",
+      label: "Ready to award",
       tone: "active",
     });
   });
