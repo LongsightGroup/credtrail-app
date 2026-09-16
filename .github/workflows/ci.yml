@@ -78,14 +78,12 @@ jobs:
           docker network create credtrail-ci-net
 
           cleanup() {
-            docker logs credtrail-ci-app || true
-            docker logs credtrail-ci-worker || true
-            docker logs credtrail-ci-postgres || true
-            docker logs credtrail-ci-minio || true
-            docker stop credtrail-ci-app >/dev/null 2>&1 || true
-            docker stop credtrail-ci-worker >/dev/null 2>&1 || true
-            docker stop credtrail-ci-postgres >/dev/null 2>&1 || true
-            docker stop credtrail-ci-minio >/dev/null 2>&1 || true
+            for container in credtrail-ci-app credtrail-ci-worker credtrail-ci-postgres credtrail-ci-s3; do
+              if docker container inspect "$container" >/dev/null 2>&1; then
+                docker logs "$container" || true
+                docker rm -f "$container" >/dev/null 2>&1 || true
+              fi
+            done
             docker network rm credtrail-ci-net >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
@@ -115,19 +113,61 @@ jobs:
             credtrail-ci:${{ github.sha }} \
             node node_modules/@credtrail/db/scripts/migrate-postgres.mjs
 
+          docker build -f Dockerfile.gofakes3 -t credtrail-ci-s3 .
           docker run -d \
-            --name credtrail-ci-minio \
+            --name credtrail-ci-s3 \
             --network credtrail-ci-net \
-            -e MINIO_ROOT_USER=minioadmin \
-            -e MINIO_ROOT_PASSWORD=minioadmin \
-            minio/minio:latest server /data --console-address :9001
+            credtrail-ci-s3
 
-          docker run --rm --network credtrail-ci-net --entrypoint /bin/sh minio/mc:latest -ceu '
-            until mc alias set local http://credtrail-ci-minio:9000 minioadmin minioadmin; do
-              sleep 1
-            done
-            mc mb --ignore-existing local/credtrail-badges
-          '
+          # Exercise the packaged S3 SDK over the same network as the app.
+          docker run --rm -i \
+            --network credtrail-ci-net \
+            credtrail-ci:${{ github.sha }} \
+            node --input-type=module <<'JS'
+          import assert from "node:assert/strict";
+          import { setTimeout } from "node:timers/promises";
+          import {
+            S3Client, HeadBucketCommand, PutObjectCommand,
+            GetObjectCommand, HeadObjectCommand, DeleteObjectCommand,
+          } from "@aws-sdk/client-s3";
+
+          const client = new S3Client({
+            endpoint: "http://credtrail-ci-s3:9000",
+            region: "us-east-1",
+            forcePathStyle: true,
+            credentials: { accessKeyId: "ci-storage", secretAccessKey: "ci-storage" },
+          });
+          try {
+            for (let attempt = 1; attempt <= 30; attempt++) {
+              try {
+                await client.send(new HeadBucketCommand({ Bucket: "credtrail-badges" }));
+                break;
+              } catch (error) {
+                if (attempt === 30) throw error;
+                await setTimeout(1000);
+              }
+            }
+            const object = { Bucket: "credtrail-badges", Key: "ci/storage-smoke.json" };
+            const body = JSON.stringify({ message: "Credential storage smoke test" });
+            await client.send(new PutObjectCommand({ ...object, Body: body, IfNoneMatch: "*" }));
+            await assert.rejects(
+              client.send(new PutObjectCommand({ ...object, Body: "overwrite", IfNoneMatch: "*" })),
+              (error) => error.$metadata?.httpStatusCode === 412,
+            );
+            const result = await client.send(new GetObjectCommand(object));
+            assert.equal(await result.Body.transformToString(), body);
+            const metadata = await client.send(new HeadObjectCommand(object));
+            assert.equal(metadata.ContentLength, Buffer.byteLength(body));
+            await client.send(new DeleteObjectCommand(object));
+            await assert.rejects(
+              client.send(new HeadObjectCommand(object)),
+              (error) => error.$metadata?.httpStatusCode === 404,
+            );
+            console.log("S3 write, immutable conflict, read, metadata, and delete checks passed.");
+          } finally {
+            client.destroy();
+          }
+          JS
 
           docker run -d \
             --name credtrail-ci-app \
@@ -138,12 +178,12 @@ jobs:
             -e PUBLIC_APP_ORIGIN=http://localhost:8787 \
             -e DATABASE_URL="$DATABASE_URL" \
             -e STORAGE_BACKEND=s3 \
-            -e S3_ENDPOINT=http://credtrail-ci-minio:9000 \
+            -e S3_ENDPOINT=http://credtrail-ci-s3:9000 \
             -e S3_BUCKET=credtrail-badges \
             -e S3_REGION=us-east-1 \
             -e S3_FORCE_PATH_STYLE=true \
-            -e AWS_ACCESS_KEY_ID=minioadmin \
-            -e AWS_SECRET_ACCESS_KEY=minioadmin \
+            -e AWS_ACCESS_KEY_ID=ci-storage \
+            -e AWS_SECRET_ACCESS_KEY=ci-storage \
             -e JOB_PROCESSOR_TOKEN="$JOB_PROCESSOR_TOKEN" \
             credtrail-ci:${{ github.sha }}
 
@@ -227,12 +267,12 @@ jobs:
             -e PUBLIC_APP_ORIGIN=http://localhost:8787 \
             -e DATABASE_URL="$DATABASE_URL" \
             -e STORAGE_BACKEND=s3 \
-            -e S3_ENDPOINT=http://credtrail-ci-minio:9000 \
+            -e S3_ENDPOINT=http://credtrail-ci-s3:9000 \
             -e S3_BUCKET=credtrail-badges \
             -e S3_REGION=us-east-1 \
             -e S3_FORCE_PATH_STYLE=true \
-            -e AWS_ACCESS_KEY_ID=minioadmin \
-            -e AWS_SECRET_ACCESS_KEY=minioadmin \
+            -e AWS_ACCESS_KEY_ID=ci-storage \
+            -e AWS_SECRET_ACCESS_KEY=ci-storage \
             -e JOB_PROCESSOR_TOKEN="$JOB_PROCESSOR_TOKEN" \
             -e JOB_POLL_INTERVAL_MS=250 \
             credtrail-ci:${{ github.sha }} \

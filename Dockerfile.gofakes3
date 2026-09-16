@@ -1,0 +1,9 @@
+# Build the released upstream source; its Docker Hub image predates the current CLI.
+FROM golang:1.26.4-alpine AS build
+RUN CGO_ENABLED=0 go install github.com/johannesboyne/gofakes3/cmd/gofakes3@v1.2.0
+
+FROM scratch
+COPY --from=build /go/bin/gofakes3 /gofakes3
+EXPOSE 9000
+ENTRYPOINT ["/gofakes3"]
+CMD ["-backend", "mem", "-initialbucket", "credtrail-badges"]
