@@ -7,7 +7,6 @@ export type InstitutionAdminSidebarView =
   | "operationsPathways"
   | "operationsReviewQueue"
   | "operationsIssuedBadges"
-  | "operationsBadgeStatus"
   | "reporting"
   | "reportingExplore"
   | "reportingTrends"
@@ -37,7 +36,6 @@ export interface InstitutionAdminSidebarPaths {
   operationsPathwaysPath: string;
   operationsReviewQueuePath: string;
   operationsIssuedBadgesPath: string;
-  operationsBadgeStatusPath: string;
   reportingPath: string;
   reportingExplorePath: string;
   reportingTrendsPath: string;
@@ -75,7 +73,6 @@ export const buildInstitutionAdminSidebarPaths = (
     operationsPathwaysPath: `${operationsPath}/pathways`,
     operationsReviewQueuePath: `${operationsPath}/review-queue`,
     operationsIssuedBadgesPath: `${operationsPath}/issued-badges`,
-    operationsBadgeStatusPath: `${operationsPath}/badge-status`,
     reportingPath,
     reportingExplorePath: `${reportingPath}/explore`,
     reportingTrendsPath: `${reportingPath}/trends`,
@@ -178,11 +175,6 @@ const buildInstitutionAdminSidebarSections = (
               href: paths.operationsIssuedBadgesPath,
               label: "Badge Records",
               isCurrent: view === "operationsIssuedBadges",
-            },
-            {
-              href: paths.operationsBadgeStatusPath,
-              label: "Badge Status",
-              isCurrent: view === "operationsBadgeStatus",
             },
           ],
         },

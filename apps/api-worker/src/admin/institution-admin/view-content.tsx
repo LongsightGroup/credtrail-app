@@ -37,7 +37,6 @@ export interface InstitutionAdminViewContentInput {
     renderLearnerRecordReviewSections: () => RenderedNode;
   };
   operations: {
-    badgeStatusPanelMarkup: RenderedNode;
     ruleReviewQueuePanelMarkup: RenderedNode;
   };
   reporting: {
@@ -71,7 +70,6 @@ const renderPageHeader = (
 
 export interface InstitutionAdminViewDataNeeds {
   accessSectionBundles: boolean;
-  badgeStatusPanel: boolean;
   reportingSectionBundles: boolean;
   reviewQueuePanel: boolean;
   badgeRulesTable: boolean;
@@ -112,7 +110,6 @@ export interface InstitutionAdminBuiltView {
 
 const DEFAULT_VIEW_DATA_NEEDS = {
   accessSectionBundles: false,
-  badgeStatusPanel: false,
   reportingSectionBundles: false,
   reviewQueuePanel: false,
   badgeRulesTable: false,
@@ -174,8 +171,10 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
       return (
         <>
           {renderPageHeader(
-            "Issue Badge",
-            "Issue a badge for one learner by choosing the template and recipient email.",
+            input.manualIssueWorkspace?.receipt ? "Badge issued" : "Issue Badge",
+            input.manualIssueWorkspace?.receipt
+              ? "Review the credential record or continue with another learner."
+              : "Issue a badge for one learner by choosing the template and recipient email.",
           )}
           <section class="ct-admin ct-stack">
             {renderManualIssueSection({
@@ -183,7 +182,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
               templateSelectOptions: content.controls.templateSelectOptions,
               listError: input.manualIssueWorkspace?.listError ?? null,
               listNotice: input.manualIssueWorkspace?.listNotice ?? null,
-              successLinks: input.manualIssueWorkspace?.successLinks ?? null,
+              receipt: input.manualIssueWorkspace?.receipt ?? null,
               pathwayHandoffId: input.manualIssueWorkspace?.pathwayIssuance?.handoffId ?? null,
             })}
           </section>
@@ -256,24 +255,6 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
     },
   },
   operationsIssuedBadges: OPERATIONS_ISSUED_BADGES_VIEW,
-  operationsBadgeStatus: {
-    titlePrefix: "Badge Status · Institution Admin",
-    controller: "shared",
-    dataNeeds: viewDataNeeds({
-      badgeStatusPanel: true,
-    }),
-    render: (content) => {
-      return (
-        <>
-          {renderPageHeader(
-            "Badge Status",
-            "Look up a badge, inspect its current state, and apply status changes with a reason.",
-          )}
-          <section class="ct-admin ct-stack">{content.operations.badgeStatusPanelMarkup}</section>
-        </>
-      );
-    },
-  },
   reporting: {
     titlePrefix: "Reporting · Institution Admin",
     controller: "shared",

@@ -1,7 +1,7 @@
 import { renderBadgeRuleBuilderDraftRows } from "./badge-rule-builder-draft-rows";
 import { renderBadgeRulesTable } from "./badge-rules-table";
 import { renderInstitutionAdminLearnerRecordSections } from "./learner-record-sections";
-import { renderBadgeStatusPanel, renderRuleReviewQueuePanel } from "./operations-sections";
+import { renderRuleReviewQueuePanel } from "./operations-sections";
 import type { InstitutionAdminPageInput, InstitutionAdminView } from "./page-types";
 import {
   renderInstitutionAdminReportingReportsView,
@@ -21,9 +21,6 @@ export const buildInstitutionAdminOperationsViewResources = (input: {
   dataNeeds: InstitutionAdminViewDataNeeds;
 }): InstitutionAdminViewContentInput["operations"] => {
   return {
-    badgeStatusPanelMarkup: input.dataNeeds.badgeStatusPanel
-      ? renderBadgeStatusPanel()
-      : emptySectionMarkup,
     ruleReviewQueuePanelMarkup: input.dataNeeds.reviewQueuePanel
       ? renderRuleReviewQueuePanel({
           tenantId: input.page.tenant.id,

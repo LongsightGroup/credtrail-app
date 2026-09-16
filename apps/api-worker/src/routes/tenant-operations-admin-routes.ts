@@ -9,7 +9,7 @@ import type { Hono } from "hono";
 import { buildOperationsManualIssuePath } from "../admin/access-admin-helpers";
 import { readOptionalFormField } from "../admin/admin-form-helpers";
 import {
-  buildAdminManualIssueSuccessLinks,
+  buildAdminManualIssueReceipt,
   setAdminManualIssueFlash,
 } from "../admin/manual-issue-flash";
 import type { AppContext, AppEnv } from "../app/types";
@@ -177,7 +177,14 @@ export const registerTenantOperationsAdminRoutes = (
         userId: principal.userId,
         tone: "success",
         message: `Badge issued for ${request.recipientIdentity}.`,
-        successLinks: buildAdminManualIssueSuccessLinks(publicBadgePathForAssertion(assertion)),
+        receipt: buildAdminManualIssueReceipt({
+          publicBadgePath: publicBadgePathForAssertion(assertion),
+          tenantId: pathParams.tenantId,
+          assertionId: assertion.id,
+          badgeTitle: assertion.achievementSnapshot.title,
+          recipientIdentity: assertion.recipientIdentity,
+          issuedAt: assertion.issuedAt,
+        }),
       });
     } catch (error: unknown) {
       if (!isIssueBadgeHttpError(error)) {

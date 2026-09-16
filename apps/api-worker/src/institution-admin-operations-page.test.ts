@@ -940,27 +940,15 @@ describe("GET /tenants/:tenantId/admin/operations/review-queue", () => {
   });
 });
 
-describe("GET /tenants/:tenantId/admin/operations/badge-status", () => {
-  it("renders badge status on its own page", async () => {
-    const env = createEnv();
-
+describe("removed standalone badge status page", () => {
+  it("does not expose the old identifier-entry workflow", async () => {
     const response = await app.request(
       "/tenants/tenant_123/admin/operations/badge-status",
       {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
+        headers: { Cookie: "better-auth.session_token=session-token" },
       },
-      env,
+      createEnv(),
     );
-    const body = await response.text();
-
-    expect(response.status).toBe(200);
-    expect(body).toContain("Badge Status");
-    expect(body).toContain('id="assertion-lifecycle-view-form"');
-    expect(body).not.toContain("Credential Lifecycle");
-    expect(body).not.toContain('id="manual-issue-form"');
-    expect(body).not.toContain('id="rule-review-queue-refresh"');
-    expect(body).not.toContain('id="issued-badges-filter-form"');
+    expect(response.status).toBe(404);
   });
 });

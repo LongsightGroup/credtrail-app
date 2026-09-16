@@ -14,7 +14,7 @@ import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import {
   issuedBadgesPageUrl,
   parseIssuedBadgesPageQuery,
-  tenantIssuedBadgeAdminRevokePath,
+  tenantIssuedBadgeAdminStatusPath,
 } from "../admin/issued-badges-admin-helpers";
 import type { AppContext, AppEnv } from "../app/types";
 import type {
@@ -22,8 +22,8 @@ import type {
   ResolveDatabase,
 } from "../app/route-deps";
 
-const issuedBadgeRevokePermissionError =
-  "You do not have permission to revoke this badge for the selected template.";
+const issuedBadgeStatusPermissionError =
+  "You do not have permission to make this status change for the selected badge.";
 
 interface RegisterTenantIssuedBadgesAdminRoutesInput {
   app: Hono<AppEnv>;
@@ -110,9 +110,9 @@ export const registerTenantIssuedBadgesAdminRoutes = (
     resolveInstitutionAdminAdminRole,
   } = input;
 
-  app.post("/tenants/:tenantId/admin/operations/issued-badges/revoke", async (c) => {
+  app.post("/tenants/:tenantId/admin/operations/issued-badges/status", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());
-    const nextPath = tenantIssuedBadgeAdminRevokePath(pathParams.tenantId);
+    const nextPath = tenantIssuedBadgeAdminStatusPath(pathParams.tenantId);
     const roleCheck = await resolveInstitutionAdminAdminRole(c, pathParams.tenantId, nextPath);
 
     if (roleCheck instanceof Response) {
@@ -131,7 +131,7 @@ export const registerTenantIssuedBadgesAdminRoutes = (
         tenantId: pathParams.tenantId,
         userId: principal.userId,
         tone: "error",
-        message: "Choose a badge before revoking it.",
+        message: "Choose a badge before changing its status.",
         filters,
       });
     }
@@ -150,9 +150,9 @@ export const registerTenantIssuedBadgesAdminRoutes = (
 
     try {
       request = parseAssertionLifecycleTransitionRequest({
-        toState: "revoked",
+        toState: formData.get("toState"),
         reasonCode: formData.get("reasonCode"),
-        reason: formData.get("reason"),
+        reason: readOptionalFormField(formData, "reason"),
         transitionSource: "manual",
       });
     } catch {
@@ -160,12 +160,23 @@ export const registerTenantIssuedBadgesAdminRoutes = (
         tenantId: pathParams.tenantId,
         userId: principal.userId,
         tone: "error",
-        message: "Choose a reason code before revoking this badge.",
+        message: "Choose a status action and a reason, then try again.",
         filters,
         extra: {
           lifecycle: assertionId,
-          lifecycleMode: "revoke",
+          lifecycleMode: "status",
         },
+      });
+    }
+
+    if (request.toState === "revoked" && formData.get("confirmRevocation") !== "yes") {
+      return redirectIssuedBadgesWithFlash(c, {
+        tenantId: pathParams.tenantId,
+        userId: principal.userId,
+        tone: "error",
+        message: "Confirm that revocation is permanent before revoking this badge.",
+        filters,
+        extra: { lifecycle: assertionId, lifecycleMode: "revoke" },
       });
     }
 
@@ -198,7 +209,8 @@ export const registerTenantIssuedBadgesAdminRoutes = (
       });
     }
 
-    const requiredAction: DelegatedIssuingAuthorityAction = "revoke_badge";
+    const requiredAction: DelegatedIssuingAuthorityAction =
+      request.toState === "revoked" ? "revoke_badge" : "manage_lifecycle";
     const delegatedPermission = await requireDelegatedIssuingAuthorityPermission(c, {
       db,
       tenantId: pathParams.tenantId,
@@ -214,11 +226,11 @@ export const registerTenantIssuedBadgesAdminRoutes = (
         tenantId: pathParams.tenantId,
         userId: principal.userId,
         tone: "error",
-        message: issuedBadgeRevokePermissionError,
+        message: issuedBadgeStatusPermissionError,
         filters,
         extra: {
           lifecycle: assertionId,
-          lifecycleMode: "revoke",
+          lifecycleMode: "status",
         },
       });
     }
@@ -239,19 +251,20 @@ export const registerTenantIssuedBadgesAdminRoutes = (
         tenantId: pathParams.tenantId,
         userId: principal.userId,
         tone: "error",
-        message: transitionResult.message ?? "Lifecycle transition not allowed",
+        message:
+          "This badge can no longer make that status change. Review its current status and choose an available action.",
         filters,
         extra: {
           lifecycle: assertionId,
-          lifecycleMode: "revoke",
+          lifecycleMode: "status",
         },
       });
     }
 
     const notice =
       transitionResult.status === "already_in_state"
-        ? "Badge was already revoked."
-        : "Badge revoked.";
+        ? `This badge is already ${request.toState}. No further change was made.`
+        : `Badge status updated to ${request.toState}.`;
 
     return redirectIssuedBadgesWithFlash(c, {
       tenantId: pathParams.tenantId,
@@ -259,6 +272,7 @@ export const registerTenantIssuedBadgesAdminRoutes = (
       tone: "success",
       message: notice,
       filters,
+      extra: { lifecycle: assertionId, lifecycleMode: "status" },
     });
   });
 };

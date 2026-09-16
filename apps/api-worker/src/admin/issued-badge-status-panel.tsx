@@ -1,0 +1,161 @@
+import { allowedAssertionLifecycleTransitions, type AssertionLifecycleState } from "@credtrail/db";
+import type { HtmlEscapedString } from "hono/utils/html";
+import {
+  AdminActions,
+  AdminButton,
+  AdminButtonLink,
+  AdminField,
+  AdminForm,
+  AdminStatusPill,
+} from "./components";
+import { CtCheckboxField, CtInput, CtSelect } from "../ui/forms";
+import { formatIsoTimestamp } from "../utils/display-format";
+import {
+  issuedBadgesAssertionPageUrl,
+  issuedBadgesPageUrl,
+  tenantIssuedBadgeAdminStatusPath,
+  type IssuedBadgeLifecycleMode,
+  type IssuedBadgesPageFilterValues,
+} from "./issued-badges-admin-helpers";
+
+export interface IssuedBadgeStatusSelection {
+  readonly assertionId: string;
+  readonly badgeTitle: string;
+  readonly recipientIdentity: string;
+  readonly issuedAt: string;
+  readonly state: AssertionLifecycleState;
+}
+
+const statusActions = {
+  active: {
+    mode: "restore",
+    label: "Restore badge",
+    consequence: "This credential will be active again on its public verification page.",
+  },
+  suspended: {
+    mode: "suspend",
+    label: "Suspend badge",
+    consequence:
+      "The public record will show that this credential is suspended. You can restore it after the issue is resolved.",
+  },
+  revoked: {
+    mode: "revoke",
+    label: "Revoke badge",
+    consequence:
+      "Revocation is permanent. The public record will remain available and show that the credential is revoked.",
+  },
+  expired: {
+    mode: "expire",
+    label: "Mark badge expired",
+    consequence:
+      "The public record will show that this credential has expired. Its history will remain available.",
+  },
+} as const;
+
+/** Shows the selected record and a bounded, server-submitted status change. */
+export const IssuedBadgeStatusPanel = (input: {
+  readonly tenantId: string;
+  readonly badge: IssuedBadgeStatusSelection;
+  readonly mode: IssuedBadgeLifecycleMode | null;
+  readonly filters: IssuedBadgesPageFilterValues;
+}): HtmlEscapedString | Promise<HtmlEscapedString> => {
+  const { badge, filters, tenantId } = input;
+  const allowed = allowedAssertionLifecycleTransitions(badge.state);
+  const targetState = allowed.find((state) => statusActions[state].mode === input.mode);
+  const action = targetState === undefined ? null : statusActions[targetState];
+  const statusHref = issuedBadgesAssertionPageUrl(tenantId, filters, badge.assertionId, "status");
+  return (
+    <section
+      id="issued-badge-lifecycle-panel"
+      class="ct-admin__setup-panel ct-stack"
+      aria-labelledby="issued-badge-lifecycle-title"
+    >
+      <h3 id="issued-badge-lifecycle-title">{badge.badgeTitle}</h3>
+      <p>
+        Issued to <strong>{badge.recipientIdentity}</strong> on {formatIsoTimestamp(badge.issuedAt)}{" "}
+        UTC.
+      </p>
+      <p>
+        Current status: <AdminStatusPill tone={badge.state}>{badge.state}</AdminStatusPill>
+      </p>
+      <AdminActions>
+        <AdminButtonLink
+          href={issuedBadgesAssertionPageUrl(tenantId, filters, badge.assertionId, "audit")}
+          variant="secondary"
+        >
+          View badge record and history
+        </AdminButtonLink>
+        <AdminButtonLink href={issuedBadgesPageUrl(tenantId, filters)} variant="quiet">
+          Close
+        </AdminButtonLink>
+      </AdminActions>
+      {action === null || targetState === undefined ? (
+        allowed.length === 0 ? (
+          <p>This badge is permanently revoked. Its record and history remain available.</p>
+        ) : (
+          <AdminActions>
+            {allowed.map((state) => (
+              <AdminButtonLink
+                href={issuedBadgesAssertionPageUrl(
+                  tenantId,
+                  filters,
+                  badge.assertionId,
+                  statusActions[state].mode,
+                )}
+                variant="secondary"
+              >
+                {statusActions[state].label}
+              </AdminButtonLink>
+            ))}
+          </AdminActions>
+        )
+      ) : (
+        <AdminForm
+          id="issued-badge-status-form"
+          method="post"
+          action={tenantIssuedBadgeAdminStatusPath(tenantId)}
+          className="ct-admin__form ct-admin__setup-form ct-stack"
+        >
+          <h4>{action.label}</h4>
+          <p>{action.consequence}</p>
+          <CtInput type="hidden" name="assertionId" value={badge.assertionId} />
+          <CtInput type="hidden" name="toState" value={targetState} />
+          {Object.entries(filters).map(([name, value]) => (
+            <CtInput type="hidden" name={name} value={String(value)} />
+          ))}
+          <AdminField label="Reason">
+            <CtSelect name="reasonCode" required>
+              <option value="">Choose a reason</option>
+              <option value="administrative_hold">Administrative hold</option>
+              <option value="policy_violation">Policy violation</option>
+              <option value="appeal_pending">Appeal pending</option>
+              <option value="appeal_resolved">Appeal resolved</option>
+              <option value="credential_expired">Credential expired</option>
+              <option value="issuer_requested">Requested by issuer</option>
+              <option value="other">Other</option>
+            </CtSelect>
+          </AdminField>
+          <AdminField label="Reason details (optional)">
+            <CtInput name="reason" type="text" maxlength={2000} />
+          </AdminField>
+          {targetState === "revoked" ? (
+            <CtCheckboxField
+              label="I understand this badge cannot be restored"
+              name="confirmRevocation"
+              value="yes"
+              required
+            />
+          ) : null}
+          <AdminActions>
+            <AdminButton type="submit" variant={targetState === "revoked" ? "danger" : "primary"}>
+              {action.label}
+            </AdminButton>
+            <AdminButtonLink href={statusHref} variant="quiet">
+              Cancel
+            </AdminButtonLink>
+          </AdminActions>
+        </AdminForm>
+      )}
+    </section>
+  );
+};

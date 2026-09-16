@@ -1,4 +1,10 @@
-import { listTenantAssertions, type TenantMembershipRole } from "@credtrail/db";
+import type { IssuedBadgeStatusSelection } from "../../admin/issued-badge-status-panel";
+import {
+  findAssertionById,
+  resolveAssertionLifecycleState,
+  listTenantAssertions,
+  type TenantMembershipRole,
+} from "@credtrail/db";
 import { consumeAdminFlashCookie } from "../../admin/admin-flash";
 import {
   consumeAdminListMessageFlash,
@@ -172,6 +178,29 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
         )
       : null;
 
+    let selectedBadge: IssuedBadgeStatusSelection | null = null;
+    if (issuedBadgesQuery.lifecycleAssertionId !== null) {
+      const db = resolveDatabase(c.env);
+      const assertion = await findAssertionById(
+        db,
+        tenantId,
+        issuedBadgesQuery.lifecycleAssertionId,
+      );
+      const lifecycle =
+        assertion === null
+          ? null
+          : await resolveAssertionLifecycleState(db, tenantId, assertion.id);
+      if (assertion !== null && lifecycle !== null) {
+        selectedBadge = {
+          assertionId: assertion.id,
+          badgeTitle: assertion.achievementSnapshot.title,
+          recipientIdentity: assertion.recipientIdentity,
+          issuedAt: assertion.issuedAt,
+          state: lifecycle.state,
+        };
+      }
+    }
+
     return await renderInstitutionAdminWorkspacePage(
       c,
       renderAppPage,
@@ -181,7 +210,13 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
           filters: issuedBadgesQuery.filters,
           assertions,
           listNotice: flash?.tone === "success" ? flash.message : null,
-          listError: flash?.tone === "error" ? flash.message : null,
+          listError:
+            flash?.tone === "error"
+              ? flash.message
+              : issuedBadgesQuery.lifecycleAssertionId !== null && selectedBadge === null
+                ? "Badge not found for this institution. Choose a record from the list."
+                : null,
+          selectedBadge,
           lifecycleAssertionId: issuedBadgesQuery.lifecycleAssertionId,
           lifecycleMode: issuedBadgesQuery.lifecycleMode,
         },

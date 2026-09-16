@@ -24,6 +24,11 @@ import type { AssertionLifecycleEventRow } from "./assertion-internal.js";
 import { findAssertionById } from "./assertion-reads.js";
 import { recordAssertionRevocation } from "./assertion-writes.js";
 
+/** Returns the status changes allowed by the credential lifecycle policy. */
+export const allowedAssertionLifecycleTransitions = (
+  state: AssertionLifecycleState,
+): readonly AssertionLifecycleState[] => [...ASSERTION_LIFECYCLE_ALLOWED_TRANSITIONS[state]];
+
 export const findLatestAssertionLifecycleEvent = async (
   db: SqlDatabase,
   tenantId: string,

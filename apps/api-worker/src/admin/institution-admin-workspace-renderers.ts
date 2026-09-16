@@ -638,20 +638,20 @@ export const renderInstitutionAdminManualIssueWorkspace = async <
       ? {
           listNotice: null,
           listError: null,
-          successLinks: null,
+          receipt: null,
           pathwayIssuance,
         }
       : flash.tone === "error"
         ? {
             listNotice: null,
             listError: flash.message,
-            successLinks: null,
+            receipt: null,
             pathwayIssuance,
           }
         : {
             listNotice: flash.message,
             listError: null,
-            successLinks: flash.successLinks ?? null,
+            receipt: flash.receipt ?? null,
             pathwayIssuance,
           };
 

@@ -28,7 +28,7 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges/:assertionId/evi
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Credential evidence report");
+    expect(body).toContain("Badge record");
     expect(body).toContain("Credential summary");
     expect(body).toContain("How this badge was issued");
     expect(body).toContain("Changes after issuance");
@@ -57,7 +57,7 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges/:assertionId/evi
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Evidence");
+    expect(body).toContain("View record");
     expect(body).toContain(
       `/tenants/tenant_123/admin/operations/issued-badges/${encodeURIComponent(assertion.assertionId)}/evidence`,
     );

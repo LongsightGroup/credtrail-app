@@ -4,7 +4,6 @@ import type { InstitutionAdminViewDefinition } from "../view-content";
 
 const issuedBadgesDataNeeds = {
   accessSectionBundles: false,
-  badgeStatusPanel: false,
   reportingSectionBundles: false,
   reviewQueuePanel: false,
   badgeRulesTable: false,
@@ -71,7 +70,7 @@ export const OPERATIONS_ISSUED_BADGES_VIEW: InstitutionAdminViewDefinition = {
         <>
           <AdminPageHeader
             title="Badge Records"
-            description="Search issued badge records and take audit or revocation actions from one page."
+            description="Find a credential, review its history, and manage its status."
           />
           <section class="ct-admin ct-stack">{issuedBadgesPanelMarkup}</section>
         </>

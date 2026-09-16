@@ -33,10 +33,7 @@ import {
   badgeTemplateAdminEditorHref,
   buildBadgeTemplateListPath,
 } from "../admin/badge-template-admin-helpers";
-import {
-  institutionAdminBadgeStatusPage,
-  institutionAdminDashboardPage,
-} from "../admin/institution-admin/page";
+import { institutionAdminDashboardPage } from "../admin/institution-admin/page";
 import {
   institutionAdminRuleBuilderPage,
   type InstitutionAdminRuleBuilderCopySource,
@@ -307,17 +304,6 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
       pathParams.tenantId,
       assertionParams.assertionId,
       c.req.path,
-    );
-  });
-
-  app.get("/tenants/:tenantId/admin/operations/badge-status", async (c) => {
-    const pathParams = parseTenantPathParams(c.req.param());
-    return renderInstitutionAdminWorkspace(
-      c,
-      pathParams.tenantId,
-      `/tenants/${encodeURIComponent(pathParams.tenantId)}/admin/operations/badge-status`,
-      "operationsBadgeStatus",
-      institutionAdminBadgeStatusPage,
     );
   });
 

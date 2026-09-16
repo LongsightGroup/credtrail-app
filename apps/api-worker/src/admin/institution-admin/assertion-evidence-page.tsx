@@ -124,7 +124,7 @@ const renderAssertionEvidenceBody = (input: AssertionEvidencePageInput): HonoEle
   return (
     <main class="assertion-evidence">
       <header class="assertion-evidence__header">
-        <p class="assertion-evidence__eyebrow">Credential evidence report</p>
+        <p class="assertion-evidence__eyebrow">Badge record</p>
         <h1>{evidence.summary.badgeTitle}</h1>
         <p class="assertion-evidence__lede">
           Issued to {evidence.summary.recipientIdentity} on{" "}
@@ -137,6 +137,12 @@ const renderAssertionEvidenceBody = (input: AssertionEvidencePageInput): HonoEle
           <AdminMeta>Generated {formatIsoTimestamp(evidence.generatedAt)} UTC</AdminMeta>
         </div>
         <AdminActions className="assertion-evidence__screen-actions">
+          <AdminButtonLink
+            href={`${input.returnHref}${input.returnHref.includes("?") ? "&" : "?"}lifecycle=${encodeURIComponent(evidence.assertionId)}&lifecycleMode=status`}
+            variant="primary"
+          >
+            Manage status
+          </AdminButtonLink>
           <AdminButtonLink href={input.returnHref} variant="secondary">
             Back to badge records
           </AdminButtonLink>

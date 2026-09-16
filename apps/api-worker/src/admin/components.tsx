@@ -678,8 +678,7 @@ const IssuedBadgeActions = (input: {
   viewBadgeHref: string;
   rawJsonHref: string;
   evidenceHref: string;
-  revokeLifecycleHref: string;
-  canRevoke: boolean;
+  statusHref: string;
 }): HonoElement => {
   return (
     <AdminActionBar ariaLabel={`Actions for assertion ${input.assertionId}`}>
@@ -693,7 +692,7 @@ const IssuedBadgeActions = (input: {
         Open
       </AdminButtonLink>
       <AdminButtonLink href={input.evidenceHref} size="tiny" variant="secondary">
-        Evidence
+        View record
       </AdminButtonLink>
       <AdminActionMenu
         menuId={`issued-badge-action-menu-${input.assertionId}`}
@@ -702,9 +701,7 @@ const IssuedBadgeActions = (input: {
         <AdminActionMenuLink href={input.rawJsonHref} target="_blank" rel="noopener noreferrer">
           Open JSON-LD
         </AdminActionMenuLink>
-        {input.canRevoke ? (
-          <AdminActionMenuLink href={input.revokeLifecycleHref}>Revoke badge</AdminActionMenuLink>
-        ) : null}
+        <AdminActionMenuLink href={input.statusHref}>Manage status</AdminActionMenuLink>
       </AdminActionMenu>
     </AdminActionBar>
   );
@@ -713,7 +710,7 @@ const IssuedBadgeActions = (input: {
 const IssuedBadgeRow = (input: {
   assertion: TenantAssertionSummaryRecord;
   evidenceHref: string;
-  revokeLifecycleHref: string;
+  statusHref: string;
 }): HonoElement => {
   const assertion = input.assertion;
   const viewBadgeHref = `/badges/${encodeURIComponent(assertion.assertionId)}`;
@@ -744,8 +741,7 @@ const IssuedBadgeRow = (input: {
             viewBadgeHref={viewBadgeHref}
             rawJsonHref={rawJsonHref}
             evidenceHref={input.evidenceHref}
-            revokeLifecycleHref={input.revokeLifecycleHref}
-            canRevoke={assertion.state !== "revoked"}
+            statusHref={input.statusHref}
           />
         </div>
       </td>
@@ -826,7 +822,7 @@ export const ReviewQueueRows = (input: {
 export const IssuedBadgeRows = (input: {
   assertions: readonly TenantAssertionSummaryRecord[];
   evidenceHrefForAssertion: (assertionId: string) => string;
-  revokeLifecycleHrefForAssertion: (assertionId: string) => string;
+  statusHrefForAssertion: (assertionId: string) => string;
   emptyMessage?: string;
 }): HonoElement => {
   if (input.assertions.length === 0) {
@@ -843,7 +839,7 @@ export const IssuedBadgeRows = (input: {
         <IssuedBadgeRow
           assertion={assertion}
           evidenceHref={input.evidenceHrefForAssertion(assertion.assertionId)}
-          revokeLifecycleHref={input.revokeLifecycleHrefForAssertion(assertion.assertionId)}
+          statusHref={input.statusHrefForAssertion(assertion.assertionId)}
         />
       ))}
     </>

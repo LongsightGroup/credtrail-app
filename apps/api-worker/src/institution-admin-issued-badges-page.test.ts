@@ -38,8 +38,8 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     expect(body).toContain('name="issuedFrom" type="date"');
     expect(body).toContain('name="issuedTo" type="date"');
     expect(body).toContain('name="orgUnitId"');
-    expect(body).toContain('id="issued-badge-lifecycle-panel"');
-    expect(body).toContain('id="issued-badge-revoke-form"');
+    expect(body).not.toContain('id="issued-badge-lifecycle-panel"');
+    expect(body).not.toContain('id="issued-badge-status-form"');
     expect(body).not.toContain("issuedBadgeRowsPath");
     expect(body).not.toContain('id="issued-badges-export-form"');
     expect(body).not.toContain("Ledger export");
@@ -49,7 +49,6 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     expect(body).toContain('method="get"');
     expect(body).toContain("/tenants/tenant_123/admin/operations/issued-badges");
     expect(body).toContain('method="post"');
-    expect(body).toContain("/tenants/tenant_123/admin/operations/issued-badges/revoke");
     expect(body).not.toContain('id="manual-issue-form"');
     expect(body).not.toContain('id="rule-review-queue-refresh"');
     expect(body).not.toContain('id="assertion-lifecycle-view-form"');
@@ -219,40 +218,19 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     expect(mockedListTenantAssertions).not.toHaveBeenCalled();
   });
 
-  it("shows the revoke form only for revoke lifecycle deep links", async () => {
-    const env = createEnv();
-
-    const auditResponse = await app.request(
-      "/tenants/tenant_123/admin/operations/issued-badges?lifecycle=tenant_123%3Aassertion_456&lifecycleMode=audit",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
+  it("does not offer status changes for a missing selected record", async () => {
+    const response = await app.request(
+      "/tenants/tenant_123/admin/operations/issued-badges?lifecycle=missing&lifecycleMode=revoke",
+      { headers: { Cookie: "better-auth.session_token=session-token" } },
+      createEnv(),
     );
-    const auditBody = await auditResponse.text();
-
-    const revokeResponse = await app.request(
-      "/tenants/tenant_123/admin/operations/issued-badges?lifecycle=tenant_123%3Aassertion_456&lifecycleMode=revoke",
-      {
-        headers: {
-          Cookie: "better-auth.session_token=session-token",
-        },
-      },
-      env,
-    );
-    const revokeBody = await revokeResponse.text();
-
-    expect(auditResponse.status).toBe(200);
-    expect(revokeResponse.status).toBe(200);
-    expect(auditBody).toMatch(/id="issued-badge-lifecycle-panel"[^>]*hidden/);
-    expect(revokeBody).toContain('id="issued-badge-revoke-form"');
-    expect(revokeBody).toContain('name="reasonCode"');
-    expect(revokeBody).not.toMatch(/id="issued-badge-revoke-form"[^>]*hidden/);
+    const body = await response.text();
+    expect(response.status).toBe(200);
+    expect(body).toContain("Badge not found for this institution.");
+    expect(body).not.toContain('id="issued-badge-status-form"');
   });
 
-  it("revokes an issued badge through the admin form and redirects with notice", async () => {
+  it("revokes an issued badge without optional reason details and redirects with notice", async () => {
     const env = createEnv();
     const assertion = sampleLearnerRecordAssertionExport();
 
@@ -299,7 +277,7 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     });
 
     const response = await app.request(
-      "/tenants/tenant_123/admin/operations/issued-badges/revoke",
+      "/tenants/tenant_123/admin/operations/issued-badges/status",
       {
         method: "POST",
         headers: {
@@ -309,8 +287,10 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
         },
         body: new URLSearchParams({
           assertionId: assertion.assertionId,
+          toState: "revoked",
+          confirmRevocation: "yes",
           reasonCode: "issuer_requested",
-          reason: "Issued in error",
+          reason: "",
         }).toString(),
         redirect: "manual",
       },

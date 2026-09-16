@@ -110,10 +110,6 @@ export const institutionAdminIssuedBadgesPage = (input: InstitutionAdminPageInpu
   return renderInstitutionAdminPage(input, "operationsIssuedBadges");
 };
 
-export const institutionAdminBadgeStatusPage = (input: InstitutionAdminPageInput): AppPage => {
-  return renderInstitutionAdminPage(input, "operationsBadgeStatus");
-};
-
 export const institutionAdminReportingPage = (input: InstitutionAdminPageInput): AppPage => {
   return renderInstitutionAdminPage(input, "reporting");
 };

@@ -1,3 +1,4 @@
+import { IssuedBadgeStatusPanel } from "../issued-badge-status-panel";
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
   AdminActions,
@@ -18,7 +19,6 @@ import {
   emptyIssuedBadgesPageFilterValues,
   issuedBadgesAssertionPageUrl,
   issuedBadgesLedgerExportUrl,
-  tenantIssuedBadgeAdminRevokePath,
 } from "../issued-badges-admin-helpers";
 import { tenantReviewQueueAdminResolvePath } from "../review-queue-admin-helpers";
 import type {
@@ -47,11 +47,7 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
   const issuedBadgesFilters =
     input.issuedBadgesWorkspace?.filters ?? emptyIssuedBadgesPageFilterValues();
   const issuedBadgesPagePath = buildIssuedBadgesPagePath(input.tenantId);
-  const showIssuedBadgeRevokeForm = input.issuedBadgesWorkspace?.lifecycleMode === "revoke";
-  const showIssuedBadgeLifecyclePanel =
-    showIssuedBadgeRevokeForm &&
-    input.issuedBadgesWorkspace?.lifecycleAssertionId !== null &&
-    input.issuedBadgesWorkspace?.lifecycleAssertionId !== undefined;
+  const selectedBadge = input.issuedBadgesWorkspace?.selectedBadge ?? null;
   const issuedBadgesAssertions = input.issuedBadgesWorkspace?.assertions ?? null;
   const showIssuedBadgesExportAction =
     issuedBadgesAssertions !== null && issuedBadgesAssertions.length > 0;
@@ -59,7 +55,7 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
   return (
     <AdminPanel id="issued-badges-panel" variant="table">
       <h2>Badge Records</h2>
-      <p>Tenant-wide assertion log with evidence reports and revocation actions.</p>
+      <p>Issued credentials, their current status, and their history.</p>
       {input.issuedBadgesWorkspace?.listError !== null &&
       input.issuedBadgesWorkspace?.listError !== undefined &&
       input.issuedBadgesWorkspace.listError.length > 0 ? (
@@ -69,68 +65,71 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
         input.issuedBadgesWorkspace.listNotice.length > 0 ? (
         <AdminStatus data-tone="success">{input.issuedBadgesWorkspace.listNotice}</AdminStatus>
       ) : null}
-      <AdminForm
-        id="issued-badges-filter-form"
-        method="get"
-        action={issuedBadgesPagePath}
-        className="ct-admin__form ct-admin__form--inline ct-grid"
-      >
-        <AdminField label="Issued from">
-          <CtInput name="issuedFrom" type="date" value={issuedBadgesFilters.issuedFrom} />
-        </AdminField>
-        <AdminField label="Issued to">
-          <CtInput name="issuedTo" type="date" value={issuedBadgesFilters.issuedTo} />
-        </AdminField>
-        <AdminField label="Recipient / assertion search">
-          <CtInput
-            name="recipientQuery"
-            type="text"
-            placeholder="recipient@example.com or tenant_123:assertion_456"
-            value={issuedBadgesFilters.recipientQuery}
-          />
-        </AdminField>
-        <AdminField label="Badge template">
-          <CtSelect name="badgeTemplateId">{input.templateFilterOptions}</CtSelect>
-        </AdminField>
-        <AdminField label="Org unit">
-          <CtSelect name="orgUnitId">
-            <option value="" selected={issuedBadgesFilters.orgUnitId.length === 0}>
-              All org units
-            </option>
-            {input.activeOrgUnitOptions}
-          </CtSelect>
-        </AdminField>
-        <AdminField label="Lifecycle state">
-          <CtSelect name="state">
-            <option value="" selected={issuedBadgesFilters.state.length === 0}>
-              All states
-            </option>
-            <option value="active" selected={issuedBadgesFilters.state === "active"}>
-              active
-            </option>
-            <option value="suspended" selected={issuedBadgesFilters.state === "suspended"}>
-              suspended
-            </option>
-            <option value="revoked" selected={issuedBadgesFilters.state === "revoked"}>
-              revoked
-            </option>
-            <option value="expired" selected={issuedBadgesFilters.state === "expired"}>
-              expired
-            </option>
-          </CtSelect>
-        </AdminField>
-        <AdminField label="Limit">
-          <CtInput
-            name="limit"
-            type="number"
-            min="1"
-            max="500"
-            step="1"
-            value={String(issuedBadgesFilters.limit)}
-          />
-        </AdminField>
-        <AdminButton type="submit">Search issued badges</AdminButton>
-      </AdminForm>
+      <details open={selectedBadge === null}>
+        <summary>Search badge records</summary>
+        <AdminForm
+          id="issued-badges-filter-form"
+          method="get"
+          action={issuedBadgesPagePath}
+          className="ct-admin__form ct-admin__form--inline ct-grid"
+        >
+          <AdminField label="Issued from">
+            <CtInput name="issuedFrom" type="date" value={issuedBadgesFilters.issuedFrom} />
+          </AdminField>
+          <AdminField label="Issued to">
+            <CtInput name="issuedTo" type="date" value={issuedBadgesFilters.issuedTo} />
+          </AdminField>
+          <AdminField label="Recipient or record">
+            <CtInput
+              name="recipientQuery"
+              type="text"
+              placeholder="Recipient email or record identifier"
+              value={issuedBadgesFilters.recipientQuery}
+            />
+          </AdminField>
+          <AdminField label="Badge template">
+            <CtSelect name="badgeTemplateId">{input.templateFilterOptions}</CtSelect>
+          </AdminField>
+          <AdminField label="Org unit">
+            <CtSelect name="orgUnitId">
+              <option value="" selected={issuedBadgesFilters.orgUnitId.length === 0}>
+                All org units
+              </option>
+              {input.activeOrgUnitOptions}
+            </CtSelect>
+          </AdminField>
+          <AdminField label="Status">
+            <CtSelect name="state">
+              <option value="" selected={issuedBadgesFilters.state.length === 0}>
+                All states
+              </option>
+              <option value="active" selected={issuedBadgesFilters.state === "active"}>
+                active
+              </option>
+              <option value="suspended" selected={issuedBadgesFilters.state === "suspended"}>
+                suspended
+              </option>
+              <option value="revoked" selected={issuedBadgesFilters.state === "revoked"}>
+                revoked
+              </option>
+              <option value="expired" selected={issuedBadgesFilters.state === "expired"}>
+                expired
+              </option>
+            </CtSelect>
+          </AdminField>
+          <AdminField label="Limit">
+            <CtInput
+              name="limit"
+              type="number"
+              min="1"
+              max="500"
+              step="1"
+              value={String(issuedBadgesFilters.limit)}
+            />
+          </AdminField>
+          <AdminButton type="submit">Search issued badges</AdminButton>
+        </AdminForm>
+      </details>
       {showIssuedBadgesExportAction ? (
         <>
           <AdminActions>
@@ -144,66 +143,14 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
           </p>
         </>
       ) : null}
-      <section
-        id="issued-badge-lifecycle-panel"
-        class="ct-admin__inline-action-panel ct-stack"
-        hidden={!showIssuedBadgeLifecyclePanel}
-      >
-        <div class="ct-cluster">
-          <h3 id="issued-badge-lifecycle-title">Revoke selected badge</h3>
-          <AdminButton
-            id="issued-badge-lifecycle-close"
-            type="button"
-            size="tiny"
-            variant="secondary"
-          >
-            Close
-          </AdminButton>
-        </div>
-        <AdminStatus id="issued-badge-lifecycle-status"></AdminStatus>
-        <AdminForm
-          id="issued-badge-revoke-form"
-          method="post"
-          action={tenantIssuedBadgeAdminRevokePath(input.tenantId)}
-          className="ct-admin__form ct-admin__inline-action-form ct-admin__inline-action-form--issued-revoke ct-grid"
-        >
-          <CtInput
-            name="assertionId"
-            type="hidden"
-            value={input.issuedBadgesWorkspace?.lifecycleAssertionId ?? ""}
-          />
-          <CtInput name="issuedFrom" type="hidden" value={issuedBadgesFilters.issuedFrom} />
-          <CtInput name="issuedTo" type="hidden" value={issuedBadgesFilters.issuedTo} />
-          <CtInput name="recipientQuery" type="hidden" value={issuedBadgesFilters.recipientQuery} />
-          <CtInput
-            name="badgeTemplateId"
-            type="hidden"
-            value={issuedBadgesFilters.badgeTemplateId}
-          />
-          <CtInput name="orgUnitId" type="hidden" value={issuedBadgesFilters.orgUnitId} />
-          <CtInput name="state" type="hidden" value={issuedBadgesFilters.state} />
-          <CtInput name="limit" type="hidden" value={String(issuedBadgesFilters.limit)} />
-          <AdminField label="Reason code">
-            <CtSelect name="reasonCode" required>
-              <option value="issuer_requested">issuer requested</option>
-              <option value="administrative_hold">administrative hold</option>
-              <option value="policy_violation">policy violation</option>
-              <option value="appeal_pending">appeal pending</option>
-              <option value="other">other</option>
-            </CtSelect>
-          </AdminField>
-          <AdminField label="Reason details">
-            <CtInput
-              name="reason"
-              type="text"
-              placeholder="Explain why this badge should be revoked."
-            />
-          </AdminField>
-          <AdminButton type="submit" variant="danger">
-            Revoke badge
-          </AdminButton>
-        </AdminForm>
-      </section>
+      {selectedBadge === null ? null : (
+        <IssuedBadgeStatusPanel
+          tenantId={input.tenantId}
+          badge={selectedBadge}
+          mode={input.issuedBadgesWorkspace?.lifecycleMode ?? null}
+          filters={issuedBadgesFilters}
+        />
+      )}
       <AdminTable headers={["Issued", "Recipient", "Template", "State", "Assertion", "Actions"]}>
         {issuedBadgesAssertions === null ? (
           <AdminEmptyTableRow colSpan={6}>
@@ -220,71 +167,17 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
                 "audit",
               )
             }
-            revokeLifecycleHrefForAssertion={(assertionId) =>
+            statusHrefForAssertion={(assertionId) =>
               issuedBadgesAssertionPageUrl(
                 input.tenantId,
                 issuedBadgesFilters,
                 assertionId,
-                "revoke",
+                "status",
               )
             }
           />
         )}
       </AdminTable>
-    </AdminPanel>
-  );
-};
-
-/** Renders the focused badge lifecycle lookup and transition panel. */
-export const renderBadgeStatusPanel = (): HonoElement => {
-  return (
-    <AdminPanel id="lifecycle-panel">
-      <h2>Badge Status</h2>
-      <p>
-        Look up a badge, review its current status, and apply state changes with institutional
-        reason codes.
-      </p>
-      <AdminForm id="assertion-lifecycle-view-form">
-        <AdminField label="Assertion ID">
-          <CtInput name="assertionId" type="text" required placeholder="tenant_123:assertion_456" />
-        </AdminField>
-        <AdminButton type="submit">Load lifecycle</AdminButton>
-      </AdminForm>
-      <AdminStatus id="assertion-lifecycle-view-status"></AdminStatus>
-      <pre id="assertion-lifecycle-output" class="ct-admin__code-output" hidden></pre>
-      <AdminForm id="assertion-lifecycle-transition-form">
-        <AdminField label="Assertion ID">
-          <CtInput name="assertionId" type="text" required placeholder="tenant_123:assertion_456" />
-        </AdminField>
-        <AdminField label="Transition to">
-          <CtSelect name="toState" required>
-            <option value="active">active</option>
-            <option value="suspended">suspended</option>
-            <option value="revoked">revoked</option>
-            <option value="expired">expired</option>
-          </CtSelect>
-        </AdminField>
-        <AdminField label="Reason code">
-          <CtSelect name="reasonCode" required>
-            <option value="administrative_hold">administrative_hold</option>
-            <option value="policy_violation">policy_violation</option>
-            <option value="appeal_pending">appeal_pending</option>
-            <option value="appeal_resolved">appeal_resolved</option>
-            <option value="credential_expired">credential_expired</option>
-            <option value="issuer_requested">issuer_requested</option>
-            <option value="other">other</option>
-          </CtSelect>
-        </AdminField>
-        <AdminField label="Reason details (optional)">
-          <CtInput
-            name="reason"
-            type="text"
-            placeholder="Explain why this transition is being applied."
-          />
-        </AdminField>
-        <AdminButton type="submit">Apply transition</AdminButton>
-      </AdminForm>
-      <AdminStatus id="assertion-lifecycle-transition-status"></AdminStatus>
     </AdminPanel>
   );
 };

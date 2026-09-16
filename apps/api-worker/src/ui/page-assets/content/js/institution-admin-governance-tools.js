@@ -1,36 +1,3 @@
-if (
-  assertionLifecycleViewForm instanceof HTMLFormElement &&
-  assertionLifecycleViewStatus instanceof HTMLElement
-) {
-  assertionLifecycleViewForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const data = new FormData(assertionLifecycleViewForm);
-    const assertionIdRaw = data.get("assertionId");
-    await loadAssertionLifecycle(assertionIdRaw, assertionLifecycleViewStatus);
-  });
-}
-
-if (
-  assertionLifecycleTransitionForm instanceof HTMLFormElement &&
-  assertionLifecycleTransitionStatus instanceof HTMLElement
-) {
-  assertionLifecycleTransitionForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const data = new FormData(assertionLifecycleTransitionForm);
-    const assertionIdRaw = data.get("assertionId");
-    const toStateRaw = data.get("toState");
-    const reasonCodeRaw = data.get("reasonCode");
-    const reasonRaw = data.get("reason");
-    await transitionAssertionLifecycle({
-      assertionId: assertionIdRaw,
-      toState: toStateRaw,
-      reasonCode: reasonCodeRaw,
-      reason: reasonRaw,
-      statusElement: assertionLifecycleTransitionStatus,
-    });
-  });
-}
-
 if (ruleGovernanceForm instanceof HTMLFormElement && ruleGovernanceStatus instanceof HTMLElement) {
   ruleGovernanceForm.addEventListener("submit", async (event) => {
     event.preventDefault();

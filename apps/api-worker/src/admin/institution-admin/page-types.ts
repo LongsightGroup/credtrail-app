@@ -1,3 +1,5 @@
+import type { IssuedBadgeStatusSelection } from "../issued-badge-status-panel";
+import type { IssuedBadgeLifecycleMode } from "../issued-badges-admin-helpers";
 import type {
   BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleBuilderDraftRecord,
@@ -32,7 +34,7 @@ import type { LearnerRecordImportBatchProgressSummary } from "../../learner-reco
 import type { LearnerRecordPresentationModel } from "../../learner-record/learner-record-presentation";
 import type { ReportingMetricEntry } from "../../reporting/metric-definitions";
 import type { BadgeRuleReviewQueueEntryView } from "../../badge-rule-review-queue-workspace";
-import type { AdminManualIssueSuccessLinks } from "../manual-issue-flash";
+import type { AdminManualIssueReceipt } from "../manual-issue-flash";
 import type { InstitutionAdminListFlashWorkspace } from "./list-flash-workspace";
 
 /** Reporting workspace views that select a focused data-loading profile. */
@@ -48,7 +50,6 @@ export type InstitutionAdminView =
   | "operationsLearnerRecordImports"
   | "operationsReviewQueue"
   | "operationsIssuedBadges"
-  | "operationsBadgeStatus"
   | InstitutionAdminReportingView
   | "rules"
   | "accessMembers"
@@ -100,7 +101,8 @@ export interface InstitutionAdminIssuedBadgesWorkspace {
   listNotice: string | null;
   listError: string | null;
   lifecycleAssertionId: string | null;
-  lifecycleMode: "audit" | "revoke" | null;
+  lifecycleMode: IssuedBadgeLifecycleMode | null;
+  selectedBadge?: IssuedBadgeStatusSelection | null;
 }
 
 export interface InstitutionAdminReviewQueueWorkspace {
@@ -148,7 +150,7 @@ export interface InstitutionAdminAccessOrgUnitsWorkspace extends InstitutionAdmi
 export interface InstitutionAdminManualIssueWorkspace {
   listNotice: string | null;
   listError: string | null;
-  successLinks: AdminManualIssueSuccessLinks | null;
+  receipt: AdminManualIssueReceipt | null;
   pathwayIssuance: {
     readonly handoffId: string;
     readonly badgeTemplateId: string;

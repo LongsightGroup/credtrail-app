@@ -2,7 +2,13 @@ import {
   parseTenantAssertionListQuery,
   type TenantAssertionListQuery,
 } from "@credtrail/validation";
-export type IssuedBadgeLifecycleMode = "audit" | "revoke";
+export type IssuedBadgeLifecycleMode =
+  | "audit"
+  | "status"
+  | "revoke"
+  | "suspend"
+  | "restore"
+  | "expire";
 
 export interface IssuedBadgesPageFilterValues {
   issuedFrom: string;
@@ -179,7 +185,14 @@ export interface ParsedIssuedBadgesPageQuery {
 const parseLifecycleMode = (raw: string | undefined): IssuedBadgeLifecycleMode | null => {
   const normalized = (raw ?? "").trim();
 
-  if (normalized === "audit" || normalized === "revoke") {
+  if (
+    normalized === "audit" ||
+    normalized === "status" ||
+    normalized === "revoke" ||
+    normalized === "suspend" ||
+    normalized === "restore" ||
+    normalized === "expire"
+  ) {
     return normalized;
   }
 
@@ -240,6 +253,6 @@ export const safeParseIssuedBadgesPageQuery = (
 export const issuedBadgesInvalidFiltersError =
   "Invalid search filters. Check dates, state, and limit, then try again.";
 
-export const tenantIssuedBadgeAdminRevokePath = (tenantId: string): string => {
-  return `${buildIssuedBadgesPagePath(tenantId)}/revoke`;
+export const tenantIssuedBadgeAdminStatusPath = (tenantId: string): string => {
+  return `${buildIssuedBadgesPagePath(tenantId)}/status`;
 };

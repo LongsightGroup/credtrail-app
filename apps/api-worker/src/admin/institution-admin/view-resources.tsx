@@ -32,7 +32,7 @@ const adminPageContext = (
   view: InstitutionAdminView,
   paths: ReturnType<typeof buildInstitutionAdminViewPaths>,
 ): Record<string, string> => {
-  if (view === "rules" || view === "operationsBadgeStatus") {
+  if (view === "rules") {
     return {
       badgeRuleApiPath: paths.badgeRuleApiPath,
       assertionsApiPathPrefix: paths.assertionsApiPathPrefix,

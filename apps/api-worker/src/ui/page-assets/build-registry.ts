@@ -91,7 +91,6 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     sources: [
       "admin-browser-primitives.js",
       "institution-admin-bootstrap.js",
-      "institution-admin-rule-operations.js",
       "institution-admin-shell-behavior.js",
       "institution-admin-access.js",
       "institution-admin-governance-tools.js",
