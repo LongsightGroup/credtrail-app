@@ -63,11 +63,27 @@ export const completeFirstDayWorkflow = async (
     throw new Error(`Badge template ${identity.templateName} has no selectable value.`);
   }
   await templateSelect.selectOption(templateId);
-  await page.getByRole("button", { name: /issue/i }).click();
-  await expect(page.getByText(`Badge issued for ${identity.recipientEmail}.`)).toBeVisible();
+  await page.getByRole("button", { name: "Issue badge", exact: true }).click();
+  await expect(page).toHaveURL(/\/operations\/issue\/[^/]+\/receipt$/);
+  await expect(page.getByRole("heading", { name: "Badge issued", exact: true })).toBeVisible();
+  const receipt = page.getByRole("region", { name: "Issuance receipt" });
+  await expect(receipt.getByRole("heading", { name: identity.templateName })).toBeVisible();
+  await expect(receipt).toContainText(identity.recipientEmail);
+  await expect(receipt.getByRole("link", { name: "View badge record" })).toHaveAttribute(
+    "href",
+    /\/issued-badges\/[^/]+\/evidence$/,
+  );
+  await expect(
+    receipt.getByRole("link", { name: "Open public badge", exact: true }),
+  ).toHaveAttribute("href", /^\/badges\/[^/]+$/);
+  await page.reload();
+  await expect(receipt.getByRole("heading", { name: identity.templateName })).toBeVisible();
+  await expect(receipt).toContainText(identity.recipientEmail);
 
   await page.goto(demoRoutes.issuedBadges);
   await page.getByLabel(/recipient/i).fill(identity.recipientEmail);
   await page.getByRole("button", { name: /search issued badges/i }).click();
-  await expect(page.getByText(identity.recipientEmail).first()).toBeVisible();
+  const issuedBadge = page.locator("tbody tr").filter({ hasText: identity.recipientEmail });
+  await expect(issuedBadge).toHaveCount(1);
+  await expect(issuedBadge).toContainText(identity.templateName);
 };
