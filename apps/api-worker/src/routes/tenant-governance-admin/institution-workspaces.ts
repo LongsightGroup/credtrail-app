@@ -1,3 +1,4 @@
+import type { IssuedBadgeStatusCorrection } from "../../admin/issued-badge-status-form";
 import type { IssuedBadgeStatusSelection } from "../../admin/issued-badge-status-panel";
 import {
   findAssertionById,
@@ -137,6 +138,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
     c: AppContext,
     tenantId: string,
     nextPath: string,
+    correction?: IssuedBadgeStatusCorrection,
   ): Promise<Response> => {
     const loaded = await loadInstitutionAdminWorkspacePageData({
       c,
@@ -151,7 +153,15 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
     }
 
     const { pageData, principal } = loaded;
-    const parsedQuery = safeParseIssuedBadgesPageQuery(c.req.query());
+    const query =
+      correction === undefined
+        ? c.req.query()
+        : {
+            ...Object.fromEntries(buildIssuedBadgesPageQuery(correction.filters)),
+            lifecycle: correction.assertionId,
+            lifecycleMode: "status",
+          };
+    const parsedQuery = safeParseIssuedBadgesPageQuery(query);
 
     if (!parsedQuery.ok) {
       await setAdminListMessageFlash(c, {
@@ -171,7 +181,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       userId: principal.userId,
       workspace: "issued_badges",
     });
-    const assertions = shouldLoadIssuedBadgesList(c.req.query())
+    const assertions = shouldLoadIssuedBadgesList(query)
       ? await listTenantAssertions(
           resolveDatabase(c.env),
           tenantAssertionListDbInput(tenantId, issuedBadgesQuery.listQuery),
@@ -217,6 +227,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
                 ? "Badge not found for this institution. Choose a record from the list."
                 : null,
           selectedBadge,
+          statusFormError: correction?.form,
           lifecycleAssertionId: issuedBadgesQuery.lifecycleAssertionId,
           lifecycleMode: issuedBadgesQuery.lifecycleMode,
         },

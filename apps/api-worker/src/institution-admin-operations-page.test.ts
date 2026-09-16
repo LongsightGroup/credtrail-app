@@ -157,31 +157,21 @@ describe("POST /tenants/:tenantId/admin/operations/issue", () => {
     );
 
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("/tenants/tenant_123/admin/operations/issue");
-
-    const setCookieHeaders =
-      typeof response.headers.getSetCookie === "function"
-        ? response.headers.getSetCookie()
-        : [response.headers.get("set-cookie") ?? ""];
-    const flashCookie = setCookieHeaders
-      .map((entry) => entry.split(";")[0] ?? "")
-      .find((entry) => entry.startsWith("ct_admin_flash_list_message_tenant_123="));
-
-    expect(flashCookie).toBeDefined();
-
+    const receiptPath = `/tenants/tenant_123/admin/operations/issue/${encodeURIComponent(assertion.assertionId)}/receipt`;
+    expect(response.headers.get("location")).toBe(receiptPath);
+    expect(response.headers.get("set-cookie") ?? "").not.toContain("ct_admin_flash");
     const issuePageResponse = await app.request(
-      "/tenants/tenant_123/admin/operations/issue",
+      receiptPath,
       {
-        headers: {
-          Cookie: `better-auth.session_token=session-token; ${flashCookie ?? ""}`,
-        },
+        headers: { Cookie: "better-auth.session_token=session-token" },
       },
       env,
     );
     const body = await issuePageResponse.text();
 
     expect(issuePageResponse.status).toBe(200);
-    expect(body).toContain("Badge issued for learner@example.edu.");
+    expect(body).toContain("Badge issued");
+    expect(body).toContain("learner@example.edu");
     expect(body).toContain('href="/badges/public_assertion_456"');
     expect(body).toContain('href="/badges/public_assertion_456/verification"');
     expect(body).toContain('href="/badges/public_assertion_456/jsonld"');

@@ -109,6 +109,7 @@ export const registerTenantGovernanceRoutes = (
   });
 
   registerTenantIssuedBadgesAdminRoutes({
+    renderStatusCorrection: institutionWorkspaces.renderInstitutionAdminIssuedBadgesWorkspace,
     app: input.app,
     resolveDatabase: input.resolveDatabase,
     requireDelegatedIssuingAuthorityPermission: input.requireDelegatedIssuingAuthorityPermission,
@@ -182,6 +183,7 @@ export const registerTenantGovernanceRoutes = (
   });
 
   registerTenantOperationsAdminRoutes({
+    loadInstitutionAdminShellData: pageData.loadInstitutionAdminShellData,
     app: input.app,
     issueBadgeForTenant: input.issueBadgeForTenant,
     requireDelegatedIssuingAuthorityPermission: input.requireDelegatedIssuingAuthorityPermission,

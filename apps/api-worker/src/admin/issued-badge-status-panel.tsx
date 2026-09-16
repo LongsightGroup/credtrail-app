@@ -1,3 +1,5 @@
+import { ASSERTION_REASON_MAX_LENGTH } from "@credtrail/validation";
+import type { IssuedBadgeStatusFormError } from "./issued-badge-status-form";
 import { allowedAssertionLifecycleTransitions, type AssertionLifecycleState } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
@@ -7,6 +9,7 @@ import {
   AdminField,
   AdminForm,
   AdminStatusPill,
+  AdminStatus,
 } from "./components";
 import { CtCheckboxField, CtInput, CtSelect } from "../ui/forms";
 import { formatIsoTimestamp } from "../utils/display-format";
@@ -56,12 +59,16 @@ const statusActions = {
 export const IssuedBadgeStatusPanel = (input: {
   readonly tenantId: string;
   readonly badge: IssuedBadgeStatusSelection;
+  readonly formError?: IssuedBadgeStatusFormError | undefined;
   readonly mode: IssuedBadgeLifecycleMode | null;
   readonly filters: IssuedBadgesPageFilterValues;
 }): HtmlEscapedString | Promise<HtmlEscapedString> => {
   const { badge, filters, tenantId } = input;
   const allowed = allowedAssertionLifecycleTransitions(badge.state);
-  const targetState = allowed.find((state) => statusActions[state].mode === input.mode);
+  const requestedTarget = input.formError?.targetState ?? null;
+  const targetState = allowed.find((state) =>
+    requestedTarget !== null ? state === requestedTarget : statusActions[state].mode === input.mode,
+  );
   const action = targetState === undefined ? null : statusActions[targetState];
   const statusHref = issuedBadgesAssertionPageUrl(tenantId, filters, badge.assertionId, "status");
   return (
@@ -89,6 +96,9 @@ export const IssuedBadgeStatusPanel = (input: {
           Close
         </AdminButtonLink>
       </AdminActions>
+      {input.formError ? (
+        <AdminStatus data-tone="error">{input.formError.message}</AdminStatus>
+      ) : null}
       {action === null || targetState === undefined ? (
         allowed.length === 0 ? (
           <p>This badge is permanently revoked. Its record and history remain available.</p>
@@ -125,18 +135,29 @@ export const IssuedBadgeStatusPanel = (input: {
           ))}
           <AdminField label="Reason">
             <CtSelect name="reasonCode" required>
-              <option value="">Choose a reason</option>
-              <option value="administrative_hold">Administrative hold</option>
-              <option value="policy_violation">Policy violation</option>
-              <option value="appeal_pending">Appeal pending</option>
-              <option value="appeal_resolved">Appeal resolved</option>
-              <option value="credential_expired">Credential expired</option>
-              <option value="issuer_requested">Requested by issuer</option>
-              <option value="other">Other</option>
+              {[
+                ["", "Choose a reason"],
+                ["administrative_hold", "Administrative hold"],
+                ["policy_violation", "Policy violation"],
+                ["appeal_pending", "Appeal pending"],
+                ["appeal_resolved", "Appeal resolved"],
+                ["credential_expired", "Credential expired"],
+                ["issuer_requested", "Requested by issuer"],
+                ["other", "Other"],
+              ].map(([value, label]) => (
+                <option value={value} selected={input.formError?.reasonCode === value}>
+                  {label}
+                </option>
+              ))}
             </CtSelect>
           </AdminField>
           <AdminField label="Reason details (optional)">
-            <CtInput name="reason" type="text" maxlength={2000} />
+            <CtInput
+              name="reason"
+              type="text"
+              maxlength={ASSERTION_REASON_MAX_LENGTH}
+              value={input.formError?.reason ?? ""}
+            />
           </AdminField>
           {targetState === "revoked" ? (
             <CtCheckboxField

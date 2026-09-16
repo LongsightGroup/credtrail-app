@@ -147,6 +147,7 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
         <IssuedBadgeStatusPanel
           tenantId={input.tenantId}
           badge={selectedBadge}
+          formError={input.issuedBadgesWorkspace?.statusFormError}
           mode={input.issuedBadgesWorkspace?.lifecycleMode ?? null}
           filters={issuedBadgesFilters}
         />

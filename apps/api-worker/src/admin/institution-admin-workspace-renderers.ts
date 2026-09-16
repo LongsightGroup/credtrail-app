@@ -44,7 +44,6 @@ import {
 import type { InstitutionAdminListFlashWorkspace } from "./institution-admin/list-flash-workspace";
 import type { InstitutionAdminPageInput } from "./institution-admin/page-types";
 import { lmsConnectionsPageUrl } from "./lms-connection-admin-helpers";
-import { consumeAdminManualIssueFlash } from "./manual-issue-flash";
 import {
   badgeRuleRegistryPageUrl,
   buildBadgeRuleRegistryPath,
@@ -619,9 +618,10 @@ export const renderInstitutionAdminManualIssueWorkspace = async <
   }
 
   const { pageData, principal } = loaded;
-  const flash = await consumeAdminManualIssueFlash(c, {
+  const flash = await readListWorkspaceFlash(c, {
     tenantId,
     userId: principal.userId,
+    workspace: "operations_manual_issue",
   });
   const pathwayIssuanceQuery = safeParseLearnerPathwayIssuanceQuery({
     pathwayHandoffId: c.req.query("pathwayHandoffId"),
@@ -633,27 +633,7 @@ export const renderInstitutionAdminManualIssueWorkspace = async <
         badgeTemplateId: pathwayIssuanceQuery.value.badgeTemplateId,
       }
     : null;
-  const manualIssueWorkspace =
-    flash === null
-      ? {
-          listNotice: null,
-          listError: null,
-          receipt: null,
-          pathwayIssuance,
-        }
-      : flash.tone === "error"
-        ? {
-            listNotice: null,
-            listError: flash.message,
-            receipt: null,
-            pathwayIssuance,
-          }
-        : {
-            listNotice: flash.message,
-            listError: null,
-            receipt: flash.receipt ?? null,
-            pathwayIssuance,
-          };
+  const manualIssueWorkspace = { ...flash, pathwayIssuance };
 
   return await renderInstitutionAdminWorkspacePage(
     c,

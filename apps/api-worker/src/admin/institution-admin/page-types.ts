@@ -1,3 +1,4 @@
+import type { IssuedBadgeStatusFormError } from "../issued-badge-status-form";
 import type { IssuedBadgeStatusSelection } from "../issued-badge-status-panel";
 import type { IssuedBadgeLifecycleMode } from "../issued-badges-admin-helpers";
 import type {
@@ -34,7 +35,6 @@ import type { LearnerRecordImportBatchProgressSummary } from "../../learner-reco
 import type { LearnerRecordPresentationModel } from "../../learner-record/learner-record-presentation";
 import type { ReportingMetricEntry } from "../../reporting/metric-definitions";
 import type { BadgeRuleReviewQueueEntryView } from "../../badge-rule-review-queue-workspace";
-import type { AdminManualIssueReceipt } from "../manual-issue-flash";
 import type { InstitutionAdminListFlashWorkspace } from "./list-flash-workspace";
 
 /** Reporting workspace views that select a focused data-loading profile. */
@@ -102,6 +102,7 @@ export interface InstitutionAdminIssuedBadgesWorkspace {
   listError: string | null;
   lifecycleAssertionId: string | null;
   lifecycleMode: IssuedBadgeLifecycleMode | null;
+  statusFormError?: IssuedBadgeStatusFormError | undefined;
   selectedBadge?: IssuedBadgeStatusSelection | null;
 }
 
@@ -150,7 +151,6 @@ export interface InstitutionAdminAccessOrgUnitsWorkspace extends InstitutionAdmi
 export interface InstitutionAdminManualIssueWorkspace {
   listNotice: string | null;
   listError: string | null;
-  receipt: AdminManualIssueReceipt | null;
   pathwayIssuance: {
     readonly handoffId: string;
     readonly badgeTemplateId: string;

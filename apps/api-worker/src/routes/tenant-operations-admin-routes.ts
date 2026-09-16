@@ -4,14 +4,19 @@ import {
   findBadgeTemplateById,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import { parseManualIssueBadgeRequest, parseTenantPathParams } from "@credtrail/validation";
+import {
+  parseManualIssueBadgeRequest,
+  parseTenantPathParams,
+  parseAssertionPathParams,
+} from "@credtrail/validation";
 import type { Hono } from "hono";
 import { buildOperationsManualIssuePath } from "../admin/access-admin-helpers";
 import { readOptionalFormField } from "../admin/admin-form-helpers";
-import {
-  buildAdminManualIssueReceipt,
-  setAdminManualIssueFlash,
-} from "../admin/manual-issue-flash";
+import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
+import { issuanceReceiptPage, issuanceReceiptPath } from "../admin/issuance-receipt-page";
+import { renderInstitutionAdminWorkspacePage } from "../admin/institution-admin-workspace";
+import { renderAppPage } from "../ui/render-page";
+import type { TenantGovernanceAdminPageDataLoaders } from "./tenant-governance-admin/page-data";
 import type { AppContext, AppEnv } from "../app/types";
 import type {
   IssueBadgeForTenant,
@@ -20,10 +25,10 @@ import type {
 } from "../app/route-deps";
 import { badgeAchievementSnapshotFromTemplate } from "../badges/badge-achievement-snapshot";
 import { isIssueBadgeHttpError } from "../badges/direct-issue";
-import { publicBadgePathForAssertion } from "../badges/public-badge-model";
 
 interface RegisterTenantOperationsAdminRoutesInput {
   app: Hono<AppEnv>;
+  loadInstitutionAdminShellData: TenantGovernanceAdminPageDataLoaders["loadInstitutionAdminShellData"];
   issueBadgeForTenant: IssueBadgeForTenant;
   requireDelegatedIssuingAuthorityPermission: RequireDelegatedIssuingAuthorityPermission;
   resolveDatabase: ResolveDatabase;
@@ -89,7 +94,8 @@ export const registerTenantOperationsAdminRoutes = (
           : { learnerPathwayCompletionHandoffId }),
       });
     } catch {
-      await setAdminManualIssueFlash(c, {
+      await setAdminListMessageFlash(c, {
+        workspace: "operations_manual_issue",
         tenantId: pathParams.tenantId,
         userId: principal.userId,
         tone: "error",
@@ -103,7 +109,8 @@ export const registerTenantOperationsAdminRoutes = (
     const template = await findBadgeTemplateById(db, pathParams.tenantId, request.badgeTemplateId);
 
     if (template === null) {
-      await setAdminManualIssueFlash(c, {
+      await setAdminListMessageFlash(c, {
+        workspace: "operations_manual_issue",
         tenantId: pathParams.tenantId,
         userId: principal.userId,
         tone: "error",
@@ -152,12 +159,6 @@ export const registerTenantOperationsAdminRoutes = (
         issueRequest,
         principal.userId,
       );
-      const assertion = await findAssertionById(db, pathParams.tenantId, result.assertionId);
-
-      if (assertion === null) {
-        throw new Error(`Issued assertion "${result.assertionId}" could not be loaded`);
-      }
-
       await createAuditLog(db, {
         tenantId: pathParams.tenantId,
         actorUserId: principal.userId,
@@ -172,26 +173,14 @@ export const registerTenantOperationsAdminRoutes = (
         },
       });
 
-      await setAdminManualIssueFlash(c, {
-        tenantId: pathParams.tenantId,
-        userId: principal.userId,
-        tone: "success",
-        message: `Badge issued for ${request.recipientIdentity}.`,
-        receipt: buildAdminManualIssueReceipt({
-          publicBadgePath: publicBadgePathForAssertion(assertion),
-          tenantId: pathParams.tenantId,
-          assertionId: assertion.id,
-          badgeTitle: assertion.achievementSnapshot.title,
-          recipientIdentity: assertion.recipientIdentity,
-          issuedAt: assertion.issuedAt,
-        }),
-      });
+      return c.redirect(issuanceReceiptPath(pathParams.tenantId, result.assertionId), 303);
     } catch (error: unknown) {
       if (!isIssueBadgeHttpError(error)) {
         throw error;
       }
 
-      await setAdminManualIssueFlash(c, {
+      await setAdminListMessageFlash(c, {
+        workspace: "operations_manual_issue",
         tenantId: pathParams.tenantId,
         userId: principal.userId,
         tone: "error",
@@ -201,6 +190,27 @@ export const registerTenantOperationsAdminRoutes = (
 
     return c.redirect(buildOperationsManualIssuePath(pathParams.tenantId), 303);
   };
+
+  app.get("/tenants/:tenantId/admin/operations/issue/:assertionId/receipt", async (c) => {
+    const { tenantId } = parseTenantPathParams(c.req.param());
+    const { assertionId } = parseAssertionPathParams(c.req.param());
+    const authorized = await resolveInstitutionAdminAdminRole(c, tenantId, c.req.path);
+    if (authorized instanceof Response) return authorized;
+    const assertion = await findAssertionById(resolveDatabase(c.env), tenantId, assertionId);
+    if (assertion === null) return c.text("Badge not found for this institution.", 404);
+    const shell = await input.loadInstitutionAdminShellData(
+      c,
+      tenantId,
+      authorized.principal.userId,
+      authorized.membershipRole,
+    );
+    if (shell instanceof Response) return shell;
+    return renderInstitutionAdminWorkspacePage(
+      c,
+      renderAppPage,
+      issuanceReceiptPage({ ...shell, assertion }),
+    );
+  });
 
   app.post("/tenants/:tenantId/admin/operations/issue", handleManualIssuePost);
 };

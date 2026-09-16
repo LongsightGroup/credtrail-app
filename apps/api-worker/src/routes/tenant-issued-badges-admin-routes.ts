@@ -1,14 +1,15 @@
 import {
+  parseIssuedBadgeStatusForm,
+  type IssuedBadgeStatusCorrection,
+} from "../admin/issued-badge-status-form";
+import {
   findAssertionById,
   findBadgeTemplateById,
   recordAssertionLifecycleTransition,
   type DelegatedIssuingAuthorityAction,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import {
-  parseAssertionLifecycleTransitionRequest,
-  parseTenantPathParams,
-} from "@credtrail/validation";
+import { parseTenantPathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import {
@@ -27,6 +28,12 @@ const issuedBadgeStatusPermissionError =
 
 interface RegisterTenantIssuedBadgesAdminRoutesInput {
   app: Hono<AppEnv>;
+  renderStatusCorrection: (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+    correction: IssuedBadgeStatusCorrection,
+  ) => Promise<Response>;
   resolveDatabase: ResolveDatabase;
   requireDelegatedIssuingAuthorityPermission: RequireDelegatedIssuingAuthorityPermission;
   assertionBelongsToTenant: (tenantId: string, assertionId: string) => boolean;
@@ -146,39 +153,21 @@ export const registerTenantIssuedBadgesAdminRoutes = (
       });
     }
 
-    let request: ReturnType<typeof parseAssertionLifecycleTransitionRequest>;
-
-    try {
-      request = parseAssertionLifecycleTransitionRequest({
-        toState: formData.get("toState"),
-        reasonCode: formData.get("reasonCode"),
-        reason: readOptionalFormField(formData, "reason"),
-        transitionSource: "manual",
-      });
-    } catch {
-      return redirectIssuedBadgesWithFlash(c, {
-        tenantId: pathParams.tenantId,
-        userId: principal.userId,
-        tone: "error",
-        message: "Choose a status action and a reason, then try again.",
-        filters,
-        extra: {
-          lifecycle: assertionId,
-          lifecycleMode: "status",
+    const parsed = parseIssuedBadgeStatusForm(formData);
+    if (!parsed.ok) {
+      c.status(422);
+      return input.renderStatusCorrection(
+        c,
+        pathParams.tenantId,
+        issuedBadgesPageUrl(pathParams.tenantId, filters),
+        {
+          assertionId,
+          filters,
+          form: parsed.error,
         },
-      });
+      );
     }
-
-    if (request.toState === "revoked" && formData.get("confirmRevocation") !== "yes") {
-      return redirectIssuedBadgesWithFlash(c, {
-        tenantId: pathParams.tenantId,
-        userId: principal.userId,
-        tone: "error",
-        message: "Confirm that revocation is permanent before revoking this badge.",
-        filters,
-        extra: { lifecycle: assertionId, lifecycleMode: "revoke" },
-      });
-    }
+    const request = parsed.value;
 
     const db = resolveDatabase(c.env);
     const assertion = await findAssertionById(db, pathParams.tenantId, assertionId);

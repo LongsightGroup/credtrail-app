@@ -37,10 +37,12 @@ export const presentationVerifyRequestSchema = z.object({
   presentation: jsonObjectSchema,
 });
 
+export const ASSERTION_REASON_MAX_LENGTH = 512;
+
 export const assertionLifecycleTransitionRequestSchema = z.object({
   toState: assertionLifecycleStateSchema,
   reasonCode: assertionLifecycleReasonCodeSchema,
-  reason: z.string().trim().min(1).max(512).optional(),
+  reason: z.string().trim().min(1).max(ASSERTION_REASON_MAX_LENGTH).optional(),
   transitionSource: assertionLifecycleTransitionSourceSchema.default("manual"),
   transitionedAt: isoTimestampSchema.optional(),
 });

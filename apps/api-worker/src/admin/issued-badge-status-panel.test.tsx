@@ -49,6 +49,7 @@ describe("record-owned status changes", () => {
       expect(html).toContain('method="post"');
       expect(html).toContain(label);
       expect(html).toContain("Cancel");
+      expect(html).toContain('maxlength="512"');
       expect(html).not.toContain("Assertion ID");
     },
   );

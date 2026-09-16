@@ -171,10 +171,8 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
       return (
         <>
           {renderPageHeader(
-            input.manualIssueWorkspace?.receipt ? "Badge issued" : "Issue Badge",
-            input.manualIssueWorkspace?.receipt
-              ? "Review the credential record or continue with another learner."
-              : "Issue a badge for one learner by choosing the template and recipient email.",
+            "Issue Badge",
+            "Issue a badge for one learner by choosing the template and recipient email.",
           )}
           <section class="ct-admin ct-stack">
             {renderManualIssueSection({
@@ -182,7 +180,6 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
               templateSelectOptions: content.controls.templateSelectOptions,
               listError: input.manualIssueWorkspace?.listError ?? null,
               listNotice: input.manualIssueWorkspace?.listNotice ?? null,
-              receipt: input.manualIssueWorkspace?.receipt ?? null,
               pathwayHandoffId: input.manualIssueWorkspace?.pathwayIssuance?.handoffId ?? null,
             })}
           </section>
