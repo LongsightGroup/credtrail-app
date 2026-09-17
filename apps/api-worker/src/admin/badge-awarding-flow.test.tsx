@@ -1,6 +1,7 @@
 import type { BadgeTemplateRecord } from "@credtrail/db";
 import type { ImmutableCredentialStore } from "@credtrail/core-domain";
 import { describe, expect, it } from "vitest";
+import { BadgeTemplateAdminTableRow } from "./badge-template-table-row";
 import { BadgePreparationActions } from "./badge-preparation-actions";
 import { resolveManualIssueSelection } from "./manual-issue-selection";
 import { issuePreparedBadgePath, automaticBadgeAwardingPath } from "./badge-awarding-links";
@@ -155,4 +156,37 @@ describe("badge preparation to awarding", () => {
     expect((await select({ pathwayHandoffId: "handoff_123" })).selection.kind).toBe("blocked");
     expect((await select({ badgeTemplateId: "" })).selection.kind).toBe("blocked");
   });
+});
+
+it("names active and historical rule use before archiving", () => {
+  const body = render(
+    <BadgeTemplateAdminTableRow
+      tenantId="tenant_123"
+      template={template}
+      historyHref="/history"
+      rulesTemplatesPath="/templates"
+      listPageQuery={{ searchQuery: "", includeArchived: false, returnToRuleBuilder: false }}
+      ruleUsages={[
+        {
+          badgeTemplateId: template.id,
+          ruleId: "active_rule",
+          ruleName: "Completion award",
+          versionNumber: 2,
+          isActiveVersion: true,
+        },
+        {
+          badgeTemplateId: template.id,
+          ruleId: "past_rule",
+          ruleName: "Previous award",
+          versionNumber: 1,
+          isActiveVersion: false,
+        },
+      ]}
+    />,
+  );
+  expect(body).toContain("1 active rule can continue issuing this badge after archiving.");
+  expect(body).toContain('href="/tenants/tenant_123/admin/rules/active_rule"');
+  expect(body).toContain("Completion award");
+  expect(body).toContain("Past or draft version");
+  expect(body).toContain("Previous award");
 });

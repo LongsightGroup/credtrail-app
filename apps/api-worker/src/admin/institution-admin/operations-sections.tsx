@@ -20,6 +20,7 @@ import {
   emptyIssuedBadgesPageFilterValues,
   issuedBadgesAssertionPageUrl,
   issuedBadgesLedgerExportUrl,
+  issuedBadgesPageUrl,
 } from "../issued-badges-admin-helpers";
 import { tenantReviewQueueAdminResolvePath } from "../review-queue-admin-helpers";
 import type {
@@ -54,22 +55,36 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
   const showIssuedBadgesExportAction =
     issuedBadgesAssertions !== null && issuedBadgesAssertions.length > 0;
   const issuedBadgesExportHref = issuedBadgesLedgerExportUrl(input.tenantId, issuedBadgesFilters);
-  const activeFilters = [
-    issuedBadgesFilters.issuedFrom ? `Issued from: ${issuedBadgesFilters.issuedFrom}` : "",
-    issuedBadgesFilters.issuedTo ? `Issued through: ${issuedBadgesFilters.issuedTo}` : "",
-    issuedBadgesFilters.recipientQuery
+  const activeFilters = Object.entries({
+    issuedFrom: issuedBadgesFilters.issuedFrom
+      ? `Issued from: ${issuedBadgesFilters.issuedFrom}`
+      : "",
+    issuedTo: issuedBadgesFilters.issuedTo ? `Issued through: ${issuedBadgesFilters.issuedTo}` : "",
+    recipientQuery: issuedBadgesFilters.recipientQuery
       ? `Recipient or record: ${issuedBadgesFilters.recipientQuery}`
       : "",
-    issuedBadgesFilters.badgeTemplateId
+    badgeTemplateId: issuedBadgesFilters.badgeTemplateId
       ? `Badge: ${input.filterLabels?.badgeTemplate ?? "Selected badge"}`
       : "",
-    issuedBadgesFilters.orgUnitId
+    orgUnitId: issuedBadgesFilters.orgUnitId
       ? `Organization unit: ${input.filterLabels?.orgUnit ?? "Selected unit"}`
       : "",
-    issuedBadgesFilters.state
+    state: issuedBadgesFilters.state
       ? `Status: ${Object.entries(assertionLifecycleLabels).find(([state]) => state === issuedBadgesFilters.state)?.[1] ?? issuedBadgesFilters.state}`
       : "",
-  ].filter((label) => label.length > 0);
+  })
+    .map(([key, label]) => ({ key, label }))
+    .filter(({ label }) => label.length > 0);
+  const pagination = input.issuedBadgesWorkspace?.pagination;
+  const pageHref = (cursor: string): string =>
+    issuedBadgesPageUrl(
+      input.tenantId,
+      { ...issuedBadgesFilters, cursor },
+      {
+        cursor,
+        limit: String(issuedBadgesFilters.limit),
+      },
+    );
   return (
     <AdminPanel id="issued-badges-panel" variant="table">
       <h2>Badge Records</h2>
@@ -158,7 +173,22 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
       {activeFilters.length > 0 ? (
         <section aria-label="Active filters" class="ct-stack">
           <p>
-            <strong>Active filters:</strong> {activeFilters.join(" · ")}
+            <strong>Active filters:</strong>
+            {activeFilters.map(({ key, label }) => (
+              <span>
+                {" "}
+                <a
+                  href={issuedBadgesPageUrl(
+                    input.tenantId,
+                    { ...issuedBadgesFilters, [key]: "", cursor: "" },
+                    { limit: String(issuedBadgesFilters.limit) },
+                  )}
+                  aria-label={`Remove ${key === "recipientQuery" ? "recipient filter" : label}`}
+                >
+                  {label} ×
+                </a>{" "}
+              </span>
+            ))}
           </p>
           <AdminButtonLink
             href={`${issuedBadgesPagePath}?limit=${String(issuedBadgesFilters.limit)}`}
@@ -170,8 +200,9 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
       ) : null}
       {issuedBadgesAssertions === null ? null : (
         <p role="status">
-          {issuedBadgesAssertions.length >= issuedBadgesFilters.limit
-            ? `Showing the latest ${String(issuedBadgesAssertions.length)} matching records. Narrow the filters to find older records.`
+          {issuedBadgesAssertions.length > 0 &&
+          (pagination?.olderCursor || issuedBadgesFilters.cursor)
+            ? `${String(issuedBadgesAssertions.length)} records on this page.`
             : issuedBadgesAssertions.length === 0
               ? "No records match these filters. Change or clear the filters to try again."
               : `${String(issuedBadgesAssertions.length)} matching ${issuedBadgesAssertions.length === 1 ? "record" : "records"}.`}
@@ -211,6 +242,7 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
         ) : (
           <IssuedBadgeRows
             assertions={issuedBadgesAssertions}
+            learnerReturnHref={pageHref(issuedBadgesFilters.cursor ?? "")}
             evidenceHrefForAssertion={(assertionId) =>
               issuedBadgesAssertionPageUrl(
                 input.tenantId,
@@ -230,6 +262,27 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
           />
         )}
       </AdminTable>
+      {pagination?.newerCursor || pagination?.olderCursor || issuedBadgesFilters.cursor ? (
+        <nav aria-label="Badge record pages">
+          <AdminActions>
+            {pagination?.newerCursor ? (
+              <AdminButtonLink href={pageHref(pagination.newerCursor)} variant="secondary">
+                Newer records
+              </AdminButtonLink>
+            ) : null}
+            {pagination?.olderCursor ? (
+              <AdminButtonLink href={pageHref(pagination.olderCursor)} variant="secondary">
+                Older records
+              </AdminButtonLink>
+            ) : null}
+            {issuedBadgesFilters.cursor ? (
+              <AdminButtonLink href={pageHref("")} variant="quiet">
+                Newest records
+              </AdminButtonLink>
+            ) : null}
+          </AdminActions>
+        </nav>
+      ) : null}
     </AdminPanel>
   );
 };

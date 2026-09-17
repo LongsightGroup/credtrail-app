@@ -1,3 +1,4 @@
+import { statusReasons, statusReasonLabels } from "./issued-badge-status-reasons";
 import { assertionLifecycleLabels } from "../badges/assertion-lifecycle-labels";
 import { ASSERTION_REASON_MAX_LENGTH } from "@credtrail/validation";
 import type { IssuedBadgeStatusFormError } from "./issued-badge-status-form";
@@ -139,18 +140,16 @@ export const IssuedBadgeStatusPanel = (input: {
           ))}
           <AdminField label="Reason">
             <CtSelect name="reasonCode" required>
-              {[
-                ["", "Choose a reason"],
-                ["administrative_hold", "Administrative hold"],
-                ["policy_violation", "Policy violation"],
-                ["appeal_pending", "Appeal pending"],
-                ["appeal_resolved", "Appeal resolved"],
-                ["credential_expired", "Credential expired"],
-                ["issuer_requested", "Requested by issuer"],
-                ["other", "Other"],
-              ].map(([value, label]) => (
-                <option value={value} selected={input.formError?.reasonCode === value}>
-                  {label}
+              <option value="">Choose a reason</option>
+              {statusReasons[targetState].map((value) => (
+                <option
+                  value={value}
+                  selected={
+                    (input.formError?.reasonCode ??
+                      (targetState === "expired" ? "credential_expired" : "")) === value
+                  }
+                >
+                  {statusReasonLabels[value]}
                 </option>
               ))}
             </CtSelect>

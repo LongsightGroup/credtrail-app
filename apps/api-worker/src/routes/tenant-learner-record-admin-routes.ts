@@ -1,3 +1,4 @@
+import { badgeRecordsReturnHref } from "../admin/learner-record-link";
 import {
   retryFailedImportLearnerRecordBatchQueueMessages,
   type TenantMembershipRole,
@@ -273,6 +274,15 @@ export const registerTenantLearnerRecordAdminRoutes = (
     }
 
     c.header("Cache-Control", "no-store");
-    return renderAppPage(c, institutionAdminLearnerRecordsPage(pageData));
+    const returnHref = badgeRecordsReturnHref(pathParams.tenantId, c.req.query("returnTo"));
+    return renderAppPage(
+      c,
+      institutionAdminLearnerRecordsPage({
+        ...pageData,
+        ...(pageData.learnerRecordReview === undefined
+          ? {}
+          : { learnerRecordReview: { ...pageData.learnerRecordReview, returnHref } }),
+      }),
+    );
   });
 };

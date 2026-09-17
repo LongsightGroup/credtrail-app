@@ -714,6 +714,7 @@ const IssuedBadgeActions = (input: {
 };
 
 const IssuedBadgeRow = (input: {
+  learnerReturnHref?: string | undefined;
   assertion: TenantAssertionSummaryRecord;
   evidenceHref: string;
   statusHref: string;
@@ -726,6 +727,7 @@ const IssuedBadgeRow = (input: {
     assertion.tenantId,
     assertion.recipientIdentityType,
     assertion.recipientIdentity,
+    input.learnerReturnHref,
   );
 
   return (
@@ -835,6 +837,7 @@ export const ReviewQueueRows = (input: {
 };
 
 export const IssuedBadgeRows = (input: {
+  learnerReturnHref?: string;
   assertions: readonly TenantAssertionSummaryRecord[];
   evidenceHrefForAssertion: (assertionId: string) => string;
   statusHrefForAssertion: (assertionId: string) => string;
@@ -853,6 +856,7 @@ export const IssuedBadgeRows = (input: {
       {input.assertions.map((assertion) => (
         <IssuedBadgeRow
           assertion={assertion}
+          learnerReturnHref={input.learnerReturnHref}
           evidenceHref={input.evidenceHrefForAssertion(assertion.assertionId)}
           statusHref={input.statusHrefForAssertion(assertion.assertionId)}
         />

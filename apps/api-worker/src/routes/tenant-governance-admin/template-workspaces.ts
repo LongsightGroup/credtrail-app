@@ -5,6 +5,7 @@ import {
   listBadgeTemplateImageRevisionCountsByTenant,
   listBadgeTemplateImageRevisions,
   listBadgeTemplates,
+  listBadgeTemplateRuleUsages,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import { consumeAdminListMessageFlash } from "../../admin/admin-list-message-flash";
@@ -72,6 +73,10 @@ export const createTenantGovernanceTemplateAdminWorkspaces = (input: {
     return {
       ...shellData,
       badgeTemplates,
+      badgeTemplateRuleUsages: await listBadgeTemplateRuleUsages(db, {
+        tenantId,
+        badgeTemplateIds: badgeTemplates.map((template) => template.id),
+      }),
       templateWorkflows: await loadBadgeTemplateWorkflows(db, {
         tenantId,
         actorUserId: sessionUserId,

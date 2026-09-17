@@ -3,6 +3,7 @@ import { BadgePreparationActions } from "./badge-preparation-actions";
 import type {
   BadgeTemplateImageRevisionRecord,
   BadgeTemplateRecord,
+  BadgeTemplateRuleUsageRecord,
   TenantMembershipRole,
   TenantRecord,
 } from "@credtrail/db";
@@ -85,6 +86,7 @@ export interface InstitutionAdminRuleTemplatesPageInput {
   membershipRole: TenantMembershipRole;
   badgeTemplates: readonly BadgeTemplateRecord[];
   preparedTemplateIds?: readonly string[];
+  badgeTemplateRuleUsages?: readonly BadgeTemplateRuleUsageRecord[];
   templateWorkflows?: Readonly<Record<string, BadgeTemplateWorkflow>>;
   badgeTemplateImageRevisionCountsById?: Readonly<Record<string, number>>;
   badgeTemplatesPage: InstitutionAdminBadgeTemplatesPageOptions;
@@ -456,6 +458,7 @@ const listPageQueryOptions = (
 
 const renderBadgeTemplatesTable = (input: {
   preparedTemplateIds: readonly string[];
+  badgeTemplateRuleUsages: readonly BadgeTemplateRuleUsageRecord[];
   templateWorkflows: Readonly<Record<string, BadgeTemplateWorkflow>>;
   badgeTemplates: readonly BadgeTemplateRecord[];
   badgeTemplatesPage: InstitutionAdminBadgeTemplatesPageOptions;
@@ -476,6 +479,9 @@ const renderBadgeTemplatesTable = (input: {
         const imageRevisionCount = input.badgeTemplateImageRevisionCountsById[template.id] ?? 0;
         return (
           <BadgeTemplateAdminTableRow
+            ruleUsages={input.badgeTemplateRuleUsages.filter(
+              (usage) => usage.badgeTemplateId === template.id,
+            )}
             tenantId={input.tenantId}
             template={template}
             prepared={input.preparedTemplateIds.includes(template.id)}
@@ -609,6 +615,7 @@ export const institutionAdminRuleTemplatesPage = (
           ) : null}
           {renderBadgeTemplatesTable({
             preparedTemplateIds: input.preparedTemplateIds ?? [],
+            badgeTemplateRuleUsages: input.badgeTemplateRuleUsages ?? [],
             templateWorkflows: input.templateWorkflows ?? {},
             badgeTemplates: input.badgeTemplates,
             badgeTemplatesPage: input.badgeTemplatesPage,

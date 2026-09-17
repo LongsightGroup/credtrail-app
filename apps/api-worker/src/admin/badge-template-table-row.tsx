@@ -1,7 +1,8 @@
 import type { BadgeTemplateWorkflow } from "./badge-workflow-responsibility";
 import { issuePreparedBadgePath } from "./badge-awarding-links";
 /** Server-rendered badge template table row for the admin UI. */
-import type { BadgeTemplateRecord } from "@credtrail/db";
+import { buildBadgeRuleDetailPath } from "./access-admin-helpers";
+import type { BadgeTemplateRecord, BadgeTemplateRuleUsageRecord } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { formatIsoTimestamp } from "../utils/display-format";
 import {
@@ -32,6 +33,7 @@ export const BadgeTemplateAdminTableRow = ({
   prepared = false,
   template,
   workflow,
+  ruleUsages = [],
   imageRevisionCount = 0,
   historyHref,
   rulesTemplatesPath,
@@ -39,6 +41,7 @@ export const BadgeTemplateAdminTableRow = ({
 }: {
   tenantId: string;
   prepared?: boolean;
+  ruleUsages?: readonly BadgeTemplateRuleUsageRecord[];
   template: BadgeTemplateRecord;
   workflow?: BadgeTemplateWorkflow | undefined;
   imageRevisionCount?: number;
@@ -46,6 +49,7 @@ export const BadgeTemplateAdminTableRow = ({
   rulesTemplatesPath: string;
   listPageQuery: BadgeTemplateListPageQueryOptions;
 }): HonoElement => {
+  const activeRules = ruleUsages.filter((usage) => usage.isActiveVersion);
   const listQueryString = buildBadgeTemplateListPageQuery(listPageQuery).toString();
   const listQuerySuffix = listQueryString.length > 0 ? `?${listQueryString}` : "";
   const archiveAction = `${rulesTemplatesPath}/${encodeURIComponent(template.id)}/archive${listQuerySuffix}`;
@@ -156,10 +160,25 @@ export const BadgeTemplateAdminTableRow = ({
           <details class="ct-admin__archive-disclosure">
             <summary>Archive template</summary>
             <AdminForm method="post" action={archiveAction} className="ct-stack">
+              <p>Archiving removes this template from manual awarding and new rule setup.</p>
               <p>
-                Archiving removes this template from manual awarding and new rule setup. Published
-                rules can still issue badges from their approved version.
+                {activeRules.length > 0
+                  ? `${String(activeRules.length)} active ${activeRules.length === 1 ? "rule can" : "rules can"} continue issuing this badge after archiving.`
+                  : "No active rules currently use this template."}
               </p>
+              {ruleUsages.length > 0 ? (
+                <ul>
+                  {ruleUsages.map((usage) => (
+                    <li>
+                      <a href={buildBadgeRuleDetailPath(tenantId, usage.ruleId)}>
+                        {usage.ruleName}
+                      </a>{" "}
+                      — {usage.isActiveVersion ? "Active version" : "Past or draft version"}{" "}
+                      {String(usage.versionNumber)}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <p>
                 Existing credentials and their public pages stay unchanged. You can restore this
                 template from the list at any time.

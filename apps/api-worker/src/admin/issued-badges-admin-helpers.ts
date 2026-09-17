@@ -1,3 +1,4 @@
+import { parseIssuedBadgeCursor, type IssuedBadgeCursor } from "./issued-badge-pagination";
 import {
   parseTenantAssertionListQuery,
   type TenantAssertionListQuery,
@@ -11,6 +12,7 @@ export type IssuedBadgeLifecycleMode =
   | "expire";
 
 export interface IssuedBadgesPageFilterValues {
+  cursor?: string;
   issuedFrom: string;
   issuedTo: string;
   recipientQuery: string;
@@ -101,10 +103,12 @@ export const buildIssuedBadgesPageQuery = (
     query.set("limit", String(filters.limit));
   }
 
+  if (filters.cursor) query.set("cursor", filters.cursor);
   return query;
 };
 
 const issuedBadgesSearchFieldNames = [
+  "cursor",
   "issuedFrom",
   "issuedTo",
   "recipientQuery",
@@ -176,6 +180,7 @@ export const issuedBadgesPageUrl = (
 };
 
 export interface ParsedIssuedBadgesPageQuery {
+  cursor: IssuedBadgeCursor | undefined;
   filters: IssuedBadgesPageFilterValues;
   listQuery: TenantAssertionListQuery;
   lifecycleAssertionId: string | null;
@@ -200,6 +205,7 @@ const parseLifecycleMode = (raw: string | undefined): IssuedBadgeLifecycleMode |
 };
 
 export const parseIssuedBadgesPageQuery = (query: {
+  cursor?: string;
   issuedFrom?: string;
   issuedTo?: string;
   recipientQuery?: string;
@@ -224,8 +230,11 @@ export const parseIssuedBadgesPageQuery = (query: {
   const lifecycleModeRaw = parseLifecycleMode(query.lifecycleMode);
   const lifecycleMode = lifecycleRaw.length > 0 ? (lifecycleModeRaw ?? "audit") : lifecycleModeRaw;
 
+  const cursor = parseIssuedBadgeCursor(query.cursor);
   return {
+    cursor,
     filters: {
+      ...(cursor === undefined ? {} : { cursor: JSON.stringify(cursor) }),
       issuedFrom: parsedListQuery.issuedFrom ?? "",
       issuedTo: parsedListQuery.issuedTo ?? "",
       recipientQuery: parsedListQuery.recipientQuery ?? "",

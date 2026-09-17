@@ -72,8 +72,10 @@ const readFilterFieldsFromForm = (
   const orgUnitId = readOptionalFormField(formData, "orgUnitId");
   const state = readOptionalFormField(formData, "state");
   const limitRaw = formData.get("limit");
+  const cursor = readOptionalFormField(formData, "cursor");
 
   return parseIssuedBadgesPageQuery({
+    ...(cursor === undefined ? {} : { cursor }),
     ...(issuedFrom === undefined ? {} : { issuedFrom }),
     ...(issuedTo === undefined ? {} : { issuedTo }),
     ...(recipientQuery === undefined ? {} : { recipientQuery }),

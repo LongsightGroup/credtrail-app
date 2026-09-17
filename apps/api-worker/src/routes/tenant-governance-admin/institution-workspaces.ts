@@ -1,3 +1,4 @@
+import { paginateIssuedBadges } from "../../admin/issued-badge-pagination";
 import { learnerRecordLink } from "../../admin/learner-record-link";
 import type { IssuedBadgeStatusCorrection } from "../../admin/issued-badge-status-form";
 import type { IssuedBadgeStatusSelection } from "../../admin/issued-badge-status-panel";
@@ -185,12 +186,20 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       userId: principal.userId,
       workspace: "issued_badges",
     });
-    const assertions = shouldLoadIssuedBadgesList(query)
-      ? await listTenantAssertions(
-          resolveDatabase(c.env),
-          tenantAssertionListDbInput(tenantId, issuedBadgesQuery.listQuery),
-        )
+    const assertionRows = shouldLoadIssuedBadgesList(query)
+      ? await listTenantAssertions(resolveDatabase(c.env), {
+          ...tenantAssertionListDbInput(tenantId, issuedBadgesQuery.listQuery),
+          cursor: issuedBadgesQuery.cursor,
+          includeLookahead: true,
+        })
       : null;
+
+    const pagination = paginateIssuedBadges(
+      assertionRows ?? [],
+      issuedBadgesQuery.filters.limit,
+      issuedBadgesQuery.cursor,
+    );
+    const assertions = assertionRows === null ? null : pagination.assertions;
 
     let selectedBadge: IssuedBadgeStatusSelection | null = null;
     if (issuedBadgesQuery.lifecycleAssertionId !== null) {
@@ -223,6 +232,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
         issuedBadgesWorkspace: {
           filters: issuedBadgesQuery.filters,
           assertions,
+          pagination: { olderCursor: pagination.olderCursor, newerCursor: pagination.newerCursor },
           listNotice: flash?.tone === "success" ? flash.message : null,
           listError:
             flash?.tone === "error"
@@ -299,6 +309,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
             tenantId,
             evidenceLoaded.data.assertion.recipientIdentityType,
             evidenceLoaded.data.assertion.recipientIdentity,
+            returnHref,
           ),
           notificationOutcome: await loadIssuanceEmailOutcome(
             resolveDatabase(c.env),

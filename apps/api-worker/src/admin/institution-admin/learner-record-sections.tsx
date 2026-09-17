@@ -242,11 +242,19 @@ export const renderInstitutionAdminLearnerRecordSections = (
   const learnerRecordReviewPanelMarkup = (
     <AdminPanel>
       <h2>Learner record review</h2>
+      {learnerRecordReview.returnHref ? (
+        <AdminButtonLink href={learnerRecordReview.returnHref} variant="quiet">
+          Back to filtered badge records
+        </AdminButtonLink>
+      ) : null}
       <p>
         Open a learner’s unified record using the learner ID shown in the LMS or their email
         address.
       </p>
       <AdminForm method="get" action={operationsLearnerRecordsPath}>
+        {learnerRecordReview.returnHref ? (
+          <CtInput type="hidden" name="returnTo" value={learnerRecordReview.returnHref} />
+        ) : null}
         <AdminField label="LMS learner ID or email">
           <CtInput
             name="learner"
@@ -262,7 +270,14 @@ export const renderInstitutionAdminLearnerRecordSections = (
         </AdminField>
         <AdminActions>
           <AdminButton type="submit">Load learner record</AdminButton>
-          <AdminButtonLink href={operationsLearnerRecordsPath} variant="secondary">
+          <AdminButtonLink
+            href={
+              learnerRecordReview.returnHref
+                ? `${operationsLearnerRecordsPath}?${new URLSearchParams({ returnTo: learnerRecordReview.returnHref })}`
+                : operationsLearnerRecordsPath
+            }
+            variant="secondary"
+          >
             Clear lookup
           </AdminButtonLink>
         </AdminActions>

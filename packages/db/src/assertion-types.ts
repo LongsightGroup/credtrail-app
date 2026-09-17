@@ -164,6 +164,8 @@ export interface RecordAssertionRevocationResult {
 }
 
 export interface ListTenantAssertionsInput {
+  cursor?: { issuedAt: string; assertionId: string; direction: "older" | "newer" } | undefined;
+  includeLookahead?: boolean;
   tenantId: string;
   issuedFrom?: string | undefined;
   issuedTo?: string | undefined;

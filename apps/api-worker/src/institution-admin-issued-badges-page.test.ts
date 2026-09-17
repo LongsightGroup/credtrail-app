@@ -91,6 +91,8 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
 
     expect(response.status).toBe(200);
     expect(mockedListTenantAssertions).toHaveBeenCalledWith(fakeDb, {
+      cursor: undefined,
+      includeLookahead: true,
       tenantId: "tenant_123",
       limit: 100,
     });
@@ -114,6 +116,8 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
 
     expect(response.status).toBe(200);
     expect(mockedListTenantAssertions).toHaveBeenCalledWith(fakeDb, {
+      cursor: undefined,
+      includeLookahead: true,
       tenantId: "tenant_123",
       issuedFrom: "2026-03-01",
       issuedTo: "2026-03-31",

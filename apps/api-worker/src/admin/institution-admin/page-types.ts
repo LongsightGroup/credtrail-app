@@ -69,6 +69,7 @@ export type InstitutionAdminView =
   | "operationsManualIssue";
 
 export interface InstitutionAdminLearnerRecordReview {
+  returnHref?: string | null;
   lookup: {
     learner?: string;
   };
@@ -91,7 +92,9 @@ export interface InstitutionAdminApiKeysWorkspace {
 }
 
 export interface InstitutionAdminIssuedBadgesWorkspace {
+  pagination?: { olderCursor: string | null; newerCursor: string | null };
   filters: {
+    cursor?: string;
     issuedFrom: string;
     issuedTo: string;
     recipientQuery: string;

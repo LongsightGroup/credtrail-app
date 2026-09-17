@@ -143,7 +143,10 @@ export const completeFirstDayWorkflow = async (
   await page.goto(demoRoutes.issuedBadges);
   await page.getByLabel(/recipient/i).fill(identity.recipientEmail);
   await page.getByRole("button", { name: /search issued badges/i }).click();
-  const issuedBadge = page.locator("tbody tr").filter({ hasText: identity.recipientEmail });
+  const issuedBadge = page
+    .locator("tbody tr")
+    .filter({ hasText: identity.recipientEmail })
+    .filter({ hasText: identity.templateName });
   await expect(issuedBadge).toHaveCount(1);
   await expect(issuedBadge).toContainText(identity.templateName);
 };

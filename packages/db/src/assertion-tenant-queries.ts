@@ -96,6 +96,13 @@ export const listTenantAssertions = async (
     context: "ledger",
   });
 
+  const order = input.cursor?.direction === "newer" ? "ASC" : "DESC";
+  if (input.cursor) {
+    whereClauses.push(
+      `(assertions.issued_at, assertions.id) ${input.cursor.direction === "newer" ? ">" : "<"} (?, ?)`,
+    );
+    params.push(input.cursor.issuedAt, input.cursor.assertionId);
+  }
   const listStatement = (): Promise<SqlQueryResult<TenantAssertionSummaryRow>> =>
     db
       .prepare(
@@ -127,11 +134,11 @@ export const listTenantAssertions = async (
             LIMIT 1
           )
         WHERE ${whereClauses.join("\n          AND ")}
-        ORDER BY assertions.issued_at DESC, assertions.id DESC
+        ORDER BY assertions.issued_at ${order}, assertions.id ${order}
         LIMIT ?
       `,
       )
-      .bind(...params, queryLimit)
+      .bind(...params, queryLimit + (input.includeLookahead ? 1 : 0))
       .all<TenantAssertionSummaryRow>();
 
   const result = await listStatement();

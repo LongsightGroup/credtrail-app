@@ -66,7 +66,7 @@ test("archive explains its consequences and leaves restore directly available", 
   const row = page.locator("tr[data-template-row-id]").filter({ hasText: identity.templateName });
   await expect(row.getByRole("button", { name: "Archive template", exact: true })).toBeHidden();
   await row.locator("summary").filter({ hasText: "Archive template" }).click();
-  await expect(row).toContainText("Published rules can still issue badges");
+  await expect(row).toContainText("No active rules currently use this template.");
   await expect(row).toContainText("Existing credentials and their public pages stay unchanged");
   await row.getByRole("button", { name: "Archive template", exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: "/tmp/credtrail-clarity-archive-mobile.png", fullPage: true });
