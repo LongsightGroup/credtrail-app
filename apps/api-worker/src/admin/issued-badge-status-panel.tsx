@@ -1,3 +1,4 @@
+import { assertionLifecycleLabels } from "../badges/assertion-lifecycle-labels";
 import { ASSERTION_REASON_MAX_LENGTH } from "@credtrail/validation";
 import type { IssuedBadgeStatusFormError } from "./issued-badge-status-form";
 import { allowedAssertionLifecycleTransitions, type AssertionLifecycleState } from "@credtrail/db";
@@ -83,7 +84,10 @@ export const IssuedBadgeStatusPanel = (input: {
         UTC.
       </p>
       <p>
-        Current status: <AdminStatusPill tone={badge.state}>{badge.state}</AdminStatusPill>
+        Current status:{" "}
+        <AdminStatusPill tone={badge.state}>
+          {assertionLifecycleLabels[badge.state]}
+        </AdminStatusPill>
       </p>
       <AdminActions>
         <AdminButtonLink

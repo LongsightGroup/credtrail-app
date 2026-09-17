@@ -1,8 +1,6 @@
-import {
-  issuanceEmailOutcomeMessage,
-  type IssuanceEmailOutcome,
-} from "../notifications/issuance-email-outcome";
-import { CopyPublicBadgeLink } from "./copy-public-badge-link";
+import type { IssuanceEmailOutcome } from "../notifications/issuance-email-outcome";
+import { IssuanceNotification } from "./issuance-notification";
+import { learnerRecordLink } from "./learner-record-link";
 import { issuePreparedBadgePath } from "./badge-awarding-links";
 import type { AssertionRecord } from "@credtrail/db";
 import { AdminActions, AdminButtonLink, AdminPanel } from "./components";
@@ -33,6 +31,11 @@ export const issuanceReceiptPage = (
     readonly publicBadgeUrl: string;
   },
 ): AppPage => {
+  const learnerHref = learnerRecordLink(
+    input.assertion.tenantId,
+    input.assertion.recipientIdentityType,
+    input.assertion.recipientIdentity,
+  );
   const publicBadgePath = publicBadgePathForAssertion(input.assertion);
   const recordPath = issuedBadgesAssertionPageUrl(
     input.tenant.id,
@@ -65,16 +68,22 @@ export const issuanceReceiptPage = (
               <p>
                 <strong>Recipient:</strong> {input.assertion.recipientIdentity}
                 <br />
+                {learnerHref === null ? null : (
+                  <>
+                    <a href={learnerHref}>View learner record</a>
+                    <br />
+                  </>
+                )}
                 <strong>Issued:</strong> {formatIsoTimestamp(input.assertion.issuedAt)} UTC
               </p>
               <p>
                 The credential is issued. You can open its public page or review its record and
                 status.
               </p>
-              <section aria-label="Email notification" class="ct-stack">
-                <h3>Email notification</h3>
-                <p>{issuanceEmailOutcomeMessage(input.notificationOutcome)}</p>
-              </section>
+              <IssuanceNotification
+                outcome={input.notificationOutcome}
+                publicBadgeUrl={input.publicBadgeUrl}
+              />
               <AdminActions>
                 <AdminButtonLink href={recordPath} variant="primary">
                   View badge record
@@ -94,7 +103,7 @@ export const issuanceReceiptPage = (
                   Issue this badge to another learner
                 </AdminButtonLink>
               </AdminActions>
-              <CopyPublicBadgeLink publicBadgeUrl={input.publicBadgeUrl} />
+
               <details>
                 <summary>Technical details</summary>
                 <AdminActions>

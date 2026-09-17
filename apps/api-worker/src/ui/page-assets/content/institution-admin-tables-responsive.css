@@ -41,3 +41,57 @@
   align-items: flex-start;
   flex-wrap: wrap;
 }
+
+.ct-admin__record-search {
+  align-items: stretch;
+  flex-direction: column;
+}
+.ct-admin__record-filters {
+  grid-template-columns: minmax(0, 1fr);
+}
+.ct-admin__badge-records-wrap {
+  overflow: visible;
+}
+.ct-admin__badge-records,
+.ct-admin__badge-records tbody {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+.ct-admin__badge-records thead {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.ct-admin__badge-records tr {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  padding-block: var(--ct-space-3);
+  border-block-end: 1px solid var(--ct-theme-border-soft);
+}
+.ct-admin__badge-records tr:last-child {
+  border-block-end: 0;
+}
+.ct-admin__badge-records td {
+  display: block;
+  inline-size: auto;
+  min-inline-size: 0;
+  padding-block: var(--ct-space-2);
+  border: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ct-admin__badge-records td[data-label]::before {
+  content: attr(data-label);
+  display: block;
+  margin-block-end: var(--ct-space-1);
+  font-weight: 600;
+  color: var(--ct-theme-text-muted);
+}
+.ct-admin__badge-records .ct-admin__action-bar {
+  flex-wrap: wrap;
+}

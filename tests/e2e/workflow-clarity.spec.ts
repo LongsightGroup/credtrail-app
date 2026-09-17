@@ -12,7 +12,7 @@ test("changing a badge keeps the recipient and repeated awards require review", 
   await completeFirstDayWorkflow(page, identity);
   const row = page.locator('[data-issued-badge-row="true"]');
   await expect(row.locator("td")).toHaveCount(5);
-  await expect(row.locator("td").first()).toHaveText(identity.recipientEmail);
+  await expect(row.locator("td").first().locator("strong")).toHaveText(identity.recipientEmail);
   await expect(row).not.toContainText("default_active");
   await expect(row.getByRole("link", { name: "View record", exact: true })).toHaveClass(
     /--primary/,

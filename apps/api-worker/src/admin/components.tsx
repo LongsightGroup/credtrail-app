@@ -1,3 +1,5 @@
+import { assertionLifecycleLabels } from "../badges/assertion-lifecycle-labels";
+import { learnerRecordLink } from "./learner-record-link";
 import type { PropsWithChildren } from "hono/jsx";
 import type { HtmlEscapedString } from "hono/utils/html";
 import type { TenantAssertionSummaryRecord } from "@credtrail/db";
@@ -409,8 +411,8 @@ export const AdminEmptyTableRow = ({
   colSpan: number;
 }>): HonoElement => {
   return (
-    <tr>
-      <td colspan={colSpan} class="ct-admin__empty">
+    <tr role="row">
+      <td role="cell" colspan={colSpan} class="ct-admin__empty">
         {children}
       </td>
     </tr>
@@ -447,23 +449,27 @@ export const AdminTable = ({
 
   return (
     <div class={wrapperClass}>
-      <table id={id} class={tableClasses.join(" ")}>
-        <thead>
-          <tr>
+      <table id={id} class={tableClasses.join(" ")} role="table">
+        <thead role="rowgroup">
+          <tr role="row">
             {headers.map((header) => {
               const label = typeof header === "string" ? header : header.label;
               const scope = typeof header === "string" ? "col" : (header.scope ?? "col");
               const ariaSort = typeof header === "string" ? undefined : header.ariaSort;
 
               return (
-                <th scope={scope} aria-sort={ariaSort}>
+                <th
+                  scope={scope}
+                  aria-sort={ariaSort}
+                  role={scope === "row" ? "rowheader" : "columnheader"}
+                >
                   {label}
                 </th>
               );
             })}
           </tr>
         </thead>
-        <tbody id={tbodyId} {...(tbodyDataAttributes ?? {})}>
+        <tbody id={tbodyId} role="rowgroup" {...(tbodyDataAttributes ?? {})}>
           {children}
         </tbody>
       </table>
@@ -716,25 +722,34 @@ const IssuedBadgeRow = (input: {
   const viewBadgeHref = `/badges/${encodeURIComponent(assertion.publicId ?? assertion.assertionId)}`;
   const rawJsonHref = `/credentials/v1/${encodeURIComponent(assertion.assertionId)}/jsonld`;
 
+  const learnerHref = learnerRecordLink(
+    assertion.tenantId,
+    assertion.recipientIdentityType,
+    assertion.recipientIdentity,
+  );
+
   return (
-    <tr data-issued-badge-row="true">
-      <td>
+    <tr data-issued-badge-row="true" role="row">
+      <td data-label="Learner" role="cell">
         <strong>{assertion.recipientIdentity}</strong>
+        {learnerHref === null ? null : (
+          <div>
+            <a href={learnerHref}>View learner record</a>
+          </div>
+        )}
       </td>
-      <td>
+      <td data-label="Badge" role="cell">
         <strong>{assertion.badgeTitle}</strong>
       </td>
-      <td>{formatIsoTimestamp(assertion.issuedAt)}</td>
-      <td>
+      <td data-label="Issued" role="cell">
+        {formatIsoTimestamp(assertion.issuedAt)} UTC
+      </td>
+      <td data-label="Status" role="cell">
         <AdminStatusPill tone={assertion.state}>
-          {assertion.state === "active"
-            ? "Active"
-            : assertion.state === "revoked"
-              ? "Revoked"
-              : "Suspended"}
+          {assertionLifecycleLabels[assertion.state]}
         </AdminStatusPill>
       </td>
-      <td class="ct-admin__issued-actions-cell">
+      <td data-label="Actions" role="cell" class="ct-admin__issued-actions-cell">
         <div class="ct-admin__issued-actions">
           <IssuedBadgeActions
             assertionId={assertion.assertionId}

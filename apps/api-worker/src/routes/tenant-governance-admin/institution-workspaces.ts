@@ -1,3 +1,4 @@
+import { learnerRecordLink } from "../../admin/learner-record-link";
 import type { IssuedBadgeStatusCorrection } from "../../admin/issued-badge-status-form";
 import type { IssuedBadgeStatusSelection } from "../../admin/issued-badge-status-panel";
 import {
@@ -294,6 +295,11 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
           ? {}
           : { switchOrganizationPath: pageData.switchOrganizationPath }),
         evidencePage: {
+          learnerRecordHref: learnerRecordLink(
+            tenantId,
+            evidenceLoaded.data.assertion.recipientIdentityType,
+            evidenceLoaded.data.assertion.recipientIdentity,
+          ),
           notificationOutcome: await loadIssuanceEmailOutcome(
             resolveDatabase(c.env),
             tenantId,

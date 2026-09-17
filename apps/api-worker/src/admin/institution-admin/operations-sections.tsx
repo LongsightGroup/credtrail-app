@@ -1,3 +1,4 @@
+import { assertionLifecycleLabels } from "../../badges/assertion-lifecycle-labels";
 import { IssuedBadgeStatusPanel } from "../issued-badge-status-panel";
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
@@ -65,7 +66,9 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
     issuedBadgesFilters.orgUnitId
       ? `Organization unit: ${input.filterLabels?.orgUnit ?? "Selected unit"}`
       : "",
-    issuedBadgesFilters.state ? `Status: ${issuedBadgesFilters.state}` : "",
+    issuedBadgesFilters.state
+      ? `Status: ${Object.entries(assertionLifecycleLabels).find(([state]) => state === issuedBadgesFilters.state)?.[1] ?? issuedBadgesFilters.state}`
+      : "",
   ].filter((label) => label.length > 0);
   return (
     <AdminPanel id="issued-badges-panel" variant="table">
@@ -80,72 +83,78 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
         input.issuedBadgesWorkspace.listNotice.length > 0 ? (
         <AdminStatus data-tone="success">{input.issuedBadgesWorkspace.listNotice}</AdminStatus>
       ) : null}
-      <details open={selectedBadge === null}>
-        <summary>Search badge records</summary>
-        <AdminForm
-          id="issued-badges-filter-form"
-          method="get"
-          action={issuedBadgesPagePath}
-          className="ct-admin__form ct-admin__form--inline ct-grid"
-        >
-          <AdminField label="Issued from">
-            <CtInput name="issuedFrom" type="date" value={issuedBadgesFilters.issuedFrom} />
-          </AdminField>
-          <AdminField label="Issued to">
-            <CtInput name="issuedTo" type="date" value={issuedBadgesFilters.issuedTo} />
-          </AdminField>
+      <AdminForm
+        id="issued-badges-filter-form"
+        method="get"
+        action={issuedBadgesPagePath}
+        className="ct-admin__form ct-stack"
+      >
+        <div class="ct-admin__record-search">
           <AdminField label="Recipient or record">
             <CtInput
               name="recipientQuery"
-              type="text"
+              type="search"
               placeholder="Recipient email or record identifier"
               value={issuedBadgesFilters.recipientQuery}
             />
           </AdminField>
-          <AdminField label="Badge template">
-            <CtSelect name="badgeTemplateId">{input.templateFilterOptions}</CtSelect>
-          </AdminField>
-          <AdminField label="Org unit">
-            <CtSelect name="orgUnitId">
-              <option value="" selected={issuedBadgesFilters.orgUnitId.length === 0}>
-                All org units
-              </option>
-              {input.activeOrgUnitOptions}
-            </CtSelect>
-          </AdminField>
-          <AdminField label="Status">
-            <CtSelect name="state">
-              <option value="" selected={issuedBadgesFilters.state.length === 0}>
-                All states
-              </option>
-              <option value="active" selected={issuedBadgesFilters.state === "active"}>
-                active
-              </option>
-              <option value="suspended" selected={issuedBadgesFilters.state === "suspended"}>
-                suspended
-              </option>
-              <option value="revoked" selected={issuedBadgesFilters.state === "revoked"}>
-                revoked
-              </option>
-              <option value="expired" selected={issuedBadgesFilters.state === "expired"}>
-                expired
-              </option>
-            </CtSelect>
-          </AdminField>
-          <AdminField label="Results to show">
-            <CtSelect name="limit">
-              {Array.from(new Set([25, 50, 100, 250, 500, issuedBadgesFilters.limit]))
-                .sort((a, b) => a - b)
-                .map((limit) => (
-                  <option value={String(limit)} selected={limit === issuedBadgesFilters.limit}>
-                    {String(limit)} records
+          <AdminButton type="submit">Search issued badges</AdminButton>
+        </div>
+        <details
+          open={Boolean(
+            issuedBadgesFilters.issuedFrom ||
+            issuedBadgesFilters.issuedTo ||
+            issuedBadgesFilters.badgeTemplateId ||
+            issuedBadgesFilters.orgUnitId ||
+            issuedBadgesFilters.state,
+          )}
+        >
+          <summary>More filters</summary>
+          <div class="ct-admin__record-filters ct-grid">
+            <AdminField label="Issued from">
+              <CtInput name="issuedFrom" type="date" value={issuedBadgesFilters.issuedFrom} />
+            </AdminField>
+            <AdminField label="Issued to">
+              <CtInput name="issuedTo" type="date" value={issuedBadgesFilters.issuedTo} />
+            </AdminField>
+            <AdminField label="Badge template">
+              <CtSelect name="badgeTemplateId">{input.templateFilterOptions}</CtSelect>
+            </AdminField>
+            <AdminField label="Org unit">
+              <CtSelect name="orgUnitId">
+                <option value="" selected={issuedBadgesFilters.orgUnitId.length === 0}>
+                  All org units
+                </option>
+                {input.activeOrgUnitOptions}
+              </CtSelect>
+            </AdminField>
+            <AdminField label="Status">
+              <CtSelect name="state">
+                <option value="" selected={issuedBadgesFilters.state.length === 0}>
+                  All statuses
+                </option>
+                {Object.entries(assertionLifecycleLabels).map(([value, label]) => (
+                  <option value={value} selected={issuedBadgesFilters.state === value}>
+                    {label}
                   </option>
                 ))}
-            </CtSelect>
-          </AdminField>
-          <AdminButton type="submit">Search issued badges</AdminButton>
-        </AdminForm>
-      </details>
+              </CtSelect>
+            </AdminField>
+            <AdminField label="Results to show">
+              <CtSelect name="limit">
+                {Array.from(new Set([25, 50, 100, 250, 500, issuedBadgesFilters.limit]))
+                  .sort((a, b) => a - b)
+                  .map((limit) => (
+                    <option value={String(limit)} selected={limit === issuedBadgesFilters.limit}>
+                      {String(limit)} records
+                    </option>
+                  ))}
+              </CtSelect>
+            </AdminField>
+          </div>
+          <AdminButton type="submit">Apply filters</AdminButton>
+        </details>
+      </AdminForm>
       {activeFilters.length > 0 ? (
         <section aria-label="Active filters" class="ct-stack">
           <p>
@@ -190,7 +199,11 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
           filters={issuedBadgesFilters}
         />
       )}
-      <AdminTable headers={["Learner", "Badge", "Issued", "Status", "Actions"]}>
+      <AdminTable
+        headers={["Learner", "Badge", "Issued", "Status", "Actions"]}
+        tableClassName="ct-admin__badge-records"
+        wrapperClassName="ct-admin__table-wrap ct-admin__badge-records-wrap"
+      >
         {issuedBadgesAssertions === null ? (
           <AdminEmptyTableRow colSpan={5}>
             Use the search form above to load issued badges.

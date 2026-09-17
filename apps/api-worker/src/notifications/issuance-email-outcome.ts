@@ -76,16 +76,16 @@ export const issuanceEmailOutcomeMessage = (outcome: IssuanceEmailOutcome): stri
     case "accepted":
       return "The email service accepted the notification. Delivery to the recipient is not confirmed.";
     case "failed":
-      return "The notification could not be sent. The credential is still issued. Share its public badge link with the learner.";
+      return "The notification could not be sent. The credential is still issued.";
     case "disabled":
-      return "Email notifications are turned off. Share the public badge link with the learner.";
+      return "Email notifications are turned off.";
     case "not_configured":
-      return "Email is not configured. Share the public badge link with the learner.";
+      return "Email is not configured.";
     case "suppressed":
       return "No email notification was requested for this issuance.";
     case "not_applicable":
       return "This credential was issued without an email recipient.";
     case "unrecorded":
-      return "No notification result is recorded. You can share the public badge link with the learner.";
+      return "No notification result is recorded.";
   }
 };

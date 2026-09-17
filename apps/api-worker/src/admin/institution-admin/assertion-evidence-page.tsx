@@ -1,8 +1,6 @@
-import { CopyPublicBadgeLink } from "../copy-public-badge-link";
-import {
-  issuanceEmailOutcomeMessage,
-  type IssuanceEmailOutcome,
-} from "../../notifications/issuance-email-outcome";
+import { IssuanceNotification } from "../issuance-notification";
+import { assertionLifecycleLabels } from "../../badges/assertion-lifecycle-labels";
+import type { IssuanceEmailOutcome } from "../../notifications/issuance-email-outcome";
 import type { TenantMembershipRole, TenantRecord } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
@@ -23,6 +21,7 @@ export interface AssertionEvidencePageInput {
   evidence: AssertionEvidencePresentation;
   notificationOutcome: IssuanceEmailOutcome;
   publicBadgeUrl: string;
+  learnerRecordHref?: string | null;
   returnHref: string;
   evidenceApiPath: string;
 }
@@ -76,7 +75,7 @@ const renderAssertionEvidenceBody = (input: AssertionEvidencePageInput): HonoEle
     { label: "Badge", value: evidence.summary.badgeTitle },
     { label: "Recipient", value: evidence.summary.recipientIdentity },
     { label: "Issued", value: `${formatIsoTimestamp(evidence.summary.issuedAt)} UTC` },
-    { label: "Current state", value: evidence.summary.lifecycleState },
+    { label: "Current status", value: assertionLifecycleLabels[evidence.summary.lifecycleState] },
     ...(evidence.summary.publicId === null
       ? []
       : [{ label: "Public credential ID", value: evidence.summary.publicId }]),
@@ -139,7 +138,7 @@ const renderAssertionEvidenceBody = (input: AssertionEvidencePageInput): HonoEle
         </p>
         <div class="assertion-evidence__status-row">
           <AdminStatusPill tone={evidence.summary.lifecycleState}>
-            {evidence.summary.lifecycleState}
+            {assertionLifecycleLabels[evidence.summary.lifecycleState]}
           </AdminStatusPill>
           <AdminMeta>Generated {formatIsoTimestamp(evidence.generatedAt)} UTC</AdminMeta>
         </div>
@@ -165,7 +164,11 @@ const renderAssertionEvidenceBody = (input: AssertionEvidencePageInput): HonoEle
             Download JSON
           </AdminButton>
         </AdminActions>
-        <CopyPublicBadgeLink publicBadgeUrl={input.publicBadgeUrl} />
+        {input.learnerRecordHref ? (
+          <AdminButtonLink href={input.learnerRecordHref} variant="quiet">
+            View learner record
+          </AdminButtonLink>
+        ) : null}
       </header>
 
       <section class="assertion-evidence__section">
@@ -178,10 +181,12 @@ const renderAssertionEvidenceBody = (input: AssertionEvidencePageInput): HonoEle
         <DetailList rows={issuanceRows} />
       </section>
 
-      <section class="assertion-evidence__section" aria-label="Email notification">
-        <h2>Email notification</h2>
-        <p>{issuanceEmailOutcomeMessage(input.notificationOutcome)}</p>
-      </section>
+      <div class="assertion-evidence__section">
+        <IssuanceNotification
+          outcome={input.notificationOutcome}
+          publicBadgeUrl={input.publicBadgeUrl}
+        />
+      </div>
       {evidence.rule === null ? null : (
         <section class="assertion-evidence__section">
           <h2>Rule and version</h2>

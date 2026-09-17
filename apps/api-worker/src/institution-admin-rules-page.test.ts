@@ -1700,9 +1700,9 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(body.indexOf('id="template-create-panel"')).toBeLessThan(
       body.indexOf('id="badge-template-table-body"'),
     );
-    expect(body).toContain('<th scope="col">Status</th>');
-    expect(body).not.toContain('<th scope="col">ID</th>');
-    expect(body).toContain('<th scope="col">Actions</th>');
+    expect(body).toContain('<th scope="col" role="columnheader">Status</th>');
+    expect(body).not.toContain('<th scope="col" role="columnheader">ID</th>');
+    expect(body).toContain('<th scope="col" role="columnheader">Actions</th>');
     expect(body).not.toContain(">Slug</th>");
     expect(body).not.toContain(">Slug<");
     expect(body).toContain('name="q"');

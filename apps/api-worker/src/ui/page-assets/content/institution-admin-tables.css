@@ -459,3 +459,20 @@ button.ct-admin__text-action {
   padding: 0.75rem;
   background: var(--ct-theme-surface-soft);
 }
+
+.ct-admin__record-search {
+  display: flex;
+  align-items: end;
+  gap: var(--ct-space-3);
+}
+.ct-admin__record-search > label {
+  flex: 1;
+  min-inline-size: 0;
+}
+.ct-admin__record-search > button {
+  flex: 0 0 auto;
+}
+.ct-admin__record-filters {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-block: var(--ct-space-3);
+}

@@ -1,4 +1,5 @@
-import type { AssertionIssuanceProvenanceSource } from "@credtrail/db";
+import { assertionLifecycleLabels } from "./assertion-lifecycle-labels";
+import type { AssertionLifecycleState, AssertionIssuanceProvenanceSource } from "@credtrail/db";
 import { parseIssuanceEvidenceSnapshotJson } from "@credtrail/validation";
 import { tenantMembershipRoleLabel } from "../admin/tenant-membership-role-labels";
 import { badgeRuleVersionDisplayFields } from "./badge-rule-presentation";
@@ -48,7 +49,7 @@ export interface AssertionEvidencePresentation {
     recipientIdentity: string;
     issuedAt: string;
     publicId: string | null;
-    lifecycleState: string;
+    lifecycleState: AssertionLifecycleState;
     attributedOrgUnitName: string | null;
   };
   issuance: {
@@ -96,13 +97,6 @@ const auditActionLabels: Readonly<Record<string, string>> = {
   "assertion.lifecycle_transitioned": "Lifecycle changed",
   "assertion.revoked": "Badge revoked",
   "badge_rule.evaluated": "Rule evaluated",
-};
-
-const lifecycleStateLabels: Readonly<Record<string, string>> = {
-  active: "Active",
-  suspended: "Suspended",
-  revoked: "Revoked",
-  expired: "Expired",
 };
 
 const resolveActorLabel = (
@@ -172,7 +166,7 @@ const buildChangesAfterIssuance = (
       id: event.id,
       occurredAt: event.transitionedAt,
       actorLabel: resolveActorLabel(event.actorUserId, data.actorLabels),
-      summary: `Lifecycle changed to ${lifecycleStateLabels[event.toState] ?? event.toState}`,
+      summary: `Lifecycle changed to ${assertionLifecycleLabels[event.toState]}`,
       detail: [event.reasonCode.replaceAll("_", " "), event.reason ?? ""]
         .filter((part) => part.length > 0)
         .join(" · "),
