@@ -18,6 +18,7 @@ import {
 import {
   defaultBadgeRuleVersion,
   fakeDb,
+  fakeDbPrepare,
   mockedAddBadgeRuleApproverGroupMemberDb,
   mockedCountBadgeTemplateImageRevisions,
   mockedCreateAuditLogDb,
@@ -119,6 +120,7 @@ import {
 export const resetInstitutionAdminTestDefaults = (): void => {
   vi.resetAllMocks();
   mockedCreatePostgresDatabase.mockReturnValue(fakeDb);
+  fakeDbPrepare.mockReturnValue({ bind: () => ({ first: async () => ({ count: 1 }) }) });
   mockedFindTenantMembership.mockResolvedValue(sampleMembership("admin"));
   mockedFindTenantById.mockResolvedValue({
     id: "tenant_123",

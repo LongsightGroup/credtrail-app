@@ -102,6 +102,14 @@ export const issuanceReceiptPage = (
                 >
                   Issue this badge to another learner
                 </AdminButtonLink>
+                {input.assertion.recipientIdentityType === "email" ? (
+                  <AdminButtonLink
+                    href={`${tenantOperationsManualIssuePath(input.tenant.id)}?${new URLSearchParams({ recipientAssertionId: input.assertion.id })}`}
+                    variant="quiet"
+                  >
+                    Award another badge to this learner
+                  </AdminButtonLink>
+                ) : null}
               </AdminActions>
 
               <details>

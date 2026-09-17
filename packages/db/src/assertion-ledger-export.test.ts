@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 
 import {
   listTenantAssertions,
+  countTenantAssertionLedgerRows,
   listTenantAssertionLedgerExportRows,
   findBadgeTemplateById,
   SYNCHRONOUS_EXPORT_ROW_LIMIT,
@@ -202,6 +203,20 @@ describeDbIntegration("ledger export foundation", () => {
         state: "suspended",
       });
 
+      expect(
+        await countTenantAssertionLedgerRows(fixture.db, {
+          tenantId: fixture.tenantId,
+          issuedFrom: "2026-03-01",
+          issuedTo: "2026-03-31",
+          badgeTemplateId: fixture.badgeTemplateId,
+          orgUnitId: fixture.microbiologyProgramId,
+          state: "suspended",
+        }),
+      ).toBe(1);
+      expect(await countTenantAssertionLedgerRows(fixture.db, { tenantId: "unknown-tenant" })).toBe(
+        0,
+      );
+
       expect(result).toEqual({
         status: "ok",
         rowLimit: SYNCHRONOUS_EXPORT_ROW_LIMIT,
@@ -389,6 +404,9 @@ describeDbIntegration("ledger export foundation", () => {
         tenantId: fixture.tenantId,
       });
 
+      expect(await countTenantAssertionLedgerRows(fixture.db, { tenantId: fixture.tenantId })).toBe(
+        SYNCHRONOUS_EXPORT_ROW_LIMIT + 1,
+      );
       expect(result).toEqual({
         status: "too_large",
         rowLimit: SYNCHRONOUS_EXPORT_ROW_LIMIT,

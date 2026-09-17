@@ -1,13 +1,18 @@
+import { z } from "zod";
 import type { ManualIssueCorrection } from "./manual-issue-correction";
 import { classifyRuleBuilderBadgeTemplateAvailability } from "../badges/badge-template-rule-availability";
 import { resolveManualIssueSelection } from "./manual-issue-selection";
 import {
   findTenantLmsConnectionById,
+  findAssertionById,
   listBadgeIssuanceRuleBuilderDraftsForUser,
   type ListBadgeIssuanceRuleRegistryPageInput,
   type TenantMembershipRole,
 } from "@credtrail/db";
-import { parseTenantLmsConnectionPathParams } from "@credtrail/validation";
+import {
+  manualIssuePageQuerySchema,
+  parseTenantLmsConnectionPathParams,
+} from "@credtrail/validation";
 import type { AppContext } from "../app/types";
 import type { ResolveDatabase } from "../app/route-deps";
 import { loadBadgeRuleReviewQueueEntries } from "../badge-rule-review-queue-workspace";
@@ -290,6 +295,7 @@ export const renderInstitutionAdminReviewQueueWorkspace = async <
       ...pageData,
       reviewQueueWorkspace: {
         entries,
+        selectedEvaluationId: z.string().max(256).safeParse(c.req.query("review")).data ?? "",
         listNotice: flash.listNotice,
         listError: flash.listError,
       },
@@ -640,9 +646,32 @@ export const renderInstitutionAdminManualIssueWorkspace = async <
     store: c.env.BADGE_OBJECTS,
     publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
   });
+  const recipientQuery = manualIssuePageQuerySchema.safeParse(c.req.query());
+  const recipientAssertion =
+    recipientQuery.success && recipientQuery.data.recipientAssertionId && !pathwayHandoffId
+      ? await findAssertionById(
+          deps.resolveDatabase(c.env),
+          tenantId,
+          recipientQuery.data.recipientAssertionId,
+        )
+      : null;
+  const recipientEmail =
+    recipientAssertion?.recipientIdentityType === "email"
+      ? recipientAssertion.recipientIdentity
+      : undefined;
   const manualIssueWorkspace = {
+    recipientEmail,
     issuanceRequestId: correction?.issuanceRequestId ?? crypto.randomUUID(),
     ...flash,
+    ...(recipientQuery.success &&
+    recipientQuery.data.recipientAssertionId &&
+    !recipientEmail &&
+    !pathwayHandoffId
+      ? {
+          listError:
+            "The learner could not be loaded from that badge. Enter their email to continue.",
+        }
+      : {}),
     selection,
     pathwayHandoffId,
     ...(correction === undefined ? {} : { correction, listError: correction.message }),

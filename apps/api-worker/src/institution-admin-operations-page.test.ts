@@ -926,7 +926,8 @@ describe("GET /tenants/:tenantId/admin/operations/review-queue", () => {
     expect(body).not.toContain('id="rule-review-queue-refresh"');
     expect(body).not.toContain("No review queue entries loaded yet");
     expect(body).toContain('method="post"');
-    expect(body).toContain("/tenants/tenant_123/admin/operations/review-queue/resolve");
+    expect(body).toContain("Review decision");
+    expect(body).not.toContain('name="comment"');
     expect(body).toContain("learner@example.edu");
     expect(body).toContain("CS101 Rule");
     expect(body).not.toContain("No pending review queue entries.");

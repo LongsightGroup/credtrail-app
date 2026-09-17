@@ -18,6 +18,7 @@ type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | readonly Hon
 interface RenderManualIssueSectionInput {
   correction?: import("../manual-issue-correction").ManualIssueCorrection | undefined;
   issuanceRequestId: string;
+  recipientEmail?: string | undefined;
   hasReadyTemplates: boolean;
   selection?: ManualIssueSelection;
   tenantId: string;
@@ -128,7 +129,7 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
           <CtInput
             name="recipientIdentity"
             type="email"
-            value={input.correction?.recipientIdentity}
+            value={input.correction?.recipientIdentity ?? input.recipientEmail}
             describedBy={input.listError ? "manual-issue-error" : undefined}
             required
             placeholder="recipient@example.com"

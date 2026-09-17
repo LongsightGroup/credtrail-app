@@ -79,6 +79,9 @@ test("older and newer pages retain filters through learner review", async ({ pag
   const row = page.locator('[data-issued-badge-row="true"]');
   await expect(row).toHaveCount(1);
   await expect(row).toContainText(next.templateName);
+  await expect(page.getByRole("region", { name: "CSV export" })).toContainText(
+    "all 2 matching records across every page",
+  );
   await page.getByRole("link", { name: "Older records", exact: true }).click();
   await expect(row).toContainText(identity.templateName);
   const olderUrl = page.url();

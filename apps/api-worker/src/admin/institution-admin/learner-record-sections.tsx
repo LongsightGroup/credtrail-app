@@ -79,12 +79,14 @@ export const renderInstitutionAdminLearnerRecordSections = (
       );
     const provenanceMarkup = (
       <dl class="ct-stack">
-        {item.provenanceDetails.map((row) => (
-          <div>
-            <dt class="ct-admin__meta">{row.label}</dt>
-            <dd>{formatLearnerRecordReviewDetailValue(row.label, row.value)}</dd>
-          </div>
-        ))}
+        {item.provenanceDetails
+          .filter((row) => row.label !== "Source record")
+          .map((row) => (
+            <div>
+              <dt class="ct-admin__meta">{row.label}</dt>
+              <dd>{formatLearnerRecordReviewDetailValue(row.label, row.value)}</dd>
+            </div>
+          ))}
       </dl>
     );
     const evidenceMarkup =
@@ -108,7 +110,7 @@ export const renderInstitutionAdminLearnerRecordSections = (
       );
 
     return (
-      <AdminMetricCard stack>
+      <AdminMetricCard stack className="ct-admin__learner-record-item">
         <div class="ct-stack">
           <p class="ct-admin__meta">{item.recordTypeLabel}</p>
           <h3>{item.title}</h3>
@@ -119,14 +121,27 @@ export const renderInstitutionAdminLearnerRecordSections = (
           <p class="ct-admin__meta">{item.provenanceSummary}</p>
         </div>
         <div class="ct-stack">
-          <section class="ct-stack">
-            <h4>Record details</h4>
-            {detailsMarkup}
-          </section>
+          {item.recordType === "badge" ? null : (
+            <section class="ct-stack">
+              <h4>Record details</h4>
+              {detailsMarkup}
+            </section>
+          )}
           <section class="ct-stack">
             <h4>Provenance</h4>
             {provenanceMarkup}
           </section>
+          <details>
+            <summary>Technical details</summary>
+            {item.recordType === "badge" ? detailsMarkup : null}
+            {item.provenanceDetails
+              .filter((row) => row.label === "Source record")
+              .map((row) => (
+                <p>
+                  {row.label}: {row.value}
+                </p>
+              ))}
+          </details>
           {evidenceMarkup}
         </div>
         {publicBadgeMarkup}
@@ -171,20 +186,20 @@ export const renderInstitutionAdminLearnerRecordSections = (
 
     const exportLinksMarkup = (
       <AdminPanel>
-        <h2>Export and standards mapping</h2>
+        <h2>Download learner record</h2>
         <p>
-          These links point to the real Phase 27 runtime endpoints for the selected learner. They do
-          not imply transcript exchange or full CLR conformance.
+          Download a JSON file of this learner’s record for storage or processing in another system.
+          This is a CredTrail export, not an official transcript or a certified CLR document.
         </p>
         <AdminActions>
           {learnerRecordReview.exportPath === null ? null : (
             <AdminCtaLink href={learnerRecordReview.exportPath}>
-              Download native portable export
+              Download learner record (JSON)
             </AdminCtaLink>
           )}
           {learnerRecordReview.standardsMappingPath === null ? null : (
             <AdminCtaLink href={learnerRecordReview.standardsMappingPath}>
-              Open standards mapping
+              View export field mapping
             </AdminCtaLink>
           )}
         </AdminActions>
@@ -199,12 +214,18 @@ export const renderInstitutionAdminLearnerRecordSections = (
             Reviewing{" "}
             <strong>
               {learnerRecordReview.learnerProfile.displayName ??
-                learnerRecordReview.learnerProfile.id}
+                learnerRecordReview.lookup.learner ??
+                "Learner"}
             </strong>
             .
           </p>
-          <p class="ct-admin__meta">Learner profile ID: {learnerRecordReview.learnerProfile.id}</p>
-          <p class="ct-admin__meta">Subject ID: {learnerRecordReview.learnerProfile.subjectId}</p>
+          <details>
+            <summary>Technical details</summary>
+            <p class="ct-admin__meta">
+              Learner profile ID: {learnerRecordReview.learnerProfile.id}
+            </p>
+            <p class="ct-admin__meta">Subject ID: {learnerRecordReview.learnerProfile.subjectId}</p>
+          </details>
           <section class="ct-admin__metric-grid">
             <AdminMetricCard>
               <p class="ct-admin__meta">Total items</p>

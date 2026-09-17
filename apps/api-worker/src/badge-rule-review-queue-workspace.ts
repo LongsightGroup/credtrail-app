@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   findBadgeIssuanceRuleVersionById,
   listBadgeIssuanceRuleEvaluations,
@@ -12,6 +13,8 @@ import {
 import { parseFactsFromEvaluationRecord } from "./routes/badge-rule-evaluation-helpers";
 
 export interface BadgeRuleReviewQueueApiEntry extends BadgeIssuanceRuleEvaluationRecord {
+  badgeTitle?: string | null;
+  missingInformation?: readonly string[];
   ruleName: string | null;
   badgeTemplateId: string | null;
   facts: ReturnType<typeof parseFactsFromEvaluationRecord>;
@@ -24,6 +27,8 @@ export interface BadgeRuleReviewQueueEntryView {
   evaluatedAt: string;
   recipientIdentity: string;
   ruleId: string;
+  badgeTitle?: string | null;
+  missingInformation?: readonly string[];
   ruleName: string | null;
   evaluationSummary: BadgeIssuanceRuleEvaluationSummary | null;
   reviewStatus: string;
@@ -55,6 +60,27 @@ export const formatBadgeRuleReviewQueueSummary = (
   }
 
   return parts.join(" · ");
+};
+
+const reviewNodeSchema = z.object({
+  detail: z.string(),
+  resultKind: z.enum(["matched", "failed_condition", "missing_data"]).optional(),
+  get children() {
+    return z.array(reviewNodeSchema).optional();
+  },
+});
+
+/** Reads missing-information explanations from a persisted evaluation without trusting its shape. */
+export const reviewMissingInformation = (evaluation: unknown): readonly string[] => {
+  const parsed = z.object({ tree: reviewNodeSchema }).safeParse(evaluation);
+  if (!parsed.success) return [];
+  const details: string[] = [];
+  const visit = (node: z.infer<typeof reviewNodeSchema>): void => {
+    if (node.children?.length) node.children.forEach(visit);
+    else if (node.resultKind === "missing_data") details.push(node.detail);
+  };
+  visit(parsed.data.tree);
+  return [...new Set(details)];
 };
 
 const evaluationPayloadFromRecord = (
@@ -130,6 +156,8 @@ export const loadBadgeRuleReviewQueueForApi = async (
       return {
         ...evaluationRecord,
         ruleName: version?.snapshot.name ?? null,
+        badgeTitle: version?.snapshot.badgeTemplateTitle ?? null,
+        missingInformation: reviewMissingInformation(evaluation),
         badgeTemplateId: version?.snapshot.badgeTemplateId ?? null,
         facts: parseFactsFromEvaluationRecord(evaluationRecord),
         evaluation,
@@ -155,6 +183,8 @@ export const loadBadgeRuleReviewQueueEntries = async (
     recipientIdentity: entry.recipientIdentity,
     ruleId: entry.ruleId,
     ruleName: entry.ruleName,
+    badgeTitle: entry.badgeTitle ?? null,
+    missingInformation: entry.missingInformation ?? [],
     evaluationSummary: entry.evaluationSummary,
     reviewStatus: entry.reviewStatus ?? "pending",
   }));

@@ -44,8 +44,8 @@ describe("admin learner-record review route", () => {
     expect(response.status).toBe(200);
     expect(body).toContain("Learner Records");
     expect(body).toContain("Load learner record");
-    expect(body).toContain("Download native portable export");
-    expect(body).toContain("Open standards mapping");
+    expect(body).toContain("Download learner record (JSON)");
+    expect(body).toContain("View export field mapping");
     expect(mockedListLearnerProfilesForRecordLookup).toHaveBeenCalledWith(fakeDb, {
       tenantId: "tenant_123",
       lookupValue: "learner-123",

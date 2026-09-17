@@ -1,3 +1,4 @@
+import { SYNCHRONOUS_EXPORT_ROW_LIMIT } from "@credtrail/db";
 import { assertionLifecycleLabels } from "../../badges/assertion-lifecycle-labels";
 import { IssuedBadgeStatusPanel } from "../issued-badge-status-panel";
 import type { HtmlEscapedString } from "hono/utils/html";
@@ -14,7 +15,7 @@ import {
   IssuedBadgeRows,
   ReviewQueueRows,
 } from "../components";
-import { CtInput, CtSelect } from "../../ui/forms";
+import { CtInput, CtSelect, CtTextarea } from "../../ui/forms";
 import {
   buildIssuedBadgesPagePath,
   emptyIssuedBadgesPageFilterValues,
@@ -22,7 +23,10 @@ import {
   issuedBadgesLedgerExportUrl,
   issuedBadgesPageUrl,
 } from "../issued-badges-admin-helpers";
-import { tenantReviewQueueAdminResolvePath } from "../review-queue-admin-helpers";
+import {
+  buildReviewQueuePagePath,
+  tenantReviewQueueAdminResolvePath,
+} from "../review-queue-admin-helpers";
 import type {
   InstitutionAdminIssuedBadgesWorkspace,
   InstitutionAdminReviewQueueWorkspace,
@@ -52,8 +56,9 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
   const issuedBadgesPagePath = buildIssuedBadgesPagePath(input.tenantId);
   const selectedBadge = input.issuedBadgesWorkspace?.selectedBadge ?? null;
   const issuedBadgesAssertions = input.issuedBadgesWorkspace?.assertions ?? null;
+  const exportCount = input.issuedBadgesWorkspace?.exportCount;
   const showIssuedBadgesExportAction =
-    issuedBadgesAssertions !== null && issuedBadgesAssertions.length > 0;
+    exportCount !== undefined && exportCount !== null && exportCount > 0;
   const issuedBadgesExportHref = issuedBadgesLedgerExportUrl(input.tenantId, issuedBadgesFilters);
   const activeFilters = Object.entries({
     issuedFrom: issuedBadgesFilters.issuedFrom
@@ -96,7 +101,24 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
       ) : input.issuedBadgesWorkspace?.listNotice !== null &&
         input.issuedBadgesWorkspace?.listNotice !== undefined &&
         input.issuedBadgesWorkspace.listNotice.length > 0 ? (
-        <AdminStatus data-tone="success">{input.issuedBadgesWorkspace.listNotice}</AdminStatus>
+        <AdminStatus data-tone="success">
+          {input.issuedBadgesWorkspace.listNotice}
+          {selectedBadge ? (
+            <>
+              {" "}
+              <a
+                href={issuedBadgesAssertionPageUrl(
+                  input.tenantId,
+                  issuedBadgesFilters,
+                  selectedBadge.assertionId,
+                  "audit",
+                )}
+              >
+                View updated record
+              </a>
+            </>
+          ) : null}
+        </AdminStatus>
       ) : null}
       <AdminForm
         id="issued-badges-filter-form"
@@ -209,17 +231,28 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
         </p>
       )}
       {showIssuedBadgesExportAction ? (
-        <>
-          <AdminActions>
-            <AdminButtonLink href={issuedBadgesExportHref} variant="secondary">
-              Export matching CSV
-            </AdminButtonLink>
-          </AdminActions>
-          <p class="ct-admin__hint">
-            Direct CSV export is capped at 5000 rows. Narrow the filters above if the export is too
-            large for direct download.
-          </p>
-        </>
+        <section aria-label="CSV export" class="ct-stack">
+          {exportCount > SYNCHRONOUS_EXPORT_ROW_LIMIT ? (
+            <p>
+              {exportCount.toLocaleString("en-US")} records match your filters. CSV exports support
+              up to 5,000 records. Narrow the date range or choose a badge, organization unit, or
+              status before downloading.
+            </p>
+          ) : (
+            <>
+              <p>
+                Export includes all {exportCount.toLocaleString("en-US")} matching{" "}
+                {exportCount === 1 ? "record" : "records"} across every page. The count may change
+                if records are updated before download.
+              </p>
+              <AdminActions>
+                <AdminButtonLink href={issuedBadgesExportHref} variant="secondary">
+                  Export matching CSV
+                </AdminButtonLink>
+              </AdminActions>
+            </>
+          )}
+        </section>
       ) : null}
       {selectedBadge === null ? null : (
         <IssuedBadgeStatusPanel
@@ -290,6 +323,11 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
 /** Renders pending rule evaluations that require an administrator decision. */
 export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInput): HonoElement => {
   const reviewQueueResolvePath = tenantReviewQueueAdminResolvePath(input.tenantId);
+  const selectedEntry = input.reviewQueueWorkspace?.entries.find(
+    (entry) =>
+      entry.evaluationId === input.reviewQueueWorkspace?.selectedEvaluationId &&
+      entry.reviewStatus === "pending",
+  );
   return (
     <AdminPanel id="rule-review-queue-panel" variant="table">
       <h2>Rule Review Queue</h2>
@@ -305,6 +343,60 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
         input.reviewQueueWorkspace?.listNotice !== undefined &&
         input.reviewQueueWorkspace.listNotice.length > 0 ? (
         <AdminStatus data-tone="success">{input.reviewQueueWorkspace.listNotice}</AdminStatus>
+      ) : null}
+      {selectedEntry ? (
+        <section
+          id="review-decision-panel"
+          aria-label="Review decision"
+          class="ct-admin__setup-panel ct-stack"
+        >
+          <h3>Review badge decision</h3>
+          <p>
+            <strong>Learner:</strong> {selectedEntry.recipientIdentity}
+            <br />
+            <strong>Badge:</strong> {selectedEntry.badgeTitle ?? "Badge details unavailable"}
+            <br />
+            <strong>Rule:</strong> {selectedEntry.ruleName ?? "Rule details unavailable"}
+          </p>
+          <h4>Missing information</h4>
+          {selectedEntry.missingInformation?.length ? (
+            <ul>
+              {selectedEntry.missingInformation.map((detail) => (
+                <li>{detail}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>
+              No detailed explanation is available. Check the rule and supporting learner evidence
+              before deciding.
+            </p>
+          )}
+          <p>
+            Issue badge creates a credential despite the missing information. Dismiss review closes
+            this request without issuing a badge.
+          </p>
+          <AdminForm
+            method="post"
+            action={reviewQueueResolvePath}
+            className="ct-admin__form ct-admin__setup-form ct-stack"
+          >
+            <CtInput type="hidden" name="evaluationId" value={selectedEntry.evaluationId} />
+            <AdminField label="Decision note (optional)">
+              <CtTextarea name="comment" maxlength={2000} rows={3} />
+            </AdminField>
+            <AdminActions>
+              <AdminButton type="submit" name="decision" value="issue">
+                Issue badge
+              </AdminButton>
+              <AdminButton type="submit" name="decision" value="dismiss" variant="secondary">
+                Dismiss review
+              </AdminButton>
+              <AdminButtonLink href={buildReviewQueuePagePath(input.tenantId)} variant="quiet">
+                Cancel
+              </AdminButtonLink>
+            </AdminActions>
+          </AdminForm>
+        </section>
       ) : null}
       <AdminTable headers={["Evaluated", "Recipient", "Rule", "Summary", "Actions"]}>
         {input.reviewQueueWorkspace === undefined ? (

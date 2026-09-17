@@ -42,6 +42,7 @@ export const manualIssuePageQuerySchema = z
   .object({
     badgeTemplateId: resourceIdSchema.optional(),
     pathwayHandoffId: resourceIdSchema.optional(),
+    recipientAssertionId: resourceIdSchema.optional(),
   })
   .superRefine((value, ctx) => {
     if (value.pathwayHandoffId !== undefined && value.badgeTemplateId === undefined) {

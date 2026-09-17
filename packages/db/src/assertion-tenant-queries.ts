@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   bindLearnerProfileOrEmailAccessParams,
   buildLearnerProfileOrEmailAccessFilter,
@@ -217,4 +218,26 @@ export const listTenantAssertionLedgerExportRows = async (
     rowLimit,
     rows: rows.map((row) => mapTenantAssertionLedgerExportRow(row, orgUnitsById)),
   };
+};
+
+/** Counts every matching export row, independently of list pagination. */
+export const countTenantAssertionLedgerRows = async (
+  db: SqlDatabase,
+  input: ListTenantAssertionLedgerExportRowsInput,
+): Promise<number> => {
+  const { whereClauses, params } = buildAssertionRecordFilterSql(input, { context: "ledger" });
+  const row = await db
+    .prepare(`
+    SELECT COUNT(*) AS count FROM assertions
+    ${assertionReportingAttributionJoinSql}
+    LEFT JOIN assertion_lifecycle_events lifecycle ON lifecycle.id = (
+      SELECT ale.id FROM assertion_lifecycle_events ale
+      WHERE ale.tenant_id = assertions.tenant_id AND ale.assertion_id = assertions.id
+      ORDER BY ale.transitioned_at DESC, ale.created_at DESC, ale.id DESC LIMIT 1
+    )
+    WHERE ${whereClauses.join(" AND ")}
+  `)
+    .bind(...params)
+    .first<{ count: unknown }>();
+  return z.coerce.number().int().nonnegative().parse(row?.count);
 };

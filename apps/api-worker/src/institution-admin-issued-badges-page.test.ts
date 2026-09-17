@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createEnv,
   fakeDb,
+  fakeDbPrepare,
   mockedFindAssertionById,
   mockedFindBadgeTemplateById,
   mockedListTenantAssertions,
@@ -134,12 +135,13 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     expect(body).not.toContain(
       'href="/v1/tenants/tenant_123/assertions/ledger-export.csv?issuedFrom=2026-03-01&amp;issuedTo=2026-03-31&amp;badgeTemplateId=badge_template_001&amp;orgUnitId=tenant_123%3Aorg%3Adepartment-cs&amp;state=active&amp;recipientQuery=learner&amp;limit=25"',
     );
-    expect(body).toContain("Direct CSV export is capped at 5000 rows");
+    expect(body).toContain("Export includes all 1 matching record across every page.");
     expect(body).not.toContain('id="issued-badges-export-form"');
     expect(body).not.toContain("Ledger export");
   });
 
   it("does not show the matching export action when search returns no rows", async () => {
+    fakeDbPrepare.mockReturnValue({ bind: () => ({ first: async () => ({ count: 0 }) }) });
     const env = createEnv();
 
     const response = await app.request(

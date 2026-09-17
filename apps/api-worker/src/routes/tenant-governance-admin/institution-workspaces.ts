@@ -6,6 +6,7 @@ import {
   findAssertionById,
   resolveAssertionLifecycleState,
   listTenantAssertions,
+  countTenantAssertionLedgerRows,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import { consumeAdminFlashCookie } from "../../admin/admin-flash";
@@ -194,6 +195,13 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
         })
       : null;
 
+    const exportCount =
+      assertionRows === null
+        ? null
+        : await countTenantAssertionLedgerRows(
+            resolveDatabase(c.env),
+            tenantAssertionListDbInput(tenantId, issuedBadgesQuery.listQuery),
+          );
     const pagination = paginateIssuedBadges(
       assertionRows ?? [],
       issuedBadgesQuery.filters.limit,
@@ -231,6 +239,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
         ...pageData,
         issuedBadgesWorkspace: {
           filters: issuedBadgesQuery.filters,
+          exportCount,
           assertions,
           pagination: { olderCursor: pagination.olderCursor, newerCursor: pagination.newerCursor },
           listNotice: flash?.tone === "success" ? flash.message : null,

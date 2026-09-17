@@ -261,7 +261,10 @@ export const registerTenantIssuedBadgesAdminRoutes = (
       tenantId: pathParams.tenantId,
       userId: principal.userId,
       tone: "success",
-      message: notice,
+      message:
+        filters.state && filters.state !== request.toState
+          ? `${notice} It no longer matches your status filter.`
+          : notice,
       filters,
       extra: { lifecycle: assertionId, lifecycleMode: "status" },
     });

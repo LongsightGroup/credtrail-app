@@ -6,7 +6,7 @@ import type { TenantAssertionSummaryRecord } from "@credtrail/db";
 import type { BadgeRuleReviewQueueEntryView } from "../badge-rule-review-queue-workspace";
 import { formatBadgeRuleReviewQueueSummary } from "../badge-rule-review-queue-workspace";
 import type { CtDataAttributes } from "../ui/jsx-utils";
-import { CtCheckboxField, CtField, CtForm, CtInput, type CtCheckboxType } from "../ui/forms";
+import { CtCheckboxField, CtField, CtForm, type CtCheckboxType } from "../ui/forms";
 import { AdminButton, AdminButtonLink, type AdminButtonVariant } from "./actions";
 import { adminStatusPillClass } from "./admin-status-pill-class";
 import { formatIsoTimestamp } from "../utils/display-format";
@@ -788,24 +788,13 @@ const ReviewQueueRow = (input: {
       <td>{summaryText}</td>
       <td class="ct-admin__issued-actions-cell">
         {isPending ? (
-          <div class="ct-admin__issued-actions ct-cluster">
-            <AdminForm method="post" action={input.resolveActionPath}>
-              <CtInput type="hidden" name="evaluationId" value={entry.evaluationId} />
-              <CtInput type="hidden" name="decision" value="issue" />
-              <CtInput type="hidden" name="comment" value="Manual review approved by issuer" />
-              <AdminButton type="submit" size="tiny" variant="secondary">
-                Issue
-              </AdminButton>
-            </AdminForm>
-            <AdminForm method="post" action={input.resolveActionPath}>
-              <CtInput type="hidden" name="evaluationId" value={entry.evaluationId} />
-              <CtInput type="hidden" name="decision" value="dismiss" />
-              <CtInput type="hidden" name="comment" value="Missing facts confirmed; no issue" />
-              <AdminButton type="submit" size="tiny" variant="quiet">
-                Dismiss
-              </AdminButton>
-            </AdminForm>
-          </div>
+          <AdminButtonLink
+            href={`${input.resolveActionPath.replace(/\/resolve$/, "")}?${new URLSearchParams({ review: entry.evaluationId })}#review-decision-panel`}
+            variant="secondary"
+            size="tiny"
+          >
+            Review decision
+          </AdminButtonLink>
         ) : (
           <AdminMeta>Resolved</AdminMeta>
         )}

@@ -92,6 +92,7 @@ export interface InstitutionAdminApiKeysWorkspace {
 }
 
 export interface InstitutionAdminIssuedBadgesWorkspace {
+  exportCount?: number | null;
   pagination?: { olderCursor: string | null; newerCursor: string | null };
   filters: {
     cursor?: string;
@@ -113,6 +114,7 @@ export interface InstitutionAdminIssuedBadgesWorkspace {
 }
 
 export interface InstitutionAdminReviewQueueWorkspace {
+  selectedEvaluationId?: string;
   entries: readonly BadgeRuleReviewQueueEntryView[];
   listNotice: string | null;
   listError: string | null;
@@ -155,6 +157,7 @@ export interface InstitutionAdminAccessDelegationsNewWorkspace extends Instituti
 export interface InstitutionAdminAccessOrgUnitsWorkspace extends InstitutionAdminListFlashWorkspace {}
 
 export interface InstitutionAdminManualIssueWorkspace {
+  recipientEmail?: string | undefined;
   issuanceRequestId: string;
   correction?: import("../manual-issue-correction").ManualIssueCorrection;
   listNotice: string | null;

@@ -107,3 +107,6 @@ a.ct-admin__workspace-card:active {
   .ct-admin__workflow-facts { grid-template-columns: minmax(0, 1fr); }
   .ct-admin__workflow-task-list li { align-items: flex-start; flex-direction: column; }
 }
+
+.ct-admin__learner-record-item dd { margin-inline-start: 0; overflow-wrap: anywhere; }
+.ct-admin__learner-record-item details { overflow-wrap: anywhere; }
