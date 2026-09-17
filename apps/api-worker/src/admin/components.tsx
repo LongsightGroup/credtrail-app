@@ -775,7 +775,16 @@ const IssuedBadgeRow = (input: {
   );
 };
 
+/** Describes elapsed waiting time without implying a review deadline. */
+export const reviewWaitingLabel = (evaluatedAt: string, now: number): string => {
+  const elapsed = now - Date.parse(evaluatedAt);
+  if (!Number.isFinite(elapsed)) return "Waiting time unavailable";
+  const days = Math.floor(Math.max(0, elapsed) / 86400000);
+  return days === 0 ? "Waiting less than a day" : `Waiting ${days} ${days === 1 ? "day" : "days"}`;
+};
+
 const ReviewQueueRow = (input: {
+  now?: number | undefined;
   reviewHref?: string | undefined;
   entry: BadgeRuleReviewQueueEntryView;
   resolveActionPath: string;
@@ -787,7 +796,12 @@ const ReviewQueueRow = (input: {
 
   return (
     <tr data-review-queue-row="true">
-      <td>{formatIsoTimestamp(entry.evaluatedAt)}</td>
+      <td>
+        {formatIsoTimestamp(entry.evaluatedAt)}
+        {isPending && input.now !== undefined ? (
+          <AdminMeta>{reviewWaitingLabel(entry.evaluatedAt, input.now)}</AdminMeta>
+        ) : null}
+      </td>
       <td>
         <strong>{entry.recipientIdentity}</strong>
       </td>
@@ -826,6 +840,7 @@ const ReviewQueueRow = (input: {
 };
 
 export const ReviewQueueRows = (input: {
+  now?: number;
   reviewHrefForEntry?: (entry: BadgeRuleReviewQueueEntryView) => string;
   entries: readonly BadgeRuleReviewQueueEntryView[];
   resolveActionPath: string;
@@ -844,6 +859,7 @@ export const ReviewQueueRows = (input: {
       {input.entries.map((entry) => (
         <ReviewQueueRow
           entry={entry}
+          now={input.now}
           resolveActionPath={input.resolveActionPath}
           reviewHref={input.reviewHrefForEntry?.(entry)}
         />

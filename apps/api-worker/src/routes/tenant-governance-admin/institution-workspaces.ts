@@ -47,7 +47,7 @@ import {
   issuedBadgesInvalidFiltersError,
   safeParseIssuedBadgesPageQuery,
 } from "../../admin/issued-badges-admin-helpers";
-import { loadIssuanceEmailOutcome } from "../../notifications/issuance-email-outcome";
+import { loadIssuanceEmailHistory } from "../../notifications/issuance-email-outcome";
 import { canonicalAppUrl } from "../../http/canonical-app-url";
 import { publicBadgePathForAssertion } from "../../badges/public-badge-model";
 import { buildAssertionEvidencePresentation } from "../../badges/assertion-evidence-presentation";
@@ -293,6 +293,11 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       returnQuery === null || returnQuery.toString().length === 0
         ? returnPath
         : `${returnPath}?${returnQuery.toString()}`;
+    const notificationHistory = await loadIssuanceEmailHistory(
+      resolveDatabase(c.env),
+      tenantId,
+      assertionId,
+    );
     const evidenceApiPath = `/v1/tenants/${encodeURIComponent(tenantId)}/assertions/${encodeURIComponent(assertionId)}/evidence`;
 
     return await renderInstitutionAdminWorkspacePage(
@@ -316,11 +321,8 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
             returnHref,
           ),
           notificationReceiptHref: `/tenants/${encodeURIComponent(tenantId)}/admin/operations/issue/${encodeURIComponent(assertionId)}/receipt`,
-          notificationOutcome: await loadIssuanceEmailOutcome(
-            resolveDatabase(c.env),
-            tenantId,
-            assertionId,
-          ),
+          notificationOutcome: notificationHistory.latest.outcome,
+          notificationHistory,
           publicBadgeUrl: canonicalAppUrl(
             c.env.PUBLIC_APP_ORIGIN,
             publicBadgePathForAssertion(evidenceLoaded.data.assertion),

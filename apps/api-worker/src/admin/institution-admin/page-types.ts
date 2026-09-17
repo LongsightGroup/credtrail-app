@@ -204,6 +204,7 @@ export interface InstitutionAdminLearnerRecordImportWorkflow {
 
 export interface InstitutionAdminPageInput {
   workflowHome?: BadgeWorkflowHomeSummary | undefined;
+  operationsAttention?: { pendingReviews: number; failedEmails: number } | undefined;
   badgeWorkflowResponsibilities?: ReadonlyMap<string, BadgeWorkflowResponsibility> | undefined;
   tenant: TenantRecord;
   userId: string;

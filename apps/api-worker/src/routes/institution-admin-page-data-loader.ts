@@ -4,6 +4,8 @@ import {
   indexBadgeIssuanceRuleVersionsByRuleId,
   findTenantAuthPolicy,
   loadBadgeWorkflowHomeSummary,
+  countPendingBadgeReviews,
+  countTenantAssertionLedgerRows,
   findTenantById,
   findUserById,
   listAccessibleTenantContextsForUser,
@@ -208,6 +210,16 @@ export const loadInstitutionAdminPageData = async (
     return {
       ...emptyInstitutionAdminPageData(shellData),
       workflowHome,
+      operationsAttention:
+        input.membershipRole === "owner" || input.membershipRole === "admin"
+          ? await Promise.all([
+              countPendingBadgeReviews(db, input.tenantId),
+              countTenantAssertionLedgerRows(db, {
+                tenantId: input.tenantId,
+                notificationStatus: "failed",
+              }),
+            ]).then(([pendingReviews, failedEmails]) => ({ pendingReviews, failedEmails }))
+          : undefined,
       badgeWorkflowResponsibilities: await loadBadgeWorkflowResponsibilities(db, {
         tenantId: input.tenantId,
         actorUserId: input.sessionUserId,

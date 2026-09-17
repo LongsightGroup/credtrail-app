@@ -28,7 +28,7 @@ const taskLabels: Record<BadgeWorkflowTask["action"], string> = {
 export const buildInstitutionAdminHomeViewResources = (input: {
   page: Pick<
     InstitutionAdminPageInput,
-    "tenant" | "workflowHome" | "badgeWorkflowResponsibilities"
+    "tenant" | "workflowHome" | "badgeWorkflowResponsibilities" | "operationsAttention"
   >;
   paths: ReturnType<typeof buildInstitutionAdminViewPaths>;
 }): InstitutionAdminViewContentInput["home"] => {
@@ -37,6 +37,55 @@ export const buildInstitutionAdminHomeViewResources = (input: {
   return {
     workspaceCardsMarkup: (
       <>
+        {page.operationsAttention &&
+        (page.operationsAttention.pendingReviews > 0 ||
+          page.operationsAttention.failedEmails > 0) ? (
+          <AdminPanel as="section" className="ct-admin__workflow-tasks">
+            <h2>Learner follow-up</h2>
+            <ul class="ct-admin__workflow-task-list">
+              {page.operationsAttention.pendingReviews > 0 ? (
+                <li>
+                  <div>
+                    <strong>
+                      {page.operationsAttention.pendingReviews}{" "}
+                      {page.operationsAttention.pendingReviews === 1
+                        ? "learner review needs"
+                        : "learner reviews need"}{" "}
+                      a decision
+                    </strong>
+                    <p>Check supporting information before issuing a badge.</p>
+                  </div>
+                  <AdminButtonLink
+                    href={`${paths.operationsPath}/review-queue?sort=oldest`}
+                    variant="secondary"
+                  >
+                    Review waiting learners
+                  </AdminButtonLink>
+                </li>
+              ) : null}
+              {page.operationsAttention.failedEmails > 0 ? (
+                <li>
+                  <div>
+                    <strong>
+                      {page.operationsAttention.failedEmails}{" "}
+                      {page.operationsAttention.failedEmails === 1
+                        ? "notification email needs"
+                        : "notification emails need"}{" "}
+                      attention
+                    </strong>
+                    <p>The badges are issued. Their latest email attempts failed.</p>
+                  </div>
+                  <AdminButtonLink
+                    href={`${paths.operationsPath}/issued-badges?notificationStatus=failed`}
+                    variant="secondary"
+                  >
+                    Review failed emails
+                  </AdminButtonLink>
+                </li>
+              ) : null}
+            </ul>
+          </AdminPanel>
+        ) : null}
         {home === undefined || home.actionCount === 0 ? null : (
           <AdminPanel as="section" className="ct-admin__workflow-tasks">
             <h2>Action needed</h2>

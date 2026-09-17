@@ -25,6 +25,8 @@ export interface BadgeRuleReviewQueueApiEntry extends BadgeIssuanceRuleEvaluatio
 }
 
 export interface BadgeRuleReviewQueueEntryView {
+  versionId?: string;
+  recipientIdentityType?: BadgeIssuanceRuleEvaluationRecord["recipientIdentityType"];
   assertionId?: string | null;
   decision?: string | null;
   decisionNote?: string | null;
@@ -189,6 +191,8 @@ export const loadBadgeRuleReviewQueueEntries = async (
     ),
   );
   return queue.map((entry) => ({
+    versionId: entry.versionId,
+    recipientIdentityType: entry.recipientIdentityType,
     assertionId: entry.assertionId,
     decision: entry.reviewDecision,
     decisionNote: entry.reviewComment,

@@ -13,6 +13,8 @@ it("preserves the learner lookup and nested badge-record filter", () => {
 it("preserves review search, page position, and selected decision", () => {
   const query = parseReviewQueuePageQuery({
     q: "Badge",
+    sort: "oldest",
+    decision: "dismiss",
     reviewStatus: "resolved",
     review: "evaluation_1",
     cursor: JSON.stringify({

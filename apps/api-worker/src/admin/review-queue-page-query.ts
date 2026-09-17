@@ -8,12 +8,16 @@ const cursorSchema = z.object({
   direction: z.enum(["older", "newer"]),
 });
 const querySchema = z.object({
+  sort: z.enum(["oldest", "newest"]).default("newest"),
+  decision: z.enum(["all", "issue", "dismiss"]).default("all"),
   q: z.string().trim().max(320).default(""),
   reviewStatus: z.enum(["pending", "resolved"]).default("pending"),
   review: z.string().max(256).default(""),
   cursor: z.string().max(1024).optional(),
 });
 export interface ReviewQueuePageQuery {
+  sort: "oldest" | "newest";
+  decision: "all" | "issue" | "dismiss";
   q: string;
   reviewStatus: "pending" | "resolved";
   review: string;
@@ -29,12 +33,16 @@ export const parseReviewQueuePageQuery = (value: unknown): ReviewQueuePageQuery 
   const query = querySchema.parse(value);
   return {
     ...query,
+    decision: query.reviewStatus === "resolved" ? query.decision : "all",
     cursor: query.cursor ? cursorSchema.parse(JSON.parse(query.cursor)) : undefined,
   };
 };
 export const reviewQueuePageUrl = (tenantId: string, query: ReviewQueuePageQuery): string => {
   const params = new URLSearchParams();
   if (query.reviewStatus === "resolved") params.set("reviewStatus", "resolved");
+  if (query.sort === "oldest") params.set("sort", "oldest");
+  if (query.reviewStatus === "resolved" && query.decision !== "all")
+    params.set("decision", query.decision);
   if (query.q) params.set("q", query.q);
   if (query.review) params.set("review", query.review);
   if (query.cursor) params.set("cursor", JSON.stringify(query.cursor));
@@ -50,9 +58,10 @@ export const paginateReviewQueue = (
   newer: ReviewQueuePageQuery["cursor"];
 } => {
   const entries = rows.slice(0, limit);
-  if (query.cursor?.direction === "newer") entries.reverse();
-  const first = entries[0];
-  const last = entries.at(-1);
+  if (query.cursor && (query.cursor.direction === "newer") !== (query.sort === "oldest"))
+    entries.reverse();
+  const newest = query.sort === "oldest" ? entries.at(-1) : entries[0];
+  const oldest = query.sort === "oldest" ? entries[0] : entries.at(-1);
   const cursor = (
     entry: BadgeRuleReviewQueueEntryView,
     direction: "older" | "newer",
@@ -67,14 +76,18 @@ export const paginateReviewQueue = (
   return {
     entries,
     older:
-      last && (rows.length > limit || query.cursor?.direction === "newer")
-        ? cursor(last, "older")
+      oldest &&
+      (query.cursor?.direction === "newer" ||
+        (rows.length > limit &&
+          (query.cursor?.direction === "older" || (!query.cursor && query.sort !== "oldest"))))
+        ? cursor(oldest, "older")
         : undefined,
     newer:
-      first &&
+      newest &&
       (query.cursor?.direction === "older" ||
-        (query.cursor?.direction === "newer" && rows.length > limit))
-        ? cursor(first, "newer")
+        (rows.length > limit &&
+          (query.cursor?.direction === "newer" || (!query.cursor && query.sort === "oldest"))))
+        ? cursor(newest, "newer")
         : undefined,
   };
 };

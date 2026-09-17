@@ -1,6 +1,9 @@
 import { IssuanceNotification } from "../issuance-notification";
 import { assertionLifecycleLabels } from "../../badges/assertion-lifecycle-labels";
-import type { IssuanceEmailOutcome } from "../../notifications/issuance-email-outcome";
+import type {
+  IssuanceEmailOutcome,
+  loadIssuanceEmailHistory,
+} from "../../notifications/issuance-email-outcome";
 import type { TenantMembershipRole, TenantRecord } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
@@ -20,6 +23,7 @@ type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 export interface AssertionEvidencePageInput {
   evidence: AssertionEvidencePresentation;
   notificationOutcome: IssuanceEmailOutcome;
+  notificationHistory?: Awaited<ReturnType<typeof loadIssuanceEmailHistory>>;
   notificationReceiptHref?: string;
   publicBadgeUrl: string;
   learnerRecordHref?: string | null;
@@ -190,6 +194,7 @@ const renderAssertionEvidenceBody = (input: AssertionEvidencePageInput): HonoEle
           </AdminButtonLink>
         ) : null}
         <IssuanceNotification
+          history={input.notificationHistory}
           outcome={input.notificationOutcome}
           publicBadgeUrl={input.publicBadgeUrl}
         />

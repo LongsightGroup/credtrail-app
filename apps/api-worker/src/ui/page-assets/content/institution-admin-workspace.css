@@ -110,3 +110,7 @@ a.ct-admin__workspace-card:active {
 
 .ct-admin__learner-record-item dd { margin-inline-start: 0; overflow-wrap: anywhere; }
 .ct-admin__learner-record-item details { overflow-wrap: anywhere; }
+
+#review-decision-panel p {
+  overflow-wrap: anywhere;
+}

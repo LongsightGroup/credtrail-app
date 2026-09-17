@@ -81,6 +81,8 @@ export const registerTenantReviewQueueAdminRoutes = (
     let query: ReviewQueuePageQuery;
     try {
       query = parseReviewQueuePageQuery({
+        sort: readOptionalFormField(formData, "sort") ?? "newest",
+        decision: readOptionalFormField(formData, "outcome") ?? "all",
         q: readOptionalFormField(formData, "q") ?? "",
         reviewStatus: readOptionalFormField(formData, "reviewStatus") ?? "pending",
         cursor: readOptionalFormField(formData, "cursor"),

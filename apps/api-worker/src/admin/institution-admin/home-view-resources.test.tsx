@@ -60,4 +60,15 @@ describe("Home workflow tasks", () => {
     expect(html).not.toContain("Start Here");
     expect(html).toContain("Open Badge Program workspace");
   });
+  it("links outstanding learner work to actionable filtered lists", () => {
+    const content = buildInstitutionAdminHomeViewResources({
+      paths: buildInstitutionAdminViewPaths(tenant.id),
+      page: { tenant, operationsAttention: { pendingReviews: 55, failedEmails: 1 } },
+    });
+    const html = renderMarkup(<div>{content.workspaceCardsMarkup}</div>);
+    expect(html).toContain("55 learner reviews need a decision");
+    expect(html).toContain("1 notification email needs attention");
+    expect(html).toContain("/review-queue?sort=oldest");
+    expect(html).toContain("/issued-badges?notificationStatus=failed");
+  });
 });

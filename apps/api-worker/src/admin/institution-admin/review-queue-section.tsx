@@ -13,7 +13,9 @@ import {
   AdminTable,
   ReviewQueueRows,
 } from "../components";
-import { CtInput, CtTextarea } from "../../ui/forms";
+import { buildBadgeRuleVersionDetailPath } from "../access-admin-helpers";
+import { learnerRecordLink } from "../learner-record-link";
+import { CtInput, CtTextarea, CtSelect } from "../../ui/forms";
 import {
   buildReviewQueuePagePath,
   tenantReviewQueueAdminResolvePath,
@@ -89,6 +91,31 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
             placeholder="Learner email or badge name"
           />
         </AdminField>
+        <AdminField label="Order">
+          <CtSelect name="sort">
+            <option value="newest" selected={query.sort === "newest"}>
+              Newest first
+            </option>
+            <option value="oldest" selected={query.sort === "oldest"}>
+              Oldest first
+            </option>
+          </CtSelect>
+        </AdminField>
+        {query.reviewStatus === "resolved" ? (
+          <AdminField label="Decision outcome">
+            <CtSelect name="decision">
+              <option value="all" selected={query.decision === "all"}>
+                All outcomes
+              </option>
+              <option value="issue" selected={query.decision === "issue"}>
+                Badge issued
+              </option>
+              <option value="dismiss" selected={query.decision === "dismiss"}>
+                Dismissed
+              </option>
+            </CtSelect>
+          </AdminField>
+        ) : null}
         <AdminActions>
           <AdminButton type="submit">Search reviews</AdminButton>
           {query.q ? (
@@ -107,7 +134,7 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
         </AdminActions>
       </AdminForm>
       <p>
-        Showing up to 50 recent{" "}
+        Showing up to 50{" "}
         {input.reviewQueueWorkspace?.reviewStatus === "resolved"
           ? "resolved reviews"
           : "pending reviews"}
@@ -153,6 +180,33 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
             <br />
             <strong>Rule:</strong> {selectedEntry.ruleName ?? "Rule details unavailable"}
           </p>
+          <AdminActions>
+            {selectedEntry.recipientIdentityType === "email" ? (
+              <a
+                href={
+                  learnerRecordLink(input.tenantId, "email", selectedEntry.recipientIdentity) ??
+                  undefined
+                }
+                target="_blank"
+                rel="noopener"
+              >
+                View learner record (opens new tab)
+              </a>
+            ) : null}
+            {selectedEntry.versionId ? (
+              <a
+                href={buildBadgeRuleVersionDetailPath(
+                  input.tenantId,
+                  selectedEntry.ruleId,
+                  selectedEntry.versionId,
+                )}
+                target="_blank"
+                rel="noopener"
+              >
+                View evaluated rule version (opens new tab)
+              </a>
+            ) : null}
+          </AdminActions>
           {selectedEntry.reviewStatus !== "pending" ? (
             <section aria-label="Decision details" class="ct-stack">
               <p>
@@ -205,6 +259,8 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
                 action={reviewQueueResolvePath}
                 className="ct-admin__form ct-admin__setup-form ct-stack"
               >
+                <CtInput type="hidden" name="sort" value={query.sort} />
+                <CtInput type="hidden" name="outcome" value={query.decision} />
                 <CtInput type="hidden" name="q" value={query.q} />
                 <CtInput type="hidden" name="reviewStatus" value={query.reviewStatus} />
                 <CtInput
@@ -243,10 +299,11 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
           <AdminEmptyTableRow colSpan={5}>No pending review queue entries.</AdminEmptyTableRow>
         ) : (
           <ReviewQueueRows
+            now={Date.now()}
             entries={input.reviewQueueWorkspace.entries}
             emptyMessage={
-              query.q
-                ? "No reviews match this learner or badge. Change or clear your search."
+              query.q || query.decision !== "all"
+                ? "No reviews match these filters. Change the learner, badge, or decision outcome."
                 : input.reviewQueueWorkspace.reviewStatus === "resolved"
                   ? "No resolved reviews yet."
                   : "No pending review queue entries."
@@ -271,7 +328,12 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
         ) : null}
         {query.cursor ? (
           <AdminButtonLink
-            href={reviewQueuePageUrl(input.tenantId, { ...query, review: "", cursor: undefined })}
+            href={reviewQueuePageUrl(input.tenantId, {
+              ...query,
+              review: "",
+              cursor: undefined,
+              sort: "newest",
+            })}
             variant="quiet"
           >
             Latest reviews

@@ -1,5 +1,7 @@
+import { loadIssuanceEmailHistory } from "../notifications/issuance-email-outcome";
 import { expect, it } from "vitest";
 import {
+  countPendingBadgeReviews,
   createAuditLog,
   createBadgeIssuanceRuleEvaluation,
   listTenantAssertions,
@@ -66,6 +68,18 @@ describeDbIntegration("workflow follow-ups", () => {
       await record("accepted", "2026-09-05T00:00:00.000Z");
       expect(await listTenantAssertions(f.db, filter)).toEqual([]);
       expect(await countTenantAssertionLedgerRows(f.db, filter)).toBe(0);
+      const history = await loadIssuanceEmailHistory(f.db, f.tenantId, id);
+      expect(history.latest).toMatchObject({
+        outcome: "accepted",
+        occurredAt: "2026-09-05T00:00:00.000Z",
+      });
+      expect(history.events.map((event) => event.outcome)).toEqual([
+        "accepted",
+        "failed",
+        "pending",
+        "failed",
+      ]);
+      expect((await loadIssuanceEmailHistory(f.db, "other", id)).events).toEqual([]);
       expect(await listTenantAssertionLedgerExportRows(f.db, filter)).toMatchObject({
         status: "ok",
         rows: [],
@@ -102,6 +116,19 @@ describeDbIntegration("workflow follow-ups", () => {
           evaluatedAt: "2026-09-01T00:00:00.000Z",
           evaluationJson: "{}",
         });
+      expect(
+        await loadBadgeRuleReviewQueueEntries(f.db, f.tenantId, {
+          reviewStatus: "resolved",
+          decision: "dismiss",
+        }),
+      ).toEqual([]);
+      expect(
+        await loadBadgeRuleReviewQueueEntries(f.db, f.tenantId, {
+          reviewStatus: "resolved",
+          decision: "issue",
+          search: "0%",
+        }),
+      ).toHaveLength(6);
       const query = parseReviewQueuePageQuery({ reviewStatus: "resolved", q: "history-" });
       const first = paginateReviewQueue(
         await loadBadgeRuleReviewQueueEntries(f.db, f.tenantId, {
@@ -176,7 +203,57 @@ describeDbIntegration("workflow follow-ups", () => {
         },
       });
       expect(html.toString()).toContain("View issued badge");
+      expect(html.toString()).toContain(`/versions/${rule.version.id}`);
+      expect(html.toString()).toContain("View learner record (opens new tab)");
       expect(html.toString()).toContain(encodeURIComponent(assertionId));
+    } finally {
+      await cleanupTestResources(f.db, { tenantIds: [f.tenantId], userIds: [f.userId] });
+    }
+  });
+  it("counts all pending reviews and pages oldest-first with stable ties in both directions", async () => {
+    const f = await createBadgeRuleIntegrationFixture();
+    try {
+      const rule = await createFixtureRule(f);
+      for (let i = 0; i < 55; i++)
+        await createBadgeIssuanceRuleEvaluation(f.db, {
+          tenantId: f.tenantId,
+          ruleId: rule.rule.id,
+          versionId: rule.version.id,
+          learnerId: `pending-${i}`,
+          recipientIdentity: `pending-${i}@example.edu`,
+          recipientIdentityType: "email",
+          matched: false,
+          issuanceStatus: "review_required",
+          reviewStatus: "pending",
+          evaluatedAt: "2026-09-01T00:00:00.000Z",
+          evaluationJson: "{}",
+        });
+      expect(await countPendingBadgeReviews(f.db, f.tenantId)).toBe(55);
+      expect(await countPendingBadgeReviews(f.db, "other")).toBe(0);
+      const query = parseReviewQueuePageQuery({ sort: "oldest" });
+      const load = async (cursor: typeof query.cursor) =>
+        paginateReviewQueue(
+          await loadBadgeRuleReviewQueueEntries(f.db, f.tenantId, {
+            sort: "oldest",
+            cursor,
+            includeLookahead: true,
+            limit: 50,
+          }),
+          { ...query, cursor },
+          50,
+        );
+      const first = await load(undefined);
+      expect(first.entries).toHaveLength(50);
+      expect(first.older).toBeUndefined();
+      expect(first.newer).toBeDefined();
+      const next = await load(first.newer);
+      expect(next.entries).toHaveLength(5);
+      expect(next.newer).toBeUndefined();
+      expect(new Set([...first.entries, ...next.entries].map((e) => e.evaluationId)).size).toBe(55);
+      const back = await load(next.older);
+      expect(back.entries.map((e) => e.evaluationId)).toEqual(
+        first.entries.map((e) => e.evaluationId),
+      );
     } finally {
       await cleanupTestResources(f.db, { tenantIds: [f.tenantId], userIds: [f.userId] });
     }

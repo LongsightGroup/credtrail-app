@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { createPrefixedId } from "./shared-helpers";
 import type { SqlDatabase, SqlQueryResult, SqlRunResult } from "./tenant-scope";
 
@@ -42,6 +43,8 @@ export interface CreateBadgeIssuanceRuleEvaluationInput {
 }
 
 export interface ListBadgeIssuanceRuleEvaluationsInput {
+  sort?: "oldest" | "newest" | undefined;
+  decision?: "issue" | "dismiss" | undefined;
   search?: string | undefined;
   evaluationId?: string | undefined;
   cursor?: { at: string; id: string; direction: "older" | "newer" } | undefined;
@@ -316,7 +319,9 @@ export const listBadgeIssuanceRuleEvaluations = async (
     input.reviewStatus === "resolved"
       ? "COALESCE(evaluations.reviewed_at, evaluations.evaluated_at)"
       : "evaluations.evaluated_at";
-  const order = input.cursor?.direction === "newer" ? "ASC" : "DESC";
+  const order = (input.cursor ? input.cursor.direction === "newer" : input.sort === "oldest")
+    ? "ASC"
+    : "DESC";
   const cursorSql = input.cursor
     ? `AND (${at}, evaluations.id) ${input.cursor.direction === "newer" ? ">" : "<"} (?, ?)`
     : "";
@@ -357,6 +362,7 @@ export const listBadgeIssuanceRuleEvaluations = async (
           AND (CAST(? AS TEXT) IS NULL OR rules.badge_template_id = ?)
           AND (CAST(? AS TEXT) IS NULL OR evaluations.issuance_status = ?)
           AND (CAST(? AS TEXT) IS NULL OR evaluations.review_status = ?)
+          AND (CAST(? AS TEXT) IS NULL OR evaluations.review_decision = ?)
           AND (CAST(? AS TEXT) IS NULL OR evaluations.id = ?)
           AND (CAST(? AS TEXT) IS NULL OR evaluations.recipient_identity ILIKE ? OR versions.snapshot_badge_template_title ILIKE ?)
           ${cursorSql}
@@ -376,6 +382,8 @@ export const listBadgeIssuanceRuleEvaluations = async (
         input.issuanceStatus ?? null,
         input.reviewStatus ?? null,
         input.reviewStatus ?? null,
+        input.decision ?? null,
+        input.decision ?? null,
         input.evaluationId ?? null,
         input.evaluationId ?? null,
         search,
@@ -458,4 +466,17 @@ export const listIssuedBadgeTemplateIdsForRecipient = async (
     .all<BadgeTemplateIdRow>();
 
   return result.results.map((row) => row.badgeTemplateId);
+};
+
+/** Counts outstanding learner decisions without the review list's page limit. */
+export const countPendingBadgeReviews = async (
+  db: SqlDatabase,
+  tenantId: string,
+): Promise<number> => {
+  const row = await db
+    .prepare(`SELECT COUNT(*) AS count FROM badge_issuance_rule_evaluations
+    WHERE tenant_id = ? AND review_status = 'pending' AND issuance_status = 'review_required'`)
+    .bind(tenantId)
+    .first<{ count: unknown }>();
+  return z.coerce.number().int().nonnegative().parse(row?.count);
 };

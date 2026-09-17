@@ -301,6 +301,8 @@ export const renderInstitutionAdminReviewQueueWorkspace = async <
   const rows = await loadBadgeRuleReviewQueueEntries(db, tenantId, {
     reviewStatus: query.reviewStatus,
     search: query.q,
+    sort: query.sort,
+    decision: query.decision === "all" ? undefined : query.decision,
     cursor: query.cursor,
     limit: 50,
     includeLookahead: true,

@@ -1,4 +1,9 @@
-import { createAuditLog, listAuditLogs, type SqlDatabase } from "@credtrail/db";
+import {
+  createAuditLog,
+  listAuditLogs,
+  type SqlDatabase,
+  type AuditLogRecord,
+} from "@credtrail/db";
 import { z } from "zod";
 
 const outcomeSchema = z.object({
@@ -49,6 +54,50 @@ export const recordIssuanceEmailOutcome = async (input: {
   });
 };
 
+/** Safe, public notification state from an audit entry. */
+export interface IssuanceEmailState {
+  outcome: IssuanceEmailOutcome;
+  attemptId: string | null;
+  occurredAt: string | null;
+}
+
+const emailStateFromAudit = (record: AuditLogRecord | undefined): IssuanceEmailState => {
+  let outcome: IssuanceEmailOutcome = "unrecorded";
+  if (record?.metadataJson) {
+    try {
+      const parsed = outcomeSchema.safeParse(JSON.parse(record.metadataJson));
+      if (parsed.success) outcome = parsed.data.status;
+    } catch {
+      /* Malformed historical metadata has no trustworthy outcome. */
+    }
+  }
+  return { outcome, attemptId: record?.id ?? null, occurredAt: record?.occurredAt ?? null };
+};
+
+/** Loads the latest notification events, never exposing provider errors or metadata. */
+export const loadIssuanceEmailHistory = async (
+  db: SqlDatabase,
+  tenantId: string,
+  assertionId: string,
+): Promise<{
+  latest: IssuanceEmailState;
+  events: IssuanceEmailState[];
+  hasMore: boolean;
+}> => {
+  const records = await listAuditLogs(db, {
+    tenantId,
+    action: auditAction,
+    targetType: "assertion",
+    targetId: assertionId,
+    limit: 21,
+  });
+  return {
+    latest: emailStateFromAudit(records[0]),
+    events: records.slice(0, 20).map(emailStateFromAudit),
+    hasMore: records.length > 20,
+  };
+};
+
 export const loadIssuanceEmailState = async (
   db: SqlDatabase,
   tenantId: string,
@@ -65,28 +114,7 @@ export const loadIssuanceEmailState = async (
     targetId: assertionId,
     limit: 1,
   });
-  if (!record?.metadataJson)
-    return {
-      outcome: "unrecorded",
-      attemptId: record?.id ?? null,
-      occurredAt: record?.occurredAt ?? null,
-    };
-  let metadata: unknown;
-  try {
-    metadata = JSON.parse(record.metadataJson);
-  } catch {
-    return {
-      outcome: "unrecorded",
-      attemptId: record?.id ?? null,
-      occurredAt: record?.occurredAt ?? null,
-    };
-  }
-  const parsed = outcomeSchema.safeParse(metadata);
-  return {
-    outcome: parsed.success ? parsed.data.status : "unrecorded",
-    attemptId: record.id,
-    occurredAt: record.occurredAt,
-  };
+  return emailStateFromAudit(record);
 };
 
 export const loadIssuanceEmailOutcome = async (
