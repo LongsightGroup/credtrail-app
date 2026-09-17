@@ -56,6 +56,14 @@ export const OPERATIONS_ISSUED_BADGES_VIEW: InstitutionAdminViewDefinition = {
     const issuedBadgesPanelMarkup = renderIssuedBadgesPanel({
       tenantId: input.tenant.id,
       templateFilterOptions,
+      filterLabels: {
+        badgeTemplate:
+          input.badgeTemplates.find((template) => template.id === selectedBadgeTemplateFilterId)
+            ?.title ?? "Selected badge",
+        orgUnit:
+          input.orgUnits.find((unit) => unit.id === selectedOrgUnitFilterId)?.displayName ??
+          "Selected unit",
+      },
       activeOrgUnitOptions,
       ...(input.issuedBadgesWorkspace === undefined
         ? {}

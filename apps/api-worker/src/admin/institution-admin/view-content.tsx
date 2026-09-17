@@ -179,6 +179,8 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
           )}
           <section class="ct-admin ct-stack">
             {renderManualIssueSection({
+              issuanceRequestId:
+                input.manualIssueWorkspace?.issuanceRequestId ?? crypto.randomUUID(),
               correction: input.manualIssueWorkspace?.correction,
               hasReadyTemplates: input.badgeTemplates.length > 0,
               tenantId: input.tenant.id,

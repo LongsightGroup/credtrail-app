@@ -148,6 +148,7 @@ describe("POST /tenants/:tenantId/admin/operations/issue", () => {
           Cookie: "better-auth.session_token=session-token",
         },
         body: new URLSearchParams({
+          issuanceRequestId: crypto.randomUUID(),
           badgeTemplateId: assertion.badgeTemplateId,
           recipientIdentity: assertion.recipientIdentity,
         }).toString(),

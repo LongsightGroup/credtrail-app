@@ -1,3 +1,8 @@
+import { CopyPublicBadgeLink } from "../copy-public-badge-link";
+import {
+  issuanceEmailOutcomeMessage,
+  type IssuanceEmailOutcome,
+} from "../../notifications/issuance-email-outcome";
 import type { TenantMembershipRole, TenantRecord } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import {
@@ -16,6 +21,8 @@ type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
 export interface AssertionEvidencePageInput {
   evidence: AssertionEvidencePresentation;
+  notificationOutcome: IssuanceEmailOutcome;
+  publicBadgeUrl: string;
   returnHref: string;
   evidenceApiPath: string;
 }
@@ -158,6 +165,7 @@ const renderAssertionEvidenceBody = (input: AssertionEvidencePageInput): HonoEle
             Download JSON
           </AdminButton>
         </AdminActions>
+        <CopyPublicBadgeLink publicBadgeUrl={input.publicBadgeUrl} />
       </header>
 
       <section class="assertion-evidence__section">
@@ -170,6 +178,10 @@ const renderAssertionEvidenceBody = (input: AssertionEvidencePageInput): HonoEle
         <DetailList rows={issuanceRows} />
       </section>
 
+      <section class="assertion-evidence__section" aria-label="Email notification">
+        <h2>Email notification</h2>
+        <p>{issuanceEmailOutcomeMessage(input.notificationOutcome)}</p>
+      </section>
       {evidence.rule === null ? null : (
         <section class="assertion-evidence__section">
           <h2>Rule and version</h2>
@@ -269,7 +281,12 @@ export const institutionAdminAssertionEvidencePage = (input: {
     membershipRole: input.membershipRole,
     view: "operationsIssuedBadges",
     title: `Credential evidence · ${evidence.summary.badgeTitle} · ${input.tenant.displayName}`,
-    assets: ["institutionAdminCss", "assertionEvidenceCss", "assertionEvidenceJs"],
+    assets: [
+      "institutionAdminCss",
+      "assertionEvidenceCss",
+      "assertionEvidenceJs",
+      "copyPublicBadgeLinkJs",
+    ],
     contextJson: {},
     ...(input.switchOrganizationPath === undefined
       ? {}

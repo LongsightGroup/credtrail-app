@@ -641,6 +641,7 @@ export const renderInstitutionAdminManualIssueWorkspace = async <
     publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
   });
   const manualIssueWorkspace = {
+    issuanceRequestId: correction?.issuanceRequestId ?? crypto.randomUUID(),
     ...flash,
     selection,
     pathwayHandoffId,

@@ -9,6 +9,7 @@ it("keeps the issue form available with validation feedback and pathway context"
       body: (
         <>
           {renderManualIssueSection({
+            issuanceRequestId: "1f016e84-49df-41c8-b560-e331d7d94223",
             hasReadyTemplates: true,
             tenantId: "tenant_123",
             templateSelectOptions: <option value="badge_1">Analytics</option>,

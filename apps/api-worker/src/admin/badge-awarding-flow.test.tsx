@@ -83,6 +83,7 @@ describe("badge preparation to awarding", () => {
     const html = render(
       <>
         {renderManualIssueSection({
+          issuanceRequestId: "1f016e84-49df-41c8-b560-e331d7d94223",
           tenantId: template.tenantId,
           hasReadyTemplates: true,
           selection: resolved.selection,
@@ -118,6 +119,7 @@ describe("badge preparation to awarding", () => {
     const html = render(
       <>
         {renderManualIssueSection({
+          issuanceRequestId: "1f016e84-49df-41c8-b560-e331d7d94223",
           tenantId: template.tenantId,
           hasReadyTemplates: true,
           selection: result.selection,
@@ -136,6 +138,7 @@ describe("badge preparation to awarding", () => {
     const html = render(
       <>
         {renderManualIssueSection({
+          issuanceRequestId: "1f016e84-49df-41c8-b560-e331d7d94223",
           tenantId: template.tenantId,
           hasReadyTemplates: true,
           selection: resolved.selection,

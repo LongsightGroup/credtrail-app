@@ -18,3 +18,21 @@ if (issueForm instanceof HTMLFormElement && consequence instanceof HTMLElement) 
   issueForm.addEventListener("change", updateConsequence);
   updateConsequence();
 }
+if (issueForm instanceof HTMLFormElement) {
+  let submitting = false;
+  const submit = issueForm.querySelector('button[type="submit"]');
+  const progress = document.getElementById("manual-issue-progress");
+  issueForm.addEventListener("submit", (event) => {
+    if (submitting) { event.preventDefault(); return; }
+    submitting = true;
+    issueForm.setAttribute("aria-busy", "true");
+    if (submit instanceof HTMLButtonElement) { submit.disabled = true; submit.textContent = "Issuing…"; }
+    if (progress instanceof HTMLElement) progress.textContent = "Issuing the badge. Please wait for the receipt.";
+  });
+  window.addEventListener("pageshow", () => {
+    submitting = false;
+    issueForm.removeAttribute("aria-busy");
+    if (submit instanceof HTMLButtonElement) { submit.disabled = false; submit.textContent = "Issue badge"; }
+    if (progress instanceof HTMLElement) progress.textContent = "";
+  });
+}

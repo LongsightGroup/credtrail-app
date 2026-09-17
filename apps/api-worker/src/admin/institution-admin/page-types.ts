@@ -152,6 +152,7 @@ export interface InstitutionAdminAccessDelegationsNewWorkspace extends Instituti
 export interface InstitutionAdminAccessOrgUnitsWorkspace extends InstitutionAdminListFlashWorkspace {}
 
 export interface InstitutionAdminManualIssueWorkspace {
+  issuanceRequestId: string;
   correction?: import("../manual-issue-correction").ManualIssueCorrection;
   listNotice: string | null;
   listError: string | null;

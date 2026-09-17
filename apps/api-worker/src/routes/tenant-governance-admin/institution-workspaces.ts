@@ -44,6 +44,9 @@ import {
   safeParseIssuedBadgesPageQuery,
   shouldLoadIssuedBadgesList,
 } from "../../admin/issued-badges-admin-helpers";
+import { loadIssuanceEmailOutcome } from "../../notifications/issuance-email-outcome";
+import { canonicalAppUrl } from "../../http/canonical-app-url";
+import { publicBadgePathForAssertion } from "../../badges/public-badge-model";
 import { buildAssertionEvidencePresentation } from "../../badges/assertion-evidence-presentation";
 import { loadAssertionEvidencePayload } from "../../badges/assertion-evidence-payload";
 import type { AppContext } from "../../app/types";
@@ -291,6 +294,15 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
           ? {}
           : { switchOrganizationPath: pageData.switchOrganizationPath }),
         evidencePage: {
+          notificationOutcome: await loadIssuanceEmailOutcome(
+            resolveDatabase(c.env),
+            tenantId,
+            assertionId,
+          ),
+          publicBadgeUrl: canonicalAppUrl(
+            c.env.PUBLIC_APP_ORIGIN,
+            publicBadgePathForAssertion(evidenceLoaded.data.assertion),
+          ),
           evidence: buildAssertionEvidencePresentation(evidenceLoaded.data),
           returnHref,
           evidenceApiPath,

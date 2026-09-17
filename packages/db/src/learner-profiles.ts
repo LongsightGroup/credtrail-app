@@ -692,11 +692,24 @@ export const findLearnerProfileByIdentity = async (
   return row === null ? null : mapLearnerProfileRow(row);
 };
 
-export const resolveLearnerProfileForIdentity = async (
-  db: SqlDatabase,
+/** Resolves one identity inside a caller-owned database transaction. */
+export const resolveLearnerProfileForIdentityWithinTransaction = async (
+  transactionDb: SqlDatabase,
   input: ResolveLearnerProfileForIdentityInput,
 ): Promise<LearnerProfileRecord> => {
-  const existingProfile = await findLearnerProfileByIdentity(db, {
+  // Serialize lookup-and-create for one tenant identity; no external calls run under this lock.
+  await transactionDb
+    .prepare("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")
+    .bind(
+      JSON.stringify([
+        "learner-identity",
+        input.tenantId,
+        input.identityType,
+        normalizeLearnerIdentityValue(input.identityType, input.identityValue),
+      ]),
+    )
+    .run();
+  const existingProfile = await findLearnerProfileByIdentity(transactionDb, {
     tenantId: input.tenantId,
     identityType: input.identityType,
     identityValue: input.identityValue,
@@ -706,7 +719,7 @@ export const resolveLearnerProfileForIdentity = async (
     return existingProfile;
   }
 
-  return createLearnerProfile(db, {
+  return createLearnerProfile(transactionDb, {
     tenantId: input.tenantId,
     displayName: input.displayName,
     primaryIdentityType: input.identityType,
@@ -714,6 +727,14 @@ export const resolveLearnerProfileForIdentity = async (
     primaryIdentityVerified: true,
   });
 };
+
+export const resolveLearnerProfileForIdentity = async (
+  db: SqlDatabase,
+  input: ResolveLearnerProfileForIdentityInput,
+): Promise<LearnerProfileRecord> =>
+  runSqlTransaction(db, (transactionDb) =>
+    resolveLearnerProfileForIdentityWithinTransaction(transactionDb, input),
+  );
 
 const findLearnerProfileByVerifiedIdentity = async (
   db: SqlDatabase,

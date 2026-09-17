@@ -48,6 +48,7 @@ const routeApp = (data: BadgeRuleIntegrationFixture, allowAccess = true): Hono<A
         tenantId,
         badgeTemplateId: data.badgeTemplateId,
         recipientIdentity: request.recipientIdentity,
+        idempotencyKey: request.idempotencyKey,
         issuedAt: "2026-09-16T12:00:00.000Z",
         publicId: `public_${crypto.randomUUID()}`,
       });
@@ -70,6 +71,32 @@ const routeApp = (data: BadgeRuleIntegrationFixture, allowAccess = true): Hono<A
 };
 
 describeDbIntegration("persisted issuance receipts", () => {
+  it("returns the same receipt for simultaneous submissions and a later retry", async () => {
+    const data = await fixture();
+    const app = routeApp(data);
+    const form = {
+      issuanceRequestId: crypto.randomUUID(),
+      badgeTemplateId: data.badgeTemplateId,
+      recipientIdentity: "retry@example.edu",
+    };
+    const submit = async (): Promise<Response> =>
+      app.request(`/tenants/${data.tenantId}/admin/operations/issue`, {
+        method: "POST",
+        body: new URLSearchParams(form),
+      });
+    const responses = await Promise.all([submit(), submit()]);
+    responses.push(await submit());
+    expect(responses.map((response) => response.status)).toEqual([303, 303, 303]);
+    expect(new Set(responses.map((response) => response.headers.get("location"))).size).toBe(1);
+    const count = await data.db
+      .prepare(
+        "SELECT COUNT(*) AS count FROM assertions WHERE tenant_id = ? AND recipient_identity = ?",
+      )
+      .bind(data.tenantId, form.recipientIdentity)
+      .first<{ count: number | string }>();
+    expect(Number(count?.count)).toBe(1);
+  });
+
   it("preserves the recipient and selected badge when validation fails", async () => {
     const data = await fixture();
     const response = await routeApp(data).request(
@@ -77,6 +104,7 @@ describeDbIntegration("persisted issuance receipts", () => {
       {
         method: "POST",
         body: new URLSearchParams({
+          issuanceRequestId: crypto.randomUUID(),
           badgeTemplateId: data.badgeTemplateId,
           recipientIdentity: "learner@",
         }),
@@ -95,6 +123,7 @@ describeDbIntegration("persisted issuance receipts", () => {
     const response = await app.request(`/tenants/${data.tenantId}/admin/operations/issue`, {
       method: "POST",
       body: new URLSearchParams({
+        issuanceRequestId: crypto.randomUUID(),
         badgeTemplateId: data.badgeTemplateId,
         recipientIdentity: "learner@example.edu",
       }),
@@ -105,7 +134,9 @@ describeDbIntegration("persisted issuance receipts", () => {
     expect(location).toMatch(/\/receipt$/);
     if (location === null) throw new Error("Missing receipt redirect");
     for (let visit = 0; visit < 2; visit++) {
-      const receipt = await app.request(location);
+      const receipt = await app.request(location, undefined, {
+        PUBLIC_APP_ORIGIN: "https://credtrail.test",
+      });
       expect(receipt.status).toBe(200);
       expect(receipt.headers.get("cache-control")).toBe("no-store");
       const html = await receipt.text();

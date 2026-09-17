@@ -91,6 +91,8 @@ const approvalActionLabels: Readonly<Record<string, string>> = {
 
 const auditActionLabels: Readonly<Record<string, string>> = {
   "assertion.issued": "Badge issued",
+  "assertion.manual_issued": "Badge issued manually",
+  "assertion.issuance_email": "Email notification recorded",
   "assertion.lifecycle_transitioned": "Lifecycle changed",
   "assertion.revoked": "Badge revoked",
   "badge_rule.evaluated": "Rule evaluated",

@@ -2,7 +2,7 @@ import {
   createLearnerRecordEntryWithinTransaction,
   type CreateLearnerRecordEntryInput,
 } from "./learner-records.js";
-import { resolveLearnerProfileForIdentity } from "./learner-profiles.js";
+import { resolveLearnerProfileForIdentityWithinTransaction } from "./learner-profiles.js";
 import { runSqlTransaction, type SqlDatabase } from "./tenant-scope";
 
 export type LearnerRecordImportContextInferenceSource =
@@ -328,7 +328,7 @@ export const applyLearnerRecordImport = async (
       throw new Error("Learner-record import application is incomplete");
     }
 
-    const learnerProfile = await resolveLearnerProfileForIdentity(transaction, {
+    const learnerProfile = await resolveLearnerProfileForIdentityWithinTransaction(transaction, {
       tenantId: input.tenantId,
       identityType: "email",
       identityValue: input.learnerEmail,

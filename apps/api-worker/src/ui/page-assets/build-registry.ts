@@ -113,6 +113,11 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     stem: "institution-admin-template-editor",
     sources: ["institution-admin-template-editor.css"],
   },
+  copyPublicBadgeLinkJs: {
+    kind: "script",
+    stem: "copy-public-badge-link",
+    sources: ["copy-public-badge-link.js"],
+  },
   institutionAdminManualIssueJs: {
     kind: "script",
     stem: "institution-admin-manual-issue",

@@ -1,9 +1,13 @@
+import { canonicalAppUrl } from "../http/canonical-app-url";
+import { publicBadgePathForAssertion } from "../badges/public-badge-model";
 import { z } from "zod";
+import { manualIssueIdempotencyKey } from "../admin/manual-issue-request";
 import { loadIssuanceEmailOutcome } from "../notifications/issuance-email-outcome";
 import type { ManualIssueCorrection } from "../admin/manual-issue-correction";
 import {
   createAuditLog,
   findAssertionById,
+  findAssertionByIdempotencyKey,
   findBadgeTemplateById,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -84,9 +88,14 @@ export const registerTenantOperationsAdminRoutes = (
       "learnerPathwayCompletionHandoffId",
     );
 
+    const parsedRequestId = z
+      .uuid()
+      .safeParse(readOptionalFormField(formData, "issuanceRequestId"));
+    const issuanceRequestId = parsedRequestId.success ? parsedRequestId.data : crypto.randomUUID();
     const correct = (message: string, status: 403 | 422 = 422): Promise<Response> => {
       c.status(status);
       return input.renderManualIssueCorrection(c, pathParams.tenantId, nextPath, {
+        issuanceRequestId,
         recipientIdentity,
         badgeTemplateId,
         pathwayHandoffId: learnerPathwayCompletionHandoffId,
@@ -94,6 +103,18 @@ export const registerTenantOperationsAdminRoutes = (
       });
     };
 
+    if (!parsedRequestId.success)
+      return correct(
+        "This issuance form needs to be refreshed. Review the badge and recipient, then try again.",
+      );
+    const idempotencyKey = await manualIssueIdempotencyKey({
+      tenantId: pathParams.tenantId,
+      userId: principal.userId,
+      requestId: issuanceRequestId,
+      badgeTemplateId,
+      recipientIdentity,
+      pathwayHandoffId: learnerPathwayCompletionHandoffId,
+    });
     let request: ReturnType<typeof parseManualIssueBadgeRequest>;
 
     if (!z.email().safeParse(recipientIdentity).success) {
@@ -154,7 +175,7 @@ export const registerTenantOperationsAdminRoutes = (
         },
         recipientIdentity: request.recipientIdentity,
         recipientIdentityType: request.recipientIdentityType,
-        idempotencyKey: request.idempotencyKey ?? crypto.randomUUID(),
+        idempotencyKey,
         ...(request.recipientIdentifiers === undefined
           ? {}
           : { recipientIdentifiers: request.recipientIdentifiers }),
@@ -170,22 +191,27 @@ export const registerTenantOperationsAdminRoutes = (
         issueRequest,
         principal.userId,
       );
-      await createAuditLog(db, {
-        tenantId: pathParams.tenantId,
-        actorUserId: principal.userId,
-        action: "assertion.manual_issued",
-        targetType: "assertion",
-        targetId: result.assertionId,
-        metadata: {
-          role: membershipRole,
-          badgeTemplateId: request.badgeTemplateId,
-          recipientIdentity: request.recipientIdentity,
-          status: result.status,
-        },
-      });
+      if (result.status === "issued")
+        await createAuditLog(db, {
+          tenantId: pathParams.tenantId,
+          actorUserId: principal.userId,
+          action: "assertion.manual_issued",
+          targetType: "assertion",
+          targetId: result.assertionId,
+          metadata: {
+            role: membershipRole,
+            badgeTemplateId: request.badgeTemplateId,
+            recipientIdentity: request.recipientIdentity,
+            status: result.status,
+          },
+        });
 
       return c.redirect(issuanceReceiptPath(pathParams.tenantId, result.assertionId), 303);
     } catch (error: unknown) {
+      // A simultaneous submission may have committed while this request was issuing.
+      const issued = await findAssertionByIdempotencyKey(db, pathParams.tenantId, idempotencyKey);
+      if (issued !== null)
+        return c.redirect(issuanceReceiptPath(pathParams.tenantId, issued.id), 303);
       if (!isIssueBadgeHttpError(error)) {
         throw error;
       }
@@ -216,7 +242,15 @@ export const registerTenantOperationsAdminRoutes = (
     return renderInstitutionAdminWorkspacePage(
       c,
       renderAppPage,
-      issuanceReceiptPage({ ...shell, assertion, notificationOutcome }),
+      issuanceReceiptPage({
+        ...shell,
+        assertion,
+        notificationOutcome,
+        publicBadgeUrl: canonicalAppUrl(
+          c.env.PUBLIC_APP_ORIGIN,
+          publicBadgePathForAssertion(assertion),
+        ),
+      }),
     );
   });
 

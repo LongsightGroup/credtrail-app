@@ -153,6 +153,29 @@ describeDbIntegration("learner profiles and identity aliases", () => {
     }
   });
 
+  it("resolves concurrent requests for a new identity to one complete profile", async () => {
+    const fixture = await createTestTenantFixture();
+    try {
+      const profiles = await Promise.all(
+        ["Student@umich.edu", "student@umich.edu"].map((identityValue) =>
+          resolveLearnerProfileForIdentity(fixture.db, {
+            tenantId: fixture.tenantId,
+            identityType: "email",
+            identityValue,
+          }),
+        ),
+      );
+      expect(new Set(profiles.map((profile) => profile.id)).size).toBe(1);
+      const count = await fixture.db
+        .prepare("SELECT COUNT(*) AS count FROM learner_profiles WHERE tenant_id = ?")
+        .bind(fixture.tenantId)
+        .first<{ count: number | string }>();
+      expect(Number(count?.count)).toBe(1);
+    } finally {
+      await cleanupTestResources(fixture.db, { tenantIds: [fixture.tenantId] });
+    }
+  });
+
   it("resolves to existing learner profile for repeated identity values", async () => {
     const fixture = await createTestTenantFixture();
 

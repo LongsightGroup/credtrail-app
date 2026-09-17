@@ -16,6 +16,7 @@ type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | readonly Hon
 
 interface RenderManualIssueSectionInput {
   correction?: import("../manual-issue-correction").ManualIssueCorrection | undefined;
+  issuanceRequestId: string;
   hasReadyTemplates: boolean;
   selection?: ManualIssueSelection;
   tenantId: string;
@@ -76,6 +77,7 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
         action={tenantOperationsManualIssuePath(input.tenantId)}
         className="ct-admin__form ct-admin__setup-form ct-stack"
       >
+        <CtInput type="hidden" name="issuanceRequestId" value={input.issuanceRequestId} />
         {input.pathwayHandoffId === null || input.pathwayHandoffId === undefined ? null : (
           <>
             <CtInput
@@ -134,6 +136,7 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
           This creates a credential with a public verification page for the selected badge and
           recipient.
         </p>
+        <p id="manual-issue-progress" role="status"></p>
         <AdminButton type="submit">Issue badge</AdminButton>
       </AdminForm>
     </AdminPanel>

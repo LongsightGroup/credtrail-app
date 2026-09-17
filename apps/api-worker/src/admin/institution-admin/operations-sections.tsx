@@ -38,6 +38,7 @@ export interface RenderRuleReviewQueuePanelInput {
 export interface RenderIssuedBadgesPanelInput {
   readonly tenantId: string;
   readonly templateFilterOptions: HonoElement;
+  readonly filterLabels?: { readonly badgeTemplate: string; readonly orgUnit: string };
   readonly activeOrgUnitOptions: HonoElement;
   readonly issuedBadgesWorkspace?: InstitutionAdminIssuedBadgesWorkspace;
 }
@@ -52,6 +53,20 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
   const showIssuedBadgesExportAction =
     issuedBadgesAssertions !== null && issuedBadgesAssertions.length > 0;
   const issuedBadgesExportHref = issuedBadgesLedgerExportUrl(input.tenantId, issuedBadgesFilters);
+  const activeFilters = [
+    issuedBadgesFilters.issuedFrom ? `Issued from: ${issuedBadgesFilters.issuedFrom}` : "",
+    issuedBadgesFilters.issuedTo ? `Issued through: ${issuedBadgesFilters.issuedTo}` : "",
+    issuedBadgesFilters.recipientQuery
+      ? `Recipient or record: ${issuedBadgesFilters.recipientQuery}`
+      : "",
+    issuedBadgesFilters.badgeTemplateId
+      ? `Badge: ${input.filterLabels?.badgeTemplate ?? "Selected badge"}`
+      : "",
+    issuedBadgesFilters.orgUnitId
+      ? `Organization unit: ${input.filterLabels?.orgUnit ?? "Selected unit"}`
+      : "",
+    issuedBadgesFilters.state ? `Status: ${issuedBadgesFilters.state}` : "",
+  ].filter((label) => label.length > 0);
   return (
     <AdminPanel id="issued-badges-panel" variant="table">
       <h2>Badge Records</h2>
@@ -117,19 +132,42 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
               </option>
             </CtSelect>
           </AdminField>
-          <AdminField label="Limit">
-            <CtInput
-              name="limit"
-              type="number"
-              min="1"
-              max="500"
-              step="1"
-              value={String(issuedBadgesFilters.limit)}
-            />
+          <AdminField label="Results to show">
+            <CtSelect name="limit">
+              {Array.from(new Set([25, 50, 100, 250, 500, issuedBadgesFilters.limit]))
+                .sort((a, b) => a - b)
+                .map((limit) => (
+                  <option value={String(limit)} selected={limit === issuedBadgesFilters.limit}>
+                    {String(limit)} records
+                  </option>
+                ))}
+            </CtSelect>
           </AdminField>
           <AdminButton type="submit">Search issued badges</AdminButton>
         </AdminForm>
       </details>
+      {activeFilters.length > 0 ? (
+        <section aria-label="Active filters" class="ct-stack">
+          <p>
+            <strong>Active filters:</strong> {activeFilters.join(" · ")}
+          </p>
+          <AdminButtonLink
+            href={`${issuedBadgesPagePath}?limit=${String(issuedBadgesFilters.limit)}`}
+            variant="quiet"
+          >
+            Clear filters
+          </AdminButtonLink>
+        </section>
+      ) : null}
+      {issuedBadgesAssertions === null ? null : (
+        <p role="status">
+          {issuedBadgesAssertions.length >= issuedBadgesFilters.limit
+            ? `Showing the latest ${String(issuedBadgesAssertions.length)} matching records. Narrow the filters to find older records.`
+            : issuedBadgesAssertions.length === 0
+              ? "No records match these filters. Change or clear the filters to try again."
+              : `${String(issuedBadgesAssertions.length)} matching ${issuedBadgesAssertions.length === 1 ? "record" : "records"}.`}
+        </p>
+      )}
       {showIssuedBadgesExportAction ? (
         <>
           <AdminActions>

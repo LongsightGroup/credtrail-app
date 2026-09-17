@@ -2,6 +2,7 @@ import {
   issuanceEmailOutcomeMessage,
   type IssuanceEmailOutcome,
 } from "../notifications/issuance-email-outcome";
+import { CopyPublicBadgeLink } from "./copy-public-badge-link";
 import { issuePreparedBadgePath } from "./badge-awarding-links";
 import type { AssertionRecord } from "@credtrail/db";
 import { AdminActions, AdminButtonLink, AdminPanel } from "./components";
@@ -26,7 +27,11 @@ export const issuanceReceiptPage = (
   input: Pick<
     InstitutionAdminPageInput,
     "tenant" | "userId" | "userEmail" | "membershipRole" | "switchOrganizationPath"
-  > & { readonly assertion: AssertionRecord; readonly notificationOutcome: IssuanceEmailOutcome },
+  > & {
+    readonly assertion: AssertionRecord;
+    readonly notificationOutcome: IssuanceEmailOutcome;
+    readonly publicBadgeUrl: string;
+  },
 ): AppPage => {
   const publicBadgePath = publicBadgePathForAssertion(input.assertion);
   const recordPath = issuedBadgesAssertionPageUrl(
@@ -45,7 +50,7 @@ export const issuanceReceiptPage = (
       : { switchOrganizationPath: input.switchOrganizationPath }),
     view: "operationsManualIssue",
     title: `Issuance receipt · ${input.tenant.displayName}`,
-    assets: ["institutionAdminCss", "institutionAdminShellJs"],
+    assets: ["institutionAdminCss", "institutionAdminShellJs", "copyPublicBadgeLinkJs"],
     contextJson: {},
     children: (
       <>
@@ -89,6 +94,7 @@ export const issuanceReceiptPage = (
                   Issue this badge to another learner
                 </AdminButtonLink>
               </AdminActions>
+              <CopyPublicBadgeLink publicBadgeUrl={input.publicBadgeUrl} />
               <details>
                 <summary>Technical details</summary>
                 <AdminActions>
