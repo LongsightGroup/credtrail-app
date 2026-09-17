@@ -10,6 +10,7 @@ import type { LearnerRecordExportBundle } from "./learner-record-export";
 export type LearnerRecordPresentationSectionKey =
   | "issuerVerifiedActive"
   | "supplementalActive"
+  | "suspended"
   | "historical";
 
 export interface LearnerRecordPresentationSummary {
@@ -71,6 +72,7 @@ const trustLabelByLevel: Record<LearnerRecordTrustLevel, string> = {
 
 const statusLabelByStatus: Record<LearnerRecordStatus, string> = {
   active: "Active",
+  suspended: "Suspended",
   revoked: "Revoked",
   expired: "Expired",
 };
@@ -166,7 +168,7 @@ const buildProvenanceSummary = (item: CanonicalLearnerRecordItem): string => {
 };
 
 const isHistoricalItem = (item: CanonicalLearnerRecordItem): boolean => {
-  return item.status !== "active";
+  return item.status === "revoked" || item.status === "expired";
 };
 
 const mapPresentationItem = (item: CanonicalLearnerRecordItem): LearnerRecordPresentationItem => {
@@ -214,10 +216,10 @@ export const createLearnerRecordPresentation = (
   bundle: LearnerRecordExportBundle,
 ): LearnerRecordPresentationModel => {
   const issuerVerifiedActive = bundle.items.filter(
-    (item) => item.trustLevel === "issuer_verified" && !isHistoricalItem(item),
+    (item) => item.trustLevel === "issuer_verified" && item.status === "active",
   );
   const supplementalActive = bundle.items.filter(
-    (item) => item.trustLevel === "learner_supplemental" && !isHistoricalItem(item),
+    (item) => item.trustLevel === "learner_supplemental" && item.status === "active",
   );
   const historical = bundle.items.filter((item) => isHistoricalItem(item));
 
@@ -235,6 +237,13 @@ export const createLearnerRecordPresentation = (
       description:
         "Active learner-supplied items that remain visible without being presented as institution-verified credentials.",
       items: supplementalActive,
+    }),
+    buildPresentationSection({
+      key: "suspended",
+      title: "Suspended badges",
+      description:
+        "These badges are temporarily inactive. The issuer can restore them after review.",
+      items: bundle.items.filter((item) => item.status === "suspended"),
     }),
     buildPresentationSection({
       key: "historical",

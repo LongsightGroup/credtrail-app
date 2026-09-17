@@ -1,3 +1,7 @@
+import {
+  recordIssuanceEmailOutcome,
+  loadIssuanceEmailState,
+} from "../notifications/issuance-email-outcome";
 import { findTenantById } from "@credtrail/db";
 import { Hono } from "hono";
 import { afterEach, expect, it } from "vitest";
@@ -71,6 +75,34 @@ const routeApp = (data: BadgeRuleIntegrationFixture, allowAccess = true): Hono<A
 };
 
 describeDbIntegration("persisted issuance receipts", () => {
+  it("offers a retry tied to the saved failed notification on the existing receipt", async () => {
+    const f = await fixture();
+    const assertionId = await seedAssertion(f.db, {
+      tenantId: f.tenantId,
+      badgeTemplateId: f.badgeTemplateId,
+      recipientIdentity: "receipt@example.edu",
+      publicId: `public_${crypto.randomUUID()}`,
+      issuedAt: "2026-09-01T00:00:00.000Z",
+    });
+    await recordIssuanceEmailOutcome({
+      db: f.db,
+      tenantId: f.tenantId,
+      assertionId,
+      status: "failed",
+    });
+    const state = await loadIssuanceEmailState(f.db, f.tenantId, assertionId);
+    const response = await routeApp(f).request(
+      issuanceReceiptPath(f.tenantId, assertionId),
+      undefined,
+      { PUBLIC_APP_ORIGIN: "https://credtrail.test" },
+    );
+    expect(response.status).toBe(200);
+    const body = await response.text();
+    expect(body).toContain("Retry notification email");
+    expect(body).toContain(`name="failedAttemptId" type="hidden" value="${state.attemptId}"`);
+    expect(body).toContain("Copy public badge link");
+  });
+
   it("returns the same receipt for simultaneous submissions and a later retry", async () => {
     const data = await fixture();
     const app = routeApp(data);

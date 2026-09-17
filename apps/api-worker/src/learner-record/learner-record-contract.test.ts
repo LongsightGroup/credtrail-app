@@ -69,6 +69,7 @@ const sampleLearnerRecordEntry = (
 describe("learner record contract", () => {
   it("maps a current badge assertion into the canonical learner-record vocabulary", () => {
     const record = mapAssertionToCanonicalLearnerRecordItem({
+      state: "active",
       assertion: sampleAssertion(),
       badgeTitle: "Applied Analytics Badge",
       badgeDescription: "Awarded for applied analytics work.",
@@ -106,6 +107,7 @@ describe("learner record contract", () => {
 
   it("keeps revoked badge assertions honest in the canonical learner-record contract", () => {
     const record = mapAssertionToCanonicalLearnerRecordItem({
+      state: "active",
       assertion: sampleAssertion({
         revokedAt: "2026-03-25T15:00:00.000Z",
         updatedAt: "2026-03-25T15:00:00.000Z",

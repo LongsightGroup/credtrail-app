@@ -66,6 +66,7 @@ const createAssertionExport = (
   overrides?: Partial<LearnerRecordAssertionExportRecord>,
 ): LearnerRecordAssertionExportRecord => {
   return {
+    state: "active",
     assertionId: `${TENANT_ID}:assertion_456`,
     assertionPublicId: "public_assertion_456",
     tenantId: TENANT_ID,
@@ -164,6 +165,7 @@ const exportBundle: LearnerRecordExportBundle = {
   items: [
     {
       ...mapAssertionToCanonicalLearnerRecordItem({
+        state: "active",
         assertion: {
           id: assertionExports[0].assertionId,
           tenantId: assertionExports[0].tenantId,

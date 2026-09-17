@@ -37,6 +37,7 @@ const sampleAssertionExportRecord = (
   overrides?: Partial<LearnerRecordAssertionExportRecord>,
 ): LearnerRecordAssertionExportRecord => {
   return {
+    state: "active",
     assertionId: "tenant_123:assertion_456",
     assertionPublicId: "public_assertion_456",
     tenantId: "tenant_123",
@@ -96,6 +97,7 @@ const sampleBundle = (): LearnerRecordExportBundle => {
     standardsMapping: LEARNER_RECORD_STANDARDS_MAPPING_CATALOG,
     items: [
       mapAssertionToCanonicalLearnerRecordItem({
+        state: "active",
         assertion: {
           id: sampleAssertionExportRecord().assertionId,
           tenantId: "tenant_123",

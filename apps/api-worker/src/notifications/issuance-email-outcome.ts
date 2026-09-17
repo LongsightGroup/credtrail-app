@@ -4,6 +4,7 @@ import { z } from "zod";
 const outcomeSchema = z.object({
   status: z.enum([
     "accepted",
+    "pending",
     "failed",
     "disabled",
     "suppressed",
@@ -48,11 +49,15 @@ export const recordIssuanceEmailOutcome = async (input: {
   });
 };
 
-export const loadIssuanceEmailOutcome = async (
+export const loadIssuanceEmailState = async (
   db: SqlDatabase,
   tenantId: string,
   assertionId: string,
-): Promise<IssuanceEmailOutcome> => {
+): Promise<{
+  outcome: IssuanceEmailOutcome;
+  attemptId: string | null;
+  occurredAt: string | null;
+}> => {
   const [record] = await listAuditLogs(db, {
     tenantId,
     action: auditAction,
@@ -60,19 +65,41 @@ export const loadIssuanceEmailOutcome = async (
     targetId: assertionId,
     limit: 1,
   });
-  if (!record?.metadataJson) return "unrecorded";
+  if (!record?.metadataJson)
+    return {
+      outcome: "unrecorded",
+      attemptId: record?.id ?? null,
+      occurredAt: record?.occurredAt ?? null,
+    };
   let metadata: unknown;
   try {
     metadata = JSON.parse(record.metadataJson);
   } catch {
-    return "unrecorded";
+    return {
+      outcome: "unrecorded",
+      attemptId: record?.id ?? null,
+      occurredAt: record?.occurredAt ?? null,
+    };
   }
   const parsed = outcomeSchema.safeParse(metadata);
-  return parsed.success ? parsed.data.status : "unrecorded";
+  return {
+    outcome: parsed.success ? parsed.data.status : "unrecorded",
+    attemptId: record.id,
+    occurredAt: record.occurredAt,
+  };
 };
+
+export const loadIssuanceEmailOutcome = async (
+  db: SqlDatabase,
+  tenantId: string,
+  assertionId: string,
+): Promise<IssuanceEmailOutcome> =>
+  (await loadIssuanceEmailState(db, tenantId, assertionId)).outcome;
 
 export const issuanceEmailOutcomeMessage = (outcome: IssuanceEmailOutcome): string => {
   switch (outcome) {
+    case "pending":
+      return "A notification retry has started. Its result is not recorded yet. Refresh this page to check the outcome.";
     case "accepted":
       return "The email service accepted the notification. Delivery to the recipient is not confirmed.";
     case "failed":

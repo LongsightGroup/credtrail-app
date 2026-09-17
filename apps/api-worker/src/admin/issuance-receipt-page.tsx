@@ -26,6 +26,8 @@ export const issuanceReceiptPage = (
     InstitutionAdminPageInput,
     "tenant" | "userId" | "userEmail" | "membershipRole" | "switchOrganizationPath"
   > & {
+    readonly notificationRetry?: import("./issuance-notification").NotificationRetry | undefined;
+    readonly notificationMessage?: string | undefined;
     readonly assertion: AssertionRecord;
     readonly notificationOutcome: IssuanceEmailOutcome;
     readonly publicBadgeUrl: string;
@@ -80,7 +82,9 @@ export const issuanceReceiptPage = (
                 The credential is issued. You can open its public page or review its record and
                 status.
               </p>
+              {input.notificationMessage ? <p role="status">{input.notificationMessage}</p> : null}
               <IssuanceNotification
+                retry={input.notificationRetry}
                 outcome={input.notificationOutcome}
                 publicBadgeUrl={input.publicBadgeUrl}
               />

@@ -254,6 +254,9 @@ export const createLearnerRecordPage = (input: CreateLearnerRecordPageInput) => 
               <p class="learner-record__metric-value">{String(presentation.summary.active)}</p>
               <p class="learner-record__metric-note">
                 {String(presentation.summary.historical)} historical
+                {presentation.sections
+                  .filter((section) => section.key === "suspended")
+                  .map((section) => ` · ${section.items.length} suspended`)}
               </p>
             </article>
           </div>

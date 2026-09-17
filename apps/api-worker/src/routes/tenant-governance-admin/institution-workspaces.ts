@@ -45,7 +45,6 @@ import {
   buildIssuedBadgesPageQuery,
   issuedBadgesInvalidFiltersError,
   safeParseIssuedBadgesPageQuery,
-  shouldLoadIssuedBadgesList,
 } from "../../admin/issued-badges-admin-helpers";
 import { loadIssuanceEmailOutcome } from "../../notifications/issuance-email-outcome";
 import { canonicalAppUrl } from "../../http/canonical-app-url";
@@ -187,27 +186,21 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       userId: principal.userId,
       workspace: "issued_badges",
     });
-    const assertionRows = shouldLoadIssuedBadgesList(query)
-      ? await listTenantAssertions(resolveDatabase(c.env), {
-          ...tenantAssertionListDbInput(tenantId, issuedBadgesQuery.listQuery),
-          cursor: issuedBadgesQuery.cursor,
-          includeLookahead: true,
-        })
-      : null;
-
-    const exportCount =
-      assertionRows === null
-        ? null
-        : await countTenantAssertionLedgerRows(
-            resolveDatabase(c.env),
-            tenantAssertionListDbInput(tenantId, issuedBadgesQuery.listQuery),
-          );
+    const assertionRows = await listTenantAssertions(resolveDatabase(c.env), {
+      ...tenantAssertionListDbInput(tenantId, issuedBadgesQuery.listQuery),
+      cursor: issuedBadgesQuery.cursor,
+      includeLookahead: true,
+    });
+    const exportCount = await countTenantAssertionLedgerRows(
+      resolveDatabase(c.env),
+      tenantAssertionListDbInput(tenantId, issuedBadgesQuery.listQuery),
+    );
     const pagination = paginateIssuedBadges(
-      assertionRows ?? [],
+      assertionRows,
       issuedBadgesQuery.filters.limit,
       issuedBadgesQuery.cursor,
     );
-    const assertions = assertionRows === null ? null : pagination.assertions;
+    const assertions = pagination.assertions;
 
     let selectedBadge: IssuedBadgeStatusSelection | null = null;
     if (issuedBadgesQuery.lifecycleAssertionId !== null) {
@@ -320,6 +313,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
             evidenceLoaded.data.assertion.recipientIdentity,
             returnHref,
           ),
+          notificationReceiptHref: `/tenants/${encodeURIComponent(tenantId)}/admin/operations/issue/${encodeURIComponent(assertionId)}/receipt`,
           notificationOutcome: await loadIssuanceEmailOutcome(
             resolveDatabase(c.env),
             tenantId,

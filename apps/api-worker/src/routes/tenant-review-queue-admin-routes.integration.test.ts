@@ -80,6 +80,23 @@ describeDbIntegration("review queue decisions", () => {
       expect(stored?.reviewComment).toBe("Registrar confirmed the course is incomplete.");
       expect(stored?.reviewStatus).toBe("resolved");
       expect(stored?.assertionId).toBeNull();
+      expect(await loadBadgeRuleReviewQueueEntries(fixture.db, fixture.tenantId)).toEqual([]);
+      const history = await loadBadgeRuleReviewQueueEntries(fixture.db, fixture.tenantId, {
+        reviewStatus: "resolved",
+      });
+      expect(history).toHaveLength(1);
+      expect(history[0]).toMatchObject({
+        evaluationId: evaluation.id,
+        decision: "dismiss",
+        decisionNote: "Registrar confirmed the course is incomplete.",
+        reviewedAt: stored?.reviewedAt,
+      });
+      expect(history[0]?.reviewerEmail).toContain("@");
+      expect(
+        await loadBadgeRuleReviewQueueEntries(fixture.db, "different-tenant", {
+          reviewStatus: "resolved",
+        }),
+      ).toEqual([]);
     } finally {
       await cleanupTestResources(fixture.db, {
         tenantIds: [fixture.tenantId],

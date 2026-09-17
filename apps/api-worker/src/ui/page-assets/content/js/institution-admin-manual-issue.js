@@ -11,6 +11,10 @@ if (issueForm instanceof HTMLFormElement && consequence instanceof HTMLElement) 
     const title = badge instanceof HTMLSelectElement
       ? (badge.value ? badge.selectedOptions[0]?.textContent : "")
       : consequence.dataset.badgeTitle;
+    const preview = document.getElementById("manual-issue-badge-preview");
+    const description = document.getElementById("manual-issue-badge-description");
+    if (preview instanceof HTMLElement) preview.hidden = !title;
+    if (description instanceof HTMLElement && badge instanceof HTMLSelectElement) description.textContent = badge.selectedOptions[0]?.dataset.description ?? "";
     const heading = document.getElementById("manual-issue-badge-title");
     const image = document.getElementById("manual-issue-badge-image");
     if (heading instanceof HTMLElement && title) heading.textContent = title;

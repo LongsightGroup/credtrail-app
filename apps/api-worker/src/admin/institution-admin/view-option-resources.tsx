@@ -88,6 +88,7 @@ const buildTemplateOptions = (
         <option
           value={template.id}
           data-image-uri={template.imageUri ?? ""}
+          data-description={template.description ?? ""}
           selected={
             page.manualIssueWorkspace?.selection.kind === "ready" &&
             page.manualIssueWorkspace.selection.template.id === template.id

@@ -2,7 +2,10 @@ import { canonicalAppUrl } from "../http/canonical-app-url";
 import { publicBadgePathForAssertion } from "../badges/public-badge-model";
 import { z } from "zod";
 import { manualIssueIdempotencyKey } from "../admin/manual-issue-request";
-import { loadIssuanceEmailOutcome } from "../notifications/issuance-email-outcome";
+import { registerTenantNotificationRetryAdminRoutes } from "./tenant-notification-retry-admin-routes";
+import { sendIssuanceEmailNotification } from "../notifications/send-issuance-email";
+import { consumeAdminListMessageFlash } from "../admin/admin-list-message-flash";
+import { loadIssuanceEmailState } from "../notifications/issuance-email-outcome";
 import type { ManualIssueCorrection } from "../admin/manual-issue-correction";
 import {
   createAuditLog,
@@ -33,7 +36,7 @@ import type {
 import { badgeAchievementSnapshotFromTemplate } from "../badges/badge-achievement-snapshot";
 import { isIssueBadgeHttpError } from "../badges/direct-issue";
 
-interface RegisterTenantOperationsAdminRoutesInput {
+export interface RegisterTenantOperationsAdminRoutesInput {
   app: Hono<AppEnv>;
   renderManualIssueCorrection: (
     c: AppContext,
@@ -68,6 +71,8 @@ export const registerTenantOperationsAdminRoutes = (
     resolveDatabase,
     resolveInstitutionAdminAdminRole,
   } = input;
+
+  registerTenantNotificationRetryAdminRoutes({ ...input, send: sendIssuanceEmailNotification });
 
   const handleManualIssuePost = async (c: AppContext): Promise<Response> => {
     const pathParams = parseTenantPathParams(c.req.param());
@@ -269,7 +274,7 @@ export const registerTenantOperationsAdminRoutes = (
       authorized.membershipRole,
     );
     if (shell instanceof Response) return shell;
-    const notificationOutcome = await loadIssuanceEmailOutcome(
+    const notification = await loadIssuanceEmailState(
       resolveDatabase(c.env),
       tenantId,
       assertionId,
@@ -280,7 +285,21 @@ export const registerTenantOperationsAdminRoutes = (
       issuanceReceiptPage({
         ...shell,
         assertion,
-        notificationOutcome,
+        notificationOutcome: notification.outcome,
+        notificationRetry:
+          notification.outcome === "failed" && notification.attemptId
+            ? {
+                action: `${buildOperationsManualIssuePath(tenantId)}/${encodeURIComponent(assertionId)}/retry-notification`,
+                failedAttemptId: notification.attemptId,
+              }
+            : undefined,
+        notificationMessage: (
+          await consumeAdminListMessageFlash(c, {
+            tenantId,
+            userId: authorized.principal.userId,
+            workspace: "operations_manual_issue",
+          })
+        )?.message,
         publicBadgeUrl: canonicalAppUrl(
           c.env.PUBLIC_APP_ORIGIN,
           publicBadgePathForAssertion(assertion),

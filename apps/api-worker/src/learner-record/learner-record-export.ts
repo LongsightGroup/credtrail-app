@@ -383,6 +383,7 @@ export const loadLearnerRecordExportBundle = async (
   const assertionItems = assertions.map((record) => {
     return itemWithBadgeMetadata(
       mapAssertionToCanonicalLearnerRecordItem({
+        state: record.state,
         assertion: {
           id: record.assertionId,
           tenantId: record.tenantId,

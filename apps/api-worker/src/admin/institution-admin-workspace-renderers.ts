@@ -283,8 +283,10 @@ export const renderInstitutionAdminReviewQueueWorkspace = async <
     userId: principal.userId,
     workspace: "operations_review_queue",
   });
+  const reviewStatus =
+    z.enum(["pending", "resolved"]).safeParse(c.req.query("reviewStatus")).data ?? "pending";
   const entries = await loadBadgeRuleReviewQueueEntries(deps.resolveDatabase(c.env), tenantId, {
-    reviewStatus: "pending",
+    reviewStatus,
     limit: 50,
   });
 
@@ -294,6 +296,7 @@ export const renderInstitutionAdminReviewQueueWorkspace = async <
     institutionAdminOperationsReviewQueuePage({
       ...pageData,
       reviewQueueWorkspace: {
+        reviewStatus,
         entries,
         selectedEvaluationId: z.string().max(256).safeParse(c.req.query("review")).data ?? "",
         listNotice: flash.listNotice,

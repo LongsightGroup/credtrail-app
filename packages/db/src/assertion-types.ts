@@ -24,6 +24,7 @@ export interface AssertionRecord {
 }
 
 export interface LearnerRecordAssertionExportRecord {
+  state: AssertionLifecycleState;
   assertionId: string;
   assertionPublicId: string | null;
   tenantId: string;

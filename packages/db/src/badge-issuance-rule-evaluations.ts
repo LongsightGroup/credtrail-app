@@ -341,7 +341,7 @@ export const listBadgeIssuanceRuleEvaluations = async (
           AND (CAST(? AS TEXT) IS NULL OR rules.badge_template_id = ?)
           AND (CAST(? AS TEXT) IS NULL OR evaluations.issuance_status = ?)
           AND (CAST(? AS TEXT) IS NULL OR evaluations.review_status = ?)
-        ORDER BY evaluations.evaluated_at DESC, evaluations.id DESC
+        ORDER BY ${input.reviewStatus === "resolved" ? "evaluations.reviewed_at" : "evaluations.evaluated_at"} DESC, evaluations.id DESC
         LIMIT ?
       `,
       )

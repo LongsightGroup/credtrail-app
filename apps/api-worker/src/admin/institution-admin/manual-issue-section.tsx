@@ -94,17 +94,6 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
         )}
         {selection.kind === "ready" ? (
           <section aria-label="Selected badge" class="ct-stack">
-            {selection.template.imageUri === null ? null : (
-              <img
-                id="manual-issue-badge-image"
-                src={selection.template.imageUri}
-                alt={`${selection.template.title} artwork`}
-                width={96}
-                height={96}
-                class="ct-admin__template-image"
-              />
-            )}
-            <h2 id="manual-issue-badge-title">{selection.template.title}</h2>
             {input.pathwayHandoffId ? (
               <CtInput name="badgeTemplateId" type="hidden" value={selection.template.id} />
             ) : (
@@ -125,6 +114,29 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
             </CtSelect>
           </AdminField>
         )}
+        <section
+          id="manual-issue-badge-preview"
+          aria-label="Badge preview"
+          class="ct-stack"
+          hidden={selection.kind !== "ready"}
+        >
+          <img
+            id="manual-issue-badge-image"
+            src={
+              selection.kind === "ready" ? (selection.template.imageUri ?? undefined) : undefined
+            }
+            alt={selection.kind === "ready" ? `${selection.template.title} artwork` : ""}
+            width={96}
+            height={96}
+            class="ct-admin__template-image"
+          />
+          <h2 id="manual-issue-badge-title">
+            {selection.kind === "ready" ? selection.template.title : ""}
+          </h2>
+          <p id="manual-issue-badge-description">
+            {selection.kind === "ready" ? selection.template.description : ""}
+          </p>
+        </section>
         <AdminField label="Recipient email">
           <CtInput
             name="recipientIdentity"

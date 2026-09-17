@@ -32,6 +32,7 @@ test("status changes explain filtered results and learner records show useful la
   await expect(
     page.getByText(`Reviewing ${identity.recipientEmail}.`, { exact: false }),
   ).toBeVisible();
+  await expect(page.getByText("Issuer verified · Expired", { exact: true })).toBeVisible();
   await expect(page.getByText("Learner profile ID:", { exact: false })).toBeHidden();
   await expect(page.getByRole("link", { name: "Download learner record (JSON)" })).toBeVisible();
   await expect(page.getByText("Phase 27", { exact: false })).toHaveCount(0);
@@ -66,6 +67,24 @@ test("receipt carries the learner into a different badge without issuing on navi
     .getByRole("combobox", { name: "Badge template", exact: true })
     .selectOption({ label: otherBadge.templateName });
   await expect(page.getByLabel("Recipient email")).toHaveValue(identity.recipientEmail);
+  const preview = page.getByRole("region", { name: "Badge preview" });
+  await expect(
+    preview.getByRole("heading", { name: otherBadge.templateName, exact: true }),
+  ).toBeVisible();
+  await expect(preview.getByRole("img")).toHaveAttribute("src", /.+/);
+  await expect(preview).toContainText("Created by the browser acceptance flow");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({ path: "/tmp/credtrail-five-preview-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await page
+    .getByRole("combobox", { name: "Badge template", exact: true })
+    .selectOption({ label: otherBadge.templateName });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await page.screenshot({ path: "/tmp/credtrail-five-preview-mobile.png", fullPage: true });
+
   await page
     .getByRole("button", {
       name: "Issue badge",

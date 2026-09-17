@@ -2,7 +2,7 @@ import type { AssertionRecord, LearnerRecordEntryRecord } from "@credtrail/db";
 
 export type LearnerRecordKind = "badge_assertion" | "record_entry";
 export type LearnerRecordTrustLevel = "issuer_verified" | "learner_supplemental";
-export type LearnerRecordStatus = "active" | "revoked" | "expired";
+export type LearnerRecordStatus = "active" | "suspended" | "revoked" | "expired";
 export type LearnerRecordType =
   | "badge"
   | "course"
@@ -65,6 +65,7 @@ type LearnerRecordAssertionProjection = Pick<
 
 interface MapAssertionToCanonicalLearnerRecordItemInput {
   assertion: LearnerRecordAssertionProjection;
+  state: LearnerRecordStatus;
   badgeTitle: string;
   badgeDescription?: string | null;
   issuerName: string;
@@ -126,16 +127,6 @@ const parseEvidenceLinksJson = (evidenceLinksJson: string): readonly string[] =>
   return parsed;
 };
 
-const learnerRecordStatusFromAssertion = (
-  assertion: LearnerRecordAssertionProjection,
-): LearnerRecordStatus => {
-  if (assertion.revokedAt !== null) {
-    return "revoked";
-  }
-
-  return "active";
-};
-
 export const mapAssertionToCanonicalLearnerRecordItem = (
   input: MapAssertionToCanonicalLearnerRecordItemInput,
 ): CanonicalLearnerRecordItem => {
@@ -147,7 +138,7 @@ export const mapAssertionToCanonicalLearnerRecordItem = (
     tenantId: assertion.tenantId,
     learnerProfileId: assertion.learnerProfileId,
     trustLevel: "issuer_verified",
-    status: learnerRecordStatusFromAssertion(assertion),
+    status: assertion.revokedAt !== null ? "revoked" : input.state,
     recordType: "badge",
     title: badgeTitle,
     description: badgeDescription ?? null,

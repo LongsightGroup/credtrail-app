@@ -65,6 +65,16 @@ const sampleBundle = (items: readonly CanonicalLearnerRecordItem[]): LearnerReco
   };
 };
 
+it("keeps suspended badges separate from active and historical items", () => {
+  const model = createLearnerRecordPresentation(
+    sampleBundle([sampleItem({ status: "suspended", kind: "badge_assertion" })]),
+  );
+  expect(model.summary.active).toBe(0);
+  expect(model.summary.historical).toBe(0);
+  expect(model.sections.map((section) => section.key)).toEqual(["suspended"]);
+  expect(model.sections[0]?.items[0]?.statusLabel).toBe("Suspended");
+});
+
 describe("createLearnerRecordPresentation", () => {
   it("groups mixed learner-record truth into active verified, supplemental, and historical sections", () => {
     const model = createLearnerRecordPresentation(

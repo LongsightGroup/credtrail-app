@@ -20,6 +20,7 @@ type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 export interface AssertionEvidencePageInput {
   evidence: AssertionEvidencePresentation;
   notificationOutcome: IssuanceEmailOutcome;
+  notificationReceiptHref?: string;
   publicBadgeUrl: string;
   learnerRecordHref?: string | null;
   returnHref: string;
@@ -182,6 +183,11 @@ const renderAssertionEvidenceBody = (input: AssertionEvidencePageInput): HonoEle
       </section>
 
       <div class="assertion-evidence__section">
+        {input.notificationOutcome === "failed" && input.notificationReceiptHref ? (
+          <AdminButtonLink href={input.notificationReceiptHref} variant="secondary">
+            Retry notification email
+          </AdminButtonLink>
+        ) : null}
         <IssuanceNotification
           outcome={input.notificationOutcome}
           publicBadgeUrl={input.publicBadgeUrl}

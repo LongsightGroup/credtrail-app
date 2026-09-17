@@ -71,12 +71,18 @@ export const listLearnerRecordAssertionExports = async (
         assertions.issued_at AS issuedAt,
         assertions.issued_by_user_id AS issuedByUserId,
         assertions.revoked_at AS revokedAt,
+        lifecycle.to_state AS latestToState,
         tenants.display_name AS issuerName,
         assertions.created_at AS createdAt,
         assertions.updated_at AS updatedAt
       FROM assertions
       INNER JOIN tenants
         ON tenants.id = assertions.tenant_id
+      LEFT JOIN assertion_lifecycle_events lifecycle ON lifecycle.id = (
+        SELECT ale.id FROM assertion_lifecycle_events ale
+        WHERE ale.tenant_id = assertions.tenant_id AND ale.assertion_id = assertions.id
+        ORDER BY ale.transitioned_at DESC, ale.created_at DESC, ale.id DESC LIMIT 1
+      )
       WHERE assertions.tenant_id = ?
         AND ${learnerAccessFilter}
       ORDER BY assertions.issued_at DESC, assertions.id DESC

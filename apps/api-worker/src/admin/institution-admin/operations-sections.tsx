@@ -1,3 +1,4 @@
+import { formatIsoTimestamp } from "../../utils/display-format";
 import { SYNCHRONOUS_EXPORT_ROW_LIMIT } from "@credtrail/db";
 import { assertionLifecycleLabels } from "../../badges/assertion-lifecycle-labels";
 import { IssuedBadgeStatusPanel } from "../issued-badge-status-panel";
@@ -80,6 +81,10 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
   })
     .map(([key, label]) => ({ key, label }))
     .filter(({ label }) => label.length > 0);
+  const noRecordsMessage =
+    activeFilters.length > 0 || issuedBadgesFilters.cursor
+      ? "No records match these filters. Change or clear the filters to try again."
+      : "No badges have been issued yet.";
   const pagination = input.issuedBadgesWorkspace?.pagination;
   const pageHref = (cursor: string): string =>
     issuedBadgesPageUrl(
@@ -226,10 +231,19 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
           (pagination?.olderCursor || issuedBadgesFilters.cursor)
             ? `${String(issuedBadgesAssertions.length)} records on this page.`
             : issuedBadgesAssertions.length === 0
-              ? "No records match these filters. Change or clear the filters to try again."
+              ? noRecordsMessage
               : `${String(issuedBadgesAssertions.length)} matching ${issuedBadgesAssertions.length === 1 ? "record" : "records"}.`}
         </p>
       )}
+      {issuedBadgesAssertions?.length === 0 &&
+      activeFilters.length === 0 &&
+      !issuedBadgesFilters.cursor ? (
+        <AdminButtonLink
+          href={`/tenants/${encodeURIComponent(input.tenantId)}/admin/operations/issue`}
+        >
+          Issue a badge
+        </AdminButtonLink>
+      ) : null}
       {showIssuedBadgesExportAction ? (
         <section aria-label="CSV export" class="ct-stack">
           {exportCount > SYNCHRONOUS_EXPORT_ROW_LIMIT ? (
@@ -269,12 +283,11 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
         wrapperClassName="ct-admin__table-wrap ct-admin__badge-records-wrap"
       >
         {issuedBadgesAssertions === null ? (
-          <AdminEmptyTableRow colSpan={5}>
-            Use the search form above to load issued badges.
-          </AdminEmptyTableRow>
+          <AdminEmptyTableRow colSpan={5}>No badges have been issued yet.</AdminEmptyTableRow>
         ) : (
           <IssuedBadgeRows
             assertions={issuedBadgesAssertions}
+            emptyMessage={noRecordsMessage}
             learnerReturnHref={pageHref(issuedBadgesFilters.cursor ?? "")}
             evidenceHrefForAssertion={(assertionId) =>
               issuedBadgesAssertionPageUrl(
@@ -324,17 +337,45 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
 export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInput): HonoElement => {
   const reviewQueueResolvePath = tenantReviewQueueAdminResolvePath(input.tenantId);
   const selectedEntry = input.reviewQueueWorkspace?.entries.find(
-    (entry) =>
-      entry.evaluationId === input.reviewQueueWorkspace?.selectedEvaluationId &&
-      entry.reviewStatus === "pending",
+    (entry) => entry.evaluationId === input.reviewQueueWorkspace?.selectedEvaluationId,
   );
   return (
     <AdminPanel id="rule-review-queue-panel" variant="table">
       <h2>Rule Review Queue</h2>
+      <nav aria-label="Review status" class="ct-action-group">
+        <a
+          href={buildReviewQueuePagePath(input.tenantId)}
+          aria-current={
+            input.reviewQueueWorkspace?.reviewStatus !== "resolved" ? "page" : undefined
+          }
+        >
+          {input.reviewQueueWorkspace?.reviewStatus !== "resolved" ? (
+            <strong>Pending</strong>
+          ) : (
+            "Pending"
+          )}
+        </a>
+        <a
+          href={`${buildReviewQueuePagePath(input.tenantId)}?reviewStatus=resolved`}
+          aria-current={
+            input.reviewQueueWorkspace?.reviewStatus === "resolved" ? "page" : undefined
+          }
+        >
+          {input.reviewQueueWorkspace?.reviewStatus === "resolved" ? (
+            <strong>Resolved</strong>
+          ) : (
+            "Resolved"
+          )}
+        </a>
+      </nav>
       <p>
-        Missing-data evaluations that require a human issue-or-dismiss decision before a badge is
-        created.
+        Showing up to 50 recent{" "}
+        {input.reviewQueueWorkspace?.reviewStatus === "resolved"
+          ? "resolved reviews"
+          : "pending reviews"}
+        .
       </p>
+      <p>Review missing information before issuing a badge, or look up a saved decision.</p>
       {input.reviewQueueWorkspace?.listError !== null &&
       input.reviewQueueWorkspace?.listError !== undefined &&
       input.reviewQueueWorkspace.listError.length > 0 ? (
@@ -350,7 +391,9 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
           aria-label="Review decision"
           class="ct-admin__setup-panel ct-stack"
         >
-          <h3>Review badge decision</h3>
+          <h3>
+            {selectedEntry.reviewStatus === "pending" ? "Review badge decision" : "Saved decision"}
+          </h3>
           <p>
             <strong>Learner:</strong> {selectedEntry.recipientIdentity}
             <br />
@@ -358,44 +401,68 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
             <br />
             <strong>Rule:</strong> {selectedEntry.ruleName ?? "Rule details unavailable"}
           </p>
-          <h4>Missing information</h4>
-          {selectedEntry.missingInformation?.length ? (
-            <ul>
-              {selectedEntry.missingInformation.map((detail) => (
-                <li>{detail}</li>
-              ))}
-            </ul>
+          {selectedEntry.reviewStatus !== "pending" ? (
+            <section aria-label="Decision details" class="ct-stack">
+              <p>
+                <strong>Decision:</strong>{" "}
+                {selectedEntry.decision === "issue" ? "Badge issued" : "Review dismissed"}
+              </p>
+              <p>
+                <strong>Reviewed by:</strong>{" "}
+                {selectedEntry.reviewerEmail ?? "Reviewer unavailable"}
+              </p>
+              <p>
+                <strong>Reviewed on:</strong>{" "}
+                {selectedEntry.reviewedAt
+                  ? `${formatIsoTimestamp(selectedEntry.reviewedAt)} UTC`
+                  : "Date unavailable"}
+              </p>
+              <p>
+                <strong>Decision note:</strong> {selectedEntry.decisionNote || "No note was saved."}
+              </p>
+            </section>
           ) : (
-            <p>
-              No detailed explanation is available. Check the rule and supporting learner evidence
-              before deciding.
-            </p>
+            <>
+              <h4>Missing information</h4>
+              {selectedEntry.missingInformation?.length ? (
+                <ul>
+                  {selectedEntry.missingInformation.map((detail) => (
+                    <li>{detail}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p>
+                  No detailed explanation is available. Check the rule and supporting learner
+                  evidence before deciding.
+                </p>
+              )}
+              <p>
+                Issue badge creates a credential despite the missing information. Dismiss review
+                closes this request without issuing a badge.
+              </p>
+              <AdminForm
+                method="post"
+                action={reviewQueueResolvePath}
+                className="ct-admin__form ct-admin__setup-form ct-stack"
+              >
+                <CtInput type="hidden" name="evaluationId" value={selectedEntry.evaluationId} />
+                <AdminField label="Decision note (optional)">
+                  <CtTextarea name="comment" maxlength={2000} rows={3} />
+                </AdminField>
+                <AdminActions>
+                  <AdminButton type="submit" name="decision" value="issue">
+                    Issue badge
+                  </AdminButton>
+                  <AdminButton type="submit" name="decision" value="dismiss" variant="secondary">
+                    Dismiss review
+                  </AdminButton>
+                  <AdminButtonLink href={buildReviewQueuePagePath(input.tenantId)} variant="quiet">
+                    Cancel
+                  </AdminButtonLink>
+                </AdminActions>
+              </AdminForm>
+            </>
           )}
-          <p>
-            Issue badge creates a credential despite the missing information. Dismiss review closes
-            this request without issuing a badge.
-          </p>
-          <AdminForm
-            method="post"
-            action={reviewQueueResolvePath}
-            className="ct-admin__form ct-admin__setup-form ct-stack"
-          >
-            <CtInput type="hidden" name="evaluationId" value={selectedEntry.evaluationId} />
-            <AdminField label="Decision note (optional)">
-              <CtTextarea name="comment" maxlength={2000} rows={3} />
-            </AdminField>
-            <AdminActions>
-              <AdminButton type="submit" name="decision" value="issue">
-                Issue badge
-              </AdminButton>
-              <AdminButton type="submit" name="decision" value="dismiss" variant="secondary">
-                Dismiss review
-              </AdminButton>
-              <AdminButtonLink href={buildReviewQueuePagePath(input.tenantId)} variant="quiet">
-                Cancel
-              </AdminButtonLink>
-            </AdminActions>
-          </AdminForm>
         </section>
       ) : null}
       <AdminTable headers={["Evaluated", "Recipient", "Rule", "Summary", "Actions"]}>
@@ -404,6 +471,11 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
         ) : (
           <ReviewQueueRows
             entries={input.reviewQueueWorkspace.entries}
+            emptyMessage={
+              input.reviewQueueWorkspace.reviewStatus === "resolved"
+                ? "No resolved reviews yet."
+                : "No pending review queue entries."
+            }
             resolveActionPath={reviewQueueResolvePath}
           />
         )}

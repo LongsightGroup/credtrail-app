@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   findBadgeIssuanceRuleVersionById,
+  findUserById,
   listBadgeIssuanceRuleEvaluations,
   type BadgeIssuanceRuleEvaluationRecord,
   type SqlDatabase,
@@ -23,6 +24,10 @@ export interface BadgeRuleReviewQueueApiEntry extends BadgeIssuanceRuleEvaluatio
 }
 
 export interface BadgeRuleReviewQueueEntryView {
+  decision?: string | null;
+  decisionNote?: string | null;
+  reviewedAt?: string | null;
+  reviewerEmail?: string | null;
   evaluationId: string;
   evaluatedAt: string;
   recipientIdentity: string;
@@ -117,7 +122,7 @@ export const loadBadgeRuleReviewQueueForApi = async (
   const evaluations =
     (await listBadgeIssuanceRuleEvaluations(db, {
       tenantId,
-      issuanceStatus: "review_required",
+      ...(reviewStatus === "pending" ? { issuanceStatus: "review_required" as const } : {}),
       reviewStatus,
       limit: input?.limit ?? 50,
     })) ?? [];
@@ -177,7 +182,20 @@ export const loadBadgeRuleReviewQueueEntries = async (
 ): Promise<BadgeRuleReviewQueueEntryView[]> => {
   const queue = await loadBadgeRuleReviewQueueForApi(db, tenantId, input);
 
+  const reviewers = new Map(
+    await Promise.all(
+      [
+        ...new Set(
+          queue.flatMap((entry) => (entry.reviewedByUserId ? [entry.reviewedByUserId] : [])),
+        ),
+      ].map(async (userId) => [userId, (await findUserById(db, userId))?.email ?? null] as const),
+    ),
+  );
   return queue.map((entry) => ({
+    decision: entry.reviewDecision,
+    decisionNote: entry.reviewComment,
+    reviewedAt: entry.reviewedAt,
+    reviewerEmail: entry.reviewedByUserId ? (reviewers.get(entry.reviewedByUserId) ?? null) : null,
     evaluationId: entry.id,
     evaluatedAt: entry.evaluatedAt,
     recipientIdentity: entry.recipientIdentity,

@@ -251,7 +251,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
         <>
           {renderPageHeader(
             "Rule Review Queue",
-            "Review pending badge decisions without mixing them into the rest of operations.",
+            "Review pending badge decisions and look up completed reviews.",
           )}
           <section class="ct-admin ct-stack">
             {content.operations.ruleReviewQueuePanelMarkup}

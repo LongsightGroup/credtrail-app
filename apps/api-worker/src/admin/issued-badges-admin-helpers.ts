@@ -107,28 +107,6 @@ export const buildIssuedBadgesPageQuery = (
   return query;
 };
 
-const issuedBadgesSearchFieldNames = [
-  "cursor",
-  "issuedFrom",
-  "issuedTo",
-  "recipientQuery",
-  "badgeTemplateId",
-  "orgUnitId",
-  "state",
-  "limit",
-] as const;
-
-type IssuedBadgesSearchFieldName = (typeof issuedBadgesSearchFieldNames)[number];
-
-export const shouldLoadIssuedBadgesList = (
-  query: Partial<Record<IssuedBadgesSearchFieldName, string | undefined>>,
-): boolean => {
-  return issuedBadgesSearchFieldNames.some(
-    (fieldName) =>
-      Object.prototype.hasOwnProperty.call(query, fieldName) && query[fieldName] !== undefined,
-  );
-};
-
 export const issuedBadgesLedgerExportUrl = (
   tenantId: string,
   filters: IssuedBadgesPageFilterValues,

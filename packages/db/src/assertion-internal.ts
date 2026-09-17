@@ -83,6 +83,7 @@ export interface AssertionLifecycleEventRow {
 }
 
 export interface LearnerRecordAssertionExportRow extends AssertionAchievementSnapshotRow {
+  latestToState: AssertionLifecycleState | null;
   assertionId: string;
   assertionPublicId: string | null;
   tenantId: string;
@@ -398,6 +399,13 @@ export const mapLearnerRecordAssertionExportRow = (
   return {
     assertionId: row.assertionId,
     assertionPublicId: row.assertionPublicId,
+    state: resolveAssertionLifecycleProjection({
+      revokedAt: row.revokedAt,
+      latestToState: row.latestToState,
+      latestReasonCode: null,
+      latestReason: null,
+      latestTransitionedAt: null,
+    }).state,
     tenantId: row.tenantId,
     learnerProfileId: row.learnerProfileId,
     badgeTemplateId: row.badgeTemplateId,

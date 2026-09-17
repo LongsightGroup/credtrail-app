@@ -18,7 +18,8 @@ const INSTITUTION_ADMIN_ISSUED_BADGES_JS = readScriptAssetSource("institutionAdm
 const INSTITUTION_ADMIN_JS = readScriptAssetSource("institutionAdminJs");
 
 describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
-  it("renders the issued badges ledger on its own page", async () => {
+  it("loads recent records without submitting filters", async () => {
+    mockedListTenantAssertions.mockResolvedValueOnce([sampleTenantAssertionSummary()]);
     const env = createEnv();
 
     const response = await app.request(
@@ -32,7 +33,7 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     );
     const body = await response.text();
 
-    expect(mockedListTenantAssertions).not.toHaveBeenCalled();
+    expect(mockedListTenantAssertions).toHaveBeenCalledTimes(1);
     expect(response.status).toBe(200);
     expect(body).toContain("Badge Records");
     expect(body).toContain('id="issued-badges-filter-form"');
@@ -44,9 +45,9 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     expect(body).not.toContain("issuedBadgeRowsPath");
     expect(body).not.toContain('id="issued-badges-export-form"');
     expect(body).not.toContain("Ledger export");
-    expect(body).not.toContain("Export matching CSV");
+    expect(body).toContain("Export matching CSV");
     expect(body).not.toContain("pending_review");
-    expect(body).toContain("Use the search form above to load issued badges.");
+    expect(body).toContain("learner@example.edu");
     expect(body).toContain('method="get"');
     expect(body).toContain("/tenants/tenant_123/admin/operations/issued-badges");
     expect(body).toContain('method="post"');
@@ -61,7 +62,7 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
     expect(INSTITUTION_ADMIN_ISSUED_BADGES_JS).not.toContain("loadAssertionLifecycle");
   });
 
-  it("loads issued badges only after search filters are submitted", async () => {
+  it("filters the recent records when search is submitted", async () => {
     const env = createEnv();
 
     await app.request(
@@ -157,7 +158,9 @@ describe("GET /tenants/:tenantId/admin/operations/issued-badges", () => {
 
     expect(response.status).toBe(200);
     expect(mockedListTenantAssertions).toHaveBeenCalledTimes(1);
-    expect(body).toContain("No assertions matched the selected filters.");
+    expect(body).toContain(
+      "No records match these filters. Change or clear the filters to try again.",
+    );
     expect(body).not.toContain("Export matching CSV");
   });
 

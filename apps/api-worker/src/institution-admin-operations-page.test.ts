@@ -920,9 +920,7 @@ describe("GET /tenants/:tenantId/admin/operations/review-queue", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("Rule Review Queue");
-    expect(body).toContain(
-      "Review pending badge decisions without mixing them into the rest of operations.",
-    );
+    expect(body).toContain("Review pending badge decisions and look up completed reviews.");
     expect(body).not.toContain('id="rule-review-queue-refresh"');
     expect(body).not.toContain("No review queue entries loaded yet");
     expect(body).toContain('method="post"');

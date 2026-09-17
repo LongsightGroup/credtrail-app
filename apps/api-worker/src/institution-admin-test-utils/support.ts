@@ -335,6 +335,7 @@ export const sampleLearnerRecordAssertionExport = (
   overrides?: Partial<LearnerRecordAssertionExportRecord>,
 ): LearnerRecordAssertionExportRecord => {
   return {
+    state: "active",
     assertionId: "tenant_123:assertion_456",
     assertionPublicId: "public_assertion_456",
     tenantId: "tenant_123",

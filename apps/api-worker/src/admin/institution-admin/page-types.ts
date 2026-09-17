@@ -114,6 +114,7 @@ export interface InstitutionAdminIssuedBadgesWorkspace {
 }
 
 export interface InstitutionAdminReviewQueueWorkspace {
+  reviewStatus?: "pending" | "resolved";
   selectedEvaluationId?: string;
   entries: readonly BadgeRuleReviewQueueEntryView[];
   listNotice: string | null;

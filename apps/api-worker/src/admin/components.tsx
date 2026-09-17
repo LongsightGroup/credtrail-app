@@ -796,7 +796,13 @@ const ReviewQueueRow = (input: {
             Review decision
           </AdminButtonLink>
         ) : (
-          <AdminMeta>Resolved</AdminMeta>
+          <AdminButtonLink
+            href={`${input.resolveActionPath.replace(/\/resolve$/, "")}?${new URLSearchParams({ reviewStatus: "resolved", review: entry.evaluationId })}#review-decision-panel`}
+            variant="secondary"
+            size="tiny"
+          >
+            View decision
+          </AdminButtonLink>
         )}
       </td>
     </tr>
