@@ -4,6 +4,7 @@ import {
   findUserById,
   listBadgeIssuanceRuleEvaluations,
   type BadgeIssuanceRuleEvaluationRecord,
+  type ListBadgeIssuanceRuleEvaluationsInput,
   type SqlDatabase,
 } from "@credtrail/db";
 import {
@@ -24,6 +25,7 @@ export interface BadgeRuleReviewQueueApiEntry extends BadgeIssuanceRuleEvaluatio
 }
 
 export interface BadgeRuleReviewQueueEntryView {
+  assertionId?: string | null;
   decision?: string | null;
   decisionNote?: string | null;
   reviewedAt?: string | null;
@@ -113,14 +115,12 @@ const evaluationPayloadFromRecord = (
 export const loadBadgeRuleReviewQueueForApi = async (
   db: SqlDatabase,
   tenantId: string,
-  input?: {
-    reviewStatus?: "pending" | "resolved";
-    limit?: number;
-  },
+  input?: Omit<ListBadgeIssuanceRuleEvaluationsInput, "tenantId" | "issuanceStatus">,
 ): Promise<BadgeRuleReviewQueueApiEntry[]> => {
   const reviewStatus = input?.reviewStatus ?? "pending";
   const evaluations =
     (await listBadgeIssuanceRuleEvaluations(db, {
+      ...input,
       tenantId,
       ...(reviewStatus === "pending" ? { issuanceStatus: "review_required" as const } : {}),
       reviewStatus,
@@ -175,10 +175,7 @@ export const loadBadgeRuleReviewQueueForApi = async (
 export const loadBadgeRuleReviewQueueEntries = async (
   db: SqlDatabase,
   tenantId: string,
-  input?: {
-    reviewStatus?: "pending" | "resolved";
-    limit?: number;
-  },
+  input?: Omit<ListBadgeIssuanceRuleEvaluationsInput, "tenantId" | "issuanceStatus">,
 ): Promise<BadgeRuleReviewQueueEntryView[]> => {
   const queue = await loadBadgeRuleReviewQueueForApi(db, tenantId, input);
 
@@ -192,6 +189,7 @@ export const loadBadgeRuleReviewQueueEntries = async (
     ),
   );
   return queue.map((entry) => ({
+    assertionId: entry.assertionId,
     decision: entry.reviewDecision,
     decisionNote: entry.reviewComment,
     reviewedAt: entry.reviewedAt,

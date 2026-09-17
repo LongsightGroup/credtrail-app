@@ -1,3 +1,4 @@
+import { badgeRecordReturnLink } from "../../admin/badge-record-return-link";
 import { paginateIssuedBadges } from "../../admin/issued-badge-pagination";
 import { learnerRecordLink } from "../../admin/learner-record-link";
 import type { IssuedBadgeStatusCorrection } from "../../admin/issued-badge-status-form";
@@ -307,6 +308,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
           ? {}
           : { switchOrganizationPath: pageData.switchOrganizationPath }),
         evidencePage: {
+          backLink: badgeRecordReturnLink(tenantId, c.req.query("returnTo")),
           learnerRecordHref: learnerRecordLink(
             tenantId,
             evidenceLoaded.data.assertion.recipientIdentityType,
@@ -365,6 +367,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
     c: AppContext,
     tenantId: string,
     nextPath: string,
+    correction?: import("../../admin/review-queue-page-query").ReviewQueueCorrection,
   ): Promise<Response> => {
     return renderInstitutionAdminReviewQueueWorkspace(
       c,
@@ -372,6 +375,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       tenantId,
       nextPath,
       workspaceRendererDeps("operationsReviewQueue"),
+      correction,
     );
   };
 

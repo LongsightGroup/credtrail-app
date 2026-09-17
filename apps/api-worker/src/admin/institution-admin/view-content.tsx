@@ -241,6 +241,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
     },
   },
   operationsReviewQueue: {
+    extraAssets: ["institutionAdminReviewQueueJs"],
     titlePrefix: "Rule Review Queue · Institution Admin",
     controller: "shell",
     dataNeeds: viewDataNeeds({

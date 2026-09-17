@@ -33,6 +33,11 @@ test("status changes explain filtered results and learner records show useful la
     page.getByText(`Reviewing ${identity.recipientEmail}.`, { exact: false }),
   ).toBeVisible();
   await expect(page.getByText("Issuer verified · Expired", { exact: true })).toBeVisible();
+  const learnerUrl = page.url();
+  await page.getByRole("link", { name: "View badge record", exact: true }).click();
+  await expect(page.locator(".assertion-evidence__status-row")).toContainText("Expired");
+  await page.getByRole("link", { name: "Back to learner record", exact: true }).click();
+  await expect(page).toHaveURL(learnerUrl);
   await expect(page.getByText("Learner profile ID:", { exact: false })).toBeHidden();
   await expect(page.getByRole("link", { name: "Download learner record (JSON)" })).toBeVisible();
   await expect(page.getByText("Phase 27", { exact: false })).toHaveCount(0);

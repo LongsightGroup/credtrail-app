@@ -9,12 +9,24 @@ import type {
 
 type TenantAssertionRecordFilterQuery = Pick<
   TenantAssertionLedgerExportQuery,
-  "issuedFrom" | "issuedTo" | "badgeTemplateId" | "orgUnitId" | "recipientQuery" | "state"
+  | "issuedFrom"
+  | "issuedTo"
+  | "badgeTemplateId"
+  | "orgUnitId"
+  | "recipientQuery"
+  | "state"
+  | "notificationStatus"
 >;
 
 type TenantAssertionRecordFilterInput = Pick<
   ListTenantAssertionLedgerExportRowsInput,
-  "issuedFrom" | "issuedTo" | "badgeTemplateId" | "orgUnitId" | "recipientQuery" | "state"
+  | "issuedFrom"
+  | "issuedTo"
+  | "badgeTemplateId"
+  | "orgUnitId"
+  | "recipientQuery"
+  | "state"
+  | "notificationStatus"
 >;
 
 const applyTenantAssertionRecordFilters = <T extends TenantAssertionRecordFilterInput>(
@@ -40,6 +52,8 @@ const applyTenantAssertionRecordFilters = <T extends TenantAssertionRecordFilter
   if (query.recipientQuery !== undefined) {
     input.recipientQuery = query.recipientQuery;
   }
+
+  if (query.notificationStatus !== undefined) input.notificationStatus = query.notificationStatus;
 
   if (query.state !== undefined) {
     input.state = query.state;

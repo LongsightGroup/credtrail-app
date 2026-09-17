@@ -23,6 +23,7 @@ export interface AssertionEvidencePageInput {
   notificationReceiptHref?: string;
   publicBadgeUrl: string;
   learnerRecordHref?: string | null;
+  backLink?: { href: string; label: string } | null;
   returnHref: string;
   evidenceApiPath: string;
 }
@@ -150,8 +151,8 @@ const renderAssertionEvidenceBody = (input: AssertionEvidencePageInput): HonoEle
           >
             Manage status
           </AdminButtonLink>
-          <AdminButtonLink href={input.returnHref} variant="secondary">
-            Back to badge records
+          <AdminButtonLink href={input.backLink?.href ?? input.returnHref} variant="secondary">
+            {input.backLink?.label ?? "Back to badge records"}
           </AdminButtonLink>
           <AdminButton type="button" variant="secondary" id="assertion-evidence-print">
             Print report

@@ -14,6 +14,7 @@ export const optionalBlankStringToUndefined = (input: unknown): unknown => {
 const assertionRecordDateSchema = z.iso.date();
 
 export const tenantAssertionRecordFilterQueryShape = {
+  notificationStatus: z.preprocess(optionalBlankStringToUndefined, z.literal("failed").optional()),
   issuedFrom: z.preprocess(optionalBlankStringToUndefined, assertionRecordDateSchema.optional()),
   issuedTo: z.preprocess(optionalBlankStringToUndefined, assertionRecordDateSchema.optional()),
   badgeTemplateId: z.preprocess(optionalBlankStringToUndefined, resourceIdSchema.optional()),

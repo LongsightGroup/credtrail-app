@@ -42,6 +42,10 @@ export interface CreateBadgeIssuanceRuleEvaluationInput {
 }
 
 export interface ListBadgeIssuanceRuleEvaluationsInput {
+  search?: string | undefined;
+  evaluationId?: string | undefined;
+  cursor?: { at: string; id: string; direction: "older" | "newer" } | undefined;
+  includeLookahead?: boolean;
   tenantId: string;
   ruleId?: string | undefined;
   versionId?: string | undefined;
@@ -307,7 +311,18 @@ export const listBadgeIssuanceRuleEvaluations = async (
   db: SqlDatabase,
   input: ListBadgeIssuanceRuleEvaluationsInput,
 ): Promise<BadgeIssuanceRuleEvaluationRecord[]> => {
-  const limit = input.limit ?? 50;
+  const limit = Math.min(500, Math.max(1, input.limit ?? 50));
+  const at =
+    input.reviewStatus === "resolved"
+      ? "COALESCE(evaluations.reviewed_at, evaluations.evaluated_at)"
+      : "evaluations.evaluated_at";
+  const order = input.cursor?.direction === "newer" ? "ASC" : "DESC";
+  const cursorSql = input.cursor
+    ? `AND (${at}, evaluations.id) ${input.cursor.direction === "newer" ? ">" : "<"} (?, ?)`
+    : "";
+  const search = input.search?.trim()
+    ? `%${input.search.trim().replace(/[\\%_]/g, "\\$&")}%`
+    : null;
   const listStatement = (): Promise<SqlQueryResult<BadgeIssuanceRuleEvaluationRow>> =>
     db
       .prepare(
@@ -335,13 +350,17 @@ export const listBadgeIssuanceRuleEvaluations = async (
         INNER JOIN badge_issuance_rules AS rules
           ON rules.id = evaluations.rule_id
           AND rules.tenant_id = evaluations.tenant_id
+        INNER JOIN badge_issuance_rule_versions versions ON versions.id = evaluations.version_id AND versions.tenant_id = evaluations.tenant_id
         WHERE evaluations.tenant_id = ?
           AND (CAST(? AS TEXT) IS NULL OR evaluations.rule_id = ?)
           AND (CAST(? AS TEXT) IS NULL OR evaluations.version_id = ?)
           AND (CAST(? AS TEXT) IS NULL OR rules.badge_template_id = ?)
           AND (CAST(? AS TEXT) IS NULL OR evaluations.issuance_status = ?)
           AND (CAST(? AS TEXT) IS NULL OR evaluations.review_status = ?)
-        ORDER BY ${input.reviewStatus === "resolved" ? "evaluations.reviewed_at" : "evaluations.evaluated_at"} DESC, evaluations.id DESC
+          AND (CAST(? AS TEXT) IS NULL OR evaluations.id = ?)
+          AND (CAST(? AS TEXT) IS NULL OR evaluations.recipient_identity ILIKE ? OR versions.snapshot_badge_template_title ILIKE ?)
+          ${cursorSql}
+        ORDER BY ${at} ${order}, evaluations.id ${order}
         LIMIT ?
       `,
       )
@@ -357,7 +376,13 @@ export const listBadgeIssuanceRuleEvaluations = async (
         input.issuanceStatus ?? null,
         input.reviewStatus ?? null,
         input.reviewStatus ?? null,
-        limit,
+        input.evaluationId ?? null,
+        input.evaluationId ?? null,
+        search,
+        search,
+        search,
+        ...(input.cursor ? [input.cursor.at, input.cursor.id] : []),
+        limit + (input.includeLookahead ? 1 : 0),
       )
       .all<BadgeIssuanceRuleEvaluationRow>();
 

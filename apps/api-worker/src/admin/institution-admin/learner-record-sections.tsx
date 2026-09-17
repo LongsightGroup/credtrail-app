@@ -144,7 +144,16 @@ export const renderInstitutionAdminLearnerRecordSections = (
           </details>
           {evidenceMarkup}
         </div>
-        {publicBadgeMarkup}
+        <AdminActions>
+          {item.kind === "badge_assertion" && learnerRecordReview.presentation ? (
+            <AdminButtonLink
+              href={`/tenants/${encodeURIComponent(learnerRecordReview.presentation.tenantId)}/admin/operations/issued-badges/${encodeURIComponent(item.id)}/evidence?${new URLSearchParams({ returnTo: `${operationsLearnerRecordsPath}?${new URLSearchParams({ ...learnerRecordReview.lookup, ...(learnerRecordReview.returnHref ? { returnTo: learnerRecordReview.returnHref } : {}) })}` })}`}
+            >
+              View badge record
+            </AdminButtonLink>
+          ) : null}
+          {publicBadgeMarkup}
+        </AdminActions>
       </AdminMetricCard>
     );
   };

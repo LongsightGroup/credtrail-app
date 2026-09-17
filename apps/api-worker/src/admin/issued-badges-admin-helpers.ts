@@ -12,6 +12,7 @@ export type IssuedBadgeLifecycleMode =
   | "expire";
 
 export interface IssuedBadgesPageFilterValues {
+  notificationStatus?: string;
   cursor?: string;
   issuedFrom: string;
   issuedTo: string;
@@ -47,6 +48,7 @@ const buildAssertionEvidencePagePath = (
 
 export const emptyIssuedBadgesPageFilterValues = (): IssuedBadgesPageFilterValues => {
   return {
+    notificationStatus: "",
     issuedFrom: "",
     issuedTo: "",
     recipientQuery: "",
@@ -61,6 +63,7 @@ const issuedBadgesTextFilterNames = [
   "issuedFrom",
   "issuedTo",
   "recipientQuery",
+  "notificationStatus",
   "badgeTemplateId",
   "orgUnitId",
   "state",
@@ -77,6 +80,7 @@ const issuedBadgesLedgerExportTextFilterNames: readonly IssuedBadgesTextFilterNa
   "orgUnitId",
   "state",
   "recipientQuery",
+  "notificationStatus",
 ];
 
 const appendIssuedBadgesTextFilterParams = (
@@ -87,7 +91,7 @@ const appendIssuedBadgesTextFilterParams = (
   for (const fieldName of fieldNames) {
     const value = filters[fieldName];
 
-    if (value.length > 0) {
+    if (value !== undefined && value.length > 0) {
       query.set(fieldName, value);
     }
   }
@@ -145,7 +149,7 @@ export const issuedBadgesPageUrl = (
 
   if (extra !== undefined) {
     for (const [key, value] of Object.entries(extra)) {
-      if (value.length > 0) {
+      if (value !== undefined && value.length > 0) {
         query.set(key, value);
       }
     }
@@ -183,6 +187,7 @@ const parseLifecycleMode = (raw: string | undefined): IssuedBadgeLifecycleMode |
 };
 
 export const parseIssuedBadgesPageQuery = (query: {
+  notificationStatus?: string;
   cursor?: string;
   issuedFrom?: string;
   issuedTo?: string;
@@ -195,6 +200,7 @@ export const parseIssuedBadgesPageQuery = (query: {
   lifecycleMode?: string;
 }): ParsedIssuedBadgesPageQuery => {
   const parsedListQuery: TenantAssertionListQuery = parseTenantAssertionListQuery({
+    notificationStatus: query.notificationStatus,
     issuedFrom: query.issuedFrom,
     issuedTo: query.issuedTo,
     recipientQuery: query.recipientQuery,
@@ -213,6 +219,7 @@ export const parseIssuedBadgesPageQuery = (query: {
     cursor,
     filters: {
       ...(cursor === undefined ? {} : { cursor: JSON.stringify(cursor) }),
+      notificationStatus: parsedListQuery.notificationStatus ?? "",
       issuedFrom: parsedListQuery.issuedFrom ?? "",
       issuedTo: parsedListQuery.issuedTo ?? "",
       recipientQuery: parsedListQuery.recipientQuery ?? "",

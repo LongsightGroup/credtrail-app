@@ -714,6 +714,7 @@ const IssuedBadgeActions = (input: {
 };
 
 const IssuedBadgeRow = (input: {
+  showNotificationRetry?: boolean | undefined;
   learnerReturnHref?: string | undefined;
   assertion: TenantAssertionSummaryRecord;
   evidenceHref: string;
@@ -753,6 +754,14 @@ const IssuedBadgeRow = (input: {
       </td>
       <td data-label="Actions" role="cell" class="ct-admin__issued-actions-cell">
         <div class="ct-admin__issued-actions">
+          {input.showNotificationRetry ? (
+            <AdminButtonLink
+              href={`/tenants/${encodeURIComponent(assertion.tenantId)}/admin/operations/issue/${encodeURIComponent(assertion.assertionId)}/receipt`}
+              size="tiny"
+            >
+              Retry notification email
+            </AdminButtonLink>
+          ) : null}
           <IssuedBadgeActions
             assertionId={assertion.assertionId}
             viewBadgeHref={viewBadgeHref}
@@ -767,6 +776,7 @@ const IssuedBadgeRow = (input: {
 };
 
 const ReviewQueueRow = (input: {
+  reviewHref?: string | undefined;
   entry: BadgeRuleReviewQueueEntryView;
   resolveActionPath: string;
 }): HonoElement => {
@@ -789,7 +799,10 @@ const ReviewQueueRow = (input: {
       <td class="ct-admin__issued-actions-cell">
         {isPending ? (
           <AdminButtonLink
-            href={`${input.resolveActionPath.replace(/\/resolve$/, "")}?${new URLSearchParams({ review: entry.evaluationId })}#review-decision-panel`}
+            href={
+              input.reviewHref ??
+              `${input.resolveActionPath.replace(/\/resolve$/, "")}?${new URLSearchParams({ review: entry.evaluationId })}#review-decision-panel`
+            }
             variant="secondary"
             size="tiny"
           >
@@ -797,7 +810,10 @@ const ReviewQueueRow = (input: {
           </AdminButtonLink>
         ) : (
           <AdminButtonLink
-            href={`${input.resolveActionPath.replace(/\/resolve$/, "")}?${new URLSearchParams({ reviewStatus: "resolved", review: entry.evaluationId })}#review-decision-panel`}
+            href={
+              input.reviewHref ??
+              `${input.resolveActionPath.replace(/\/resolve$/, "")}?${new URLSearchParams({ reviewStatus: "resolved", review: entry.evaluationId })}#review-decision-panel`
+            }
             variant="secondary"
             size="tiny"
           >
@@ -810,6 +826,7 @@ const ReviewQueueRow = (input: {
 };
 
 export const ReviewQueueRows = (input: {
+  reviewHrefForEntry?: (entry: BadgeRuleReviewQueueEntryView) => string;
   entries: readonly BadgeRuleReviewQueueEntryView[];
   resolveActionPath: string;
   emptyMessage?: string;
@@ -825,13 +842,18 @@ export const ReviewQueueRows = (input: {
   return (
     <>
       {input.entries.map((entry) => (
-        <ReviewQueueRow entry={entry} resolveActionPath={input.resolveActionPath} />
+        <ReviewQueueRow
+          entry={entry}
+          resolveActionPath={input.resolveActionPath}
+          reviewHref={input.reviewHrefForEntry?.(entry)}
+        />
       ))}
     </>
   );
 };
 
 export const IssuedBadgeRows = (input: {
+  showNotificationRetry?: boolean | undefined;
   learnerReturnHref?: string;
   assertions: readonly TenantAssertionSummaryRecord[];
   evidenceHrefForAssertion: (assertionId: string) => string;
@@ -851,6 +873,7 @@ export const IssuedBadgeRows = (input: {
       {input.assertions.map((assertion) => (
         <IssuedBadgeRow
           assertion={assertion}
+          showNotificationRetry={input.showNotificationRetry}
           learnerReturnHref={input.learnerReturnHref}
           evidenceHref={input.evidenceHrefForAssertion(assertion.assertionId)}
           statusHref={input.statusHrefForAssertion(assertion.assertionId)}

@@ -118,6 +118,7 @@ export const registerTenantGovernanceRoutes = (
   });
 
   registerTenantReviewQueueAdminRoutes({
+    renderCorrection: institutionWorkspaces.renderReviewQueueWorkspace,
     app: input.app,
     resolveDatabase: input.resolveDatabase,
     resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,

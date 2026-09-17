@@ -94,16 +94,7 @@ export interface InstitutionAdminApiKeysWorkspace {
 export interface InstitutionAdminIssuedBadgesWorkspace {
   exportCount?: number | null;
   pagination?: { olderCursor: string | null; newerCursor: string | null };
-  filters: {
-    cursor?: string;
-    issuedFrom: string;
-    issuedTo: string;
-    recipientQuery: string;
-    badgeTemplateId: string;
-    orgUnitId: string;
-    state: string;
-    limit: number;
-  };
+  filters: import("../issued-badges-admin-helpers").IssuedBadgesPageFilterValues;
   assertions: readonly TenantAssertionSummaryRecord[] | null;
   listNotice: string | null;
   listError: string | null;
@@ -114,6 +105,11 @@ export interface InstitutionAdminIssuedBadgesWorkspace {
 }
 
 export interface InstitutionAdminReviewQueueWorkspace {
+  query?: import("../review-queue-page-query").ReviewQueuePageQuery;
+  selectedEntry?: BadgeRuleReviewQueueEntryView | undefined;
+  correction?: import("../review-queue-page-query").ReviewQueueCorrection | undefined;
+  olderHref?: string | null;
+  newerHref?: string | null;
   reviewStatus?: "pending" | "resolved";
   selectedEvaluationId?: string;
   entries: readonly BadgeRuleReviewQueueEntryView[];

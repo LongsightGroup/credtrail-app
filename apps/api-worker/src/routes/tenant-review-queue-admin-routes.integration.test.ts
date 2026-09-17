@@ -46,6 +46,7 @@ describeDbIntegration("review queue decisions", () => {
       const app = new Hono<AppEnv>();
       registerTenantReviewQueueAdminRoutes({
         app,
+        renderCorrection: async (c, _tenantId, _nextPath, correction) => c.json(correction, 422),
         resolveDatabase: () => fixture.db,
         resolveInstitutionAdminAdminRole: async () => ({
           principal: {
@@ -60,6 +61,34 @@ describeDbIntegration("review queue decisions", () => {
           throw new Error("Dismiss must not issue a badge");
         },
       });
+      for (const decision of ["invalid", "issue"]) {
+        const failed = await app.request(
+          `/tenants/${fixture.tenantId}/admin/operations/review-queue/resolve`,
+          {
+            method: "POST",
+            body: new URLSearchParams({
+              evaluationId: evaluation.id,
+              decision,
+              q: "review",
+              comment: "  Keep this note after an error.  ",
+            }),
+          },
+        );
+        expect(failed.status).toBe(422);
+        expect(await failed.json()).toMatchObject({
+          evaluationId: evaluation.id,
+          comment: "  Keep this note after an error.  ",
+          query: { q: "review" },
+        });
+        expect(
+          (
+            await findBadgeIssuanceRuleEvaluationById(fixture.db, {
+              tenantId: fixture.tenantId,
+              evaluationId: evaluation.id,
+            })
+          )?.reviewStatus,
+        ).toBe("pending");
+      }
       const response = await app.request(
         `/tenants/${fixture.tenantId}/admin/operations/review-queue/resolve`,
         {

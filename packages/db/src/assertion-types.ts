@@ -165,6 +165,7 @@ export interface RecordAssertionRevocationResult {
 }
 
 export interface ListTenantAssertionsInput {
+  notificationStatus?: "failed" | undefined;
   cursor?: { issuedAt: string; assertionId: string; direction: "older" | "newer" } | undefined;
   includeLookahead?: boolean;
   tenantId: string;
@@ -460,6 +461,7 @@ export interface TenantAssertionSummaryRecord {
 export const SYNCHRONOUS_EXPORT_ROW_LIMIT = 5000;
 
 export interface ListTenantAssertionLedgerExportRowsInput {
+  notificationStatus?: "failed" | undefined;
   tenantId: string;
   issuedFrom?: string | undefined;
   issuedTo?: string | undefined;

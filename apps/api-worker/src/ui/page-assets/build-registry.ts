@@ -118,6 +118,11 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     stem: "copy-public-badge-link",
     sources: ["copy-public-badge-link.js"],
   },
+  institutionAdminReviewQueueJs: {
+    kind: "script",
+    stem: "institution-admin-review-queue",
+    sources: ["institution-admin-review-queue.js"],
+  },
   institutionAdminManualIssueJs: {
     kind: "script",
     stem: "institution-admin-manual-issue",

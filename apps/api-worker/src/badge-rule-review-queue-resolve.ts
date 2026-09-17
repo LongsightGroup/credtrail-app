@@ -167,7 +167,8 @@ export const resolveBadgeRuleReviewQueueEntry = async (input: {
       return {
         ok: false,
         status: 502,
-        error: error instanceof Error ? error.message : "Failed to issue badge from review queue",
+        error:
+          "The badge could not be issued. Your decision note is preserved. Try again or contact an administrator.",
       };
     }
   }

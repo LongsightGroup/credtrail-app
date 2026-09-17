@@ -1,3 +1,10 @@
+import { z } from "zod";
+import {
+  parseReviewQueuePageQuery,
+  reviewQueuePageUrl,
+  type ReviewQueueCorrection,
+  type ReviewQueuePageQuery,
+} from "../admin/review-queue-page-query";
 import type { TenantMembershipRole } from "@credtrail/db";
 import {
   parseResolveBadgeIssuanceRuleReviewRequest,
@@ -6,10 +13,7 @@ import {
 import type { Hono } from "hono";
 import { readOptionalFormField } from "../admin/admin-form-helpers";
 import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
-import {
-  buildReviewQueuePagePath,
-  tenantReviewQueueAdminResolvePath,
-} from "../admin/review-queue-admin-helpers";
+import { tenantReviewQueueAdminResolvePath } from "../admin/review-queue-admin-helpers";
 import type { AppContext, AppEnv } from "../app/types";
 import type { IssueBadgeForTenant, ResolveDatabase } from "../app/route-deps";
 import type { AuthenticatedPrincipal } from "../auth/auth-context";
@@ -17,6 +21,12 @@ import { resolveBadgeRuleReviewQueueEntry } from "../badge-rule-review-queue-res
 
 interface RegisterTenantReviewQueueAdminRoutesInput {
   app: Hono<AppEnv>;
+  renderCorrection: (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+    correction: ReviewQueueCorrection,
+  ) => Promise<Response>;
   resolveDatabase: ResolveDatabase;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
@@ -59,17 +69,41 @@ export const registerTenantReviewQueueAdminRoutes = (
         message,
       });
 
-      return c.redirect(buildReviewQueuePagePath(pathParams.tenantId), 303);
+      return c.redirect(reviewQueuePageUrl(pathParams.tenantId, { ...query, review: "" }), 303);
     };
 
     const formData = await c.req.formData();
     const evaluationId = readOptionalFormField(formData, "evaluationId") ?? "";
     const decisionRaw = readOptionalFormField(formData, "decision");
     const comment = readOptionalFormField(formData, "comment");
+    const rawComment = formData.get("comment");
 
-    if (evaluationId.length === 0) {
-      return redirectToReviewQueue("error", "Choose a review entry before taking action.");
+    let query: ReviewQueuePageQuery;
+    try {
+      query = parseReviewQueuePageQuery({
+        q: readOptionalFormField(formData, "q") ?? "",
+        reviewStatus: readOptionalFormField(formData, "reviewStatus") ?? "pending",
+        cursor: readOptionalFormField(formData, "cursor"),
+      });
+    } catch {
+      query = parseReviewQueuePageQuery({});
     }
+    const correct = async (message: string): Promise<Response> => {
+      c.status(422);
+      return input.renderCorrection(
+        c,
+        pathParams.tenantId,
+        reviewQueuePageUrl(pathParams.tenantId, query),
+        {
+          query,
+          evaluationId: z.string().max(256).safeParse(evaluationId).data ?? "",
+          comment: typeof rawComment === "string" ? rawComment.slice(0, 10000) : "",
+          message,
+        },
+      );
+    };
+    if (!z.string().min(1).max(256).safeParse(evaluationId).success)
+      return correct("Choose a review entry before taking action.");
 
     let request: ReturnType<typeof parseResolveBadgeIssuanceRuleReviewRequest>;
 
@@ -79,7 +113,9 @@ export const registerTenantReviewQueueAdminRoutes = (
         ...(comment === undefined ? {} : { comment }),
       });
     } catch {
-      return redirectToReviewQueue("error", "That review action is not valid.");
+      return correct(
+        "Choose Issue badge or Dismiss review, and keep your decision note within 2,000 characters.",
+      );
     }
 
     const { membershipRole } = roleCheck;
@@ -96,7 +132,7 @@ export const registerTenantReviewQueueAdminRoutes = (
     });
 
     if (!result.ok) {
-      return redirectToReviewQueue("error", result.error);
+      return correct(result.error);
     }
 
     const recipientLabel =

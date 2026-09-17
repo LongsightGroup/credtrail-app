@@ -1,4 +1,9 @@
-import { z } from "zod";
+import {
+  parseReviewQueuePageQuery,
+  paginateReviewQueue,
+  reviewQueuePageUrl,
+  type ReviewQueueCorrection,
+} from "./review-queue-page-query";
 import type { ManualIssueCorrection } from "./manual-issue-correction";
 import { classifyRuleBuilderBadgeTemplateAvailability } from "../badges/badge-template-rule-availability";
 import { resolveManualIssueSelection } from "./manual-issue-selection";
@@ -7,6 +12,7 @@ import {
   findAssertionById,
   listBadgeIssuanceRuleBuilderDraftsForUser,
   type ListBadgeIssuanceRuleRegistryPageInput,
+  findBadgeIssuanceRuleEvaluationById,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
@@ -264,6 +270,7 @@ export const renderInstitutionAdminReviewQueueWorkspace = async <
   tenantId: string,
   nextPath: string,
   deps: InstitutionAdminWorkspaceRendererDeps<TPageData>,
+  correction?: ReviewQueueCorrection,
 ): Promise<Response> => {
   const loaded = await loadInstitutionAdminWorkspacePageData({
     c,
@@ -283,12 +290,37 @@ export const renderInstitutionAdminReviewQueueWorkspace = async <
     userId: principal.userId,
     workspace: "operations_review_queue",
   });
-  const reviewStatus =
-    z.enum(["pending", "resolved"]).safeParse(c.req.query("reviewStatus")).data ?? "pending";
-  const entries = await loadBadgeRuleReviewQueueEntries(deps.resolveDatabase(c.env), tenantId, {
-    reviewStatus,
+  let query;
+  try {
+    query = correction?.query ?? parseReviewQueuePageQuery(c.req.query());
+  } catch {
+    query = parseReviewQueuePageQuery({});
+    flash.listError = "Check the review search and page link, then try again.";
+  }
+  const db = deps.resolveDatabase(c.env);
+  const rows = await loadBadgeRuleReviewQueueEntries(db, tenantId, {
+    reviewStatus: query.reviewStatus,
+    search: query.q,
+    cursor: query.cursor,
     limit: 50,
+    includeLookahead: true,
   });
+  const page = paginateReviewQueue(rows, query, 50);
+  const selectedEvaluationId = correction?.evaluationId ?? query.review;
+  let selectedEntry = page.entries.find((entry) => entry.evaluationId === selectedEvaluationId);
+  if (!selectedEntry && selectedEvaluationId) {
+    const record = await findBadgeIssuanceRuleEvaluationById(db, {
+      tenantId,
+      evaluationId: selectedEvaluationId,
+    });
+    if (record?.reviewStatus === "pending" || record?.reviewStatus === "resolved") {
+      [selectedEntry] = await loadBadgeRuleReviewQueueEntries(db, tenantId, {
+        evaluationId: selectedEvaluationId,
+        reviewStatus: record.reviewStatus,
+        limit: 1,
+      });
+    }
+  }
 
   return await renderInstitutionAdminWorkspacePage(
     c,
@@ -296,11 +328,20 @@ export const renderInstitutionAdminReviewQueueWorkspace = async <
     institutionAdminOperationsReviewQueuePage({
       ...pageData,
       reviewQueueWorkspace: {
-        reviewStatus,
-        entries,
-        selectedEvaluationId: z.string().max(256).safeParse(c.req.query("review")).data ?? "",
+        query,
+        reviewStatus: query.reviewStatus,
+        entries: page.entries,
+        selectedEntry,
+        selectedEvaluationId,
+        correction,
+        olderHref: page.older
+          ? reviewQueuePageUrl(tenantId, { ...query, review: "", cursor: page.older })
+          : null,
+        newerHref: page.newer
+          ? reviewQueuePageUrl(tenantId, { ...query, review: "", cursor: page.newer })
+          : null,
         listNotice: flash.listNotice,
-        listError: flash.listError,
+        listError: correction?.message ?? flash.listError,
       },
     }),
   );

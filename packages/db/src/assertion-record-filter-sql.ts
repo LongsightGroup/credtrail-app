@@ -2,6 +2,7 @@ import type { AssertionLifecycleState } from "./assertion-types.js";
 import { normalizeReportingDateBoundary } from "./assertion-internal.js";
 
 export interface AssertionRecordFilterSqlInput {
+  notificationStatus?: "failed" | undefined;
   tenantId: string;
   issuedFrom?: string | undefined;
   issuedTo?: string | undefined;
@@ -83,5 +84,15 @@ export const buildAssertionRecordFilterSql = (
     params.push(input.state);
   }
 
+  if (input.notificationStatus === "failed") {
+    whereClauses.push(`(
+      SELECT CASE WHEN email_log.metadata_json IS JSON OBJECT
+        THEN email_log.metadata_json::jsonb ->> 'status' ELSE NULL END
+      FROM audit_logs email_log
+      WHERE email_log.tenant_id = assertions.tenant_id AND email_log.target_type = 'assertion'
+        AND email_log.target_id = assertions.id AND email_log.action = 'assertion.issuance_email'
+      ORDER BY email_log.occurred_at DESC, email_log.created_at DESC, email_log.id DESC LIMIT 1
+    ) = 'failed'`);
+  }
   return { whereClauses, params };
 };

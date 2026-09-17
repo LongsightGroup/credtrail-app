@@ -1,4 +1,7 @@
-import { formatIsoTimestamp } from "../../utils/display-format";
+export {
+  renderRuleReviewQueuePanel,
+  type RenderRuleReviewQueuePanelInput,
+} from "./review-queue-section";
 import { SYNCHRONOUS_EXPORT_ROW_LIMIT } from "@credtrail/db";
 import { assertionLifecycleLabels } from "../../badges/assertion-lifecycle-labels";
 import { IssuedBadgeStatusPanel } from "../issued-badge-status-panel";
@@ -14,9 +17,8 @@ import {
   AdminStatus,
   AdminTable,
   IssuedBadgeRows,
-  ReviewQueueRows,
 } from "../components";
-import { CtInput, CtSelect, CtTextarea } from "../../ui/forms";
+import { CtInput, CtSelect } from "../../ui/forms";
 import {
   buildIssuedBadgesPagePath,
   emptyIssuedBadgesPageFilterValues,
@@ -24,22 +26,9 @@ import {
   issuedBadgesLedgerExportUrl,
   issuedBadgesPageUrl,
 } from "../issued-badges-admin-helpers";
-import {
-  buildReviewQueuePagePath,
-  tenantReviewQueueAdminResolvePath,
-} from "../review-queue-admin-helpers";
-import type {
-  InstitutionAdminIssuedBadgesWorkspace,
-  InstitutionAdminReviewQueueWorkspace,
-} from "./page-types";
+import type { InstitutionAdminIssuedBadgesWorkspace } from "./page-types";
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | HonoElement[];
-
-/** Input required to render the rule-review queue panel. */
-export interface RenderRuleReviewQueuePanelInput {
-  readonly tenantId: string;
-  readonly reviewQueueWorkspace?: InstitutionAdminReviewQueueWorkspace;
-}
 
 /** Input required to render the issued-badge operations panel. */
 export interface RenderIssuedBadgesPanelInput {
@@ -62,6 +51,8 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
     exportCount !== undefined && exportCount !== null && exportCount > 0;
   const issuedBadgesExportHref = issuedBadgesLedgerExportUrl(input.tenantId, issuedBadgesFilters);
   const activeFilters = Object.entries({
+    notificationStatus:
+      issuedBadgesFilters.notificationStatus === "failed" ? "Email needs attention" : "",
     issuedFrom: issuedBadgesFilters.issuedFrom
       ? `Issued from: ${issuedBadgesFilters.issuedFrom}`
       : "",
@@ -148,7 +139,8 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
             issuedBadgesFilters.issuedTo ||
             issuedBadgesFilters.badgeTemplateId ||
             issuedBadgesFilters.orgUnitId ||
-            issuedBadgesFilters.state,
+            issuedBadgesFilters.state ||
+            issuedBadgesFilters.notificationStatus,
           )}
         >
           <summary>More filters</summary>
@@ -168,6 +160,19 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
                   All org units
                 </option>
                 {input.activeOrgUnitOptions}
+              </CtSelect>
+            </AdminField>
+            <AdminField label="Email notification">
+              <CtSelect name="notificationStatus">
+                <option value="" selected={!issuedBadgesFilters.notificationStatus}>
+                  All notifications
+                </option>
+                <option
+                  value="failed"
+                  selected={issuedBadgesFilters.notificationStatus === "failed"}
+                >
+                  Email needs attention
+                </option>
               </CtSelect>
             </AdminField>
             <AdminField label="Status">
@@ -287,6 +292,7 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
         ) : (
           <IssuedBadgeRows
             assertions={issuedBadgesAssertions}
+            showNotificationRetry={issuedBadgesFilters.notificationStatus === "failed"}
             emptyMessage={noRecordsMessage}
             learnerReturnHref={pageHref(issuedBadgesFilters.cursor ?? "")}
             evidenceHrefForAssertion={(assertionId) =>
@@ -329,157 +335,6 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
           </AdminActions>
         </nav>
       ) : null}
-    </AdminPanel>
-  );
-};
-
-/** Renders pending rule evaluations that require an administrator decision. */
-export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInput): HonoElement => {
-  const reviewQueueResolvePath = tenantReviewQueueAdminResolvePath(input.tenantId);
-  const selectedEntry = input.reviewQueueWorkspace?.entries.find(
-    (entry) => entry.evaluationId === input.reviewQueueWorkspace?.selectedEvaluationId,
-  );
-  return (
-    <AdminPanel id="rule-review-queue-panel" variant="table">
-      <h2>Rule Review Queue</h2>
-      <nav aria-label="Review status" class="ct-action-group">
-        <a
-          href={buildReviewQueuePagePath(input.tenantId)}
-          aria-current={
-            input.reviewQueueWorkspace?.reviewStatus !== "resolved" ? "page" : undefined
-          }
-        >
-          {input.reviewQueueWorkspace?.reviewStatus !== "resolved" ? (
-            <strong>Pending</strong>
-          ) : (
-            "Pending"
-          )}
-        </a>
-        <a
-          href={`${buildReviewQueuePagePath(input.tenantId)}?reviewStatus=resolved`}
-          aria-current={
-            input.reviewQueueWorkspace?.reviewStatus === "resolved" ? "page" : undefined
-          }
-        >
-          {input.reviewQueueWorkspace?.reviewStatus === "resolved" ? (
-            <strong>Resolved</strong>
-          ) : (
-            "Resolved"
-          )}
-        </a>
-      </nav>
-      <p>
-        Showing up to 50 recent{" "}
-        {input.reviewQueueWorkspace?.reviewStatus === "resolved"
-          ? "resolved reviews"
-          : "pending reviews"}
-        .
-      </p>
-      <p>Review missing information before issuing a badge, or look up a saved decision.</p>
-      {input.reviewQueueWorkspace?.listError !== null &&
-      input.reviewQueueWorkspace?.listError !== undefined &&
-      input.reviewQueueWorkspace.listError.length > 0 ? (
-        <AdminStatus data-tone="error">{input.reviewQueueWorkspace.listError}</AdminStatus>
-      ) : input.reviewQueueWorkspace?.listNotice !== null &&
-        input.reviewQueueWorkspace?.listNotice !== undefined &&
-        input.reviewQueueWorkspace.listNotice.length > 0 ? (
-        <AdminStatus data-tone="success">{input.reviewQueueWorkspace.listNotice}</AdminStatus>
-      ) : null}
-      {selectedEntry ? (
-        <section
-          id="review-decision-panel"
-          aria-label="Review decision"
-          class="ct-admin__setup-panel ct-stack"
-        >
-          <h3>
-            {selectedEntry.reviewStatus === "pending" ? "Review badge decision" : "Saved decision"}
-          </h3>
-          <p>
-            <strong>Learner:</strong> {selectedEntry.recipientIdentity}
-            <br />
-            <strong>Badge:</strong> {selectedEntry.badgeTitle ?? "Badge details unavailable"}
-            <br />
-            <strong>Rule:</strong> {selectedEntry.ruleName ?? "Rule details unavailable"}
-          </p>
-          {selectedEntry.reviewStatus !== "pending" ? (
-            <section aria-label="Decision details" class="ct-stack">
-              <p>
-                <strong>Decision:</strong>{" "}
-                {selectedEntry.decision === "issue" ? "Badge issued" : "Review dismissed"}
-              </p>
-              <p>
-                <strong>Reviewed by:</strong>{" "}
-                {selectedEntry.reviewerEmail ?? "Reviewer unavailable"}
-              </p>
-              <p>
-                <strong>Reviewed on:</strong>{" "}
-                {selectedEntry.reviewedAt
-                  ? `${formatIsoTimestamp(selectedEntry.reviewedAt)} UTC`
-                  : "Date unavailable"}
-              </p>
-              <p>
-                <strong>Decision note:</strong> {selectedEntry.decisionNote || "No note was saved."}
-              </p>
-            </section>
-          ) : (
-            <>
-              <h4>Missing information</h4>
-              {selectedEntry.missingInformation?.length ? (
-                <ul>
-                  {selectedEntry.missingInformation.map((detail) => (
-                    <li>{detail}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p>
-                  No detailed explanation is available. Check the rule and supporting learner
-                  evidence before deciding.
-                </p>
-              )}
-              <p>
-                Issue badge creates a credential despite the missing information. Dismiss review
-                closes this request without issuing a badge.
-              </p>
-              <AdminForm
-                method="post"
-                action={reviewQueueResolvePath}
-                className="ct-admin__form ct-admin__setup-form ct-stack"
-              >
-                <CtInput type="hidden" name="evaluationId" value={selectedEntry.evaluationId} />
-                <AdminField label="Decision note (optional)">
-                  <CtTextarea name="comment" maxlength={2000} rows={3} />
-                </AdminField>
-                <AdminActions>
-                  <AdminButton type="submit" name="decision" value="issue">
-                    Issue badge
-                  </AdminButton>
-                  <AdminButton type="submit" name="decision" value="dismiss" variant="secondary">
-                    Dismiss review
-                  </AdminButton>
-                  <AdminButtonLink href={buildReviewQueuePagePath(input.tenantId)} variant="quiet">
-                    Cancel
-                  </AdminButtonLink>
-                </AdminActions>
-              </AdminForm>
-            </>
-          )}
-        </section>
-      ) : null}
-      <AdminTable headers={["Evaluated", "Recipient", "Rule", "Summary", "Actions"]}>
-        {input.reviewQueueWorkspace === undefined ? (
-          <AdminEmptyTableRow colSpan={5}>No pending review queue entries.</AdminEmptyTableRow>
-        ) : (
-          <ReviewQueueRows
-            entries={input.reviewQueueWorkspace.entries}
-            emptyMessage={
-              input.reviewQueueWorkspace.reviewStatus === "resolved"
-                ? "No resolved reviews yet."
-                : "No pending review queue entries."
-            }
-            resolveActionPath={reviewQueueResolvePath}
-          />
-        )}
-      </AdminTable>
     </AdminPanel>
   );
 };
