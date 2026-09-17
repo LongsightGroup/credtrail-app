@@ -112,7 +112,7 @@ export const completeFirstDayWorkflow = async (
     await expect(page.locator("#manual-issue-error")).toBeVisible();
     await expect(page.locator("#manual-issue-error")).toBeFocused();
     await expect(page.getByLabel(/recipient email/i)).toHaveValue("learner@");
-    await expect(page.locator('input[name="badgeTemplateId"]')).toHaveValue(templateId);
+    await expect(page.locator('[name="badgeTemplateId"]')).toHaveValue(templateId);
     await page.getByLabel(/recipient email/i).fill(identity.recipientEmail);
   }
 

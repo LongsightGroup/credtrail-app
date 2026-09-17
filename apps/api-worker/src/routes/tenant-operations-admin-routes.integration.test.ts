@@ -97,6 +97,50 @@ describeDbIntegration("persisted issuance receipts", () => {
     expect(Number(count?.count)).toBe(1);
   });
 
+  it("requires a choice-bound confirmation for a previous award and keeps retries safe", async () => {
+    const data = await fixture();
+    const app = routeApp(data);
+    const existingId = await seedAssertion(data.db, {
+      tenantId: data.tenantId,
+      badgeTemplateId: data.badgeTemplateId,
+      recipientIdentity: "ALREADY@example.edu",
+      issuedAt: "2026-09-16T12:00:00.000Z",
+    });
+    const form = {
+      issuanceRequestId: crypto.randomUUID(),
+      badgeTemplateId: data.badgeTemplateId,
+      recipientIdentity: "already@example.edu",
+    };
+    const submit = async (values: Record<string, string>): Promise<Response> =>
+      app.request(`/tenants/${data.tenantId}/admin/operations/issue`, {
+        method: "POST",
+        body: new URLSearchParams(values),
+      });
+    const review = await submit(form);
+    const warning = await review.json<{
+      previousAward: { assertionId: string; confirmationKey: string };
+    }>();
+    expect(warning.previousAward.assertionId).toBe(existingId);
+    const confirmed = { ...form, previousAwardConfirmation: warning.previousAward.confirmationKey };
+    // Confirmation from a different form cannot silently authorize another award.
+    const stale = await submit({ ...confirmed, issuanceRequestId: crypto.randomUUID() });
+    expect(stale.status).toBe(422);
+    expect(await stale.json()).toHaveProperty("previousAward.assertionId", existingId);
+    const issued = await submit(confirmed);
+    expect(issued.status).toBe(303);
+    expect(issued.headers.get("location")).not.toContain(encodeURIComponent(existingId));
+    const retry = await submit(confirmed);
+    expect(retry.status).toBe(303);
+    expect(retry.headers.get("location")).toBe(issued.headers.get("location"));
+    const count = await data.db
+      .prepare(
+        "SELECT COUNT(*) AS count FROM assertions WHERE tenant_id = ? AND LOWER(recipient_identity) = ?",
+      )
+      .bind(data.tenantId, form.recipientIdentity)
+      .first<{ count: number | string }>();
+    expect(Number(count?.count)).toBe(2);
+  });
+
   it("preserves the recipient and selected badge when validation fails", async () => {
     const data = await fixture();
     const response = await routeApp(data).request(

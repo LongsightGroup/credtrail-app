@@ -94,10 +94,11 @@ describe("badge preparation to awarding", () => {
     );
     expect(html).toContain("Applied Analytics");
     expect(html).toContain(template.imageUri);
-    expect(html).toContain('name="badgeTemplateId" type="hidden" value="template_123"');
+    expect(html).toContain("<details><summary>Change badge</summary>");
+    expect(html).toContain('<select name="badgeTemplateId"');
     expect(html).toContain("Recipient email");
     expect(html).toContain("Change badge");
-    expect(html).not.toContain("<select");
+    expect(html).not.toContain("<details open");
   });
   it.each([
     { templates: [] },

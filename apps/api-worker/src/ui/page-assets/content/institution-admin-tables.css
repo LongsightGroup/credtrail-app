@@ -210,12 +210,6 @@
   color: var(--ct-theme-state-danger);
   border-color: var(--ct-theme-border-danger);
 }
-.ct-admin__assertion-id {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.78rem;
-  color: var(--ct-theme-text-subtle);
-  overflow-wrap: anywhere;
-}
 .ct-admin__issued-actions-cell {
   width: 1%;
   white-space: nowrap;

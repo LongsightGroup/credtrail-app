@@ -4,4 +4,9 @@ export interface ManualIssueCorrection {
   readonly badgeTemplateId: string;
   readonly pathwayHandoffId?: string | undefined;
   readonly message: string;
+  readonly previousAward?: {
+    readonly assertionId: string;
+    readonly issuedAt: string;
+    readonly confirmationKey: string;
+  };
 }

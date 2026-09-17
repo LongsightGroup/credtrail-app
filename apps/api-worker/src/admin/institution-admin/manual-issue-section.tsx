@@ -1,3 +1,4 @@
+import { formatIsoTimestamp } from "../../utils/display-format";
 import type { ManualIssueSelection } from "../manual-issue-selection";
 import { badgeTemplateAdminEditorHref } from "../badge-template-admin-helpers";
 import type { HtmlEscapedString } from "hono/utils/html";
@@ -94,6 +95,7 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
           <section aria-label="Selected badge" class="ct-stack">
             {selection.template.imageUri === null ? null : (
               <img
+                id="manual-issue-badge-image"
                 src={selection.template.imageUri}
                 alt={`${selection.template.title} artwork`}
                 width={96}
@@ -101,15 +103,18 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
                 class="ct-admin__template-image"
               />
             )}
-            <h2>{selection.template.title}</h2>
-            <CtInput name="badgeTemplateId" type="hidden" value={selection.template.id} />
-            {input.pathwayHandoffId ? null : (
-              <AdminButtonLink
-                href={tenantOperationsManualIssuePath(input.tenantId)}
-                variant="quiet"
-              >
-                Change badge
-              </AdminButtonLink>
+            <h2 id="manual-issue-badge-title">{selection.template.title}</h2>
+            {input.pathwayHandoffId ? (
+              <CtInput name="badgeTemplateId" type="hidden" value={selection.template.id} />
+            ) : (
+              <details>
+                <summary>Change badge</summary>
+                <AdminField label="Badge template">
+                  <CtSelect name="badgeTemplateId" required>
+                    {input.templateSelectOptions}
+                  </CtSelect>
+                </AdminField>
+              </details>
             )}
           </section>
         ) : (
@@ -124,7 +129,7 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
             name="recipientIdentity"
             type="email"
             value={input.correction?.recipientIdentity}
-            describedBy={input.correction ? "manual-issue-error" : undefined}
+            describedBy={input.listError ? "manual-issue-error" : undefined}
             required
             placeholder="recipient@example.com"
           />
@@ -136,8 +141,42 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
           This creates a credential with a public verification page for the selected badge and
           recipient.
         </p>
+        {input.correction?.previousAward === undefined ? null : (
+          <section
+            id="manual-issue-previous-award"
+            aria-label="Previous award"
+            class="ct-stack"
+            tabindex={-1}
+          >
+            <h2>This learner has received this badge before</h2>
+            <p>
+              {input.correction.recipientIdentity} received this badge on{" "}
+              {formatIsoTimestamp(input.correction.previousAward.issuedAt)}. Review the existing
+              record before issuing another credential.
+            </p>
+            <AdminButtonLink
+              href={`/tenants/${encodeURIComponent(input.tenantId)}/admin/operations/issued-badges/${encodeURIComponent(input.correction.previousAward.assertionId)}/evidence`}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="secondary"
+            >
+              View existing record
+            </AdminButtonLink>
+            <p>
+              Issue another badge only if this is a separate award. The existing credential will
+              stay unchanged.
+            </p>
+            <CtInput
+              type="hidden"
+              name="previousAwardConfirmation"
+              value={input.correction.previousAward.confirmationKey}
+            />
+          </section>
+        )}
         <p id="manual-issue-progress" role="status"></p>
-        <AdminButton type="submit">Issue badge</AdminButton>
+        <AdminButton type="submit">
+          {input.correction?.previousAward ? "Issue another badge" : "Issue badge"}
+        </AdminButton>
       </AdminForm>
     </AdminPanel>
   );

@@ -365,9 +365,11 @@ export const registerBadgeTemplateListAdminRoutes = (
         return redirectToTemplateListWithFlash(c, {
           tenantId: pathParams.tenantId,
           userId: principal.userId,
-          listPageQuery,
+          listPageQuery: archive ? { ...listPageQuery, includeArchived: true } : listPageQuery,
           tone: "success",
-          message: archive ? "Badge template archived." : "Badge template restored.",
+          message: archive
+            ? "Badge template archived. Existing credentials are unchanged. Use Restore template to make it available again."
+            : "Badge template restored.",
         });
       },
     );

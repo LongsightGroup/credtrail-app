@@ -158,3 +158,21 @@
   justify-self: end;
   flex: 0 0 auto;
 }
+
+.ct-admin__archive-disclosure {
+  margin-block-start: 0.6rem;
+  max-inline-size: 24rem;
+  white-space: normal;
+  font-size: var(--ct-text-sm, 0.875rem);
+}
+.ct-admin__archive-disclosure > summary {
+  cursor: pointer;
+  color: var(--ct-theme-text-muted);
+}
+.ct-admin__archive-disclosure > form {
+  margin-block-start: 0.75rem;
+}
+
+.ct-admin__restore-template-form {
+  flex: 0 0 auto;
+}

@@ -243,6 +243,8 @@ vi.mock("@credtrail/db", async () => {
     listTenantApiKeys: vi.fn(),
     listTenantAssertions: vi.fn(),
     findAssertionById: vi.fn(),
+    findAssertionByIdempotencyKey: vi.fn(),
+    listAssertionsByBadgeTemplatesAndRecipientEmails: vi.fn(),
     findAssertionIssuanceProvenanceByAssertionId: vi.fn(),
     findAssertionReportingAttributionByAssertionId: vi.fn(),
     findBadgeIssuanceRuleEvaluationByAssertionId: vi.fn(),

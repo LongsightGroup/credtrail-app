@@ -15,6 +15,7 @@ import {
 } from "../badges/badge-template-public-links";
 import {
   AdminMeta,
+  AdminButton,
   AdminActionMenu,
   AdminActionMenuLink,
   AdminActions,
@@ -94,6 +95,17 @@ export const BadgeTemplateAdminTableRow = ({
       <td>{formatIsoTimestamp(template.updatedAt)}</td>
       <td>
         <AdminActions>
+          {template.isArchived ? (
+            <AdminForm
+              method="post"
+              action={unarchiveAction}
+              className="ct-admin__restore-template-form"
+            >
+              <AdminButton type="submit" variant="primary" size="tiny">
+                Restore template
+              </AdminButton>
+            </AdminForm>
+          ) : null}
           <AdminButtonLink
             href={badgeTemplateAdminEditorHref(tenantId, template.id, listPageQuery)}
             variant="secondary"
@@ -138,32 +150,26 @@ export const BadgeTemplateAdminTableRow = ({
             >
               View history
             </AdminActionMenuLink>
-            {template.isArchived ? (
-              <AdminForm
-                method="post"
-                action={unarchiveAction}
-                className="ct-admin__action-menu-form"
-              >
-                <button type="submit" class="ct-admin__action-menu-item">
-                  Restore
-                </button>
-              </AdminForm>
-            ) : (
-              <AdminForm
-                method="post"
-                action={archiveAction}
-                className="ct-admin__action-menu-form"
-              >
-                <button
-                  type="submit"
-                  class="ct-admin__action-menu-item ct-admin__action-menu-item--danger"
-                >
-                  Archive
-                </button>
-              </AdminForm>
-            )}
           </AdminActionMenu>
         </AdminActions>
+        {template.isArchived ? null : (
+          <details class="ct-admin__archive-disclosure">
+            <summary>Archive template</summary>
+            <AdminForm method="post" action={archiveAction} className="ct-stack">
+              <p>
+                Archiving removes this template from manual awarding and new rule setup. Published
+                rules can still issue badges from their approved version.
+              </p>
+              <p>
+                Existing credentials and their public pages stay unchanged. You can restore this
+                template from the list at any time.
+              </p>
+              <AdminButton type="submit" variant="danger" size="tiny">
+                Archive template
+              </AdminButton>
+            </AdminForm>
+          </details>
+        )}
       </td>
     </tr>
   );

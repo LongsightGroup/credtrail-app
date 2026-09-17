@@ -38,8 +38,15 @@ import { app } from "./index";
 import { seededDemoLearnerRecordFixture } from "./test-support/seeded-demo-learner-record-fixture";
 import { pageAssetPath } from "./ui/page-assets";
 
+import {
+  findAssertionByIdempotencyKey,
+  listAssertionsByBadgeTemplatesAndRecipientEmails,
+} from "@credtrail/db";
+
 beforeEach(() => {
   mockedIssueBadgeForTenant.mockReset();
+  vi.mocked(findAssertionByIdempotencyKey).mockResolvedValue(null);
+  vi.mocked(listAssertionsByBadgeTemplatesAndRecipientEmails).mockResolvedValue([]);
 });
 
 describe("GET /tenants/:tenantId/admin/operations", () => {

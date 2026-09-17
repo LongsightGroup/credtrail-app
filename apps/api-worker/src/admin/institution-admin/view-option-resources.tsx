@@ -84,7 +84,18 @@ const buildTemplateOptions = (
   templateSelectOptions: HonoElement;
 } => {
   const options = dataNeeds.templateSelectOptions
-    ? page.badgeTemplates.map((template) => <option value={template.id}>{template.title}</option>)
+    ? page.badgeTemplates.map((template) => (
+        <option
+          value={template.id}
+          data-image-uri={template.imageUri ?? ""}
+          selected={
+            page.manualIssueWorkspace?.selection.kind === "ready" &&
+            page.manualIssueWorkspace.selection.template.id === template.id
+          }
+        >
+          {template.title}
+        </option>
+      ))
     : [];
   const templateSelectOptions = !dataNeeds.templateSelectOptions ? (
     emptyOptions

@@ -190,9 +190,9 @@ export const renderIssuedBadgesPanel = (input: RenderIssuedBadgesPanelInput): Ho
           filters={issuedBadgesFilters}
         />
       )}
-      <AdminTable headers={["Issued", "Recipient", "Template", "State", "Assertion", "Actions"]}>
+      <AdminTable headers={["Learner", "Badge", "Issued", "Status", "Actions"]}>
         {issuedBadgesAssertions === null ? (
-          <AdminEmptyTableRow colSpan={6}>
+          <AdminEmptyTableRow colSpan={5}>
             Use the search form above to load issued badges.
           </AdminEmptyTableRow>
         ) : (

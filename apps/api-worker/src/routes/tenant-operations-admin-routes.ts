@@ -8,6 +8,7 @@ import {
   createAuditLog,
   findAssertionById,
   findAssertionByIdempotencyKey,
+  listAssertionsByBadgeTemplatesAndRecipientEmails,
   findBadgeTemplateById,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -164,6 +165,40 @@ export const registerTenantOperationsAdminRoutes = (
           403,
         );
       return delegatedPermission;
+    }
+
+    const issued = await findAssertionByIdempotencyKey(db, pathParams.tenantId, idempotencyKey);
+    if (issued !== null)
+      return c.redirect(issuanceReceiptPath(pathParams.tenantId, issued.id), 303);
+
+    const previousAwards = await listAssertionsByBadgeTemplatesAndRecipientEmails(db, {
+      tenantId: pathParams.tenantId,
+      badgeTemplateIds: [request.badgeTemplateId],
+      recipientEmails: [request.recipientIdentity],
+    });
+    const previousAward = previousAwards[0];
+    if (previousAward?.idempotencyKey === idempotencyKey)
+      return c.redirect(issuanceReceiptPath(pathParams.tenantId, previousAward.id), 303);
+    const confirmation = z
+      .string()
+      .max(200)
+      .safeParse(readOptionalFormField(formData, "previousAwardConfirmation"));
+    if (
+      previousAward !== undefined &&
+      (!confirmation.success || confirmation.data !== idempotencyKey)
+    ) {
+      return input.renderManualIssueCorrection(c, pathParams.tenantId, nextPath, {
+        issuanceRequestId,
+        recipientIdentity,
+        badgeTemplateId,
+        pathwayHandoffId: learnerPathwayCompletionHandoffId,
+        message: "",
+        previousAward: {
+          assertionId: previousAward.id,
+          issuedAt: previousAward.issuedAt,
+          confirmationKey: idempotencyKey,
+        },
+      });
     }
 
     try {

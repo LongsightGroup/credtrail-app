@@ -682,17 +682,17 @@ const IssuedBadgeActions = (input: {
 }): HonoElement => {
   return (
     <AdminActionBar ariaLabel={`Actions for assertion ${input.assertionId}`}>
+      <AdminButtonLink href={input.evidenceHref} size="tiny" variant="primary">
+        View record
+      </AdminButtonLink>
       <AdminButtonLink
         href={input.viewBadgeHref}
-        variant="primary"
+        variant="secondary"
         size="tiny"
         target="_blank"
         rel="noopener noreferrer"
       >
-        Open
-      </AdminButtonLink>
-      <AdminButtonLink href={input.evidenceHref} size="tiny" variant="secondary">
-        View record
+        View public badge
       </AdminButtonLink>
       <AdminActionMenu
         menuId={`issued-badge-action-menu-${input.assertionId}`}
@@ -713,26 +713,26 @@ const IssuedBadgeRow = (input: {
   statusHref: string;
 }): HonoElement => {
   const assertion = input.assertion;
-  const viewBadgeHref = `/badges/${encodeURIComponent(assertion.assertionId)}`;
+  const viewBadgeHref = `/badges/${encodeURIComponent(assertion.publicId ?? assertion.assertionId)}`;
   const rawJsonHref = `/credentials/v1/${encodeURIComponent(assertion.assertionId)}/jsonld`;
 
   return (
     <tr data-issued-badge-row="true">
-      <td>{formatIsoTimestamp(assertion.issuedAt)}</td>
       <td>
         <strong>{assertion.recipientIdentity}</strong>
       </td>
       <td>
         <strong>{assertion.badgeTitle}</strong>
-        <AdminMeta>{assertion.badgeTemplateId}</AdminMeta>
       </td>
+      <td>{formatIsoTimestamp(assertion.issuedAt)}</td>
       <td>
-        <AdminStatusPill tone={assertion.state}>{assertion.state}</AdminStatusPill>
-        <AdminMeta>{assertion.source}</AdminMeta>
-      </td>
-      <td>
-        <div class="ct-admin__assertion-id">{assertion.assertionId}</div>
-        {assertion.publicId === null ? null : <AdminMeta>public: {assertion.publicId}</AdminMeta>}
+        <AdminStatusPill tone={assertion.state}>
+          {assertion.state === "active"
+            ? "Active"
+            : assertion.state === "revoked"
+              ? "Revoked"
+              : "Suspended"}
+        </AdminStatusPill>
       </td>
       <td class="ct-admin__issued-actions-cell">
         <div class="ct-admin__issued-actions">
@@ -827,7 +827,7 @@ export const IssuedBadgeRows = (input: {
 }): HonoElement => {
   if (input.assertions.length === 0) {
     return (
-      <AdminEmptyTableRow colSpan={6}>
+      <AdminEmptyTableRow colSpan={5}>
         {input.emptyMessage ?? "No assertions matched the selected filters."}
       </AdminEmptyTableRow>
     );
