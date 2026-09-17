@@ -1,7 +1,10 @@
 import type { TenantMembershipRole } from "@credtrail/db";
 import { parseBadgeTemplatePathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
-import { badgeTemplateAdminEditorHref } from "../admin/badge-template-admin-helpers";
+import {
+  badgeTemplateAdminEditorHref,
+  parseBadgeTemplateListPageQuery,
+} from "../admin/badge-template-admin-helpers";
 import type { AppContext, AppEnv } from "../app/types";
 import type { RequireScopedOrgUnitPermission, ResolveDatabase } from "../app/route-deps";
 import {
@@ -33,7 +36,14 @@ const redirectToTemplateEditor = (
   badgeTemplateId: string,
   query: Record<string, string>,
 ): Response => {
-  const location = new URL(badgeTemplateAdminEditorHref(tenantId, badgeTemplateId), c.req.url);
+  const location = new URL(
+    badgeTemplateAdminEditorHref(
+      tenantId,
+      badgeTemplateId,
+      parseBadgeTemplateListPageQuery(c.req.query()),
+    ),
+    c.req.url,
+  );
 
   for (const [key, value] of Object.entries(query)) {
     if (value.length > 0) {

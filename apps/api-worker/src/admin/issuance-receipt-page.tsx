@@ -1,3 +1,7 @@
+import {
+  issuanceEmailOutcomeMessage,
+  type IssuanceEmailOutcome,
+} from "../notifications/issuance-email-outcome";
 import { issuePreparedBadgePath } from "./badge-awarding-links";
 import type { AssertionRecord } from "@credtrail/db";
 import { AdminActions, AdminButtonLink, AdminPanel } from "./components";
@@ -22,7 +26,7 @@ export const issuanceReceiptPage = (
   input: Pick<
     InstitutionAdminPageInput,
     "tenant" | "userId" | "userEmail" | "membershipRole" | "switchOrganizationPath"
-  > & { readonly assertion: AssertionRecord },
+  > & { readonly assertion: AssertionRecord; readonly notificationOutcome: IssuanceEmailOutcome },
 ): AppPage => {
   const publicBadgePath = publicBadgePathForAssertion(input.assertion);
   const recordPath = issuedBadgesAssertionPageUrl(
@@ -62,6 +66,10 @@ export const issuanceReceiptPage = (
                 The credential is issued. You can open its public page or review its record and
                 status.
               </p>
+              <section aria-label="Email notification" class="ct-stack">
+                <h3>Email notification</h3>
+                <p>{issuanceEmailOutcomeMessage(input.notificationOutcome)}</p>
+              </section>
               <AdminActions>
                 <AdminButtonLink href={recordPath} variant="primary">
                   View badge record

@@ -15,6 +15,7 @@ import { tenantOperationsManualIssuePath } from "../access-admin-helpers";
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | readonly HonoElement[];
 
 interface RenderManualIssueSectionInput {
+  correction?: import("../manual-issue-correction").ManualIssueCorrection | undefined;
   hasReadyTemplates: boolean;
   selection?: ManualIssueSelection;
   tenantId: string;
@@ -25,7 +26,11 @@ interface RenderManualIssueSectionInput {
 }
 
 export const renderManualIssueSection = (input: RenderManualIssueSectionInput): HonoElement => {
-  const selection = input.selection ?? { kind: "choose" };
+  const resolvedSelection = input.selection ?? { kind: "choose" };
+  const selection =
+    input.correction !== undefined && resolvedSelection.kind === "blocked"
+      ? { kind: "choose" as const }
+      : resolvedSelection;
   if (selection.kind === "choose" && !input.hasReadyTemplates)
     return (
       <AdminPanel>
@@ -56,7 +61,9 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
   return (
     <AdminPanel id="manual-issue-panel">
       {input.listError !== null && input.listError !== undefined && input.listError.length > 0 ? (
-        <AdminStatus data-tone="error">{input.listError}</AdminStatus>
+        <p id="manual-issue-error" role="alert" tabindex={-1} class="ct-field__error">
+          {input.listError}
+        </p>
       ) : input.listNotice !== null &&
         input.listNotice !== undefined &&
         input.listNotice.length > 0 ? (
@@ -114,10 +121,19 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
           <CtInput
             name="recipientIdentity"
             type="email"
+            value={input.correction?.recipientIdentity}
+            describedBy={input.correction ? "manual-issue-error" : undefined}
             required
             placeholder="recipient@example.com"
           />
         </AdminField>
+        <p
+          id="manual-issue-consequence"
+          data-badge-title={selection.kind === "ready" ? selection.template.title : ""}
+        >
+          This creates a credential with a public verification page for the selected badge and
+          recipient.
+        </p>
         <AdminButton type="submit">Issue badge</AdminButton>
       </AdminForm>
     </AdminPanel>

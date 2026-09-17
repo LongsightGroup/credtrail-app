@@ -388,13 +388,19 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
       workspaceRendererDeps("accessDelegationsNew"),
     );
 
-  const renderManualIssueWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>
+  const renderManualIssueWorkspace = (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+    correction?: import("../../admin/manual-issue-correction").ManualIssueCorrection,
+  ) =>
     renderInstitutionAdminManualIssueWorkspace(
       c,
       renderAppPage,
       tenantId,
       nextPath,
       workspaceRendererDeps("operationsManualIssue"),
+      correction,
     );
 
   const renderMembersWorkspace = (c: AppContext, tenantId: string, nextPath: string) =>

@@ -1,4 +1,6 @@
-import { issuePreparedBadgePath } from "../admin/badge-awarding-links";
+import { z } from "zod";
+import { loadIssuanceEmailOutcome } from "../notifications/issuance-email-outcome";
+import type { ManualIssueCorrection } from "../admin/manual-issue-correction";
 import {
   createAuditLog,
   findAssertionById,
@@ -7,14 +9,12 @@ import {
 } from "@credtrail/db";
 import {
   parseManualIssueBadgeRequest,
-  manualIssuePageQuerySchema,
   parseTenantPathParams,
   parseAssertionPathParams,
 } from "@credtrail/validation";
 import type { Hono } from "hono";
 import { buildOperationsManualIssuePath } from "../admin/access-admin-helpers";
 import { readOptionalFormField } from "../admin/admin-form-helpers";
-import { setAdminListMessageFlash } from "../admin/admin-list-message-flash";
 import { issuanceReceiptPage, issuanceReceiptPath } from "../admin/issuance-receipt-page";
 import { renderInstitutionAdminWorkspacePage } from "../admin/institution-admin-workspace";
 import { renderAppPage } from "../ui/render-page";
@@ -30,6 +30,12 @@ import { isIssueBadgeHttpError } from "../badges/direct-issue";
 
 interface RegisterTenantOperationsAdminRoutesInput {
   app: Hono<AppEnv>;
+  renderManualIssueCorrection: (
+    c: AppContext,
+    tenantId: string,
+    nextPath: string,
+    correction: ManualIssueCorrection,
+  ) => Promise<Response>;
   loadInstitutionAdminShellData: TenantGovernanceAdminPageDataLoaders["loadInstitutionAdminShellData"];
   issueBadgeForTenant: IssueBadgeForTenant;
   requireDelegatedIssuingAuthorityPermission: RequireDelegatedIssuingAuthorityPermission;
@@ -78,20 +84,21 @@ export const registerTenantOperationsAdminRoutes = (
       "learnerPathwayCompletionHandoffId",
     );
 
-    const handoffQuery = manualIssuePageQuerySchema.safeParse({
-      badgeTemplateId,
-      pathwayHandoffId: learnerPathwayCompletionHandoffId,
-    });
-    const returnPath =
-      handoffQuery.success && handoffQuery.data.badgeTemplateId !== undefined
-        ? issuePreparedBadgePath(
-            pathParams.tenantId,
-            handoffQuery.data.badgeTemplateId,
-            handoffQuery.data.pathwayHandoffId,
-          )
-        : nextPath;
+    const correct = (message: string, status: 403 | 422 = 422): Promise<Response> => {
+      c.status(status);
+      return input.renderManualIssueCorrection(c, pathParams.tenantId, nextPath, {
+        recipientIdentity,
+        badgeTemplateId,
+        pathwayHandoffId: learnerPathwayCompletionHandoffId,
+        message,
+      });
+    };
 
     let request: ReturnType<typeof parseManualIssueBadgeRequest>;
+
+    if (!z.email().safeParse(recipientIdentity).success) {
+      return correct("Enter a valid recipient email address, such as learner@example.edu.");
+    }
 
     try {
       request = parseManualIssueBadgeRequest({
@@ -109,30 +116,14 @@ export const registerTenantOperationsAdminRoutes = (
           : { learnerPathwayCompletionHandoffId }),
       });
     } catch {
-      await setAdminListMessageFlash(c, {
-        workspace: "operations_manual_issue",
-        tenantId: pathParams.tenantId,
-        userId: principal.userId,
-        tone: "error",
-        message: "Recipient email and badge template are required.",
-      });
-
-      return c.redirect(returnPath, 303);
+      return correct("Choose a badge and enter a valid recipient email address.");
     }
 
     const db = resolveDatabase(c.env);
     const template = await findBadgeTemplateById(db, pathParams.tenantId, request.badgeTemplateId);
 
     if (template === null || template.isArchived) {
-      await setAdminListMessageFlash(c, {
-        workspace: "operations_manual_issue",
-        tenantId: pathParams.tenantId,
-        userId: principal.userId,
-        tone: "error",
-        message: "Choose an active badge template that belongs to this organization.",
-      });
-
-      return c.redirect(returnPath, 303);
+      return correct("Choose an available badge from this organization.");
     }
 
     const delegatedPermission = await requireDelegatedIssuingAuthorityPermission(c, {
@@ -146,6 +137,11 @@ export const registerTenantOperationsAdminRoutes = (
     });
 
     if (delegatedPermission !== null) {
+      if (delegatedPermission.status === 403)
+        return correct(
+          "You do not have permission to issue this badge. Choose a badge you can issue or contact an administrator.",
+          403,
+        );
       return delegatedPermission;
     }
 
@@ -194,16 +190,8 @@ export const registerTenantOperationsAdminRoutes = (
         throw error;
       }
 
-      await setAdminListMessageFlash(c, {
-        workspace: "operations_manual_issue",
-        tenantId: pathParams.tenantId,
-        userId: principal.userId,
-        tone: "error",
-        message: error.payload.error,
-      });
+      return correct(error.payload.error);
     }
-
-    return c.redirect(returnPath, 303);
   };
 
   app.get("/tenants/:tenantId/admin/operations/issue/:assertionId/receipt", async (c) => {
@@ -220,10 +208,15 @@ export const registerTenantOperationsAdminRoutes = (
       authorized.membershipRole,
     );
     if (shell instanceof Response) return shell;
+    const notificationOutcome = await loadIssuanceEmailOutcome(
+      resolveDatabase(c.env),
+      tenantId,
+      assertionId,
+    );
     return renderInstitutionAdminWorkspacePage(
       c,
       renderAppPage,
-      issuanceReceiptPage({ ...shell, assertion }),
+      issuanceReceiptPage({ ...shell, assertion, notificationOutcome }),
     );
   });
 

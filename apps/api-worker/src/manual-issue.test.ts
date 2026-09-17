@@ -840,6 +840,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
       ...createEnv(),
       BADGE_OBJECTS: createInMemoryBadgeObjects(),
       ISSUANCE_EMAIL_NOTIFICATIONS_ENABLED: "true",
+      EMAIL: { send: async () => ({ messageId: "test-email" }) },
       TENANT_SIGNING_REGISTRY_JSON: JSON.stringify({
         "did:web:credtrail.test:tenant_123": {
           tenantId: "tenant_123",

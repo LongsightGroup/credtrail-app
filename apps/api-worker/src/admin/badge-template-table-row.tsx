@@ -82,14 +82,20 @@ export const BadgeTemplateAdminTableRow = ({
         {template.isArchived ? (
           <AdminStatusPill tone="revoked">Archived</AdminStatusPill>
         ) : (
-          <AdminStatusPill tone="active">Active</AdminStatusPill>
+          <AdminStatusPill tone={prepared ? "active" : "pending"}>
+            {prepared
+              ? "Ready to award"
+              : template.imageUri === null
+                ? "Needs artwork"
+                : "Artwork needs attention"}
+          </AdminStatusPill>
         )}
       </td>
       <td>{formatIsoTimestamp(template.updatedAt)}</td>
       <td>
         <AdminActions>
           <AdminButtonLink
-            href={badgeTemplateAdminEditorHref(tenantId, template.id)}
+            href={badgeTemplateAdminEditorHref(tenantId, template.id, listPageQuery)}
             variant="secondary"
             size="tiny"
           >

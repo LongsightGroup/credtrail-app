@@ -113,12 +113,18 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     stem: "institution-admin-template-editor",
     sources: ["institution-admin-template-editor.css"],
   },
+  institutionAdminManualIssueJs: {
+    kind: "script",
+    stem: "institution-admin-manual-issue",
+    sources: ["institution-admin-manual-issue.js"],
+  },
   institutionAdminBadgeTemplateListJs: {
     kind: "script",
     stem: "institution-admin-badge-template-list",
     sources: [
       "admin-browser-primitives.js",
       "institution-admin-badge-template-shared-bootstrap.js",
+      "institution-admin-badge-template-forms.js",
       "institution-admin-badge-template-history-core.js",
       "institution-admin-badge-template-image-fallback.js",
       "institution-admin-badge-template-list-history.js",
@@ -130,6 +136,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     sources: [
       "admin-browser-primitives.js",
       "institution-admin-badge-template-shared-bootstrap.js",
+      "institution-admin-badge-template-forms.js",
       "institution-admin-badge-template-editor-records.js",
       "institution-admin-badge-template-history-core.js",
       "institution-admin-badge-template-image-helpers.js",

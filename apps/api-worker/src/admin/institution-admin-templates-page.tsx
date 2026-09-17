@@ -27,6 +27,7 @@ import type { BadgeTemplateHistoryTimelineEntry } from "../badges/badge-template
 import type { BadgeTemplateArtworkReadiness } from "../badges/badge-achievement-snapshot";
 import {
   badgeTemplateHistoryHref,
+  badgeTemplateListPageUrl,
   toBadgeTemplateClientRecord,
   type BadgeTemplateListPageQueryOptions,
 } from "./badge-template-admin-helpers";
@@ -155,6 +156,7 @@ const renderTemplateCreatePanel = (rulesTemplatesPath: string): HonoElement => {
         id="badge-template-create-status"
         class="ct-admin__status ct-admin__template-create-status"
         aria-live="polite"
+        tabindex={-1}
       ></p>
     </AdminInlineActionPanel>
   );
@@ -166,13 +168,23 @@ const renderTemplateEditorFields = (input: {
   imageRevisionCount: number;
   rulesTemplatesPath: string;
   templateHistoryHref: string;
+  listPageQuery: BadgeTemplateListPageQueryOptions;
   detailsNotice?: { tone: "success" | "error"; message: string } | null;
   artworkNotice?: { tone: "success" | "error"; message: string } | null;
 }): HonoElement => {
   const template = input.selectedTemplate;
-  const detailsFormAction = `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/details`;
-  const imageUploadPath = `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/image-upload`;
-  const imageApplyPath = `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/image-generations/apply`;
+  const detailsFormAction = badgeTemplateListPageUrl(
+    `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/details`,
+    input.listPageQuery,
+  );
+  const imageUploadPath = badgeTemplateListPageUrl(
+    `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/image-upload`,
+    input.listPageQuery,
+  );
+  const imageApplyPath = badgeTemplateListPageUrl(
+    `${input.rulesTemplatesPath}/${encodeURIComponent(template.id)}/image-generations/apply`,
+    input.listPageQuery,
+  );
   const revisionLabel =
     input.imageRevisionCount === 1
       ? "1 image version"
@@ -244,6 +256,7 @@ const renderTemplateEditorFields = (input: {
               />
             </AdminField>
           </div>
+          <p id="badge-template-edit-status" role="status" tabindex={-1}></p>
           <div class="ct-admin__template-editor-submit">
             <AdminButton form="badge-template-edit-form" type="submit">
               Save template details
@@ -491,7 +504,7 @@ const renderBadgeTemplatesTable = (input: {
           </AdminInlinePanelTriggerButton>
         }
       />
-      {renderTemplateCreatePanel(input.rulesTemplatesPath)}
+      {renderTemplateCreatePanel(badgeTemplateListPageUrl(input.rulesTemplatesPath, listPageQuery))}
       <AdminForm
         method="get"
         action={input.rulesTemplatesPath}
@@ -666,6 +679,14 @@ export const institutionAdminRuleTemplateEditorPage = (
           "Prepare the badge details and artwork, then choose how to award it.",
         )}
         <section class="ct-admin ct-stack">
+          <AdminButtonLink
+            href={badgeTemplateListPageUrl(paths.rulesTemplatesPath, listPageQuery)}
+            variant="quiet"
+          >
+            {listPageQuery.searchQuery || listPageQuery.includeArchived
+              ? "Back to filtered templates"
+              : "Back to badge templates"}
+          </AdminButtonLink>
           <AdminPanel className="ct-admin__template-editor-overview">
             <BadgeTemplateEditorPreviewFrame template={template} />
             <div class="ct-admin__template-editor-summary">
@@ -712,6 +733,7 @@ export const institutionAdminRuleTemplateEditorPage = (
             imageRevisionCount: input.badgeTemplateImageRevisionCount,
             rulesTemplatesPath: paths.rulesTemplatesPath,
             templateHistoryHref,
+            listPageQuery,
             detailsNotice: input.detailsNotice ?? null,
             artworkNotice: input.artworkNotice ?? null,
           })}

@@ -1844,7 +1844,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toContain(">Edit Badge Template<");
     expect(body).toContain("Prepare the badge details and artwork, then choose how to award it.");
-    expect(body).not.toContain("Back to badge templates");
+    expect(body).toContain("Back to badge templates");
     expect(body).toContain('id="badge-template-editor-preview-frame"');
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/rules/templates/badge_template_001/image-upload"',
@@ -2145,7 +2145,7 @@ describe("GET /tenants/:tenantId/admin/rules/templates", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).not.toContain("Back to badge templates");
+    expect(body).toContain("Back to filtered templates");
     expect(body).toContain(
       'href="/tenants/tenant_123/admin/rules/templates?q=typescript&amp;includeArchived=1&amp;returnTo=rule-builder&amp;badgeTemplateId=badge_template_001&amp;history=1"',
     );

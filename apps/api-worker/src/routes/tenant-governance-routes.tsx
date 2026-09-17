@@ -183,6 +183,7 @@ export const registerTenantGovernanceRoutes = (
   });
 
   registerTenantOperationsAdminRoutes({
+    renderManualIssueCorrection: institutionWorkspaces.renderManualIssueWorkspace,
     loadInstitutionAdminShellData: pageData.loadInstitutionAdminShellData,
     app: input.app,
     issueBadgeForTenant: input.issueBadgeForTenant,

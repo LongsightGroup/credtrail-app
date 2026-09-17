@@ -21,8 +21,13 @@ export const buildBadgeTemplateListPath = (tenantId: string): string => {
   return `/tenants/${encodeURIComponent(tenantId)}/admin/rules/templates`;
 };
 
-export const badgeTemplateAdminEditorHref = (tenantId: string, badgeTemplateId: string): string => {
-  return `${buildBadgeTemplateListPath(tenantId)}/${encodeURIComponent(badgeTemplateId)}`;
+export const badgeTemplateAdminEditorHref = (
+  tenantId: string,
+  badgeTemplateId: string,
+  listPageQuery?: BadgeTemplateListPageQueryOptions,
+): string => {
+  const path = `${buildBadgeTemplateListPath(tenantId)}/${encodeURIComponent(badgeTemplateId)}`;
+  return listPageQuery === undefined ? path : badgeTemplateListPageUrl(path, listPageQuery);
 };
 
 export const toBadgeTemplateClientRecord = (

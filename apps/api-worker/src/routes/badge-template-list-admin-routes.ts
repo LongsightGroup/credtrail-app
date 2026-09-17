@@ -79,6 +79,9 @@ const redirectToTemplateListWithFlash = async (
     extra?: Record<string, string>;
   },
 ): Promise<Response> => {
+  if (input.tone === "error" && c.req.header("Accept")?.includes("application/json")) {
+    return c.json({ error: input.message }, 422);
+  }
   await setAdminListMessageFlash(c, {
     tenantId: input.tenantId,
     userId: input.userId,
@@ -97,7 +100,17 @@ const redirectToTemplateEditor = (
   query: Record<string, string>,
   hash?: string,
 ): Response => {
-  const location = new URL(badgeTemplateAdminEditorHref(tenantId, badgeTemplateId), c.req.url);
+  if (query.detailsError && c.req.header("Accept")?.includes("application/json")) {
+    return c.json({ error: query.detailsError }, 422);
+  }
+  const location = new URL(
+    badgeTemplateAdminEditorHref(
+      tenantId,
+      badgeTemplateId,
+      parseBadgeTemplateListPageQuery(c.req.query()),
+    ),
+    c.req.url,
+  );
 
   for (const [key, value] of Object.entries(query)) {
     if (value.length > 0) {

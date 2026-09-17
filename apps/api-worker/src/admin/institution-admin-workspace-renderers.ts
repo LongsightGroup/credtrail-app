@@ -1,3 +1,4 @@
+import type { ManualIssueCorrection } from "./manual-issue-correction";
 import { classifyRuleBuilderBadgeTemplateAvailability } from "../badges/badge-template-rule-availability";
 import { resolveManualIssueSelection } from "./manual-issue-selection";
 import {
@@ -603,6 +604,7 @@ export const renderInstitutionAdminManualIssueWorkspace = async <
   tenantId: string,
   nextPath: string,
   deps: InstitutionAdminWorkspaceRendererDeps<TPageData>,
+  correction?: ManualIssueCorrection,
 ): Promise<Response> => {
   const loaded = await loadInstitutionAdminWorkspacePageData({
     c,
@@ -623,12 +625,27 @@ export const renderInstitutionAdminManualIssueWorkspace = async <
     workspace: "operations_manual_issue",
   });
   const { selection, pathwayHandoffId } = await resolveManualIssueSelection({
-    query: c.req.query(),
+    query:
+      correction === undefined
+        ? c.req.query()
+        : {
+            ...(correction.badgeTemplateId.length > 0
+              ? { badgeTemplateId: correction.badgeTemplateId }
+              : {}),
+            ...(correction.pathwayHandoffId
+              ? { pathwayHandoffId: correction.pathwayHandoffId }
+              : {}),
+          },
     templates: pageData.badgeTemplates,
     store: c.env.BADGE_OBJECTS,
     publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
   });
-  const manualIssueWorkspace = { ...flash, selection, pathwayHandoffId };
+  const manualIssueWorkspace = {
+    ...flash,
+    selection,
+    pathwayHandoffId,
+    ...(correction === undefined ? {} : { correction, listError: correction.message }),
+  };
 
   return await renderInstitutionAdminWorkspacePage(
     c,

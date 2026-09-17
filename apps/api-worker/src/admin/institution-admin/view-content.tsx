@@ -161,6 +161,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
     },
   },
   operationsManualIssue: {
+    extraAssets: ["institutionAdminManualIssueJs"],
     titlePrefix: "Issue Badge · Institution Admin",
     controller: "shell",
     dataNeeds: viewDataNeeds({
@@ -178,6 +179,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
           )}
           <section class="ct-admin ct-stack">
             {renderManualIssueSection({
+              correction: input.manualIssueWorkspace?.correction,
               hasReadyTemplates: input.badgeTemplates.length > 0,
               tenantId: input.tenant.id,
               templateSelectOptions: content.controls.templateSelectOptions,

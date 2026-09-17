@@ -35,6 +35,8 @@ const routeApp = (data: BadgeRuleIntegrationFixture, allowAccess = true): Hono<A
   registerAppPageRenderer(app);
   registerTenantOperationsAdminRoutes({
     app,
+    renderManualIssueCorrection: async (c, _tenantId, _nextPath, correction) =>
+      c.json(correction, 422),
     resolveDatabase: () => data.db,
     resolveInstitutionAdminAdminRole: async (_c, tenantId) =>
       allowAccess && tenantId === data.tenantId
@@ -68,6 +70,25 @@ const routeApp = (data: BadgeRuleIntegrationFixture, allowAccess = true): Hono<A
 };
 
 describeDbIntegration("persisted issuance receipts", () => {
+  it("preserves the recipient and selected badge when validation fails", async () => {
+    const data = await fixture();
+    const response = await routeApp(data).request(
+      `/tenants/${data.tenantId}/admin/operations/issue`,
+      {
+        method: "POST",
+        body: new URLSearchParams({
+          badgeTemplateId: data.badgeTemplateId,
+          recipientIdentity: "learner@",
+        }),
+      },
+    );
+    expect(response.status).toBe(422);
+    expect(response.headers.get("location")).toBeNull();
+    expect(await response.json()).toMatchObject({
+      recipientIdentity: "learner@",
+      badgeTemplateId: data.badgeTemplateId,
+    });
+  });
   it("redirects issuance to a receipt that survives refresh without a flash cookie", async () => {
     const data = await fixture();
     const app = routeApp(data);
