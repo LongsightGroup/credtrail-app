@@ -52,3 +52,5 @@ export * from "./tenant-signing";
 export * from "./tenants";
 export * from "./sessions";
 export * from "./users";
+
+export * from "./learner-record-import-history";

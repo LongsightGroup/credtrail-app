@@ -1,6 +1,9 @@
+import { learnerRecordImportRowReportsFromJson } from "../learner-record/learner-record-import-queue";
+import { serializeCsv, buildCsvAttachmentHeaders } from "../reporting/csv-export";
 import { badgeRecordsReturnHref } from "../admin/learner-record-link";
 import {
   retryFailedImportLearnerRecordBatchQueueMessages,
+  findActiveLearnerRecordImportPreview,
   type TenantMembershipRole,
 } from "@credtrail/db";
 import {
@@ -95,6 +98,60 @@ export const registerTenantLearnerRecordAdminRoutes = (
       roleCheck.membershipRole,
     );
   });
+
+  app.get(
+    "/tenants/:tenantId/admin/operations/learner-record-imports/:batchId/errors.csv",
+    async (c) => {
+      c.header("Cache-Control", "no-store");
+      let params;
+      try {
+        params = parseLearnerRecordImportBatchPathParams(c.req.param());
+      } catch {
+        return c.text("Check the error report link and try again.", 400);
+      }
+      const authorized = await requireTenantRole(c, params.tenantId, ADMIN_ROLES);
+      if (authorized instanceof Response) return authorized;
+      const preview = await findActiveLearnerRecordImportPreview(resolveDatabase(c.env), {
+        ...params,
+        nowIso: new Date().toISOString(),
+      });
+      if (!preview)
+        return c.text(
+          "This preview is unavailable or expired. Upload the CSV again to generate its error report.",
+          404,
+        );
+      const reports = learnerRecordImportRowReportsFromJson(preview.reportsJson);
+      if (!reports) return c.text("The error report is unavailable. Preview the CSV again.", 422);
+      const rows = reports
+        .filter((row) => row.status === "invalid" || row.warnings.length > 0)
+        .map((row) => ({
+          row: row.rowNumber,
+          status: row.status,
+          learner: row.preview?.learner.email ?? "",
+          errors: row.errors.join("; "),
+          warnings: row.warnings.join("; "),
+          nextStep:
+            row.status === "invalid"
+              ? "Correct the listed fields in this CSV row, then upload and preview the corrected file."
+              : "Check the warnings and inferred values before importing this row.",
+        }));
+      return c.body(
+        serializeCsv({
+          rows,
+          columns: [
+            { key: "row", header: "CSV row" },
+            { key: "status", header: "Status" },
+            { key: "learner", header: "Learner email" },
+            { key: "errors", header: "Errors to correct" },
+            { key: "warnings", header: "Warnings to review" },
+            { key: "nextStep", header: "Next step" },
+          ],
+        }),
+        200,
+        buildCsvAttachmentHeaders("learner-import-errors.csv"),
+      );
+    },
+  );
 
   app.post("/tenants/:tenantId/admin/operations/learner-record-imports/preview", async (c) => {
     const pathParams = parseTenantPathParams(c.req.param());

@@ -120,7 +120,9 @@ import {
 export const resetInstitutionAdminTestDefaults = (): void => {
   vi.resetAllMocks();
   mockedCreatePostgresDatabase.mockReturnValue(fakeDb);
-  fakeDbPrepare.mockReturnValue({ bind: () => ({ first: async () => ({ count: 1 }) }) });
+  fakeDbPrepare.mockReturnValue({
+    bind: () => ({ first: async () => ({ count: 1 }), all: async () => ({ results: [] }) }),
+  });
   mockedFindTenantMembership.mockResolvedValue(sampleMembership("admin"));
   mockedFindTenantById.mockResolvedValue({
     id: "tenant_123",

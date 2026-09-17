@@ -219,6 +219,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
     },
   },
   operationsLearnerRecordImports: {
+    extraAssets: ["institutionAdminLearnerImportsJs"],
     titlePrefix: "Learner Record Imports · Institution Admin",
     controller: "shell",
     dataNeeds: viewDataNeeds({
@@ -229,7 +230,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
         <>
           {renderPageHeader(
             "Learner Record Imports",
-            "Import learner-record CSVs with one trust default, honest smart defaults, and queue-backed progress.",
+            "Review import history, correct CSV rows, and open the learner records you imported.",
           )}
           <section class="ct-admin ct-stack">
             {content.learnerRecords.learnerRecordImportPanelMarkup}

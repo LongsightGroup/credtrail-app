@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createEnv,
   fakeDb,
-  fakeDbPrepare,
   mockedCreateLearnerRecordImportPreviewDb,
   mockedEnqueueJobQueueMessagesOnce,
   mockedFindActiveLearnerRecordImportPreviewDb,
@@ -410,16 +409,15 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
     expect(response.status).toBe(200);
     expect(body).toContain("Learner Record Imports");
     expect(body).toMatch(/class="[^"]*ct-action-group/);
-    expect(body).toContain("Download CSV template");
-    expect(body).toContain(
-      'action="/tenants/tenant_123/admin/operations/learner-record-imports/preview"',
-    );
+    expect(body).toContain("Import learner records");
+    expect(body).not.toContain('type="file"');
+    expect(body).not.toContain('type="file"');
     expect(body).not.toContain(
       'formaction="/tenants/tenant_123/admin/operations/learner-record-imports/apply"',
     );
     expect(body).not.toContain("Queue import");
     expect(body).toContain("Current import progress");
-    expect(body).toContain("No learner-record import batches have been queued");
+    expect(body).toContain("No imports yet.");
   });
 
   it("renders preview results with trust and smart-default explanation on the admin page", async () => {
@@ -459,7 +457,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
     expect(response.status).toBe(200);
     expect(body).toContain("Learner-record import preview ready");
     expect(body).toContain("Clinical Placement Seminar");
-    expect(body).toContain("Pathway hint: Clinical readiness");
+    expect(body).toContain("Clinical readiness");
     expect(body).toContain(
       "Review trust classification, smart defaults, and warnings below before queueing the import.",
     );
@@ -469,7 +467,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
     );
     expect(body).toContain('name="batchId"');
     expect(body).not.toContain('name="csvPayloadBase64"');
-    expect(body).toContain("Queue reviewed import");
+    expect(body).toContain("Import 1 valid row");
     expect(mockedCreateLearnerRecordImportPreviewDb).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
@@ -580,7 +578,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
     expect(body).toContain("Learner-record import batch queued");
     expect(body).toContain("Queued 1 valid rows from learner-records.csv");
     expect(body).toContain('data-learner-record-import-state="apply"');
-    expect(body).not.toContain("Queue reviewed import");
+    expect(body).not.toContain("Import 1 valid row");
     expect(mockedEnqueueJobQueueMessagesOnce).toHaveBeenCalledWith(
       fakeDb,
       expect.objectContaining({
@@ -847,7 +845,7 @@ describe("GET and POST /tenants/:tenantId/admin/operations/learner-record-import
 
     expect(response.status).toBe(200);
     expect(body).toContain("Preview is required before queueing");
-    expect(fakeDbPrepare).not.toHaveBeenCalled();
+    expect(mockedEnqueueJobQueueMessagesOnce).not.toHaveBeenCalled();
   });
 });
 

@@ -1,6 +1,7 @@
 import {
   createLearnerRecordImportPreview,
-  listImportLearnerRecordBatchQueueMessages,
+  listLearnerRecordImportHistory,
+  listImportedLearners,
   type LearnerRecordTrustLevel,
   type TenantMembershipRole,
 } from "@credtrail/db";
@@ -9,7 +10,7 @@ import { institutionAdminLearnerRecordImportsPage } from "../../admin/institutio
 import type { AppContext } from "../../app/types";
 import type { ResolveDatabase } from "../../app/route-deps";
 import { prepareLearnerRecordImportSubmission } from "../../learner-record/learner-record-import-preparation";
-import { summarizeLearnerRecordImportProgress } from "../../learner-record/learner-record-import-progress";
+import { z } from "zod";
 import { queueReviewedLearnerRecordImportPreview } from "../../learner-record/learner-record-import-queue";
 import { renderAppPage } from "../../ui/render-page";
 import type { InstitutionAdminPageData } from "../institution-admin-page-data-loader";
@@ -61,16 +62,59 @@ export const createTenantGovernanceLearnerRecordImportAdmin = (input: {
       return pageData;
     }
 
-    const progress = summarizeLearnerRecordImportProgress(
-      await listImportLearnerRecordBatchQueueMessages(resolveDatabase(input.c.env), {
-        tenantId: input.tenantId,
-        limit: 100,
-      }),
-    );
+    const query = z
+      .object({
+        upload: z.literal("1").optional(),
+        batch: z.string().min(1).max(200).optional(),
+        after: z.string().min(1).max(200).optional(),
+      })
+      .safeParse(input.c.req.query());
+    if (!query.success) return input.c.text("Check the import page link and try again.", 400);
+    const db = resolveDatabase(input.c.env);
+    const [history, learners] = await Promise.all([
+      listLearnerRecordImportHistory(db, input.tenantId),
+      query.data.batch
+        ? listImportedLearners(db, {
+            tenantId: input.tenantId,
+            batchId: query.data.batch,
+            after: query.data.after,
+          })
+        : Promise.resolve([]),
+    ]);
+    const batches = history.map((batch) => ({
+      ...batch,
+      format: "csv",
+      retryableRows: batch.failedRows,
+      failedRowNumbers: [],
+      latestError: null,
+      defaultTrustLevel: null,
+    }));
+    const progress = {
+      batches,
+      totals: {
+        messages: history.reduce((n, b) => n + b.totalRows, 0),
+        batches: history.length,
+        pendingRows: history.reduce((n, b) => n + b.pendingRows, 0),
+        processingRows: history.reduce((n, b) => n + b.processingRows, 0),
+        completedRows: history.reduce((n, b) => n + b.completedRows, 0),
+        failedRows: history.reduce((n, b) => n + b.failedRows, 0),
+      },
+    };
 
     return {
       ...pageData,
       learnerRecordImportWorkflow: {
+        showUpload:
+          query.data.upload === "1" ||
+          (!input.workflow?.submission && input.workflow?.feedback?.tone === "warning"),
+        importedLearners: query.data.batch
+          ? {
+              batchId: query.data.batch,
+              rows: learners.slice(0, 50),
+              after: query.data.after,
+              next: learners.length > 50 ? learners[49]?.profileId : undefined,
+            }
+          : undefined,
         templatePath: `/v1/tenants/${encodeURIComponent(input.tenantId)}/learner-record-imports/template.csv`,
         previewPath: `/tenants/${encodeURIComponent(input.tenantId)}/admin/operations/learner-record-imports/preview`,
         applyPath: `/tenants/${encodeURIComponent(input.tenantId)}/admin/operations/learner-record-imports/apply`,
@@ -443,7 +487,7 @@ export const createTenantGovernanceLearnerRecordImportAdmin = (input: {
     const validRows = prepared.reports.filter((report) => report.status === "valid").length;
     const invalidRows = prepared.reports.length - validRows;
 
-    if (validRows > 0) {
+    {
       await createLearnerRecordImportPreview(db, {
         tenantId: input.tenantId,
         batchId: prepared.batchId,

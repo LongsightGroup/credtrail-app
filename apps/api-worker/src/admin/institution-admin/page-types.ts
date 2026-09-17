@@ -166,6 +166,15 @@ export interface InstitutionAdminManualIssueWorkspace {
 }
 
 export interface InstitutionAdminLearnerRecordImportWorkflow {
+  showUpload?: boolean;
+  importedLearners?:
+    | {
+        batchId: string;
+        rows: readonly import("@credtrail/db").ImportedLearner[];
+        after: string | undefined;
+        next: string | undefined;
+      }
+    | undefined;
   templatePath: string;
   previewPath: string;
   applyPath: string;

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { addSecondsToIso, createPrefixedId } from "./shared-helpers";
 import { serializeQueuePayload } from "./job-queue-payload.js";
 import type { SqlDatabase } from "./tenant-scope";
@@ -864,59 +865,34 @@ export const retryFailedImportLearnerRecordBatchQueueMessages = async (
   input: RetryFailedImportLearnerRecordBatchQueueMessagesInput,
 ): Promise<RetryFailedImportLearnerRecordBatchQueueMessagesResult> => {
   const nowIso = input.nowIso ?? new Date().toISOString();
-  const rowNumberFilter = input.rowNumbers === undefined ? null : new Set<number>(input.rowNumbers);
-  const candidateRows = await listImportLearnerRecordBatchQueueMessages(db, {
-    tenantId: input.tenantId,
-    limit: 1000,
-  });
-  let matched = 0;
-  let retried = 0;
-  let skippedNotFailed = 0;
-
-  for (const row of candidateRows) {
-    if (row.batchId !== input.batchId) {
-      continue;
-    }
-
-    if (
-      rowNumberFilter !== null &&
-      (row.rowNumber === null || !rowNumberFilter.has(row.rowNumber))
-    ) {
-      continue;
-    }
-
-    matched += 1;
-
-    if (row.status !== "failed") {
-      skippedNotFailed += 1;
-      continue;
-    }
-
-    await db
-      .prepare(
-        `
-        UPDATE job_queue_messages
-        SET status = 'pending',
-            attempt_count = 0,
-            available_at = ?,
-            leased_until = NULL,
-            lease_token = NULL,
-            last_error = NULL,
-            failed_at = NULL,
-            updated_at = ?
-        WHERE id = ?
-          AND tenant_id = ?
-          AND job_type = 'import_learner_record_batch'
-      `,
-      )
-      .bind(nowIso, nowIso, row.id, input.tenantId)
-      .run();
-    retried += 1;
-  }
-
-  return {
-    matched,
-    retried,
-    skippedNotFailed,
-  };
+  const payload =
+    "(CASE WHEN payload_json IS JSON OBJECT THEN payload_json::jsonb ELSE '{}'::jsonb END)";
+  const rowNumbers = input.rowNumbers?.map(String);
+  const rowFilter = rowNumbers
+    ? rowNumbers.length
+      ? `AND ${payload}->>'rowNumber' IN (${rowNumbers.map(() => "?").join(",")})`
+      : "AND FALSE"
+    : "";
+  const where = `tenant_id = ? AND job_type = 'import_learner_record_batch' AND ${payload}->>'batchId' = ? ${rowFilter}`;
+  const params = [input.tenantId, input.batchId, ...(rowNumbers ?? [])];
+  const result = await db
+    .prepare(`WITH candidates AS (
+    SELECT id, status FROM job_queue_messages WHERE ${where}
+  ), retried AS (
+    UPDATE job_queue_messages SET status = 'pending', attempt_count = 0, available_at = ?,
+      leased_until = NULL, lease_token = NULL, last_error = NULL, failed_at = NULL, updated_at = ?
+    WHERE id IN (SELECT id FROM candidates WHERE status = 'failed') AND status = 'failed'
+    RETURNING id
+  ) SELECT (SELECT COUNT(*) FROM candidates) AS matched,
+    (SELECT COUNT(*) FROM retried) AS retried,
+    (SELECT COUNT(*) FROM candidates WHERE status <> 'failed') AS "skippedNotFailed"`)
+    .bind(...params, nowIso, nowIso)
+    .first<{ matched: unknown; retried: unknown; skippedNotFailed: unknown }>();
+  return z
+    .object({
+      matched: z.coerce.number().int().nonnegative(),
+      retried: z.coerce.number().int().nonnegative(),
+      skippedNotFailed: z.coerce.number().int().nonnegative(),
+    })
+    .parse(result);
 };

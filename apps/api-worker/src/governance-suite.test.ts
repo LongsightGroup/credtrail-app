@@ -120,7 +120,8 @@ describe("admin learner-record import route", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("Learner Record Imports");
-    expect(body).toContain("Download CSV template");
+    expect(body).toContain("Import learner records");
+    expect(body).not.toContain('type="file"');
     expect(body).toContain("Current import progress");
   });
 
@@ -160,13 +161,11 @@ describe("admin learner-record import route", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("Learner-record import preview ready");
-    expect(body).toContain(
-      'action="/tenants/tenant_123/admin/operations/learner-record-imports/preview"',
-    );
+    expect(body).toContain("Upload corrected CSV");
     expect(body).toContain(
       'action="/tenants/tenant_123/admin/operations/learner-record-imports/apply"',
     );
-    expect(body).toContain("Queue reviewed import");
+    expect(body).toContain("Import 1 valid row");
     expect(body).not.toContain("/v1/tenants/tenant_123/learner-record-imports/csv");
   });
 });
@@ -421,8 +420,9 @@ const mockedUpsertTenantMembershipRole = vi.mocked(upsertTenantMembershipRole);
 const mockedUpsertTenantMembershipOrgUnitScope = vi.mocked(upsertTenantMembershipOrgUnitScope);
 const mockedUpsertUserByEmail = vi.mocked(upsertUserByEmail);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
+const fakeDbPrepare = vi.fn();
 const fakeDb = {
-  prepare: vi.fn(),
+  prepare: fakeDbPrepare,
 } as unknown as SqlDatabase;
 
 interface MockedInternalAuthProvider {
@@ -525,6 +525,9 @@ const loadAppWithMockedAuthProviders = async (input: {
 beforeEach(() => {
   mockedCreatePostgresDatabase.mockReset();
   mockedCreatePostgresDatabase.mockReturnValue(fakeDb);
+  fakeDbPrepare.mockReturnValue({
+    bind: () => ({ all: async () => ({ results: [] }) }),
+  } as unknown as ReturnType<SqlDatabase["prepare"]>);
   mockedFindTenantMembership.mockReset();
   mockedFindTenantMembership.mockResolvedValue(sampleTenantMembership());
   mockedFindTenantById.mockReset();

@@ -143,3 +143,16 @@ export const summarizeLearnerRecordImportProgress = (
     batches,
   };
 };
+
+/** Human state reflects unfinished work before terminal failures. */
+export const learnerRecordImportState = (
+  batch: Pick<
+    LearnerRecordImportBatchProgressSummary,
+    "pendingRows" | "processingRows" | "completedRows" | "failedRows"
+  >,
+): "Queued" | "Processing" | "Completed" | "Needs attention" => {
+  if (batch.processingRows > 0 || (batch.pendingRows > 0 && batch.completedRows > 0))
+    return "Processing";
+  if (batch.pendingRows > 0) return "Queued";
+  return batch.failedRows > 0 ? "Needs attention" : "Completed";
+};
