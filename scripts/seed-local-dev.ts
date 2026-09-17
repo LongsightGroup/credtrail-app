@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { reserveLocalSeedStatusListRange } from "./local-dev-status-list-counter";
 
 import {
   activateBadgeIssuanceRuleVersion,
@@ -369,6 +370,11 @@ const seedLocalTenant = async (
   let publicCredential: SeedLocalTenantResult["publicCredential"];
 
   if (config.seedTrustedCredential) {
+    await reserveLocalSeedStatusListRange(
+      db,
+      config.tenantId,
+      trustedDemo.assertion.statusListIndex ?? 7,
+    );
     const existingTrustedAssertion = await findAssertionByPublicId(db, trustedDemo.publicId);
 
     if (existingTrustedAssertion === null) {
