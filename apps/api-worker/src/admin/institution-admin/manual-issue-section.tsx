@@ -1,3 +1,4 @@
+import { issuanceEmailExpectation } from "../../notifications/issuance-email-outcome";
 import { formatIsoTimestamp } from "../../utils/display-format";
 import type { ManualIssueSelection } from "../manual-issue-selection";
 import { badgeTemplateAdminEditorHref } from "../badge-template-admin-helpers";
@@ -16,6 +17,7 @@ import { tenantOperationsManualIssuePath } from "../access-admin-helpers";
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString> | readonly HonoElement[];
 
 interface RenderManualIssueSectionInput {
+  emailAvailability?: "ready" | "disabled" | "not_configured" | undefined;
   correction?: import("../manual-issue-correction").ManualIssueCorrection | undefined;
   issuanceRequestId: string;
   recipientEmail?: string | undefined;
@@ -154,6 +156,12 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
           This creates a credential with a public verification page for the selected badge and
           recipient.
         </p>
+        {input.emailAvailability ? (
+          <section aria-label="Email notification expectations" class="ct-stack">
+            <h3>Email notification</h3>
+            <p>{issuanceEmailExpectation(input.emailAvailability)}</p>
+          </section>
+        ) : null}
         {input.correction?.previousAward === undefined ? null : (
           <section
             id="manual-issue-previous-award"

@@ -1,3 +1,4 @@
+import { badgeRecordsReturnHref } from "../admin/learner-record-link";
 import { findAssertionById, findBadgeTemplateById } from "@credtrail/db";
 import { parseTenantPathParams, parseAssertionPathParams } from "@credtrail/validation";
 import { z } from "zod";
@@ -41,6 +42,8 @@ export const registerTenantNotificationRetryAdminRoutes = (
         requiredAction: "issue_badge",
       });
       if (denied !== null) return denied;
+      const form = await c.req.formData();
+      const returnHref = badgeRecordsReturnHref(tenantId, form.get("returnTo"));
       const finish = async (message: string, tone: "success" | "error"): Promise<Response> => {
         await setAdminListMessageFlash(c, {
           tenantId,
@@ -49,11 +52,16 @@ export const registerTenantNotificationRetryAdminRoutes = (
           tone,
           message,
         });
-        return c.redirect(receiptPath, 303);
+        return c.redirect(
+          returnHref
+            ? `${receiptPath}?${new URLSearchParams({ returnTo: returnHref })}`
+            : receiptPath,
+          303,
+        );
       };
       const parsed = z
         .object({ failedAttemptId: z.string().trim().min(1).max(256) })
-        .safeParse(Object.fromEntries(await c.req.formData()));
+        .safeParse(Object.fromEntries(form));
       if (!parsed.success)
         return finish("Refresh the receipt before retrying this notification.", "error");
       if (

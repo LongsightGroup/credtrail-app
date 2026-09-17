@@ -20,6 +20,27 @@ const outcomeSchema = z.object({
 export type IssuanceEmailOutcome = z.infer<typeof outcomeSchema>["status"] | "unrecorded";
 const auditAction = "assertion.issuance_email";
 
+/** Availability shared by issuance and its pre-submit expectations. */
+export const issuanceEmailAvailability = (input: {
+  enabled: boolean;
+  configured: boolean;
+}): "ready" | "disabled" | "not_configured" =>
+  !input.enabled ? "disabled" : input.configured ? "ready" : "not_configured";
+
+/** Describes planned notification behavior without promising delivery. */
+export const issuanceEmailExpectation = (
+  availability: ReturnType<typeof issuanceEmailAvailability>,
+): string => {
+  switch (availability) {
+    case "ready":
+      return "After issuance, CredTrail will attempt to email the learner their badge link. The receipt will show whether the email provider accepted it; delivery is not guaranteed.";
+    case "disabled":
+      return "Email notifications are turned off. No email will be sent. After issuance, copy the public badge link from the receipt and share it with the learner.";
+    case "not_configured":
+      return "Email is unavailable. No email will be sent. After issuance, copy the public badge link from the receipt and share it with the learner.";
+  }
+};
+
 export const attemptIssuanceEmail = async (input: {
   readonly isEmailRecipient: boolean;
   readonly enabled: boolean;
@@ -29,8 +50,8 @@ export const attemptIssuanceEmail = async (input: {
 }): Promise<Exclude<IssuanceEmailOutcome, "unrecorded">> => {
   if (!input.isEmailRecipient) return "not_applicable";
   if (input.suppressed) return "suppressed";
-  if (!input.enabled) return "disabled";
-  if (!input.configured) return "not_configured";
+  const availability = issuanceEmailAvailability(input);
+  if (availability !== "ready") return availability;
   try {
     await input.send();
     return "accepted";

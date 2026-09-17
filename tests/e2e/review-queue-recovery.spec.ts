@@ -82,7 +82,32 @@ test("review notes survive errors and warn before leaving, then become searchabl
     );
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.screenshot({ path: "/tmp/credtrail-review-recovery-desktop.png", fullPage: true });
+    const nextEvaluation = await createBadgeIssuanceRuleEvaluation(db, {
+      tenantId: f.tenantId,
+      ruleId: f.ruleId,
+      versionId: f.versionId,
+      learnerId: `next-${recipient}`,
+      recipientIdentity: `next-${recipient}`,
+      recipientIdentityType: "email",
+      matched: false,
+      issuanceStatus: "review_required",
+      reviewStatus: "pending",
+      evaluationJson: "{}",
+      evaluatedAt: new Date(Date.now() + 1000).toISOString(),
+    });
     await page.getByRole("button", { name: "Dismiss review", exact: true }).click();
+    await page.getByRole("link", { name: "Review next learner", exact: true }).click();
+    await expect(page.locator('#review-decision-form input[name="evaluationId"]')).toHaveValue(
+      nextEvaluation.id,
+    );
+    await expect(page.getByRole("combobox", { name: "Order", exact: true })).toHaveValue("oldest");
+    await expect(page.locator("#review-decision-panel time").first()).toHaveAttribute(
+      "datetime",
+      nextEvaluation.evaluatedAt,
+    );
+    await expect(
+      page.getByRole("columnheader", { name: "Evaluated (UTC)", exact: true }),
+    ).toBeVisible();
     await page.getByRole("link", { name: "Resolved", exact: true }).click();
     await page
       .getByRole("combobox", { name: "Decision outcome", exact: true })
@@ -103,7 +128,19 @@ test("review notes survive errors and warn before leaving, then become searchabl
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
+    await expect(page.getByRole("region", { name: "Active review filters" })).toContainText(
+      recipient,
+    );
+    await expect(page.getByRole("region", { name: "Active review filters" })).toContainText(
+      "Dismissed",
+    );
     await page.screenshot({ path: "/tmp/credtrail-review-history-mobile.png", fullPage: true });
+    await page.getByRole("link", { name: "Clear filters", exact: true }).click();
+    await expect(page.getByLabel("Learner or badge")).toHaveValue("");
+    await expect(page.getByRole("combobox", { name: "Decision outcome", exact: true })).toHaveValue(
+      "all",
+    );
+    await expect(page.getByRole("combobox", { name: "Order", exact: true })).toHaveValue("oldest");
   } finally {
     await f.dispose();
   }
@@ -145,6 +182,10 @@ test("email attention filter opens retry and clears after a successful notificat
   await expect(
     page.getByRole("button", { name: "Retry notification email", exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Retry notification email", exact: true }).click();
+  await page.getByRole("link", { name: "Back to failed emails", exact: true }).click();
+  expect(new URL(page.url()).searchParams.get("notificationStatus")).toBe("failed");
+  expect(new URL(page.url()).searchParams.get("recipientQuery")).toBe(identity.recipientEmail);
   await createAuditLog(db, {
     tenantId: "tenant_123",
     action: "assertion.issuance_email",

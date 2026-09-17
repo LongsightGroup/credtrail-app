@@ -1,3 +1,5 @@
+import { loadReviewQueueContinuation } from "./review-queue-continuation";
+import { issuanceEmailAvailability } from "../notifications/issuance-email-outcome";
 import {
   parseReviewQueuePageQuery,
   paginateReviewQueue,
@@ -330,6 +332,7 @@ export const renderInstitutionAdminReviewQueueWorkspace = async <
     institutionAdminOperationsReviewQueuePage({
       ...pageData,
       reviewQueueWorkspace: {
+        continuation: await loadReviewQueueContinuation(db, tenantId, query),
         query,
         reviewStatus: query.reviewStatus,
         entries: page.entries,
@@ -706,6 +709,10 @@ export const renderInstitutionAdminManualIssueWorkspace = async <
       ? recipientAssertion.recipientIdentity
       : undefined;
   const manualIssueWorkspace = {
+    emailAvailability: issuanceEmailAvailability({
+      enabled: c.env.ISSUANCE_EMAIL_NOTIFICATIONS_ENABLED?.trim().toLowerCase() === "true",
+      configured: c.env.EMAIL !== undefined,
+    }),
     recipientEmail,
     issuanceRequestId: correction?.issuanceRequestId ?? crypto.randomUUID(),
     ...flash,

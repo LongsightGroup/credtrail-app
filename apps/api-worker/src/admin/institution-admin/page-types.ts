@@ -105,6 +105,7 @@ export interface InstitutionAdminIssuedBadgesWorkspace {
 }
 
 export interface InstitutionAdminReviewQueueWorkspace {
+  continuation?: { href: string | null } | undefined;
   query?: import("../review-queue-page-query").ReviewQueuePageQuery;
   selectedEntry?: BadgeRuleReviewQueueEntryView | undefined;
   correction?: import("../review-queue-page-query").ReviewQueueCorrection | undefined;
@@ -154,6 +155,7 @@ export interface InstitutionAdminAccessDelegationsNewWorkspace extends Instituti
 export interface InstitutionAdminAccessOrgUnitsWorkspace extends InstitutionAdminListFlashWorkspace {}
 
 export interface InstitutionAdminManualIssueWorkspace {
+  emailAvailability?: "ready" | "disabled" | "not_configured" | undefined;
   recipientEmail?: string | undefined;
   issuanceRequestId: string;
   correction?: import("../manual-issue-correction").ManualIssueCorrection;

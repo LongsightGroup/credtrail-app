@@ -127,10 +127,14 @@ describeDbIntegration("notification retry", () => {
         EMAIL: { send: async () => {} },
         PUBLIC_APP_ORIGIN: "https://credtrail.org",
       };
-      const submit = async (tenantId: string, attemptId: string): Promise<Response> =>
+      const submit = async (
+        tenantId: string,
+        attemptId: string,
+        returnTo = "",
+      ): Promise<Response> =>
         app.request(
           `/tenants/${tenantId}/admin/operations/issue/${encodeURIComponent(assertionId)}/retry-notification`,
-          { method: "POST", body: new URLSearchParams({ failedAttemptId: attemptId }) },
+          { method: "POST", body: new URLSearchParams({ failedAttemptId: attemptId, returnTo }) },
           env,
         );
       expect((await submit(f.tenantId, failed.attemptId ?? "missing")).status).toBe(403);
@@ -141,6 +145,17 @@ describeDbIntegration("notification retry", () => {
       expect((await submit(f.tenantId, failed.attemptId ?? "missing")).status).toBe(303);
       expect((await submit(f.tenantId, failed.attemptId ?? "missing")).status).toBe(303);
       expect(sends).toBe(1);
+      const returnHref = `/tenants/${f.tenantId}/admin/operations/issued-badges?notificationStatus=failed&recipientQuery=retry&limit=100`;
+      const response = await submit(f.tenantId, failed.attemptId ?? "missing", returnHref);
+      const location = new URL(response.headers.get("location") ?? "", "https://example.edu");
+      expect(location.searchParams.get("returnTo")).toContain("notificationStatus=failed");
+      expect(location.searchParams.get("returnTo")).toContain("recipientQuery=retry");
+      const external = await submit(
+        f.tenantId,
+        failed.attemptId ?? "missing",
+        "https://external.example",
+      );
+      expect(external.headers.get("location")).not.toContain("returnTo");
     } finally {
       await cleanupTestResources(f.db, { tenantIds: [f.tenantId], userIds: [f.userId] });
     }

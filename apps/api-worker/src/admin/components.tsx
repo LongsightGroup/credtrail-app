@@ -756,7 +756,7 @@ const IssuedBadgeRow = (input: {
         <div class="ct-admin__issued-actions">
           {input.showNotificationRetry ? (
             <AdminButtonLink
-              href={`/tenants/${encodeURIComponent(assertion.tenantId)}/admin/operations/issue/${encodeURIComponent(assertion.assertionId)}/receipt`}
+              href={`/tenants/${encodeURIComponent(assertion.tenantId)}/admin/operations/issue/${encodeURIComponent(assertion.assertionId)}/receipt${input.learnerReturnHref ? `?${new URLSearchParams({ returnTo: input.learnerReturnHref })}` : ""}`}
               size="tiny"
             >
               Retry notification email
@@ -797,7 +797,9 @@ const ReviewQueueRow = (input: {
   return (
     <tr data-review-queue-row="true">
       <td>
-        {formatIsoTimestamp(entry.evaluatedAt)}
+        <time datetime={entry.evaluatedAt} title={entry.evaluatedAt}>
+          {formatIsoTimestamp(entry.evaluatedAt)} UTC
+        </time>
         {isPending && input.now !== undefined ? (
           <AdminMeta>{reviewWaitingLabel(entry.evaluatedAt, input.now)}</AdminMeta>
         ) : null}

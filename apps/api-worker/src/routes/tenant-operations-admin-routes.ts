@@ -1,3 +1,4 @@
+import { badgeRecordsReturnHref } from "../admin/learner-record-link";
 import { canonicalAppUrl } from "../http/canonical-app-url";
 import { publicBadgePathForAssertion } from "../badges/public-badge-model";
 import { z } from "zod";
@@ -274,6 +275,7 @@ export const registerTenantOperationsAdminRoutes = (
       authorized.membershipRole,
     );
     if (shell instanceof Response) return shell;
+    const returnHref = badgeRecordsReturnHref(tenantId, c.req.query("returnTo"));
     const notification = await loadIssuanceEmailState(
       resolveDatabase(c.env),
       tenantId,
@@ -285,11 +287,13 @@ export const registerTenantOperationsAdminRoutes = (
       issuanceReceiptPage({
         ...shell,
         assertion,
+        returnHref,
         notificationOutcome: notification.outcome,
         notificationRetry:
           notification.outcome === "failed" && notification.attemptId
             ? {
                 action: `${buildOperationsManualIssuePath(tenantId)}/${encodeURIComponent(assertionId)}/retry-notification`,
+                returnHref,
                 failedAttemptId: notification.attemptId,
               }
             : undefined,

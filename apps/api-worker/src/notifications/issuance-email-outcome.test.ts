@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { attemptIssuanceEmail, issuanceEmailOutcomeMessage } from "./issuance-email-outcome";
+import {
+  attemptIssuanceEmail,
+  issuanceEmailOutcomeMessage,
+  issuanceEmailAvailability,
+  issuanceEmailExpectation,
+} from "./issuance-email-outcome";
 
 describe("issuance email outcomes", () => {
   it("only reports acceptance after the sender resolves", async () => {
@@ -70,5 +75,14 @@ describe("issuance email outcomes", () => {
       }),
     ).toBe(expected);
     expect(sent).toBe(false);
+  });
+  it.each([
+    { enabled: true, configured: true, status: "ready", message: "will attempt to email" },
+    { enabled: false, configured: true, status: "disabled", message: "turned off" },
+    { enabled: true, configured: false, status: "not_configured", message: "Email is unavailable" },
+  ])("sets accurate expectations when $status", ({ enabled, configured, status, message }) => {
+    const availability = issuanceEmailAvailability({ enabled, configured });
+    expect(availability).toBe(status);
+    expect(issuanceEmailExpectation(availability)).toContain(message);
   });
 });

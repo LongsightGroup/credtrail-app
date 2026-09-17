@@ -320,7 +320,7 @@ export const createTenantGovernanceInstitutionAdminWorkspaces = (input: {
             evidenceLoaded.data.assertion.recipientIdentity,
             returnHref,
           ),
-          notificationReceiptHref: `/tenants/${encodeURIComponent(tenantId)}/admin/operations/issue/${encodeURIComponent(assertionId)}/receipt`,
+          notificationReceiptHref: `/tenants/${encodeURIComponent(tenantId)}/admin/operations/issue/${encodeURIComponent(assertionId)}/receipt?${new URLSearchParams({ returnTo: returnHref })}`,
           notificationOutcome: notificationHistory.latest.outcome,
           notificationHistory,
           publicBadgeUrl: canonicalAppUrl(

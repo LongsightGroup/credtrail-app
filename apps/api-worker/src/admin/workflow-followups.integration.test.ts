@@ -1,3 +1,4 @@
+import { loadReviewQueueContinuation } from "./review-queue-continuation";
 import { loadIssuanceEmailHistory } from "../notifications/issuance-email-outcome";
 import { expect, it } from "vitest";
 import {
@@ -254,6 +255,58 @@ describeDbIntegration("workflow follow-ups", () => {
       expect(back.entries.map((e) => e.evaluationId)).toEqual(
         first.entries.map((e) => e.evaluationId),
       );
+    } finally {
+      await cleanupTestResources(f.db, { tenantIds: [f.tenantId], userIds: [f.userId] });
+    }
+  });
+  it("continues after a completed decision using search and sort, with tenant isolation", async () => {
+    const f = await createBadgeRuleIntegrationFixture();
+    try {
+      const rule = await createFixtureRule(f);
+      const make = async (day: number, status: "pending" | "resolved", recipient: string) =>
+        createBadgeIssuanceRuleEvaluation(f.db, {
+          tenantId: f.tenantId,
+          ruleId: rule.rule.id,
+          versionId: rule.version.id,
+          learnerId: recipient,
+          recipientIdentity: recipient,
+          recipientIdentityType: "email",
+          matched: false,
+          issuanceStatus: "review_required",
+          reviewStatus: status,
+          ...(status === "resolved"
+            ? {
+                reviewDecision: "dismiss" as const,
+                reviewedByUserId: f.userId,
+                reviewedAt: "2026-09-17T12:00:00.000Z",
+              }
+            : {}),
+          evaluatedAt: `2026-09-${day}T12:00:00.000Z`,
+          evaluationJson: "{}",
+        });
+      const older = await make(10, "pending", "match-old@example.edu");
+      const completed = await make(11, "resolved", "match-done@example.edu");
+      await make(12, "pending", "unrelated@example.edu");
+      const newer = await make(13, "pending", "match-new@example.edu");
+      const query = parseReviewQueuePageQuery({
+        completed: completed.id,
+        q: "match-",
+        sort: "oldest",
+      });
+      const next = await loadReviewQueueContinuation(f.db, f.tenantId, query);
+      expect(next?.href).toContain(`review=${newer.id}`);
+      expect(next?.href).toContain("q=match-");
+      expect(next?.href).toContain("sort=oldest");
+      expect(
+        (await loadReviewQueueContinuation(f.db, f.tenantId, { ...query, sort: "newest" }))?.href,
+      ).toContain(`review=${older.id}`);
+      expect(
+        await loadReviewQueueContinuation(f.db, f.tenantId, { ...query, q: "absent" }),
+      ).toEqual({ href: null });
+      expect(await loadReviewQueueContinuation(f.db, "other", query)).toBeUndefined();
+      expect(
+        await loadReviewQueueContinuation(f.db, f.tenantId, { ...query, completed: newer.id }),
+      ).toBeUndefined();
     } finally {
       await cleanupTestResources(f.db, { tenantIds: [f.tenantId], userIds: [f.userId] });
     }

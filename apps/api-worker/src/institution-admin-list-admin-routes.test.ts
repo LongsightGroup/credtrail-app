@@ -86,7 +86,7 @@ describe("POST /tenants/:tenantId/admin/operations/review-queue/resolve", () => 
 
     expect(response.status).toBe(303);
     const location = response.headers.get("location") ?? "";
-    expect(location).toBe("/tenants/tenant_123/admin/operations/review-queue");
+    expect(location).toBe("/tenants/tenant_123/admin/operations/review-queue?completed=bre_123");
     expect(location).not.toContain("listNotice=");
     expect(mockedResolveBadgeIssuanceRuleEvaluationReview).toHaveBeenCalledTimes(1);
 

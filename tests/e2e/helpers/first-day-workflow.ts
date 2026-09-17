@@ -120,6 +120,9 @@ export const completeFirstDayWorkflow = async (
     "Issue " + identity.templateName + " to " + identity.recipientEmail,
   );
 
+  await expect(page.getByRole("region", { name: "Email notification expectations" })).toContainText(
+    "No email will be sent",
+  );
   await page.getByRole("button", { name: "Issue badge", exact: true }).click();
   await expect(page).toHaveURL(/\/operations\/issue\/[^/]+\/receipt$/);
   await expect(page.getByRole("heading", { name: "Badge issued", exact: true })).toBeVisible();

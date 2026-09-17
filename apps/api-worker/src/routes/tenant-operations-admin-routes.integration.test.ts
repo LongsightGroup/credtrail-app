@@ -91,8 +91,9 @@ describeDbIntegration("persisted issuance receipts", () => {
       status: "failed",
     });
     const state = await loadIssuanceEmailState(f.db, f.tenantId, assertionId);
+    const returnHref = `/tenants/${f.tenantId}/admin/operations/issued-badges?notificationStatus=failed&recipientQuery=receipt&limit=100`;
     const response = await routeApp(f).request(
-      issuanceReceiptPath(f.tenantId, assertionId),
+      `${issuanceReceiptPath(f.tenantId, assertionId)}?${new URLSearchParams({ returnTo: returnHref })}`,
       undefined,
       { PUBLIC_APP_ORIGIN: "https://credtrail.test" },
     );
@@ -101,6 +102,20 @@ describeDbIntegration("persisted issuance receipts", () => {
     expect(body).toContain("Retry notification email");
     expect(body).toContain(`name="failedAttemptId" type="hidden" value="${state.attemptId}"`);
     expect(body).toContain("Copy public badge link");
+    expect(body).toContain("Back to failed emails");
+    expect(body).toContain('name="returnTo"');
+    expect(body).toContain("recipientQuery=receipt");
+    for (const returnTo of [
+      "https://external.example",
+      "/tenants/other/admin/operations/issued-badges?notificationStatus=failed",
+    ]) {
+      const response = await routeApp(f).request(
+        `${issuanceReceiptPath(f.tenantId, assertionId)}?${new URLSearchParams({ returnTo })}`,
+        undefined,
+        { PUBLIC_APP_ORIGIN: "https://credtrail.test" },
+      );
+      expect(await response.text()).not.toContain("Back to failed emails");
+    }
   });
 
   it("returns the same receipt for simultaneous submissions and a later retry", async () => {

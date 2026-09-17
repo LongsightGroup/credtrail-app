@@ -48,6 +48,7 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
         <a
           href={reviewQueuePageUrl(input.tenantId, {
             ...query,
+            completed: "",
             reviewStatus: "pending",
             review: "",
             cursor: undefined,
@@ -65,6 +66,7 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
         <a
           href={reviewQueuePageUrl(input.tenantId, {
             ...query,
+            completed: "",
             reviewStatus: "resolved",
             review: "",
             cursor: undefined,
@@ -118,21 +120,40 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
         ) : null}
         <AdminActions>
           <AdminButton type="submit">Search reviews</AdminButton>
-          {query.q ? (
+        </AdminActions>
+      </AdminForm>
+      {query.q || query.decision !== "all" ? (
+        <section aria-label="Active review filters" class="ct-stack">
+          <p>
+            {query.q ? (
+              <span>
+                Search: <strong>{query.q}</strong>.{" "}
+              </span>
+            ) : null}
+            {query.decision !== "all" ? (
+              <span>
+                Outcome:{" "}
+                <strong>{query.decision === "issue" ? "Badge issued" : "Dismissed"}</strong>.
+              </span>
+            ) : null}
+          </p>
+          <AdminActions>
             <AdminButtonLink
               href={reviewQueuePageUrl(input.tenantId, {
                 ...query,
                 q: "",
-                review: "",
+                decision: "all",
                 cursor: undefined,
+                review: "",
+                completed: "",
               })}
               variant="quiet"
             >
-              Clear search
+              Clear filters
             </AdminButtonLink>
-          ) : null}
-        </AdminActions>
-      </AdminForm>
+          </AdminActions>
+        </section>
+      ) : null}
       <p>
         Showing up to 50{" "}
         {input.reviewQueueWorkspace?.reviewStatus === "resolved"
@@ -151,6 +172,22 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
         input.reviewQueueWorkspace?.listNotice !== undefined &&
         input.reviewQueueWorkspace.listNotice.length > 0 ? (
         <AdminStatus data-tone="success">{input.reviewQueueWorkspace.listNotice}</AdminStatus>
+      ) : null}
+      {input.reviewQueueWorkspace?.continuation ? (
+        <section aria-label="Continue reviewing" class="ct-stack">
+          {input.reviewQueueWorkspace.continuation.href ? (
+            <AdminActions>
+              <AdminButtonLink
+                href={input.reviewQueueWorkspace.continuation.href}
+                variant="primary"
+              >
+                Review next learner
+              </AdminButtonLink>
+            </AdminActions>
+          ) : (
+            <p>No more pending reviews follow this decision in the current search and order.</p>
+          )}
+        </section>
       ) : null}
       {correction && selectedEntry?.reviewStatus !== "pending" ? (
         <section class="ct-stack" aria-label="Unsaved decision note">
@@ -179,6 +216,11 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
             <strong>Badge:</strong> {selectedEntry.badgeTitle ?? "Badge details unavailable"}
             <br />
             <strong>Rule:</strong> {selectedEntry.ruleName ?? "Rule details unavailable"}
+            <br />
+            <strong>Evaluated:</strong>{" "}
+            <time datetime={selectedEntry.evaluatedAt} title={selectedEntry.evaluatedAt}>
+              {formatIsoTimestamp(selectedEntry.evaluatedAt)} UTC
+            </time>
           </p>
           <AdminActions>
             {selectedEntry.recipientIdentityType === "email" ? (
@@ -294,7 +336,7 @@ export const renderRuleReviewQueuePanel = (input: RenderRuleReviewQueuePanelInpu
           )}
         </section>
       ) : null}
-      <AdminTable headers={["Evaluated", "Recipient", "Rule", "Summary", "Actions"]}>
+      <AdminTable headers={["Evaluated (UTC)", "Recipient", "Rule", "Summary", "Actions"]}>
         {input.reviewQueueWorkspace === undefined ? (
           <AdminEmptyTableRow colSpan={5}>No pending review queue entries.</AdminEmptyTableRow>
         ) : (

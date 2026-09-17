@@ -181,6 +181,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
             {renderManualIssueSection({
               issuanceRequestId:
                 input.manualIssueWorkspace?.issuanceRequestId ?? crypto.randomUUID(),
+              emailAvailability: input.manualIssueWorkspace?.emailAvailability,
               correction: input.manualIssueWorkspace?.correction,
               recipientEmail: input.manualIssueWorkspace?.recipientEmail,
               hasReadyTemplates: input.badgeTemplates.length > 0,

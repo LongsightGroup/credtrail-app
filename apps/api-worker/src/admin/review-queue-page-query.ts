@@ -8,6 +8,7 @@ const cursorSchema = z.object({
   direction: z.enum(["older", "newer"]),
 });
 const querySchema = z.object({
+  completed: z.string().max(256).default(""),
   sort: z.enum(["oldest", "newest"]).default("newest"),
   decision: z.enum(["all", "issue", "dismiss"]).default("all"),
   q: z.string().trim().max(320).default(""),
@@ -16,6 +17,7 @@ const querySchema = z.object({
   cursor: z.string().max(1024).optional(),
 });
 export interface ReviewQueuePageQuery {
+  completed?: string;
   sort: "oldest" | "newest";
   decision: "all" | "issue" | "dismiss";
   q: string;
@@ -45,6 +47,7 @@ export const reviewQueuePageUrl = (tenantId: string, query: ReviewQueuePageQuery
     params.set("decision", query.decision);
   if (query.q) params.set("q", query.q);
   if (query.review) params.set("review", query.review);
+  else if (query.completed) params.set("completed", query.completed);
   if (query.cursor) params.set("cursor", JSON.stringify(query.cursor));
   return `${buildReviewQueuePagePath(tenantId)}${params.size ? `?${params}` : ""}`;
 };

@@ -69,7 +69,10 @@ export const registerTenantReviewQueueAdminRoutes = (
         message,
       });
 
-      return c.redirect(reviewQueuePageUrl(pathParams.tenantId, { ...query, review: "" }), 303);
+      return c.redirect(
+        reviewQueuePageUrl(pathParams.tenantId, { ...query, review: "", completed: evaluationId }),
+        303,
+      );
     };
 
     const formData = await c.req.formData();

@@ -10,6 +10,7 @@ import { formatIsoTimestamp } from "../utils/display-format";
 import { CopyPublicBadgeLink } from "./copy-public-badge-link";
 
 export interface NotificationRetry {
+  returnHref?: string | null | undefined;
   action: string;
   failedAttemptId: string;
 }
@@ -65,6 +66,9 @@ export const IssuanceNotification = (input: {
     {input.outcome === "accepted" ? null : <p>Share this link with the learner.</p>}
     {input.outcome === "failed" && input.retry ? (
       <AdminForm method="post" action={input.retry.action}>
+        {input.retry.returnHref ? (
+          <CtInput type="hidden" name="returnTo" value={input.retry.returnHref} />
+        ) : null}
         <CtInput type="hidden" name="failedAttemptId" value={input.retry.failedAttemptId} />
         <p>Retry sends the notification for this credential. It does not issue another badge.</p>
         <AdminButton type="submit">Retry notification email</AdminButton>

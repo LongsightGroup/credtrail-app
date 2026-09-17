@@ -26,6 +26,7 @@ export const issuanceReceiptPage = (
     InstitutionAdminPageInput,
     "tenant" | "userId" | "userEmail" | "membershipRole" | "switchOrganizationPath"
   > & {
+    readonly returnHref?: string | null | undefined;
     readonly notificationRetry?: import("./issuance-notification").NotificationRetry | undefined;
     readonly notificationMessage?: string | undefined;
     readonly assertion: AssertionRecord;
@@ -45,6 +46,12 @@ export const issuanceReceiptPage = (
     input.assertion.id,
     "audit",
   );
+  const returnLabel =
+    input.returnHref &&
+    new URL(input.returnHref, "https://return.invalid").searchParams.get("notificationStatus") ===
+      "failed"
+      ? "Back to failed emails"
+      : "Back to badge records";
   return renderInstitutionAdminShellPage({
     tenant: input.tenant,
     userId: input.userId,
@@ -76,7 +83,10 @@ export const issuanceReceiptPage = (
                     <br />
                   </>
                 )}
-                <strong>Issued:</strong> {formatIsoTimestamp(input.assertion.issuedAt)} UTC
+                <strong>Issued:</strong>{" "}
+                <time datetime={input.assertion.issuedAt} title={input.assertion.issuedAt}>
+                  {formatIsoTimestamp(input.assertion.issuedAt)} UTC
+                </time>
               </p>
               <p>
                 The credential is issued. You can open its public page or review its record and
@@ -89,6 +99,11 @@ export const issuanceReceiptPage = (
                 publicBadgeUrl={input.publicBadgeUrl}
               />
               <AdminActions>
+                {input.returnHref ? (
+                  <AdminButtonLink href={input.returnHref} variant="secondary">
+                    {returnLabel}
+                  </AdminButtonLink>
+                ) : null}
                 <AdminButtonLink href={recordPath} variant="primary">
                   View badge record
                 </AdminButtonLink>
