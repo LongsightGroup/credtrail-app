@@ -25,11 +25,6 @@ export type PageAssetBuildSource = StylePageAssetBuildSource | ScriptPageAssetBu
 export const FONT_ASSET_SOURCE_PATHS = ["fonts/newsreader-latin.woff2"] as const;
 
 export const PAGE_ASSET_BUILD_SOURCES = {
-  institutionAdminHomeJs: {
-    kind: "script",
-    stem: "institution-admin-home",
-    sources: ["institution-admin-home.js"],
-  },
   institutionAdminLearnerImportsJs: {
     kind: "script",
     stem: "institution-admin-learner-imports",

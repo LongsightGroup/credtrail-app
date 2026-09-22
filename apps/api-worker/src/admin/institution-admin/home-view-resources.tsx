@@ -94,21 +94,10 @@ export const buildInstitutionAdminHomeViewResources = (input: {
           </AdminWorkspaceCard>
         </section>
         <aside
-          id="home-action-items"
           class="ct-admin__home-actions ct-stack"
           aria-labelledby="home-actions-heading"
         >
           <h2 id="home-actions-heading">Action items</h2>
-          <AdminMeta>
-            <span data-home-refresh-status="true">Refresh to see the latest actions.</span>
-          </AdminMeta>
-          <AdminButtonLink
-            href={`/tenants/${encodeURIComponent(page.tenant.id)}/admin`}
-            variant="quiet"
-            dataAttributes={{ "data-refresh-home-actions": "true" }}
-          >
-            Refresh actions
-          </AdminButtonLink>
           {page.operationsAttention &&
           (page.operationsAttention.pendingReviews > 0 ||
             page.operationsAttention.failedEmails > 0) ? (
