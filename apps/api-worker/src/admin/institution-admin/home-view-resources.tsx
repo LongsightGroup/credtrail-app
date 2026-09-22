@@ -36,116 +36,7 @@ export const buildInstitutionAdminHomeViewResources = (input: {
   const home = page.workflowHome;
   return {
     workspaceCardsMarkup: (
-      <>
-        {page.operationsAttention &&
-        (page.operationsAttention.pendingReviews > 0 ||
-          page.operationsAttention.failedEmails > 0) ? (
-          <AdminPanel as="section" className="ct-admin__workflow-tasks">
-            <h2>Learner follow-up</h2>
-            <ul class="ct-admin__workflow-task-list">
-              {page.operationsAttention.pendingReviews > 0 ? (
-                <li>
-                  <div>
-                    <strong>
-                      {page.operationsAttention.pendingReviews}{" "}
-                      {page.operationsAttention.pendingReviews === 1
-                        ? "learner review needs"
-                        : "learner reviews need"}{" "}
-                      a decision
-                    </strong>
-                    <p>Check supporting information before issuing a badge.</p>
-                  </div>
-                  <AdminButtonLink
-                    href={`${paths.operationsPath}/review-queue?sort=oldest`}
-                    variant="secondary"
-                  >
-                    Review waiting learners
-                  </AdminButtonLink>
-                </li>
-              ) : null}
-              {page.operationsAttention.failedEmails > 0 ? (
-                <li>
-                  <div>
-                    <strong>
-                      {page.operationsAttention.failedEmails}{" "}
-                      {page.operationsAttention.failedEmails === 1
-                        ? "notification email needs"
-                        : "notification emails need"}{" "}
-                      attention
-                    </strong>
-                    <p>The badges are issued. Their latest email attempts failed.</p>
-                  </div>
-                  <AdminButtonLink
-                    href={`${paths.operationsPath}/issued-badges?notificationStatus=failed`}
-                    variant="secondary"
-                  >
-                    Review failed emails
-                  </AdminButtonLink>
-                </li>
-              ) : null}
-            </ul>
-          </AdminPanel>
-        ) : null}
-        {home === undefined || home.actionCount === 0 ? null : (
-          <AdminPanel as="section" className="ct-admin__workflow-tasks">
-            <h2>Action needed</h2>
-            <p class="ct-admin__hint">
-              {home.actionCount} {home.actionCount === 1 ? "rule needs" : "rules need"} attention
-              {home.actionCount > home.tasks.length
-                ? ` · Showing ${String(home.tasks.length)}`
-                : ""}
-              .
-            </p>
-            <ul class="ct-admin__workflow-task-list">
-              {home.tasks.map((task) => {
-                const version = task.version;
-                const responsibility = page.badgeWorkflowResponsibilities?.get(version.id);
-                const href =
-                  task.action === "review"
-                    ? buildBadgeRuleVersionReviewPath(page.tenant.id, version.ruleId, version.id)
-                    : buildBadgeRuleVersionDetailPath(page.tenant.id, version.ruleId, version.id);
-                return (
-                  <li>
-                    <div>
-                      <strong>{version.snapshot.name}</strong>
-                      <AdminMeta>
-                        {version.snapshot.badgeTemplateTitle} · Version {version.versionNumber}
-                      </AdminMeta>
-                      {responsibility === undefined ? null : (
-                        <>
-                          <p>Approval: {responsibility.approval.label}</p>
-                          <AdminMeta>
-                            Badge owner: {responsibility.badgeOwner} · {responsibility.awarding}
-                          </AdminMeta>
-                        </>
-                      )}
-                      <AdminMeta>
-                        {task.action === "review"
-                          ? "You can review this submission."
-                          : "An institution administrator can take the next step."}
-                      </AdminMeta>
-                    </div>
-                    <AdminButtonLink variant="secondary" href={href}>
-                      {responsibility?.approval.kind === "blocked"
-                        ? taskLabels.configure_approval
-                        : taskLabels[task.action]}
-                    </AdminButtonLink>
-                  </li>
-                );
-              })}
-            </ul>
-            {home.actionCount > home.tasks.length ? (
-              <a href={paths.rulesWorkspacePath}>View all rules</a>
-            ) : null}
-          </AdminPanel>
-        )}
-        {home === undefined || home.waitingCount === 0 ? null : (
-          <p class="ct-admin__hint">
-            {home.waitingCount} of your submitted{" "}
-            {home.waitingCount === 1 ? "rules is" : "rules are"} waiting for another reviewer.{" "}
-            <a href={paths.rulesWorkspacePath}>View submitted rules</a>.
-          </p>
-        )}
+      <div class="ct-admin__home-layout">
         <section class="ct-admin__workspace-grid ct-grid" aria-label="Institution admin workspaces">
           <AdminWorkspaceCard
             href={paths.operationsManualIssuePath}
@@ -200,7 +91,125 @@ export const buildInstitutionAdminHomeViewResources = (input: {
             </p>
           </AdminWorkspaceCard>
         </section>
-      </>
+        <aside class="ct-admin__home-actions ct-stack" aria-labelledby="home-actions-heading">
+          <h2 id="home-actions-heading">Action items</h2>
+          {page.operationsAttention &&
+          (page.operationsAttention.pendingReviews > 0 ||
+            page.operationsAttention.failedEmails > 0) ? (
+            <AdminPanel as="section" className="ct-admin__workflow-tasks">
+              <h3>Learner follow-up</h3>
+              <ul class="ct-admin__workflow-task-list">
+                {page.operationsAttention.pendingReviews > 0 ? (
+                  <li>
+                    <div>
+                      <strong>
+                        {page.operationsAttention.pendingReviews}{" "}
+                        {page.operationsAttention.pendingReviews === 1
+                          ? "learner review needs"
+                          : "learner reviews need"}{" "}
+                        a decision
+                      </strong>
+                      <p>Check supporting information before issuing a badge.</p>
+                    </div>
+                    <AdminButtonLink
+                      href={`${paths.operationsPath}/review-queue?sort=oldest`}
+                      variant="secondary"
+                    >
+                      Review waiting learners
+                    </AdminButtonLink>
+                  </li>
+                ) : null}
+                {page.operationsAttention.failedEmails > 0 ? (
+                  <li>
+                    <div>
+                      <strong>
+                        {page.operationsAttention.failedEmails}{" "}
+                        {page.operationsAttention.failedEmails === 1
+                          ? "notification email needs"
+                          : "notification emails need"}{" "}
+                        attention
+                      </strong>
+                      <p>The badges are issued. Their latest email attempts failed.</p>
+                    </div>
+                    <AdminButtonLink
+                      href={`${paths.operationsPath}/issued-badges?notificationStatus=failed`}
+                      variant="secondary"
+                    >
+                      Review failed emails
+                    </AdminButtonLink>
+                  </li>
+                ) : null}
+              </ul>
+            </AdminPanel>
+          ) : null}
+          {home === undefined || home.actionCount === 0 ? null : (
+            <AdminPanel as="section" className="ct-admin__workflow-tasks">
+              <h3>Action needed</h3>
+              <p class="ct-admin__hint">
+                {home.actionCount} {home.actionCount === 1 ? "rule needs" : "rules need"} attention
+                {home.actionCount > home.tasks.length
+                  ? ` · Showing ${String(home.tasks.length)}`
+                  : ""}
+                .
+              </p>
+              <ul class="ct-admin__workflow-task-list">
+                {home.tasks.map((task) => {
+                  const version = task.version;
+                  const responsibility = page.badgeWorkflowResponsibilities?.get(version.id);
+                  const href =
+                    task.action === "review"
+                      ? buildBadgeRuleVersionReviewPath(page.tenant.id, version.ruleId, version.id)
+                      : buildBadgeRuleVersionDetailPath(page.tenant.id, version.ruleId, version.id);
+                  return (
+                    <li>
+                      <div>
+                        <strong>{version.snapshot.name}</strong>
+                        <AdminMeta>
+                          {version.snapshot.badgeTemplateTitle} · Version {version.versionNumber}
+                        </AdminMeta>
+                        {responsibility === undefined ? null : (
+                          <>
+                            <p>Approval: {responsibility.approval.label}</p>
+                            <AdminMeta>
+                              Badge owner: {responsibility.badgeOwner} · {responsibility.awarding}
+                            </AdminMeta>
+                          </>
+                        )}
+                        <AdminMeta>
+                          {task.action === "review"
+                            ? "You can review this submission."
+                            : "An institution administrator can take the next step."}
+                        </AdminMeta>
+                      </div>
+                      <AdminButtonLink variant="secondary" href={href}>
+                        {responsibility?.approval.kind === "blocked"
+                          ? taskLabels.configure_approval
+                          : taskLabels[task.action]}
+                      </AdminButtonLink>
+                    </li>
+                  );
+                })}
+              </ul>
+              {home.actionCount > home.tasks.length ? (
+                <a href={paths.rulesWorkspacePath}>View all rules</a>
+              ) : null}
+            </AdminPanel>
+          )}
+          {home === undefined || home.waitingCount === 0 ? null : (
+            <p class="ct-admin__hint">
+              {home.waitingCount} of your submitted{" "}
+              {home.waitingCount === 1 ? "rules is" : "rules are"} waiting for another reviewer.{" "}
+              <a href={paths.rulesWorkspacePath}>View submitted rules</a>.
+            </p>
+          )}
+          {(home?.actionCount ?? 0) === 0 &&
+          (home?.waitingCount ?? 0) === 0 &&
+          (page.operationsAttention?.pendingReviews ?? 0) === 0 &&
+          (page.operationsAttention?.failedEmails ?? 0) === 0 ? (
+            <p class="ct-admin__hint">No action items right now.</p>
+          ) : null}
+        </aside>
+      </div>
     ),
   };
 };

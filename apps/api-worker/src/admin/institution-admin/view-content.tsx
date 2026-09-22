@@ -155,7 +155,7 @@ export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
       return (
         <>
           {renderPageHeader("Institution Admin", "Choose a workspace.")}
-          <section class="ct-admin ct-stack">{content.home.workspaceCardsMarkup}</section>
+          <section class="ct-admin ct-admin__home">{content.home.workspaceCardsMarkup}</section>
         </>
       );
     },

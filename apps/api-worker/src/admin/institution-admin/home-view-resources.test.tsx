@@ -40,8 +40,11 @@ describe("Home workflow tasks", () => {
     expect(html).toContain("3 of your submitted rules are waiting for another reviewer");
     expect(html).toContain(`/rules/approvals/${version.ruleId}/versions/${version.id}`);
     expect(html).toContain("You can review this submission.");
+    expect(html.indexOf('aria-label="Institution admin workspaces"')).toBeLessThan(
+      html.indexOf('aria-labelledby="home-actions-heading"'),
+    );
   });
-  it("omits action clutter when nothing needs attention", () => {
+  it("keeps a predictable action area when nothing needs attention", () => {
     const content = buildInstitutionAdminHomeViewResources({
       paths: buildInstitutionAdminViewPaths(tenant.id),
       page: {
@@ -58,6 +61,8 @@ describe("Home workflow tasks", () => {
     const html = renderMarkup(<div>{content.workspaceCardsMarkup}</div>);
     expect(html).not.toContain("Action needed");
     expect(html).not.toContain("Start Here");
+    expect(html).toContain('aria-labelledby="home-actions-heading"');
+    expect(html).toContain("No action items right now.");
     expect(html).toContain("Open Badge Program workspace");
   });
   it("links outstanding learner work to actionable filtered lists", () => {

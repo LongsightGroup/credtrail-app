@@ -114,3 +114,42 @@ a.ct-admin__workspace-card:active {
 #review-decision-panel p {
   overflow-wrap: anywhere;
 }
+
+/* Home keeps workspace navigation independent of changing action counts. */
+.ct-admin__home {
+  container-type: inline-size;
+  container-name: admin-home;
+}
+.ct-admin__home-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: var(--ct-space-6);
+}
+.ct-admin__home-layout > * { min-inline-size: 0; }
+.ct-admin__home .ct-admin__workspace-grid.ct-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.ct-admin__home-actions {
+  --ct-stack-gap: var(--ct-space-4);
+  overflow-wrap: anywhere;
+}
+.ct-admin__home-actions > h2 { margin: 0; font-size: 1.05rem; }
+.ct-admin__home-actions h3 { margin: 0; font-size: 1rem; }
+.ct-admin__home-actions .ct-admin__workflow-task-list li {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ct-space-3);
+}
+.ct-admin__home-actions .ct-admin__workflow-task-list li > a {
+  max-inline-size: 100%;
+  white-space: normal;
+}
+@container admin-home (min-width: 38rem) {
+  .ct-admin__home .ct-admin__workspace-grid.ct-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container admin-home (min-width: 64rem) {
+  .ct-admin__home-layout { grid-template-columns: minmax(0, 1fr) 20rem; }
+}
