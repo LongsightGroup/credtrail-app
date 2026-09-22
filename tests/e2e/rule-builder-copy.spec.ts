@@ -173,8 +173,6 @@ for (const useCustomLabel of [false, true]) {
     const fixtureSuffix = crypto.randomUUID().replaceAll("-", "");
     const sourceRuleName = `Copy source ${fixtureSuffix.slice(0, 8)}`;
     const customLabel = useCustomLabel ? `Copied analytics ${crypto.randomUUID().slice(0, 8)}` : "";
-    const copiedRuleName =
-      customLabel || "Complete all gradebook items; Final course score at least 88%";
     const lmsConnectionId = `lms_rule_copy_${fixtureSuffix}`;
     const mockSakai = await startMockSakai();
     let sourceRuleId: string | undefined;
@@ -266,7 +264,13 @@ for (const useCustomLabel of [false, true]) {
       await submitButton.click();
       await expect((await createResponse).ok()).toBe(true);
       await expect(page).toHaveURL(/\/admin\/rules\/[^/]+\/versions\/[^/]+$/);
-      await expect(page.getByRole("heading", { name: copiedRuleName, exact: true })).toBeVisible();
+      const savedTitle = page.getByRole("heading", { level: 1 });
+      await expect(savedTitle).toBeVisible();
+      const copiedRuleName = (await savedTitle.innerText()).trim();
+      expect(copiedRuleName).not.toBe("");
+      if (useCustomLabel) {
+        expect(copiedRuleName).toBe(customLabel);
+      }
       await expect(
         page.getByText("Rule Copy Source Course", { exact: true }).first(),
       ).toBeVisible();
@@ -275,7 +279,9 @@ for (const useCustomLabel of [false, true]) {
 
       await page.goto(demoRoutes.rules);
 
-      const copiedRow = page.locator("tbody tr").filter({ hasText: copiedRuleName });
+      const copiedRow = page.locator("tbody tr").filter({
+        has: page.locator(`a[href="${copiedDetailHref}"]`),
+      });
       await expect(copiedRow).toBeVisible();
       await expect(copiedRow.getByText("Rule Copy Source Course", { exact: true })).toBeVisible();
       await expect(copiedRow.getByText(/Draft|Awaiting approval|Approved/)).toBeVisible();

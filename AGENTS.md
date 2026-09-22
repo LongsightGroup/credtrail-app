@@ -110,6 +110,13 @@ Style defaults:
 
 ## 5) Testing and CI Gates
 
+Tests should challenge behavior across feature areas, tools, and system boundaries:
+persistence, permissions, tenant isolation, lifecycle transitions, and complete user
+workflows. Do not add small unit tests or literal-copy assertions just to freeze a
+label, heading, helper text, or generated description. Routine copy changes should
+not require test updates. Checking that user-entered data survives a workflow or
+stays consistent across surfaces is valid behavior coverage.
+
 Every change must pass:
 - `pnpm lint`
 - `pnpm typecheck`

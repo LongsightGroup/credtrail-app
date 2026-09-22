@@ -362,7 +362,6 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).toContain("Your unfinished setups (2)");
     expect(body).toContain("1 shown · 1 matching rule");
     expect(body).toContain("CS pathway draft");
-    expect(body).toContain("Add awarding requirements");
     expect(body).toContain("Setup incomplete");
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/drafts/brd_alpha/edit"');
     expect(body).toContain('action="/tenants/tenant_123/admin/rules/drafts/brd_beta/delete"');

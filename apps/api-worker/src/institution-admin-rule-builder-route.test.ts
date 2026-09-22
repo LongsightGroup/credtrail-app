@@ -238,8 +238,6 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("Choose the badge, LMS connection, and how learners earn it");
-    expect(body).toContain("Custom label (optional)");
-    expect(body).toContain("Add a custom label");
     expect(body).toMatch(/id="rule-builder-name"[^>]*type="text"[^>]*maxlength="200"/);
     expect(body).not.toMatch(/id="rule-builder-name"[^>]*required/);
     expect(body).toContain('id="rule-builder-name-hint"');

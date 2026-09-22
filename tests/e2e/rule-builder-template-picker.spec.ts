@@ -46,9 +46,6 @@ test("an administrator can search and choose a badge template in one combobox", 
   await ruleName.fill("");
   await page.locator("#rule-builder-template-preset").selectOption("course_completion");
   await expect(ruleName).toHaveValue("");
-  await expect(page.locator("#rule-builder-summary-rule-name")).toHaveText(
-    "Complete all gradebook items",
-  );
   const reuse = page.getByLabel("I confirm this rule is another valid way to earn the same badge.");
   if (await reuse.isVisible()) await reuse.check();
   await expect(ruleName).not.toHaveAttribute("required", "");
