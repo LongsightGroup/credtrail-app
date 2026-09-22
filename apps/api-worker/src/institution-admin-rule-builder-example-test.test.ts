@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { createContext, Script } from "node:vm";
+import { parseBadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import { describe, expect, it } from "vitest";
+import {
+  evaluateBadgeIssuanceRuleDefinition,
+  type BadgeIssuanceRuleSubmissionFact,
+} from "./rules/engine";
 import { FakeElement, FakeInput } from "./test-support/browser-page-asset-harness";
 
 type ExampleCondition = Readonly<Record<string, unknown>>;
@@ -16,6 +21,7 @@ type BuildSampleFacts = (
 ) => {
   readonly completions: readonly Readonly<Record<string, unknown>>[];
   readonly grades: readonly Readonly<Record<string, unknown>>[];
+  readonly submissions: readonly BadgeIssuanceRuleSubmissionFact[];
 };
 
 interface ExampleTestHarness {
@@ -134,6 +140,52 @@ const createHarness = (): ExampleTestHarness => {
 };
 
 describe("rule-builder generated-example controls", () => {
+  it.each([
+    { workflowStates: ["graded"], score: "92", expectedState: "graded", matched: true },
+    { workflowStates: ["graded"], score: "85", expectedState: "graded", matched: true },
+    { workflowStates: ["graded"], score: "84", expectedState: "graded", matched: false },
+    {
+      workflowStates: ["pending_review", "graded"],
+      score: "92",
+      expectedState: "pending_review",
+      matched: true,
+    },
+    { workflowStates: undefined, score: "92", expectedState: "submitted", matched: true },
+  ])(
+    "evaluates generated assignment facts with $workflowStates and score $score",
+    ({ workflowStates, score, expectedState, matched }) => {
+      const harness = createHarness();
+      harness.scoreInput.value = score;
+      const condition = {
+        type: "assignment_submission",
+        courseId: "course-101",
+        assignmentId: "65515",
+        minScore: 85,
+        requireSubmitted: true,
+        ...(workflowStates === undefined ? {} : { workflowStates }),
+      };
+      const facts = harness.buildSampleFacts([condition], "example-learner");
+      const definition = parseBadgeIssuanceRuleDefinition({ conditions: { all: [condition] } });
+      const evaluation = evaluateBadgeIssuanceRuleDefinition(definition, {
+        learnerId: "example-learner",
+        nowIso: "2026-09-22T17:21:04.960Z",
+        grades: [],
+        completions: [],
+        submissions: facts.submissions,
+        surveyCompletions: [],
+        customFields: [],
+        earnedBadgeTemplateIds: [],
+      });
+
+      expect(evaluation.matched).toBe(matched);
+      expect(facts.submissions[0]).toMatchObject({
+        score: Number(score),
+        workflowState: expectedState,
+        submittedAt: expect.any(String),
+      });
+    },
+  );
+
   it("shows only score for a grade threshold and explains the configured boundary", () => {
     const harness = createHarness();
 

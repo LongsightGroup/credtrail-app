@@ -641,7 +641,7 @@ const buildSampleFactsFromConditions = (conditions, learnerId) => {
         assignmentId: leaf.assignmentId,
         learnerId,
         score,
-        workflowState: "submitted",
+        workflowState: leaf.workflowStates?.[0] ?? "submitted",
         submittedAt: new Date().toISOString(),
       });
       return;
