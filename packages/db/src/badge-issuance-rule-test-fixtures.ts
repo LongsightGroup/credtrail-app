@@ -3,7 +3,14 @@ import { createBadgeIssuanceRule } from "./badge-issuance-rule-writes";
 import type { BadgeRuleIntegrationFixture } from "./postgres-test-support";
 
 /** Test-only raw rule fixture. Production callers must use the governed authoring command. */
-export const createTestBadgeIssuanceRule = createBadgeIssuanceRule;
+export const createTestBadgeIssuanceRule = (
+  db: dbModule.SqlDatabase,
+  input: dbModule.CreateBadgeIssuanceRuleInput,
+): Promise<dbModule.CreateBadgeIssuanceRuleResult> =>
+  createBadgeIssuanceRule(db, {
+    ...input,
+    customLabel: input.customLabel === undefined ? input.name : input.customLabel,
+  });
 
 export const createFixtureRule = async (
   fixture: BadgeRuleIntegrationFixture,

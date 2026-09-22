@@ -163,7 +163,7 @@ export const createTenantBadgeCriteriaRegistryPage = (
                 const effectiveVersionDisplay =
                   effectiveVersion === null
                     ? null
-                    : badgeRuleVersionDisplayFields(effectiveVersion);
+                    : badgeRuleVersionDisplayFields(effectiveVersion, ruleEntry.rule);
                 const latestVersionLabel =
                   latestVersion === null
                     ? "No recorded version"

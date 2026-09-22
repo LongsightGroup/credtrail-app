@@ -596,7 +596,10 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
         } else {
           try {
             const definition = parseBadgeIssuanceRuleDefinitionJson(sourceVersion.ruleJson);
-            const sourceDisplayName = badgeRuleVersionDisplayFields(sourceVersion).displayName;
+            const sourceDisplayName = badgeRuleVersionDisplayFields(
+              sourceVersion,
+              sourceRule,
+            ).displayName;
 
             copySource = {
               displayName: sourceDisplayName,

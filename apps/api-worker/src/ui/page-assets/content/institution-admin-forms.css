@@ -234,3 +234,22 @@
   cursor: not-allowed;
   opacity: 0.68;
 }
+
+.ct-admin__rule-name-editor {
+  max-inline-size: 42rem;
+  margin-block: 1rem;
+}
+.ct-admin__rule-name-editor > summary {
+  cursor: pointer;
+  width: fit-content;
+}
+.ct-admin__rule-name-editor[open] > summary {
+  margin-block-end: 1rem;
+}
+.ct-admin__rule-name-editor form {
+  display: grid;
+  gap: 1rem;
+}
+.ct-admin__rule-name-editor [data-rule-name-status]:empty {
+  display: none;
+}

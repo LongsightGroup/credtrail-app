@@ -156,7 +156,7 @@ export const renderLtiDeepLinkingLaunchResponse = async (input: {
       const definition = parseBadgeIssuanceRuleDefinitionJson(version.ruleJson);
       options.push({
         ruleId: rule.id,
-        ruleName: badgeRuleVersionDisplayFields(version).displayName,
+        ruleName: badgeRuleVersionDisplayFields(version, rule).displayName,
         badgeTitle: version.snapshot.badgeTemplateTitle,
         badgeDescription: version.snapshot.badgeTemplateDescription,
         requirementSummary: requirementSummary(definition.conditions),

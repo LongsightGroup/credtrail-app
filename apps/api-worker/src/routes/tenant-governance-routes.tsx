@@ -1,3 +1,4 @@
+import { registerTenantBadgeRuleNameAdminRoutes } from "./tenant-badge-rule-name-admin-routes";
 import { registerBadgeTemplateEditorArtworkAdminRoutes } from "./badge-template-editor-artwork-admin-routes";
 import { registerBadgeTemplateListAdminRoutes } from "./badge-template-list-admin-routes";
 import { registerTenantAccessDelegationsAdminRoutes } from "./tenant-access-delegations-admin-routes";
@@ -164,6 +165,12 @@ export const registerTenantGovernanceRoutes = (
   });
 
   registerTenantOrgUnitsAdminRoutes({
+    app: input.app,
+    resolveDatabase: input.resolveDatabase,
+    resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,
+  });
+
+  registerTenantBadgeRuleNameAdminRoutes({
     app: input.app,
     resolveDatabase: input.resolveDatabase,
     resolveInstitutionAdminAdminRole: auth.resolveInstitutionAdminAdminRole,

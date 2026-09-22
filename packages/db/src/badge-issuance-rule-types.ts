@@ -117,6 +117,8 @@ export type BadgeIssuanceRuleApprovalEventAction =
   | BadgeIssuanceRuleApprovalDecision;
 
 export interface BadgeIssuanceRuleRecord {
+  /** Current display label, independent of governed versions; null uses the requirements. */
+  customLabel: string | null;
   id: string;
   tenantId: string;
   name: string;
@@ -218,6 +220,7 @@ export interface BadgeIssuanceRuleApprovalEventRecord {
 }
 
 export interface CreateBadgeIssuanceRuleInput {
+  customLabel?: string | null | undefined;
   tenantId: string;
   name: string;
   description?: string | undefined;

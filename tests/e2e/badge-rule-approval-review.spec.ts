@@ -109,8 +109,8 @@ test("a distinct reviewer can approve a submitted rule and reload the persisted 
   }
 
   const fixture = await createLiveBadgeRuleApprovalFixture();
-  const authorContext = await browser.newContext();
-  const reviewerContext = await browser.newContext();
+  const authorContext = await browser.newContext({ baseURL });
+  const reviewerContext = await browser.newContext({ baseURL });
 
   try {
     const authorPage = await authorContext.newPage();
@@ -131,6 +131,42 @@ test("a distinct reviewer can approve a submitted rule and reload the persisted 
     await authorPage.getByRole("button", { name: "Submit for approval" }).click();
     await expect(authorPage.getByText("Rule version submitted for approval.")).toBeVisible();
 
+    const pendingState = await fixture.readGovernanceState();
+    const renamedLabel = "Évaluation finale — データ & analyse";
+    await authorPage.goto(fixture.rulesPath);
+    const pendingRow = authorPage.locator("tbody tr").filter({ hasText: fixture.ruleName });
+    await pendingRow.locator("[data-action-menu-trigger]").click();
+    await authorPage.getByRole("link", { name: "Rename", exact: true }).click();
+    const nameEditor = authorPage.locator("#rule-name-editor");
+    await expect(nameEditor.getByLabel("Name", { exact: true })).toHaveValue(fixture.ruleName);
+    await nameEditor.getByLabel("Name", { exact: true }).fill("Canceled edit");
+    await nameEditor.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(pendingRow.locator("[data-action-menu-trigger]")).toBeFocused();
+    await expect(fixture.readNameAudit()).resolves.toEqual([]);
+    await pendingRow.locator("[data-action-menu-trigger]").click();
+    await authorPage.getByRole("link", { name: "Rename", exact: true }).click();
+    await nameEditor.getByLabel("Name", { exact: true }).fill(renamedLabel);
+    const renameResponse = authorPage.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname.endsWith(`/rules/${fixture.ruleId}/name`),
+    );
+    await nameEditor.getByRole("button", { name: "Save", exact: true }).click();
+    expect((await renameResponse).ok()).toBe(true);
+    await expect(authorPage.getByRole("link", { name: renamedLabel, exact: true })).toBeVisible();
+    await expect(fixture.readGovernanceState()).resolves.toEqual(pendingState);
+    await expect(fixture.readNameAudit()).resolves.toEqual([
+      { previousCustomLabel: fixture.ruleName, customLabel: renamedLabel },
+    ]);
+    const crossTenantAttempt = await authorContext.request.post(
+      `/tenants/tenant_123/admin/rules/${fixture.ruleId}/name`,
+      {
+        form: { mode: "custom", name: "Unauthorized change", returnTo: fixture.rulesPath },
+      },
+    );
+    expect(crossTenantAttempt.status()).toBe(403);
+    await expect(fixture.readGovernanceState()).resolves.toEqual(pendingState);
+
     await authorPage.goto(new URL(`/tenants/${fixture.tenantId}/admin`, baseURL).toString());
     await expect(authorPage.getByText(/waiting for another reviewer/)).toBeVisible();
     await expect(authorPage.locator(".ct-admin__workflow-task-list")).toHaveCount(0);
@@ -144,10 +180,10 @@ test("a distinct reviewer can approve a submitted rule and reload the persisted 
 
     const reviewTask = reviewerPage
       .locator(".ct-admin__workflow-task-list > li")
-      .filter({ hasText: fixture.ruleName });
+      .filter({ hasText: renamedLabel });
     await expect(reviewTask).toBeVisible();
     await reviewTask.getByRole("link", { name: "Review submission" }).click();
-    await expect(reviewerPage.getByRole("heading", { name: fixture.ruleName })).toBeVisible();
+    await expect(reviewerPage.getByRole("heading", { name: renamedLabel })).toBeVisible();
     await reviewerPage.getByLabel("Approve version").check();
     await reviewerPage.getByLabel("Reviewer comment").fill("Approved in the live browser flow.");
     await reviewerPage.getByRole("button", { name: "Record decision" }).click();
@@ -162,6 +198,23 @@ test("a distinct reviewer can approve a submitted rule and reload the persisted 
         .locator(".ct-admin__review-approval-chain")
         .getByText("Approved in the live browser flow."),
     ).toBeVisible();
+    const approvedState = await fixture.readGovernanceState();
+    const versionPath = `/tenants/${fixture.tenantId}/admin/rules/${fixture.ruleId}/versions/${fixture.versionId}`;
+    await authorPage.goto(versionPath + "#rule-name-editor");
+    await expect(authorPage.getByRole("heading", { level: 1 })).toHaveText(renamedLabel);
+    const resetResponse = authorPage.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname.endsWith(`/rules/${fixture.ruleId}/name`),
+    );
+    await authorPage.getByRole("button", { name: "Use automatic name", exact: true }).click();
+    expect((await resetResponse).ok()).toBe(true);
+    await expect(authorPage.getByRole("heading", { level: 1 })).not.toHaveText(renamedLabel);
+    const automaticName = await authorPage.getByRole("heading", { level: 1 }).innerText();
+    expect(automaticName.trim()).not.toBe("");
+    await authorPage.goto(fixture.rulesPath);
+    await expect(authorPage.getByRole("link", { name: automaticName, exact: true })).toBeVisible();
+    await expect(fixture.readGovernanceState()).resolves.toEqual(approvedState);
   } finally {
     await Promise.allSettled([authorContext.close(), reviewerContext.close()]);
     await fixture.dispose();

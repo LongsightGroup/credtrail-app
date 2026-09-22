@@ -61,6 +61,7 @@ const createBadgeIssuanceRuleWithIdentity = async (
           id,
           tenant_id,
           name,
+          custom_label,
           description,
           badge_template_id,
           org_unit_id,
@@ -72,13 +73,14 @@ const createBadgeIssuanceRuleWithIdentity = async (
           created_at,
           updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
       `,
       )
       .bind(
         ruleId,
         input.tenantId,
         input.name,
+        input.customLabel ?? null,
         input.description ?? null,
         input.badgeTemplateId,
         ruleOrgUnitId,
@@ -655,7 +657,7 @@ export const updateLockedBadgeIssuanceRuleDraft = async (
         `,
       )
       .bind(
-        input.name,
+        input.existingRule.customLabel ?? input.name,
         input.description ?? null,
         input.badgeTemplateId,
         ruleOrgUnitId,

@@ -83,5 +83,6 @@
   "0081_lti_resource_link_placement_lifecycle.sql": "d480db71b54f87719dbdb08b55a0457caadc4adf9433c10493240d5b9ec65392",
   "0082_badge_rule_placement_availability.sql": "59c24550d61dbc8cb37a4b582640eff43e01e16981b0d2e0797885464c0c3ea8",
   "0083_remove_template_lti_placement_policy.sql": "56e37f3d5726f205c46b666ee7962258bffa505e45f07b7b384bd1b4f79e4cea",
-  "0084_assertion_notification_lookup.sql": "30e3b7d0748cf36935d0db3254d5c98d4bdfd7ce078daf5920fc52551fb19668"
+  "0084_assertion_notification_lookup.sql": "30e3b7d0748cf36935d0db3254d5c98d4bdfd7ce078daf5920fc52551fb19668",
+  "0085_badge_rule_custom_labels.sql": "5b3311d30651b64529b1f1a32e308e616cc087a2023859abc1809687e383ce85"
 }

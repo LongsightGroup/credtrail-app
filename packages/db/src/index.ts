@@ -54,3 +54,5 @@ export * from "./sessions";
 export * from "./users";
 
 export * from "./learner-record-import-history";
+
+export { renameBadgeIssuanceRule } from "./badge-issuance-rule-names";

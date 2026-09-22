@@ -1,3 +1,5 @@
+import { BadgeRuleNameEditor } from "./badge-rule-name-editor";
+
 import type {
   BadgeIssuanceRuleRecord,
   BadgeIssuanceRuleVersionRecord,
@@ -11,7 +13,7 @@ import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import { resolveAutomatedBadgeRuleIssuanceTiming } from "@credtrail/validation";
 import { badgeRuleVersionDisplayFields } from "../badges/badge-rule-presentation";
 import type { AppPage } from "../ui/render-page";
-import { buildRulesAdminPath } from "./access-admin-helpers";
+import { buildRulesAdminPath, buildBadgeRuleVersionDetailPath } from "./access-admin-helpers";
 import {
   BadgeRuleVersionNavigator,
   buildBadgeRuleVersionNavigationModel,
@@ -50,7 +52,7 @@ export const badgeRuleVersionPage = (input: {
     versions: input.versions,
   });
 
-  const displayFields = badgeRuleVersionDisplayFields(input.version);
+  const displayFields = badgeRuleVersionDisplayFields(input.version, input.rule);
   const canRunAutomaticEvaluation =
     input.rule.activeVersionId === input.version.id &&
     input.version.status === "active" &&
@@ -80,6 +82,15 @@ export const badgeRuleVersionPage = (input: {
             <a href={buildRulesAdminPath(input.tenant.id)}>← All rules</a>
           </p>
           <h1>{displayFields.displayName}</h1>
+          <BadgeRuleNameEditor
+            rule={input.rule}
+            version={input.version}
+            returnTo={buildBadgeRuleVersionDetailPath(
+              input.tenant.id,
+              input.rule.id,
+              input.version.id,
+            )}
+          />
           {displayFields.customLabel === null ? null : <p>{displayFields.requirementSummary}</p>}
           {displayFields.courseLabels.length === 0 ? null : (
             <p>{displayFields.courseLabels.join(" · ")}</p>

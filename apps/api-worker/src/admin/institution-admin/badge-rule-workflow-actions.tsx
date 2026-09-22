@@ -4,6 +4,7 @@ import type { BadgeIssuanceRuleRecord, BadgeIssuanceRuleVersionRecord } from "@c
 import type { Child } from "hono/jsx";
 import {
   buildBadgeRuleVersionReviewPath,
+  buildBadgeRuleVersionDetailPath,
   tenantBadgeRuleDeleteAdminPath,
   tenantBadgeRuleSubmitApprovalAdminPath,
   tenantBadgeRuleWithdrawSubmissionAdminPath,
@@ -17,11 +18,21 @@ export const buildBadgeRuleWorkflowMenuActions = (input: {
   readonly userId: string;
   readonly rule: BadgeIssuanceRuleRecord;
   readonly latestVersion: BadgeIssuanceRuleVersionRecord;
+  readonly displayName: string;
   readonly canDeleteRule: boolean;
   readonly approval?: BadgeWorkflowApproval | undefined;
 }): Child[] => {
   const { tenantId, userId, rule, latestVersion } = input;
-  const menuActions: Child[] = [];
+  const menuActions: Child[] = [
+    <a
+      class="ct-admin__action-menu-item"
+      href={`${buildBadgeRuleVersionDetailPath(tenantId, rule.id, latestVersion.id)}#rule-name-editor`}
+      data-rule-rename={`/tenants/${encodeURIComponent(tenantId)}/admin/rules/${encodeURIComponent(rule.id)}/name`}
+      data-rule-name={input.displayName}
+    >
+      Rename
+    </a>,
+  ];
 
   if (latestVersion.status === "draft" || latestVersion.status === "rejected") {
     menuActions.push(
@@ -30,7 +41,7 @@ export const buildBadgeRuleWorkflowMenuActions = (input: {
         action={tenantBadgeRuleSubmitApprovalAdminPath(tenantId, rule.id, latestVersion.id)}
         className="ct-admin__inline-form"
         dataAttributes={{
-          "data-confirm-message": `Submit draft version for "${badgeRuleVersionDisplayFields(latestVersion).displayName}" for approval? ${input.approval?.submissionNotice ?? "You will not be able to approve it yourself."}`,
+          "data-confirm-message": `Submit draft version for "${badgeRuleVersionDisplayFields(latestVersion, rule).displayName}" for approval? ${input.approval?.submissionNotice ?? "You will not be able to approve it yourself."}`,
         }}
       >
         <button type="submit" class="ct-admin__action-menu-item">
@@ -47,7 +58,7 @@ export const buildBadgeRuleWorkflowMenuActions = (input: {
         action={tenantBadgeRuleWithdrawSubmissionAdminPath(tenantId, rule.id, latestVersion.id)}
         className="ct-admin__inline-form"
         dataAttributes={{
-          "data-confirm-message": `Withdraw "${badgeRuleVersionDisplayFields(latestVersion).displayName}" from approval and return it to draft?`,
+          "data-confirm-message": `Withdraw "${badgeRuleVersionDisplayFields(latestVersion, rule).displayName}" from approval and return it to draft?`,
         }}
       >
         <button type="submit" class="ct-admin__action-menu-item">
@@ -83,7 +94,7 @@ export const buildBadgeRuleWorkflowMenuActions = (input: {
         action={tenantBadgeRuleDeleteAdminPath(tenantId, rule.id)}
         className="ct-admin__action-menu-form"
         dataAttributes={{
-          "data-confirm-message": `Delete draft rule "${badgeRuleVersionDisplayFields(latestVersion).displayName}"? This removes its draft and rejected versions.`,
+          "data-confirm-message": `Delete draft rule "${badgeRuleVersionDisplayFields(latestVersion, rule).displayName}"? This removes its draft and rejected versions.`,
         }}
       >
         <button type="submit" class="ct-admin__action-menu-item ct-admin__action-menu-item--danger">

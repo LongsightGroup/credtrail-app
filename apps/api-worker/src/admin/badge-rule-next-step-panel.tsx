@@ -42,7 +42,7 @@ const WithdrawSubmission = ({
 }: {
   readonly panel: BadgeRuleNextStepPanelInput;
 }): HonoElement => {
-  const ruleName = badgeRuleVersionDisplayFields(panel.latestVersion).displayName;
+  const ruleName = badgeRuleVersionDisplayFields(panel.latestVersion, panel.rule).displayName;
   return (
     <AdminForm
       method="post"
@@ -68,7 +68,7 @@ const NextStepAction = (input: {
   readonly action: BadgeRuleNextStepAction;
 }): HonoElement => {
   const { panel, action } = input;
-  const ruleName = badgeRuleVersionDisplayFields(panel.latestVersion).displayName;
+  const ruleName = badgeRuleVersionDisplayFields(panel.latestVersion, panel.rule).displayName;
 
   switch (action._tag) {
     case "configure_approval":

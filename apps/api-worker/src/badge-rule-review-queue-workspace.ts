@@ -2,6 +2,7 @@ import { badgeRuleVersionDisplayFields } from "./badges/badge-rule-presentation"
 import { z } from "zod";
 import {
   findBadgeIssuanceRuleVersionById,
+  findBadgeIssuanceRuleById,
   findUserById,
   listBadgeIssuanceRuleEvaluations,
   type BadgeIssuanceRuleEvaluationRecord,
@@ -134,6 +135,7 @@ export const loadBadgeRuleReviewQueueForApi = async (
     Awaited<ReturnType<typeof findBadgeIssuanceRuleVersionById>>
   >();
 
+  const ruleCache = new Map<string, ReturnType<typeof findBadgeIssuanceRuleById>>();
   return Promise.all(
     evaluations.map(async (evaluationRecord) => {
       let version = versionCache.get(evaluationRecord.versionId);
@@ -147,6 +149,12 @@ export const loadBadgeRuleReviewQueueForApi = async (
         versionCache.set(evaluationRecord.versionId, version);
       }
 
+      let rulePromise = ruleCache.get(evaluationRecord.ruleId);
+      if (rulePromise === undefined) {
+        rulePromise = findBadgeIssuanceRuleById(db, tenantId, evaluationRecord.ruleId);
+        ruleCache.set(evaluationRecord.ruleId, rulePromise);
+      }
+      const rule = await rulePromise;
       const evaluation = evaluationPayloadFromRecord(evaluationRecord);
       const evaluationSummary =
         evaluation !== null &&
@@ -166,7 +174,7 @@ export const loadBadgeRuleReviewQueueForApi = async (
         ruleName:
           version === null || version === undefined
             ? null
-            : badgeRuleVersionDisplayFields(version).displayName,
+            : badgeRuleVersionDisplayFields(version, rule ?? { customLabel: null }).displayName,
         badgeTitle: version?.snapshot.badgeTemplateTitle ?? null,
         missingInformation: reviewMissingInformation(evaluation),
         badgeTemplateId: version?.snapshot.badgeTemplateId ?? null,

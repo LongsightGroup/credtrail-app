@@ -220,7 +220,7 @@ export const handleLtiDeepLinkingSelect = async (
       badgeRuleDeepLinkContentItem({
         badgeTemplateId: badgeTemplate.id,
         ruleId: rule.id,
-        title: badgeRuleVersionDisplayFields(version).displayName,
+        title: badgeRuleVersionDisplayFields(version, rule).displayName,
         description: version.snapshot.description,
         launchUrl: launchUrl.toString(),
       }),

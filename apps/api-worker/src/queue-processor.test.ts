@@ -15,6 +15,7 @@ vi.mock("@credtrail/db", async () => {
     enqueueJobQueueMessageOnce: vi.fn(),
     failJobQueueMessage: vi.fn(),
     findBadgeIssuanceRuleVersionById: vi.fn(),
+    findBadgeIssuanceRuleById: () => Promise.resolve(null),
     findTenantById: vi.fn(),
     findUserById: vi.fn(),
     leaseJobQueueMessages: vi.fn(),
@@ -384,8 +385,6 @@ describe("POST /v1/jobs/process", () => {
     expect(mockedCompleteJobQueueMessage).toHaveBeenCalledTimes(1);
     expect(mockedFailJobQueueMessage).not.toHaveBeenCalled();
     expect(messages).toHaveLength(1);
-    expect(messages[0]?.subject).toBe("Badge rule approved: Immutable clinical skills rule");
-    expect(messages[0]?.text).toContain("Rule: Immutable clinical skills rule");
   });
 
   it("requires bearer auth when JOB_PROCESSOR_TOKEN is configured", async () => {

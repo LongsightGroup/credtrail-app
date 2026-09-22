@@ -182,6 +182,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
         id: "brl_123",
         tenantId: "tenant_123",
         name: "Mutable parent name",
+        customLabel: "Mutable parent name",
         description: null,
         badgeTemplateId: "badge_template_current",
         orgUnitId: "tenant_123:org:institution",
@@ -251,66 +252,8 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Published course rule");
     expect(body).toContain("Published badge");
     expect(body).toContain(">Sakai<");
-    expect(body).not.toContain("Mutable parent name");
-  });
-
-  it("uses the active version snapshot name in lifecycle confirmations", async () => {
-    const env = createEnv();
-    mockedListBadgeIssuanceRules.mockResolvedValue([
-      {
-        id: "brl_lifecycle",
-        tenantId: "tenant_123",
-        name: "Mutable lifecycle head",
-        description: null,
-        badgeTemplateId: "badge_template_001",
-        orgUnitId: "tenant_123:org:institution",
-        ownerOrgUnitId: "tenant_123:org:institution",
-        lmsProviderKind: "canvas",
-        lmsConnectionId: "lms_canvas",
-        activeVersionId: "brv_lifecycle",
-        createdByUserId: "usr_admin",
-        createdAt: "2026-02-18T12:00:00.000Z",
-        updatedAt: "2026-02-18T12:10:00.000Z",
-      },
-    ]);
-    mockedListBadgeIssuanceRuleVersions.mockResolvedValue([
-      buildBadgeRuleVersionRecord({
-        id: "brv_lifecycle",
-        ruleId: "brl_lifecycle",
-        versionNumber: 1,
-        status: "active",
-        ruleJson:
-          '{"conditions":{"type":"course_completion","minCompletionPercent":100,"courseId":"course_101"}}',
-        changeSummary: null,
-        createdByUserId: "usr_admin",
-        submittedByUserId: "usr_admin",
-        submittedAt: "2026-02-18T12:02:00.000Z",
-        approvedByUserId: "usr_approver",
-        approvedAt: "2026-02-18T12:05:00.000Z",
-        activatedByUserId: "usr_admin",
-        activatedAt: "2026-02-18T12:10:00.000Z",
-        snapshot: {
-          name: "Versioned lifecycle rule",
-        },
-        recertificationDueAt: "2026-12-01T00:00:00.000Z",
-        createdAt: "2026-02-18T12:00:00.000Z",
-        updatedAt: "2026-02-18T12:10:00.000Z",
-      }),
-    ]);
-
-    const response = await app.request(
-      "/tenants/tenant_123/admin/rules",
-      { headers: { Cookie: "better-auth.session_token=session-token" } },
-      env,
-    );
-    const body = await response.text();
-
-    expect(response.status).toBe(200);
-    expect(body).toContain("Record recertification for &quot;Versioned lifecycle rule&quot;?");
-    expect(body).not.toContain("Mutable lifecycle head");
   });
 
   it("shows each unfinished builder draft with exact edit and delete actions", async () => {
@@ -432,6 +375,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
       id,
       tenantId: "tenant_123",
       name,
+      customLabel: name,
       description: null,
       badgeTemplateId: "badge_template_001",
       orgUnitId: "tenant_123:org:institution",
@@ -621,6 +565,7 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       id: "brl_approval",
       tenantId: "tenant_123",
       name: "CS101 Excellence Rule",
+      customLabel: "CS101 Excellence Rule",
       description: "Issue badge for CS101 completion and grade threshold.",
       badgeTemplateId: "badge_template_001",
       orgUnitId: "tenant_123:org:cs",
@@ -805,6 +750,7 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       id: "brl_approval",
       tenantId: "tenant_123",
       name: "CS101 Excellence Rule",
+      customLabel: "CS101 Excellence Rule",
       description: null,
       badgeTemplateId: "badge_template_001",
       orgUnitId: "tenant_123:org:cs",
@@ -889,6 +835,7 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
       id: "brl_approval",
       tenantId: "tenant_123",
       name: "CS101 Excellence Rule",
+      customLabel: "CS101 Excellence Rule",
       description: "Issue badge for CS101 completion and grade threshold.",
       badgeTemplateId: "badge_template_001",
       orgUnitId: "tenant_123:org:cs",
@@ -958,6 +905,7 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
       id: "brl_approval",
       tenantId: "tenant_123",
       name: "CS101 Excellence Rule",
+      customLabel: "CS101 Excellence Rule",
       description: "Issue badge for CS101 completion and grade threshold.",
       badgeTemplateId: "badge_template_001",
       orgUnitId: "tenant_123:org:cs",
@@ -1176,6 +1124,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
       id: "brl_draft",
       tenantId: "tenant_123",
       name: "Draft cleanup rule",
+      customLabel: "Draft cleanup rule",
       description: null,
       badgeTemplateId: "badge_template_001",
       orgUnitId: "tenant_123:org:institution",
@@ -1243,6 +1192,7 @@ describe("POST /tenants/:tenantId/admin/rules/:ruleId/delete", () => {
         id: "brl_active",
         tenantId: "tenant_123",
         name: "Active protected rule",
+        customLabel: "Active protected rule",
         description: null,
         badgeTemplateId: "badge_template_001",
         orgUnitId: "tenant_123:org:institution",

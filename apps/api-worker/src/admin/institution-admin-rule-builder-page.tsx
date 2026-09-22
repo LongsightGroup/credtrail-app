@@ -441,7 +441,8 @@ export const institutionAdminRuleBuilderPage = (input: {
                   initialName={
                     editRule === null
                       ? (copySource?.name ?? "")
-                      : (badgeRuleVersionDisplayFields(editRule.latestVersion).customLabel ?? "")
+                      : (badgeRuleVersionDisplayFields(editRule.latestVersion, editRule.rule)
+                          .customLabel ?? "")
                   }
                   initialDescription={
                     editRule?.latestVersion.snapshot.description ?? copySource?.description ?? ""

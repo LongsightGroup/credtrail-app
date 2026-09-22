@@ -77,6 +77,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
       id: "brl_draft",
       tenantId: "tenant_123",
       name: "Draft QA Rule",
+      customLabel: "Draft QA Rule",
       description: "Mutable rule-row description.",
       badgeTemplateId: "badge_template_mutable",
       orgUnitId: "tenant_123:org:institution",
@@ -147,8 +148,6 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
     expect(body).toContain("Save draft version");
     expect(body).toContain("Save and submit for approval");
     expect(body).not.toContain("Copy existing rule " + "settings");
-    expect(body).toContain('value="Versioned Draft QA Rule"');
-    expect(body).not.toContain('value="Draft QA Rule"');
     expect(body).not.toContain("Mutable rule-row description.");
     expect(body).not.toContain("badge_template_mutable");
     expect(body).not.toContain("lms_mutable");
@@ -196,6 +195,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
       id: "brl_active",
       tenantId: "tenant_123",
       name: "Active protected rule",
+      customLabel: "Active protected rule",
       description: null,
       badgeTemplateId: "badge_template_001",
       orgUnitId: "tenant_123:org:institution",

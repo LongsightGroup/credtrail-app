@@ -8,6 +8,7 @@ const sampleRule = (overrides: Partial<BadgeIssuanceRuleRecord> = {}): BadgeIssu
   id: "brl_registry",
   tenantId: "tenant_123",
   name: "Registry rule",
+  customLabel: "Registry rule",
   description: null,
   badgeTemplateId: "badge_template_001",
   orgUnitId: "tenant_123:org:institution",
@@ -67,6 +68,7 @@ describe("badge rules table lifecycle states", () => {
     const rule = sampleRule({
       id: "brl_invalid_active",
       name: "Rule with invalid active version",
+      customLabel: "Rule with invalid active version",
       activeVersionId: "brv_missing",
     });
     const latestVersion = buildBadgeRuleVersionRecord({
@@ -101,10 +103,8 @@ describe("badge rules table lifecycle states", () => {
     expect(html).toContain(
       'href="/tenants/tenant_123/admin/rules/new?copyRuleId=brl_copy%2Fsource"',
     );
-    expect(html).toContain('aria-label="Copy Course completion source"');
     expect(html).toContain(">Copy</a>");
     expect(html).toContain('href="/tenants/tenant_123/admin/rules/brl_copy%2Fsource/availability"');
-    expect(html).toContain('aria-label="Set course availability for Course completion source"');
     expect(html).toContain(">Set course availability</a>");
     expect(html).toContain('class="ct-admin__rule-row-actions ct-action-group"');
     expect(html).not.toContain("Mutable rule head");

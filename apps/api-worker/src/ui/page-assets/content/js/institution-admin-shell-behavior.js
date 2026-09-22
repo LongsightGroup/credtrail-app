@@ -194,7 +194,9 @@ document.addEventListener("keydown", (event) => {
 document.addEventListener(
   "scroll",
   () => {
-    closeOpenActionMenuPopover();
+    if (openActionMenuPopover !== null && openActionMenuTrigger !== null) {
+      positionActionMenuPopover(openActionMenuPopover, openActionMenuTrigger);
+    }
   },
   { capture: true, passive: true },
 );

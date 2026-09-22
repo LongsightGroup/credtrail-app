@@ -48,7 +48,7 @@ export const badgeRuleApprovalReviewPage = (
   },
 ): AppPage => {
   const version = input.navigation.selectedVersion;
-  const displayFields = badgeRuleVersionDisplayFields(version);
+  const displayFields = badgeRuleVersionDisplayFields(version, input.rule);
   const comparison = buildBadgeRuleReviewComparison({
     baseVersion: input.navigation.previousVersion,
     selectedVersion: version,

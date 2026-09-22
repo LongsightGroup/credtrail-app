@@ -8,6 +8,7 @@ const rule = (activeVersionId: string | null): BadgeIssuanceRuleRecord => ({
   id: "brl_next_step",
   tenantId: "tenant_123",
   name: "Course completion rule",
+  customLabel: "Course completion rule",
   description: null,
   badgeTemplateId: "badge_template_001",
   orgUnitId: "tenant_123:org:institution",

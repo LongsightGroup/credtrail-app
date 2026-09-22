@@ -44,6 +44,7 @@ const rule: BadgeIssuanceRuleRecord = {
   id: "brl_123",
   tenantId: tenant.id,
   name: "Capstone completion",
+  customLabel: "Capstone completion",
   description: null,
   badgeTemplateId: "bt_123",
   orgUnitId: "ou_institution",

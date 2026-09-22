@@ -102,6 +102,7 @@ const sampleRule = (): BadgeIssuanceRuleRecord => ({
   id: "brl_123",
   tenantId: "tenant_123",
   name: "TypeScript completion",
+  customLabel: "TypeScript completion",
   description: "Awards the TypeScript badge.",
   badgeTemplateId: "badge_template_001",
   orgUnitId: "tenant_123:org:institution",

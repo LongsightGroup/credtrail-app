@@ -170,7 +170,7 @@ export const buildInstitutionAdminHomeViewResources = (input: {
                             <AdminStatusPill tone="warning">Changes requested</AdminStatusPill>
                           </p>
                         ) : null}
-                        <strong>{badgeRuleVersionDisplayFields(version).displayName}</strong>
+                        <strong>{badgeRuleVersionDisplayFields(version, task).displayName}</strong>
                         <AdminMeta>
                           {version.snapshot.badgeTemplateTitle} · Version {version.versionNumber}
                         </AdminMeta>

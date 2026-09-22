@@ -97,6 +97,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
     sources: [
       "admin-browser-primitives.js",
       "institution-admin-bootstrap.js",
+      "badge-rule-name-editor.js",
       "institution-admin-shell-behavior.js",
       "institution-admin-access.js",
       "institution-admin-governance-tools.js",
@@ -172,7 +173,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
   institutionAdminRuleVersionJs: {
     kind: "script",
     stem: "institution-admin-rule-version",
-    sources: ["institution-admin-rule-version.js"],
+    sources: ["institution-admin-rule-version.js", "badge-rule-name-editor.js"],
   },
   institutionAdminRuleVersionCss: {
     kind: "style",

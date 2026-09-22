@@ -103,12 +103,13 @@ const buildInstitutionAdminRuleBuilderDraftContext = (
 
 const buildInstitutionAdminRuleBuilderEditContext = (input: {
   ruleId: string;
+  customLabel: string | null;
   latestVersion: BadgeIssuanceRuleVersionRecord;
   definition: unknown;
 }): InstitutionAdminRuleBuilderEditContext => {
   return {
     id: input.ruleId,
-    name: badgeRuleVersionDisplayFields(input.latestVersion).customLabel ?? "",
+    name: badgeRuleVersionDisplayFields(input.latestVersion, input).customLabel ?? "",
     description: input.latestVersion.snapshot.description,
     badgeTemplateId: input.latestVersion.snapshot.badgeTemplateId,
     lmsConnectionId: input.latestVersion.snapshot.lmsConnectionId,
@@ -154,6 +155,7 @@ export const buildInstitutionAdminRuleBuilderPageContext = (input: {
       ? null
       : buildInstitutionAdminRuleBuilderEditContext({
           ruleId: input.editRule.rule.id,
+          customLabel: input.editRule.rule.customLabel,
           latestVersion: input.editRule.latestVersion,
           definition: input.editRule.definition,
         });

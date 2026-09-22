@@ -12,6 +12,7 @@ import type {
 } from "./badge-issuance-rule-types.js";
 
 export interface BadgeIssuanceRuleRow {
+  customLabel: string | null;
   id: string;
   tenantId: string;
   name: string;
@@ -33,6 +34,7 @@ export const badgeIssuanceRuleSelectColumns = (alias?: string): string => {
   ${prefix}id,
   ${prefix}tenant_id AS tenantId,
   ${prefix}name,
+  ${prefix}custom_label AS customLabel,
   ${prefix}description,
   ${prefix}badge_template_id AS badgeTemplateId,
   ${prefix}org_unit_id AS orgUnitId,
@@ -50,6 +52,7 @@ export const mapBadgeIssuanceRuleRow = (row: BadgeIssuanceRuleRow): BadgeIssuanc
     id: row.id,
     tenantId: row.tenantId,
     name: row.name,
+    customLabel: row.customLabel,
     description: row.description,
     badgeTemplateId: row.badgeTemplateId,
     orgUnitId: row.orgUnitId,

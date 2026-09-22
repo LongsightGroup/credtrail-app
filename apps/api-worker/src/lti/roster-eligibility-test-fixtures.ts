@@ -28,6 +28,7 @@ export const sampleLtiRosterBadgeRule = (
   id: "brl_123",
   tenantId: "tenant_123",
   name: "Course rule",
+  customLabel: "Course rule",
   description: null,
   badgeTemplateId: "badge_template_001",
   orgUnitId: "tenant_123:org:institution",

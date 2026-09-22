@@ -11,6 +11,7 @@ const testRule = (
   id: "brl_next_step",
   tenantId: "tenant_123",
   name: "Course completion rule",
+  customLabel: "Course completion rule",
   description: "Award after course completion.",
   badgeTemplateId: "badge_template_001",
   orgUnitId: "tenant_123:org:institution",

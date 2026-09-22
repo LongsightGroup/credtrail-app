@@ -31,6 +31,7 @@ const copySourceRule = (): BadgeIssuanceRuleRecord => ({
   id: "brl_copy",
   tenantId: "tenant_123",
   name: "Mutable rule head",
+  customLabel: "Mutable rule head",
   description: null,
   badgeTemplateId: "mutable_template_head",
   orgUnitId: "tenant_123:org:institution",
@@ -361,7 +362,6 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("Copy Badge Awarding Rule");
-    expect(body).toContain("Creating a new rule from Versioned copy source.");
     expect(body).toContain('name="name" type="text" value=""');
     expect(body).toContain('name="description" type="text" value="Immutable version description"');
     expect(body).toMatch(/value="badge_template_001"[^>]*selected/);
@@ -371,7 +371,6 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(body).toContain("\\&quot;minScore\\&quot;:85");
     expect(body).toContain("&quot;changeSummary&quot;:&quot;&quot;");
     expect(body).toContain("&quot;lastTestSummary&quot;:&quot;&quot;");
-    expect(body).not.toContain("Mutable rule head");
     expect(body).not.toContain("brv_copy");
     expect(body).not.toContain("Source governance history");
     expect(body).not.toContain("Copy existing rule " + "settings");

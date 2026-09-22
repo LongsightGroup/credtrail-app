@@ -27,6 +27,7 @@ export const sampleDetailRule = (activeVersionId: string | null): BadgeIssuanceR
   id: "brl_detail",
   tenantId: "tenant_123",
   name: "Mutable rule head name",
+  customLabel: "Mutable rule head name",
   description: "Award the badge after the learner completes the final project.",
   badgeTemplateId: sampleRuleBadgeTemplate.id,
   orgUnitId: "tenant_123:org:cs",

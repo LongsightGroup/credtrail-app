@@ -29,7 +29,7 @@ describe("Home workflow tasks", () => {
           activeRuleCount: 20,
           actionCount: 7,
           waitingCount: 3,
-          tasks: [{ action: "review", version, current: false }],
+          tasks: [{ customLabel: null, action: "review", version, current: false }],
         },
       },
     });

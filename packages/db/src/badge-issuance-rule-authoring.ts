@@ -398,6 +398,7 @@ export const createBadgeIssuanceRuleWithActionWithinTransaction = async (
   const createInput = {
     tenantId: input.tenantId,
     name: input.name,
+    customLabel: input.customLabel,
     description: input.description,
     badgeTemplateId: input.badgeTemplateId,
     orgUnitId,

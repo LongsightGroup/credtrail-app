@@ -226,6 +226,7 @@ export const resetInstitutionAdminTestDefaults = (): void => {
       id: "brl_123",
       tenantId: "tenant_123",
       name: "CS101 Excellence Rule",
+      customLabel: "CS101 Excellence Rule",
       description: "Issue badge for CS101 completion and grade threshold.",
       badgeTemplateId: "badge_template_001",
       orgUnitId: "tenant_123:org:institution",

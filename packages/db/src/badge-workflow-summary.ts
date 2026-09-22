@@ -27,6 +27,7 @@ const taskSchema = z.enum([
 ]);
 /** A bounded Home task identifies the exact version requiring action. */
 export interface BadgeWorkflowTask {
+  readonly customLabel: string | null;
   readonly action: z.infer<typeof taskSchema>;
   readonly version: BadgeIssuanceRuleVersionRecord;
   readonly current: boolean;
@@ -86,7 +87,7 @@ export const loadBadgeWorkflowHomeSummary = async (
   if (scope.empty) return empty;
   const isAdmin = input.actorRole === "admin" || input.actorRole === "owner";
   const source = `${scope.cte.trim().length === 0 ? "WITH" : `${scope.cte},`} workflow AS (
-    SELECT versions.*, rules.active_version_id,
+    SELECT versions.*, rules.active_version_id, rules.custom_label,
       CASE
         WHEN versions.status = 'draft' AND ? AND EXISTS (
           SELECT 1 FROM badge_issuance_rule_approval_steps AS returned_step
@@ -142,13 +143,19 @@ export const loadBadgeWorkflowHomeSummary = async (
       .bind(...params)
       .first<unknown>(),
     db
-      .prepare(`${source} SELECT ${badgeIssuanceRuleVersionSelectColumns("workflow")}, workflow_action AS workflowAction,
+      .prepare(`${source} SELECT ${badgeIssuanceRuleVersionSelectColumns("workflow")}, workflow_action AS workflowAction, custom_label AS customLabel,
       id = active_version_id AND status = 'active' AS current
       FROM workflow WHERE workflow_action IS NOT NULL
       ORDER BY CASE workflow_action WHEN 'revise' THEN 0 WHEN 'configure_approval' THEN 1 WHEN 'review' THEN 2 WHEN 'activate' THEN 3
         WHEN 'schedule' THEN 4 WHEN 'placement' THEN 5 WHEN 'resume' THEN 6 ELSE 7 END, updated_at, id LIMIT 5`)
       .bind(...params)
-      .all<BadgeIssuanceRuleVersionRow & { workflowAction: unknown; current: boolean }>(),
+      .all<
+        BadgeIssuanceRuleVersionRow & {
+          workflowAction: unknown;
+          current: boolean;
+          customLabel: string | null;
+        }
+      >(),
   ]);
   const counts = z
     .object({
@@ -162,6 +169,7 @@ export const loadBadgeWorkflowHomeSummary = async (
     ...counts,
     tasks: rows.results.map((row) => ({
       action: taskSchema.parse(row.workflowAction),
+      customLabel: row.customLabel,
       current: z.boolean().parse(row.current),
       version: mapBadgeIssuanceRuleVersionRow(row),
     })),

@@ -1,6 +1,7 @@
 import { badgeRuleVersionDisplayFields } from "./badge-rule-presentation";
 import {
   findTenantById,
+  findBadgeIssuanceRuleById,
   findUserById,
   listBadgeIssuanceRuleVersionApprovalSteps,
   type BadgeIssuanceRuleApprovalDecision,
@@ -74,7 +75,8 @@ export const notifyBadgeRuleApprovalSubmitted = async (
     targetStepNumber?: number | null | undefined;
   },
 ): Promise<void> => {
-  const [displayName, firstPendingStep] = await Promise.all([
+  const [rule, displayName, firstPendingStep] = await Promise.all([
+    findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId),
     tenantDisplayName(db, input.tenantId),
     nextPendingApprovalStep(db, {
       tenantId: input.tenantId,
@@ -94,7 +96,8 @@ export const notifyBadgeRuleApprovalSubmitted = async (
     fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
     tenantId: input.tenantId,
     tenantDisplayName: displayName,
-    ruleName: badgeRuleVersionDisplayFields(input.version).displayName,
+    ruleName: badgeRuleVersionDisplayFields(input.version, rule ?? { customLabel: null })
+      .displayName,
     versionNumber: input.version.versionNumber,
     reviewUrl: input.reviewUrl,
     step: firstPendingStep,
@@ -115,7 +118,8 @@ export const notifyBadgeRuleApprovalDecision = async (
     nextStepNumber?: number | null | undefined;
   },
 ): Promise<void> => {
-  const [displayName, nextStep] = await Promise.all([
+  const [rule, displayName, nextStep] = await Promise.all([
+    findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId),
     tenantDisplayName(db, input.tenantId),
     nextPendingApprovalStep(db, {
       tenantId: input.tenantId,
@@ -135,7 +139,8 @@ export const notifyBadgeRuleApprovalDecision = async (
       fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
       tenantId: input.tenantId,
       tenantDisplayName: displayName,
-      ruleName: badgeRuleVersionDisplayFields(input.version).displayName,
+      ruleName: badgeRuleVersionDisplayFields(input.version, rule ?? { customLabel: null })
+        .displayName,
       versionNumber: input.version.versionNumber,
       reviewUrl: input.reviewUrl,
       step: nextStep,
@@ -162,7 +167,8 @@ export const notifyBadgeRuleApprovalDecision = async (
               fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
               tenantId: input.tenantId,
               tenantDisplayName: displayName,
-              ruleName: badgeRuleVersionDisplayFields(input.version).displayName,
+              ruleName: badgeRuleVersionDisplayFields(input.version, rule ?? { customLabel: null })
+                .displayName,
               versionNumber: input.version.versionNumber,
               reviewUrl: input.reviewUrl,
               recipientEmail: user.email,

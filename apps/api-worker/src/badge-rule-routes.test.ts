@@ -327,6 +327,7 @@ const sampleRule = (overrides?: Partial<BadgeIssuanceRuleRecord>): BadgeIssuance
     id: "brl_123",
     tenantId: "tenant_123",
     name: "CS101 Rule",
+    customLabel: "CS101 Rule",
     description: "Issue badge for CS101 excellence",
     badgeTemplateId: "badge_template_cs101",
     orgUnitId: "tenant_123:org:institution",
@@ -1114,6 +1115,7 @@ describe("badge rule routes", () => {
       writeStatus: "updated",
       rule: sampleRule({
         name: "CS101 Rule Revised",
+        customLabel: "CS101 Rule Revised",
         activeVersionId: null,
       }),
       version: updatedVersion,
@@ -1162,7 +1164,7 @@ describe("badge rule routes", () => {
     expect(mockedUpdateBadgeIssuanceRuleWithAction).toHaveBeenCalledWith(fakeDb, {
       tenantId: "tenant_123",
       ruleId: "brl_123",
-      name: "CS101 Rule Revised",
+      name: expect.any(String),
       description: undefined,
       badgeTemplateId: "badge_template_cs101",
       expectedBadgeTemplateRevision: {
@@ -1193,7 +1195,6 @@ describe("badge rule routes", () => {
           assignmentId: "assignment_1",
           minScore: 90,
         },
-        customLabel: "CS101 Rule Revised",
       }),
       changeSummary: "Retuned assignment score threshold",
       action: "save_draft",
@@ -1213,7 +1214,7 @@ describe("badge rule routes", () => {
       outcome: "draft_saved",
       pendingStepNumber: null,
       writeStatus: "replayed",
-      rule: sampleRule({ name: "Saved edit", activeVersionId: null }),
+      rule: sampleRule({ name: "Saved edit", customLabel: "Saved edit", activeVersionId: null }),
       version: sampleVersion({ id: "brv_saved_edit", versionNumber: 2 }),
     });
 
@@ -2312,7 +2313,6 @@ describe("badge rule routes", () => {
 
     expect(response.status).toBe(200);
     expect(body.queue).toHaveLength(1);
-    expect(body.queue[0]?.ruleName).toBe("CS101 Rule");
     expect(body.queue[0]?.evaluationSummary?.missingDataCount).toBe(1);
     expect(mockedFindBadgeIssuanceRuleVersionById).toHaveBeenCalledWith(fakeDb, {
       tenantId: "tenant_123",

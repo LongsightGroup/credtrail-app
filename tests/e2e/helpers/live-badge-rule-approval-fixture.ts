@@ -22,6 +22,8 @@ export interface LiveBadgeRuleApprovalFixture {
   readonly ruleName: string;
   readonly rulesPath: string;
   readonly approvalsPath: string;
+  readonly readGovernanceState: () => Promise<unknown>;
+  readonly readNameAudit: () => Promise<readonly unknown[]>;
   readonly dispose: () => Promise<void>;
 }
 
@@ -167,6 +169,38 @@ export const createLiveBadgeRuleApprovalFixture =
       ruleName,
       rulesPath: `/tenants/${encodeURIComponent(tenantId)}/admin/rules`,
       approvalsPath: `/tenants/${encodeURIComponent(tenantId)}/admin/rules/approvals`,
+      readGovernanceState: async () => {
+        const [versions, steps, events] = await Promise.all([
+          db
+            .prepare(
+              "SELECT * FROM badge_issuance_rule_versions WHERE tenant_id = ? AND rule_id = ? ORDER BY version_number",
+            )
+            .bind(tenantId, created.rule.id)
+            .all(),
+          db
+            .prepare(
+              "SELECT * FROM badge_issuance_rule_approval_steps WHERE tenant_id = ? AND version_id = ? ORDER BY step_number",
+            )
+            .bind(tenantId, created.version.id)
+            .all(),
+          db
+            .prepare(
+              "SELECT * FROM badge_issuance_rule_approval_events WHERE tenant_id = ? AND version_id = ? ORDER BY created_at, id",
+            )
+            .bind(tenantId, created.version.id)
+            .all(),
+        ]);
+        return { versions: versions.results, steps: steps.results, events: events.results };
+      },
+      readNameAudit: async () => {
+        const entries = await db
+          .prepare(
+            "SELECT metadata_json AS metadata FROM audit_logs WHERE tenant_id = ? AND target_id = ? AND action = 'badge_rule.name_updated' ORDER BY occurred_at, id",
+          )
+          .bind(tenantId, created.rule.id)
+          .all<{ metadata: string }>();
+        return entries.results.map((entry) => JSON.parse(entry.metadata) as unknown);
+      },
       dispose: () =>
         deleteFixture(db, {
           tenantId,

@@ -263,7 +263,7 @@ export const buildAssertionEvidencePresentation = (
         ? null
         : {
             ruleId: data.rule.id,
-            ruleName: badgeRuleVersionDisplayFields(data.version).displayName,
+            ruleName: badgeRuleVersionDisplayFields(data.version, data.rule).displayName,
             versionNumber: data.version.versionNumber,
             versionStatus: data.version.status,
             versionId: data.version.id,

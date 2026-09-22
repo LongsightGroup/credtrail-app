@@ -392,27 +392,47 @@ export const RuleBuilderMetadataStep = (props: {
                   <option value="custom">Custom requirements</option>
                 </CtSelect>
               </AdminField>
-              <details
-                class="ct-admin__builder-field-span ct-stack"
-                open={props.initialName.length > 0}
-              >
-                <summary>Add a custom label</summary>
-                <div class="ct-field ct-admin__field">
-                  <label class="ct-field__label" htmlFor="rule-builder-name">
-                    Custom label (optional)
-                  </label>
-                  <CtInput
-                    name="name"
+              {props.editRule === null ? (
+                <details
+                  class="ct-admin__builder-field-span ct-stack"
+                  open={props.initialName.length > 0}
+                >
+                  <summary>Add a custom label</summary>
+                  <div class="ct-field ct-admin__field">
+                    <label class="ct-field__label" htmlFor="rule-builder-name">
+                      Custom label (optional)
+                    </label>
+                    <CtInput
+                      name="name"
+                      id="rule-builder-name"
+                      value={props.initialName}
+                      maxlength={200}
+                      describedBy="rule-builder-name-hint"
+                    />
+                    <CtFieldHint id="rule-builder-name-hint">
+                      For example, Honors pathway. Leave blank to use the requirements as the title.
+                    </CtFieldHint>
+                  </div>
+                </details>
+              ) : (
+                <div class="ct-admin__builder-field-span">
+                  <input
                     id="rule-builder-name"
+                    name="name"
+                    type="hidden"
                     value={props.initialName}
-                    maxlength={200}
-                    describedBy="rule-builder-name-hint"
                   />
-                  <CtFieldHint id="rule-builder-name-hint">
-                    For example, Honors pathway. Leave blank to use the requirements as the title.
-                  </CtFieldHint>
+                  <p>
+                    To change this rule’s name,{" "}
+                    <a
+                      href={`/tenants/${encodeURIComponent(props.editRule.latestVersion.tenantId)}/admin/rules/${encodeURIComponent(props.editRule.latestVersion.ruleId)}/versions/${encodeURIComponent(props.editRule.latestVersion.id)}#rule-name-editor`}
+                    >
+                      rename it from the rule page
+                    </a>
+                    .
+                  </p>
                 </div>
-              </details>
+              )}
               <AdminField label="Description (optional)" className="ct-admin__builder-field-span">
                 <CtInput
                   name="description"

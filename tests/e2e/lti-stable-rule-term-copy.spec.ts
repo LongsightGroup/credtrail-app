@@ -86,6 +86,25 @@ test("a governed stable rule survives an LMS course copy into a new term", async
       page.getByText("Every course in this institution", { exact: true }).first(),
     ).toBeVisible();
 
+    const renamedLabel = `Community data ${crypto.randomUUID().slice(0, 8)}`;
+    await page.goto(fixture.rulesPath);
+    const renameRow = page.locator("tbody tr").filter({ hasText: fixture.ruleName });
+    await renameRow.locator("[data-action-menu-trigger]").click();
+    await page.getByRole("link", { name: "Rename", exact: true }).click();
+    await page.locator("#rule-name-editor").getByLabel("Name", { exact: true }).fill(renamedLabel);
+    const renameResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname.endsWith("/name"),
+    );
+    await page
+      .locator("#rule-name-editor")
+      .getByRole("button", { name: "Save", exact: true })
+      .click();
+    expect((await renameResponse).ok()).toBe(true);
+    await expect(page.getByRole("link", { name: renamedLabel, exact: true })).toBeVisible();
+    await expect(fixture.readRuleState()).resolves.toEqual(fixture.initialRuleState);
+
     const launchTarget = new URL("/v1/lti/launch", baseURL).toString();
     await page.goto(
       ltiLoginUrl(baseURL, fixture.ltiPlatform, {
@@ -99,12 +118,12 @@ test("a governed stable rule survives an LMS course copy into a new term", async
       }),
     );
     await expect(page.getByRole("heading", { name: "Add a badge rule" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: fixture.ruleName })).toBeVisible();
+    await expect(page.getByRole("heading", { name: renamedLabel })).toBeVisible();
     await page.getByRole("button", { name: "Add to this course" }).click();
     await expect(page.getByRole("heading", { name: "Content added to course" })).toBeVisible();
 
     const contentItem = fixture.ltiPlatform.readContentItem();
-    expect(contentItem.title).toBe(fixture.ruleName);
+    expect(contentItem.title).toBe(renamedLabel);
     expect(new URL(contentItem.url).searchParams.get("ruleId")).toBe(contentItem.custom.ruleId);
     expect(new URL(contentItem.url).searchParams.get("badgeTemplateId")).toBe(
       contentItem.custom.badgeTemplateId,

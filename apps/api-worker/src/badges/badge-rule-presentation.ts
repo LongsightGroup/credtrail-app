@@ -7,7 +7,7 @@ import { badgeRuleLmsProviderLabel } from "./badge-rule-lms-provider-label";
 import { parseBadgeIssuanceRuleDefinitionJson } from "@credtrail/validation";
 import { describeBadgeRuleCondition } from "./badge-rule-description";
 
-/** Stable product-facing fields projected from one immutable badge-rule version. */
+/** Current rule naming alongside the requirements of one immutable version. */
 export interface BadgeRuleVersionDisplayFields {
   readonly displayName: string;
   readonly customLabel: string | null;
@@ -21,6 +21,7 @@ export interface BadgeRuleVersionDisplayFields {
 /** Projects the shared display fields used across admin, audit, and public rule surfaces. */
 export const badgeRuleVersionDisplayFields = (
   version: BadgeIssuanceRuleVersionRecord,
+  rule: Pick<BadgeIssuanceRuleRecord, "customLabel">,
 ): BadgeRuleVersionDisplayFields => {
   let definition;
   try {
@@ -36,13 +37,14 @@ export const badgeRuleVersionDisplayFields = (
       updatedAt: version.updatedAt,
     };
   }
+  const customLabel = rule.customLabel;
   const requirementSummary = describeBadgeRuleCondition(
     definition.conditions,
     definition.referenceLabels,
   );
   return {
-    displayName: definition.customLabel ?? requirementSummary,
-    customLabel: definition.customLabel ?? null,
+    displayName: customLabel ?? requirementSummary,
+    customLabel,
     requirementSummary,
     courseLabels: definition.referenceLabels?.courses.map((course) => course.title) ?? [],
     badgeTitle: version.snapshot.badgeTemplateTitle,
@@ -51,7 +53,7 @@ export const badgeRuleVersionDisplayFields = (
   };
 };
 
-/** Returns the immutable version-backed name product surfaces should show for a rule. */
+/** Returns the current label or the default version’s requirement description. */
 export const badgeRuleDisplayName = (
   rule: BadgeIssuanceRuleRecord,
   versions: readonly BadgeIssuanceRuleVersionRecord[],
@@ -61,7 +63,7 @@ export const badgeRuleDisplayName = (
 
   return defaultVersion === null
     ? "Rule version unavailable"
-    : badgeRuleVersionDisplayFields(defaultVersion).displayName;
+    : badgeRuleVersionDisplayFields(defaultVersion, rule).displayName;
 };
 
 /** Formats a persisted badge-rule version status for product UI. */

@@ -122,6 +122,7 @@ const sampleRule = (overrides?: Partial<BadgeIssuanceRuleRecord>): BadgeIssuance
     id: "brl_123",
     tenantId: "sakai",
     name: "Mutable public rule head",
+    customLabel: "Mutable public rule head",
     description: "Determine contribution milestone eligibility",
     badgeTemplateId: "badge_template_sakai_1000",
     orgUnitId: "sakai:org:institution",
@@ -285,8 +286,6 @@ describe("GET /showcase/:tenantId/criteria", () => {
     expect(body).toContain("https://github.com/sakaiproject/sakai");
     expect(body).toContain("Published criteria");
     expect(body).toContain("Current badge owner");
-    expect(body).toContain("Sakai Contributor Eligibility");
-    expect(body).not.toContain("Mutable public rule head");
     expect(body).toContain("For course SAKAI-COMMITS, final score must be at least 80.");
     expect(body).toContain("How someone qualifies");
     expect(body).toContain("Required role: admin");

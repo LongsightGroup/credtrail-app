@@ -1,3 +1,4 @@
+import { BadgeRuleNameEditor } from "../badge-rule-name-editor";
 import type { BadgeWorkflowResponsibility } from "../badge-workflow-responsibility";
 import {
   canDeleteNeverActiveBadgeIssuanceRule,
@@ -187,7 +188,7 @@ const renderResolvedRuleRow = (
   const latestResponsibility = input.responsibilities?.get(latestVersion.id);
   const currentResponsibility =
     activeVersion === null ? undefined : input.responsibilities?.get(activeVersion.id);
-  const displayFields = badgeRuleVersionDisplayFields(defaultVersion);
+  const displayFields = badgeRuleVersionDisplayFields(defaultVersion, rule);
   const detailPath = buildBadgeRuleVersionDetailPath(input.tenantId, rule.id, defaultVersion.id);
   const editRulePath = `${buildBadgeRuleDetailPath(input.tenantId, rule.id)}/edit`;
   const menuActions = buildBadgeRuleWorkflowMenuActions({
@@ -195,6 +196,7 @@ const renderResolvedRuleRow = (
     userId: input.userId,
     rule,
     latestVersion,
+    displayName: displayFields.displayName,
     canDeleteRule: canDeleteNeverActiveBadgeIssuanceRule(rule, versions),
     approval: latestResponsibility?.approval,
   });
@@ -568,6 +570,7 @@ export const renderBadgeRulesTable = (input: RenderBadgeRulesTableInput): HonoEl
           </AdminActions>
         }
       />
+      <BadgeRuleNameEditor />
       {input.builderDraftCount === 0 ? null : (
         <section class="ct-admin__registry-drafts" aria-labelledby="unfinished-rule-drafts-title">
           <div>

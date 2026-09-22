@@ -150,7 +150,7 @@ export const BadgeRuleVersionOverview = (input: {
     renderLmsReference: adminLmsReferenceMarkup,
   });
   const timestampRows = versionTimestampRows(input.version, input.submittedByEmail);
-  const displayFields = badgeRuleVersionDisplayFields(input.version);
+  const displayFields = badgeRuleVersionDisplayFields(input.version, input.rule);
   const lmsLabelsUrl =
     input.version.snapshot.lmsConnectionId === null
       ? null

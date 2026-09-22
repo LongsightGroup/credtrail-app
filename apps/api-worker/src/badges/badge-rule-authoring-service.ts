@@ -127,7 +127,7 @@ export const authorPreparedBadgeRule = async (
   const { customLabel: _previousLabel, ...requirements } = parseBadgeIssuanceRuleDefinition(
     JSON.parse(input.ruleJson),
   );
-  const customLabel = nonEmptyTrimmed(input.request.name);
+  const customLabel = input.kind === "create" ? nonEmptyTrimmed(input.request.name) : undefined;
   const definition = {
     ...requirements,
     ...(customLabel === undefined ? {} : { customLabel }),
@@ -142,6 +142,7 @@ export const authorPreparedBadgeRule = async (
       ? await createBadgeIssuanceRuleWithAction(input.db, {
           tenantId: input.tenantId,
           name,
+          customLabel: customLabel ?? null,
           description: input.request.description,
           badgeTemplateId: input.request.badgeTemplateId,
           expectedBadgeTemplateRevision,

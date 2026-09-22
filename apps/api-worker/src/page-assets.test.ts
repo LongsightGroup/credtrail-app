@@ -542,9 +542,9 @@ describe("page asset manifest", () => {
 
     new Script(INSTITUTION_ADMIN_SHELL_JS).runInContext(context);
     const openListener = clickListener as ShellEventListener | null;
-    const closeOnScrollListener = scrollListener as ShellEventListener | null;
+    const repositionOnScrollListener = scrollListener as ShellEventListener | null;
     expect(openListener).not.toBeNull();
-    expect(closeOnScrollListener).not.toBeNull();
+    expect(repositionOnScrollListener).not.toBeNull();
 
     openListener?.({
       target: trigger,
@@ -568,7 +568,8 @@ describe("page asset manifest", () => {
       preventDefault: (): void => {},
       stopPropagation: (): void => {},
     });
-    closeOnScrollListener?.({});
-    expect(popover.wasHidden()).toBe(true);
+    repositionOnScrollListener?.({});
+    expect(popover.hidden).toBe(false);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
   });
 });

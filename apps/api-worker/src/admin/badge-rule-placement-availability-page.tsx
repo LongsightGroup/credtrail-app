@@ -518,7 +518,7 @@ export const badgeRulePlacementAvailabilityPage = (
   const title =
     input.activeVersion === null
       ? "Rule course availability"
-      : badgeRuleVersionDisplayFields(input.activeVersion).displayName;
+      : badgeRuleVersionDisplayFields(input.activeVersion, input.rule).displayName;
   return renderInstitutionAdminShellPage({
     tenant: input.tenant,
     userId: input.userId,

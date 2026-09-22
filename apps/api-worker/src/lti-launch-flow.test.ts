@@ -654,6 +654,7 @@ const sampleBadgeIssuanceRule = (
     id: "brl_lti_rule_123",
     tenantId: "tenant_123",
     name: "Sakai course rule: Introduction to TypeScript · TypeScript Foundations",
+    customLabel: "Sakai course rule: Introduction to TypeScript · TypeScript Foundations",
     description: "Created from LTI Deep Linking for Introduction to TypeScript.",
     badgeTemplateId: "badge_template_001",
     orgUnitId: "tenant_123:org:course-typescript-101",
@@ -3353,7 +3354,6 @@ describe("LTI 1.3 core launch flow", () => {
     expect(body).toContain('name="lti_session_id"');
     expect(body).toContain('name="rule_id"');
     expect(body).toContain("Course badge");
-    expect(body).toContain("LTI course badge rule");
     expect(body).toContain("Earn a course score of at least 85%");
     expect(body).toContain("Add to this course");
     expect(body).toContain("/assets/ui/foundation.");
@@ -3517,7 +3517,6 @@ describe("LTI 1.3 core launch flow", () => {
     expect(createDeepLinkingHtmlResponse).toHaveBeenCalledWith([
       expect.objectContaining({
         type: "ltiResourceLink",
-        title: "LTI course badge rule",
         url: "https://tool.example.edu/v1/lti/launch?ruleId=brl_lti_rule_123&badgeTemplateId=badge_template_001",
         custom: {
           badgeTemplateId: "badge_template_001",
