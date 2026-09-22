@@ -226,6 +226,7 @@ const syncRuleBuilderSummary = (statusOverride) => {
     awarding = undefined;
   }
   setWorkflowText("builder-rule-awarding", awarding?.awarding ?? "Check awarding settings");
+  setWorkflowText("builder-issuance-timing-hint", awarding?.awardingDetail ?? "Choose how eligible learners receive this badge.");
   setWorkflowText("builder-rule-awarding-detail", awarding?.awardingDetail ?? "Complete or repair the requirements to confirm how this badge will be awarded.");
   ruleBuilderExampleTestController.sync(readConditionsForPreview());
 

@@ -81,7 +81,7 @@ describe("badge workflow responsibility", () => {
     });
     expect(badgeWorkflowAwarding(json, true).awardingDetail).not.toContain("Once activated");
     expect(badgeWorkflowAwarding(json, false).awardingDetail).toContain(
-      "Missing information goes to human review",
+      "Learners are flagged for review if missing information prevents CredTrail from confirming eligibility",
     );
   });
   it("distinguishes automatic approval from an independent reviewer", () => {

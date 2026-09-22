@@ -229,22 +229,24 @@ export const describeBadgeWorkflowAwardingTiming = (
   reviewOnMissingFacts: boolean,
 ): Pick<BadgeWorkflowResponsibility, "awarding" | "awardingDetail"> => {
   const prefix = current ? "" : "Once activated, ";
-  const review = reviewOnMissingFacts ? " Missing information goes to human review." : "";
+  const review = reviewOnMissingFacts
+    ? " Learners are flagged for review if missing information prevents CredTrail from confirming eligibility."
+    : "";
   switch (timing) {
     case "immediate":
       return {
         awarding: "CredTrail awards automatically",
-        awardingDetail: `${prefix}CredTrail checks eligibility and awards the badge when requirements are met.${review}`,
+        awardingDetail: `${prefix}CredTrail checks learners against the requirements and repeats the check every hour. Eligible learners receive the badge automatically.${review}`,
       };
     case null:
       return {
         awarding: "Instructor confirms the award",
-        awardingDetail: `${current ? "An instructor" : "Once activated, an instructor"} selects eligible learners from the course roster.${review}`,
+        awardingDetail: `${current ? "An instructor" : "Once activated, an instructor"} selects eligible learners from the course roster and confirms who receives the badge.${review}`,
       };
     case "end_of_term":
       return {
         awarding: "CredTrail awards at term end",
-        awardingDetail: `${prefix}CredTrail checks eligibility at the scheduled term end date.${review}`,
+        awardingDetail: `${prefix}CredTrail waits until the scheduled term end date, then checks the requirements and automatically awards badges to eligible learners.${review}`,
       };
   }
 };

@@ -724,17 +724,17 @@ export const RuleBuilderTestStep = (): HonoElement => {
           <details class="ct-admin__builder-advanced ct-stack">
             <summary>Governance and release settings</summary>
             <p class="ct-admin__hint">
-              Approval follows institution policy. Automatic issuance checks learners when the rule
-              is activated and every hour afterward.
+              Your institution's policy determines who must approve this rule before activation.
             </p>
             <div class="ct-admin__builder-review-layout ct-grid">
               <div class="ct-stack">
                 <AdminField label="Issuance timing">
-                  <CtSelect name="issuanceTiming">
+                  <CtSelect name="issuanceTiming" describedBy="builder-issuance-timing-hint">
                     <option value="immediate">Automatic</option>
                     <option value="manual">Instructor confirmation</option>
                     <option value="end_of_term">End-of-term batch</option>
                   </CtSelect>
+                  <CtFieldHint id="builder-issuance-timing-hint" />
                 </AdminField>
                 <AdminField label="Change summary (optional)">
                   <CtInput
@@ -745,8 +745,14 @@ export const RuleBuilderTestStep = (): HonoElement => {
                 </AdminField>
                 <AdminCheckboxRow
                   name="reviewOnMissingFacts"
-                  label="Send missing-data cases to human review"
+                  label="Flag learners for review when required information is missing"
+                  describedBy="builder-missing-information-hint"
                 />
+                <CtFieldHint id="builder-missing-information-hint">
+                  If missing grades, completion records, or other required information prevent
+                  CredTrail from confirming eligibility, mark the learner as needing review. If
+                  unchecked, mark them as not eligible. Neither result awards a badge.
+                </CtFieldHint>
               </div>
             </div>
           </details>

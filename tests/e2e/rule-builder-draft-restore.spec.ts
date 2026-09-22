@@ -325,7 +325,9 @@ test("a formal assignment-rule draft restores every visible and submitted settin
 
     await expect(page.getByLabel("Awarding pattern")).toHaveValue("assignment_submission");
     await expect(page.getByLabel("Issuance timing")).toHaveValue("manual");
-    await expect(page.getByLabel("Send missing-data cases to human review")).toBeChecked();
+    await expect(
+      page.getByLabel("Flag learners for review when required information is missing"),
+    ).toBeChecked();
     const restoredCard = page.locator(".ct-admin__condition-card").first();
     await expect(restoredCard.locator("select[data-lms-course-select]")).toHaveValue(savedCourseId);
     await expect(restoredCard.locator("select[data-lms-gradebook-item-select]")).toHaveValue(
@@ -357,6 +359,15 @@ test("a formal assignment-rule draft restores every visible and submitted settin
     const testDraftSave = waitForBuilderDraftSave(page);
     await openTestStep(page);
     await testDraftSave;
+    await page.getByText("Governance and release settings", { exact: true }).click();
+    const timingHint = page.locator("#builder-issuance-timing-hint");
+    await expect(timingHint).toContainText("confirms who receives the badge");
+    await page.getByLabel("Issuance timing").selectOption("immediate");
+    await expect(timingHint).toContainText("repeats the check every hour");
+    await page.getByLabel("Issuance timing").selectOption("end_of_term");
+    await expect(timingHint).toContainText("waits until the scheduled term end date");
+    await page.getByLabel("Issuance timing").selectOption("manual");
+    await expect(timingHint).toContainText("confirms who receives the badge");
     await runPassingExample(page);
     const updatePath = `/v1/tenants/${tenantId}/badge-rules/${encodeURIComponent(ruleId)}/draft`;
     const updateRequestPromise = page.waitForRequest((request) => {
@@ -456,7 +467,9 @@ test("unfinished custom requirements restore without being replaced by a starter
 
     await expect(page.getByLabel("Awarding pattern")).toHaveValue("custom");
     await expect(page.getByLabel("Issuance timing")).toHaveValue("manual");
-    await expect(page.getByLabel("Send missing-data cases to human review")).toBeChecked();
+    await expect(
+      page.getByLabel("Flag learners for review when required information is missing"),
+    ).toBeChecked();
     await expect(readGeneratedDefinition(page)).resolves.toEqual(customDefinition);
   } finally {
     await cleanupDraftRestoreRecords({
