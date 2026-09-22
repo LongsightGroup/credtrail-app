@@ -93,10 +93,7 @@ export const buildInstitutionAdminHomeViewResources = (input: {
             </p>
           </AdminWorkspaceCard>
         </section>
-        <aside
-          class="ct-admin__home-actions ct-stack"
-          aria-labelledby="home-actions-heading"
-        >
+        <aside class="ct-admin__home-actions ct-stack" aria-labelledby="home-actions-heading">
           <h2 id="home-actions-heading">Action items</h2>
           {page.operationsAttention &&
           (page.operationsAttention.pendingReviews > 0 ||
