@@ -35,6 +35,32 @@ const ruleBuilderConditionTypes = [
   { value: "custom_field", label: "Custom field" },
 ] as const;
 
+const RuleBuilderDisclosureSummary = (props: { readonly title: string }): HonoElement => {
+  return (
+    <summary>
+      <span class="ct-admin__builder-disclosure-title">{props.title}</span>
+      <span class="ct-admin__builder-disclosure-action" aria-hidden="true">
+        <span class="ct-admin__builder-disclosure-expand">Expand</span>
+        <span class="ct-admin__builder-disclosure-collapse">Collapse</span>
+        <svg
+          class="ct-admin__builder-disclosure-chevron"
+          width="20"
+          height="20"
+          viewBox="0 0 256 256"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="16"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          focusable="false"
+        >
+          <polyline points="96 48 176 128 96 208" />
+        </svg>
+      </span>
+    </summary>
+  );
+};
+
 const RuleBuilderStepButton = (props: {
   readonly stepNumber: number;
   readonly target: RuleBuilderStepTarget;
@@ -485,7 +511,7 @@ export const RuleBuilderConditionsStep = (props: {
               </section>
             </div>
             <details class="ct-admin__builder-guide">
-              <summary>Requirement catalog</summary>
+              <RuleBuilderDisclosureSummary title="Requirement catalog" />
               <div class="ct-admin__builder-patterns-head ct-stack">
                 <p class="ct-admin__hint">
                   These are the requirement rows available in the visual builder.
@@ -539,7 +565,7 @@ export const RuleBuilderConditionsStep = (props: {
             </details>
           </div>
           <details class="ct-admin__builder-advanced ct-stack">
-            <summary>Generated rule JSON</summary>
+            <RuleBuilderDisclosureSummary title="Generated rule JSON" />
             <AdminField label="Rule JSON (expert override)">
               <CtTextarea
                 id="rule-builder-definition-json"
@@ -709,7 +735,7 @@ export const RuleBuilderTestStep = (): HonoElement => {
               class="ct-admin__builder-advanced ct-stack"
               hidden
             >
-              <summary>Advanced test facts</summary>
+              <RuleBuilderDisclosureSummary title="Advanced test facts" />
               <AdminField label="Advanced facts JSON (optional)">
                 <CtTextarea
                   name="testFactsJson"
@@ -722,7 +748,7 @@ export const RuleBuilderTestStep = (): HonoElement => {
           </div>
           <pre id="rule-builder-test-output" class="ct-admin__code-output" hidden></pre>
           <details class="ct-admin__builder-advanced ct-stack">
-            <summary>Governance and release settings</summary>
+            <RuleBuilderDisclosureSummary title="Governance and release settings" />
             <p class="ct-admin__hint">
               Your institution's policy determines who must approve this rule before activation.
             </p>
@@ -847,7 +873,7 @@ export const RuleBuilderSaveDraftFooter = (): HonoElement => {
 export const RuleBuilderAdvancedJsonTools = (): HonoElement => {
   return (
     <details class="ct-admin__panel ct-admin__builder-guide ct-admin__builder-support">
-      <summary>Advanced JSON tools</summary>
+      <RuleBuilderDisclosureSummary title="Advanced JSON tools" />
       <div class="ct-admin__builder-support-grid ct-grid">
         <section class="ct-admin__builder-support-section ct-stack">
           <h3>Import and export</h3>
