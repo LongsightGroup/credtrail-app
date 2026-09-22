@@ -393,6 +393,26 @@ export const RuleBuilderMetadataStep = (props: {
                   <option value="custom">Custom requirements</option>
                 </CtSelect>
               </AdminField>
+              <div class="ct-field ct-admin__field ct-admin__builder-field-span">
+                <label class="ct-field__label" htmlFor="rule-builder-name">
+                  Rule name
+                </label>
+                <CtInput
+                  type="text"
+                  name="name"
+                  id="rule-builder-name"
+                  value={props.initialName}
+                  required
+                  maxlength={200}
+                  describedBy="rule-builder-name-hint"
+                  dataAttributes={{
+                    "data-rule-builder-preserve-name": props.preserveName ? "true" : "false",
+                  }}
+                />
+                <CtFieldHint id="rule-builder-name-hint">
+                  Starts with the badge title. Change it to help you recognize this rule.
+                </CtFieldHint>
+              </div>
               <AdminField label="Description (optional)" className="ct-admin__builder-field-span">
                 <CtInput
                   name="description"
@@ -402,15 +422,6 @@ export const RuleBuilderMetadataStep = (props: {
                 />
               </AdminField>
             </div>
-            <CtInput
-              type="hidden"
-              name="name"
-              id="rule-builder-name"
-              value={props.initialName}
-              dataAttributes={{
-                "data-rule-builder-preserve-name": props.preserveName ? "true" : "false",
-              }}
-            />
           </section>
         </section>
       </div>

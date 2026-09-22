@@ -163,6 +163,10 @@ const getStepGateMessage = (stepName) => {
       return "Choose a " + missingLabels[0] + " and an " + missingLabels[1] + " before continuing.";
     }
 
+    if (getTextFieldValue("name").length === 0) {
+      return "Enter a rule name before continuing.";
+    }
+
     if (!ruleBuilderBadgeTemplatePicker.isComplete()) {
       return "Confirm that reusing this badge represents another valid way to earn the same achievement.";
     }

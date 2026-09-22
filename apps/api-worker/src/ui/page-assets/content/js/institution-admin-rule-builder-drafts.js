@@ -139,6 +139,7 @@ const applyRuleBuilderPayload = (payloadContext, sourceLabel) => {
 
   if (typeof payload.name === "string") {
     setRuleCreateFieldValue("name", payload.name);
+    preserveRuleBuilderName();
   }
 
   if (typeof payload.description === "string") {
@@ -413,6 +414,7 @@ if (
         typeof parsed.name === "string"
       ) {
         setRuleCreateFieldValue("name", parsed.name);
+        preserveRuleBuilderName();
       }
 
       if (

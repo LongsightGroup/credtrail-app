@@ -1,6 +1,6 @@
 import { upsertTenantLmsConnection } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Route } from "@playwright/test";
 import { createServer } from "node:http";
 
 import { createTestBadgeIssuanceRule } from "../../packages/db/src/badge-issuance-rule-test-fixtures";
@@ -80,17 +80,6 @@ const fulfillRulePreview = async (route: Route): Promise<void> => {
       facts: {},
     },
   });
-};
-
-const setHiddenRuleName = async (page: Page, name: string): Promise<void> => {
-  await page.locator("#rule-builder-name").evaluate((field, value) => {
-    if (!(field instanceof HTMLInputElement)) {
-      throw new TypeError("Rule name field must be an input");
-    }
-
-    field.value = value;
-    field.dispatchEvent(new Event("input", { bubbles: true }));
-  }, name);
 };
 
 const createCopySource = async (input: {
@@ -207,7 +196,7 @@ test("a copied rule keeps its settings and starts a separate lifecycle", async (
     );
     await expect(page.getByLabel("LMS connection")).toHaveValue(lmsConnectionId);
 
-    await setHiddenRuleName(page, copiedRuleName);
+    await page.getByRole("textbox", { name: "Rule name", exact: true }).fill(copiedRuleName);
     const reuseConfirmation = page.getByLabel(
       "I confirm this rule is another valid way to earn the same badge.",
     );
@@ -240,6 +229,10 @@ test("a copied rule keeps its settings and starts a separate lifecycle", async (
     ).toHaveValue("88");
 
     await page.getByRole("button", { name: /Awarding pattern/ }).click();
+    await page.locator("#rule-builder-template-preset").selectOption("custom");
+    await expect(page.getByRole("textbox", { name: "Rule name", exact: true })).toHaveValue(
+      copiedRuleName,
+    );
     const restoredReuseConfirmation = page.getByLabel(
       "I confirm this rule is another valid way to earn the same badge.",
     );
@@ -274,10 +267,9 @@ test("a copied rule keeps its settings and starts a separate lifecycle", async (
     const copiedRow = page.locator("tbody tr").filter({ hasText: copiedRuleName });
     await expect(copiedRow).toBeVisible();
     await expect(copiedRow.getByText(/Draft|Awaiting approval|Approved/)).toBeVisible();
-    await expect(copiedRow.getByRole("link", { name: copiedRuleName, exact: true })).toHaveAttribute(
-      "href",
-      copiedDetailHref,
-    );
+    await expect(
+      copiedRow.getByRole("link", { name: copiedRuleName, exact: true }),
+    ).toHaveAttribute("href", copiedDetailHref);
 
     const unchangedSourceRow = page.locator("tbody tr").filter({ hasText: sourceRuleName });
     await expect(

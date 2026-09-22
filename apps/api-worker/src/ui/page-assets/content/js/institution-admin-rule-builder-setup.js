@@ -481,7 +481,8 @@ ruleBuilderTestDataSourceInputs.forEach((candidate) => {
 
 syncRuleBuilderTestDataSource();
 
-const getSelectedOptionLabel = (field) => {
+const buildSuggestedRuleName = () => {
+  const field = getRuleCreateField("badgeTemplateId");
   if (!(field instanceof HTMLSelectElement)) {
     return "";
   }
@@ -492,37 +493,29 @@ const getSelectedOptionLabel = (field) => {
     return "";
   }
 
-  const optionText = selectedOption.textContent?.trim() ?? "";
-
-  if (optionText.length === 0) {
-    return "";
-  }
-
-  const templateIdSuffixIndex = optionText.lastIndexOf(" (");
-
-  if (templateIdSuffixIndex > 0) {
-    return optionText.slice(0, templateIdSuffixIndex).trim();
-  }
-
-  return optionText;
+  return (selectedOption.dataset.templateTitle ?? "").trim().slice(0, 200);
 };
 
-const buildSuggestedRuleName = () => {
-  const badgeTitle = getSelectedOptionLabel(getRuleCreateField("badgeTemplateId"));
-  const patternLabel = getSelectedOptionLabel(ruleBuilderTemplatePreset);
-  const badgeLabel = badgeTitle.length > 0 ? badgeTitle : "Badge rule";
-  const patternName = patternLabel.length > 0 ? patternLabel : "Awarding rule";
+const preserveRuleBuilderName = () => {
+  const field = getRuleCreateField("name");
 
-  return badgeLabel + " – " + patternName;
+  if (field instanceof HTMLInputElement) {
+    field.dataset.ruleBuilderPreserveName = "true";
+  }
 };
+
+const ruleBuilderNameInput = getRuleCreateField("name");
+
+if (ruleBuilderNameInput instanceof HTMLInputElement) {
+  ruleBuilderNameInput.addEventListener("input", preserveRuleBuilderName);
+}
 
 const syncSuggestedRuleName = () => {
   const ruleNameField = getRuleCreateField("name");
 
   if (
     ruleNameField instanceof HTMLInputElement &&
-    ruleNameField.dataset.ruleBuilderPreserveName === "true" &&
-    ruleNameField.value.trim().length > 0
+    ruleNameField.dataset.ruleBuilderPreserveName === "true"
   ) {
     return;
   }
