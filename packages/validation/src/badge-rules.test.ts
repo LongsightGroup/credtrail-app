@@ -5,6 +5,7 @@ import {
   badgeIssuanceRuleHasCompleteLmsLearnerPopulation,
   parseBadgeIssuanceRuleAuditLogQuery,
   parseBadgeIssuanceRuleAuthoringResultQuery,
+  parseBadgeIssuanceRuleBuilderDraftJson,
   parseBadgeIssuanceRulePathParams,
   parseBadgeIssuanceRuleReviewQueueQuery,
   parseBadgeIssuanceRuleVersionDiffQuery,
@@ -485,6 +486,34 @@ describe("badge issuance rule parsers", () => {
       ruleId: "brl_rule",
       versionId: "brv_version",
     });
+  });
+
+  it.each([true, false])("round-trips draft reuse confirmation %s", (acknowledged) => {
+    const {
+      target: _target,
+      currentStep: _currentStep,
+      ...payload
+    } = parseSaveBadgeIssuanceRuleBuilderDraftRequest({
+      target: { kind: "unfinished" },
+      currentStep: "metadata",
+      badgeTemplateId: "badge_template_cs101",
+      builderState: { badgeTemplateReuseAcknowledged: acknowledged },
+    });
+
+    expect(parseBadgeIssuanceRuleBuilderDraftJson(JSON.stringify(payload))).toEqual({
+      badgeTemplateId: "badge_template_cs101",
+      builderState: { badgeTemplateReuseAcknowledged: acknowledged },
+    });
+  });
+
+  it("rejects non-boolean draft reuse confirmation", () => {
+    expect(() =>
+      parseSaveBadgeIssuanceRuleBuilderDraftRequest({
+        target: { kind: "unfinished" },
+        currentStep: "metadata",
+        builderState: { badgeTemplateReuseAcknowledged: "true" },
+      }),
+    ).toThrow(/expected boolean/);
   });
 
   it("requires an explicit authoring action", () => {

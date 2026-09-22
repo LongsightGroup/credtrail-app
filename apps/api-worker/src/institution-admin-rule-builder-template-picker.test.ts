@@ -57,6 +57,7 @@ const pickerFixture = (
   input: {
     readonly includeOptions?: boolean | undefined;
     readonly selectedValue?: string | undefined;
+    readonly reuseAcknowledged?: boolean | undefined;
   } = {},
 ): PickerFixture => {
   const fallbackField = new FakeElement();
@@ -96,6 +97,7 @@ const pickerFixture = (
   const reuseMessage = new FakeElement();
   reuseMessage.setAttribute("id", "rule-builder-badge-template-reuse-message");
   const reuseConfirmation = new FakeInput();
+  reuseConfirmation.checked = input.reuseAcknowledged ?? false;
   reuseConfirmation.setAttribute("id", "rule-builder-badge-template-reuse-confirmation");
   fallbackField.append(select);
   enhancedField.append(combobox, listbox);
@@ -314,6 +316,22 @@ describe("institution admin rule-builder badge template picker", () => {
     fixture.reuseConfirmation.dispatch("change");
     expect(new Script("controller.isComplete()").runInContext(fixture.context)).toBe(true);
     expect(new Script("controller.isReuseAcknowledged()").runInContext(fixture.context)).toBe(true);
+  });
+
+  it("preserves restored confirmation until a different badge is selected", () => {
+    const fixture = pickerFixture({ reuseAcknowledged: true });
+
+    new Script("controller.sync()").runInContext(fixture.context);
+    expect(fixture.reuseConfirmation.checked).toBe(true);
+    expect(new Script("controller.isComplete()").runInContext(fixture.context)).toBe(true);
+
+    fixture.select.value = "badge_typescript";
+    fixture.select.dispatch("change");
+    fixture.select.value = "badge_analytics";
+    fixture.select.dispatch("change");
+
+    expect(fixture.reuseConfirmation.checked).toBe(false);
+    expect(new Script("controller.isComplete()").runInContext(fixture.context)).toBe(false);
   });
 
   it("syncs programmatic native selections into the title and reuse state", () => {

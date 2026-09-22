@@ -22,6 +22,7 @@ const readRuleBuilderDraftPayload = () => {
     rootLogic: getTextFieldValue("rootLogic"),
     issuanceTiming: getTextFieldValue("issuanceTiming"),
     changeSummary: getTextFieldValue("changeSummary"),
+    badgeTemplateReuseAcknowledged: ruleBuilderBadgeTemplatePicker.isReuseAcknowledged(),
     reviewOnMissingFacts:
       getRuleCreateField("reviewOnMissingFacts") instanceof HTMLInputElement
         ? getRuleCreateField("reviewOnMissingFacts").checked
@@ -145,7 +146,17 @@ const applyRuleBuilderPayload = (payloadContext, sourceLabel) => {
   }
 
   if (typeof payload.badgeTemplateId === "string") {
+    const templateChanged = getTextFieldValue("badgeTemplateId") !== payload.badgeTemplateId;
     setRuleCreateFieldValue("badgeTemplateId", payload.badgeTemplateId);
+    const reuseConfirmation = getRuleCreateField("badgeTemplateReuseAcknowledged");
+    if (reuseConfirmation instanceof HTMLInputElement) {
+      const acknowledged = payload.builderState?.badgeTemplateReuseAcknowledged;
+      if (typeof acknowledged === "boolean") {
+        reuseConfirmation.checked = acknowledged;
+      } else if (templateChanged) {
+        reuseConfirmation.checked = false;
+      }
+    }
     ruleBuilderBadgeTemplatePicker.sync();
   }
 

@@ -500,6 +500,11 @@ if (isRuleBuilderEditMode) {
 
   if (typeof editRuleContext.badgeTemplateId === "string") {
     setRuleCreateFieldValue("badgeTemplateId", editRuleContext.badgeTemplateId);
+    // Saving the formal rule already established this rule's badge association.
+    const reuseConfirmation = getRuleCreateField("badgeTemplateReuseAcknowledged");
+    if (reuseConfirmation instanceof HTMLInputElement) {
+      reuseConfirmation.checked = true;
+    }
     ruleBuilderBadgeTemplatePicker.sync();
   }
 

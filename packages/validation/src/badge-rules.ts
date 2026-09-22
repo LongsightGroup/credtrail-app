@@ -356,6 +356,7 @@ export const badgeIssuanceRuleBuilderDraftBuilderStateSchema = z
     issuanceTiming: z.enum(["immediate", "manual", "end_of_term"]).optional(),
     changeSummary: z.string().trim().max(1000).optional(),
     reviewOnMissingFacts: z.boolean().optional(),
+    badgeTemplateReuseAcknowledged: z.boolean().optional(),
     lastTestSummary: z.string().trim().max(500).optional(),
   })
   .strict();

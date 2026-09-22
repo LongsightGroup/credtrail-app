@@ -171,7 +171,12 @@ const configureAssignmentRule = async (
 ): Promise<void> => {
   const badgeTemplateCombobox = page.getByRole("combobox", { name: "Badge template" });
   await badgeTemplateCombobox.click();
-  await page.getByRole("listbox", { name: "Badge templates" }).getByRole("option").first().click();
+  await page
+    .getByRole("listbox", { name: "Badge templates" })
+    .getByRole("option")
+    .filter({ hasText: "Used by" })
+    .first()
+    .click();
 
   const reuseConfirmation = page.getByLabel(
     "I confirm this rule is another valid way to earn the same badge.",
@@ -349,9 +354,7 @@ test("a formal assignment-rule draft restores every visible and submitted settin
     const reuseConfirmation = page.getByLabel(
       "I confirm this rule is another valid way to earn the same badge.",
     );
-    if ((await reuseConfirmation.isVisible()) && !(await reuseConfirmation.isChecked())) {
-      await reuseConfirmation.check();
-    }
+    await expect(reuseConfirmation).toBeChecked();
 
     const conditionsDraftSave = waitForBuilderDraftSave(page);
     await page.getByRole("button", { name: "Continue to Requirements" }).click();
@@ -471,6 +474,9 @@ test("unfinished custom requirements restore without being replaced by a starter
       page.getByLabel("Flag learners for review when required information is missing"),
     ).toBeChecked();
     await expect(readGeneratedDefinition(page)).resolves.toEqual(customDefinition);
+    await expect(
+      page.getByLabel("I confirm this rule is another valid way to earn the same badge."),
+    ).toBeChecked();
   } finally {
     await cleanupDraftRestoreRecords({
       lmsConnectionId,
