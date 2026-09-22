@@ -56,6 +56,14 @@ const setCheckboxOnCard = (card, fieldName, checked) => {
   if (field instanceof HTMLInputElement) {
     field.checked = checked;
   }
+
+  if (fieldName === "negate" && checked) {
+    const advancedOptions = card.querySelector(".ct-admin__condition-advanced");
+
+    if (advancedOptions instanceof HTMLElement) {
+      advancedOptions.setAttribute("open", "");
+    }
+  }
 };
 
 const parseNumberInput = (value) => {

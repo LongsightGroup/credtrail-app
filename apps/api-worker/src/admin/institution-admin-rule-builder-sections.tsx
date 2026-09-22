@@ -131,13 +131,16 @@ export const RuleBuilderConditionCardTemplate = (): HonoElement => {
                 ))}
               </CtSelect>
             </AdminField>
+          </div>
+          <div class="ct-admin__condition-fields ct-admin__builder-grid ct-grid"></div>
+          <details class="ct-admin__condition-advanced">
+            <summary>Advanced options</summary>
             <AdminCheckboxRow
               name="negate"
               label="Exclude learners who match this requirement"
               dataAttributes={{ "data-field": "negate" }}
             />
-          </div>
-          <div class="ct-admin__condition-fields ct-admin__builder-grid ct-grid"></div>
+          </details>
         </details>
         <p class="ct-admin__condition-result" data-state="idle" aria-live="polite">
           Not evaluated yet.
