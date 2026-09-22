@@ -47,24 +47,13 @@ export const BadgeRuleNameEditor = (input: {
           </p>
         </div>
         <AdminActions>
-          <AdminButton type="submit" name="mode" value="custom">
-            Save
-          </AdminButton>
+          <AdminButton type="submit">Save</AdminButton>
           <button
             type="button"
             class="ct-admin__button ct-action ct-action--quiet ct-action--md"
             data-rule-name-cancel
           >
             Cancel
-          </button>
-          <button
-            type="submit"
-            class="ct-admin__button ct-action ct-action--quiet ct-action--md"
-            name="mode"
-            value="automatic"
-            formnovalidate
-          >
-            Use automatic name
           </button>
         </AdminActions>
         <p role="status" aria-live="polite" data-rule-name-status />

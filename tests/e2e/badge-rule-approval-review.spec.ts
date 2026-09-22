@@ -161,7 +161,8 @@ test("a distinct reviewer can approve a submitted rule and reload the persisted 
     const crossTenantAttempt = await authorContext.request.post(
       `/tenants/tenant_123/admin/rules/${fixture.ruleId}/name`,
       {
-        form: { mode: "custom", name: "Unauthorized change", returnTo: fixture.rulesPath },
+        headers: { Origin: new URL(baseURL).origin },
+        form: { name: "Unauthorized change", returnTo: fixture.rulesPath },
       },
     );
     expect(crossTenantAttempt.status()).toBe(403);
@@ -202,18 +203,27 @@ test("a distinct reviewer can approve a submitted rule and reload the persisted 
     const versionPath = `/tenants/${fixture.tenantId}/admin/rules/${fixture.ruleId}/versions/${fixture.versionId}`;
     await authorPage.goto(versionPath + "#rule-name-editor");
     await expect(authorPage.getByRole("heading", { level: 1 })).toHaveText(renamedLabel);
-    const resetResponse = authorPage.waitForResponse(
+    const updatedLabel = renamedLabel + " 2026";
+    const detailEditor = authorPage.locator("#rule-name-editor");
+    await detailEditor.getByLabel("Name", { exact: true }).fill(updatedLabel);
+    const updateResponse = authorPage.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
         new URL(response.url()).pathname.endsWith(`/rules/${fixture.ruleId}/name`),
     );
-    await authorPage.getByRole("button", { name: "Use automatic name", exact: true }).click();
-    expect((await resetResponse).ok()).toBe(true);
-    await expect(authorPage.getByRole("heading", { level: 1 })).not.toHaveText(renamedLabel);
-    const automaticName = await authorPage.getByRole("heading", { level: 1 }).innerText();
-    expect(automaticName.trim()).not.toBe("");
+    await detailEditor.getByRole("button", { name: "Save", exact: true }).click();
+    expect((await updateResponse).ok()).toBe(true);
+    await expect(authorPage.getByRole("heading", { level: 1 })).toHaveText(updatedLabel);
+    const emptyNameAttempt = await authorContext.request.post(
+      `/tenants/${fixture.tenantId}/admin/rules/${fixture.ruleId}/name`,
+      {
+        headers: { Origin: new URL(baseURL).origin },
+        form: { name: "  ", returnTo: fixture.rulesPath },
+      },
+    );
+    expect(emptyNameAttempt.status()).toBe(400);
     await authorPage.goto(fixture.rulesPath);
-    await expect(authorPage.getByRole("link", { name: automaticName, exact: true })).toBeVisible();
+    await expect(authorPage.getByRole("link", { name: updatedLabel, exact: true })).toBeVisible();
     await expect(fixture.readGovernanceState()).resolves.toEqual(approvedState);
   } finally {
     await Promise.allSettled([authorContext.close(), reviewerContext.close()]);

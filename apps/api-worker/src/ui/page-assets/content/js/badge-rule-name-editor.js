@@ -67,10 +67,8 @@ const initializeRuleNameEditor = () => {
     event.preventDefault();
     if (saving) return;
     const body = new FormData(form);
-    const mode = event.submitter instanceof HTMLButtonElement ? event.submitter.value : "custom";
-    body.set("mode", mode);
-    if (mode === "custom" && field.value.trim().length === 0) {
-      status.textContent = "Enter a name, or choose Use automatic name.";
+    if (field.value.trim().length === 0) {
+      status.textContent = "Enter a name.";
       field.focus();
       return;
     }
