@@ -263,3 +263,33 @@ it.each(["expired", "deprecated", "suspended"] as const)(
     );
   },
 );
+
+it("keeps requested changes and reviewer feedback distinct from ordinary draft policy", () => {
+  const input = {
+    version: buildBadgeRuleVersionRecord({ status: "draft" }),
+    policy,
+    directory,
+    actorUserId: "author",
+    steps: [
+      {
+        ...step,
+        status: "changes_requested" as const,
+        decidedByUserId: "reviewer",
+        decisionComment: "Require a final assessment.",
+      },
+    ],
+  };
+  expect(describeBadgeWorkflowApproval(input)).toMatchObject({
+    kind: "changes_requested",
+    label: "Changes requested",
+    detail: "reviewer@example.edu: Require a final assessment.",
+    submissionNotice: "Review the feedback, revise this rule, and resubmit it for approval.",
+    canReview: false,
+  });
+  expect(
+    describeBadgeWorkflowApproval({
+      ...input,
+      steps: [{ ...step, status: "changes_requested", decisionComment: null }],
+    }).detail,
+  ).toContain("Ask them what needs to change");
+});

@@ -16,6 +16,7 @@ import type {
 import type { SqlDatabase } from "./tenant-scope";
 
 const taskSchema = z.enum([
+  "revise",
   "configure_approval",
   "review",
   "activate",
@@ -87,6 +88,11 @@ export const loadBadgeWorkflowHomeSummary = async (
   const source = `${scope.cte.trim().length === 0 ? "WITH" : `${scope.cte},`} workflow AS (
     SELECT versions.*, rules.active_version_id,
       CASE
+        WHEN versions.status = 'draft' AND ? AND EXISTS (
+          SELECT 1 FROM badge_issuance_rule_approval_steps AS returned_step
+          WHERE returned_step.tenant_id = versions.tenant_id AND returned_step.version_id = versions.id
+            AND returned_step.status = 'changes_requested'
+        ) THEN 'revise'
         WHEN versions.status = 'pending_approval' AND ? AND NOT EXISTS (${eligibleReviewerSql}) THEN 'configure_approval'
         WHEN versions.status = 'pending_approval' AND EXISTS (${eligibleReviewerSql} AND member.user_id = ?) THEN 'review'
         WHEN versions.status = 'approved' AND ? THEN 'activate'
@@ -115,6 +121,7 @@ export const loadBadgeWorkflowHomeSummary = async (
   const params = [
     ...scope.beforeTenantParams,
     isAdmin,
+    isAdmin,
     input.actorUserId,
     isAdmin,
     isAdmin,
@@ -138,8 +145,8 @@ export const loadBadgeWorkflowHomeSummary = async (
       .prepare(`${source} SELECT ${badgeIssuanceRuleVersionSelectColumns("workflow")}, workflow_action AS workflowAction,
       id = active_version_id AND status = 'active' AS current
       FROM workflow WHERE workflow_action IS NOT NULL
-      ORDER BY CASE workflow_action WHEN 'configure_approval' THEN 0 WHEN 'review' THEN 1 WHEN 'activate' THEN 2
-        WHEN 'schedule' THEN 3 WHEN 'placement' THEN 4 WHEN 'resume' THEN 5 ELSE 6 END, updated_at, id LIMIT 5`)
+      ORDER BY CASE workflow_action WHEN 'revise' THEN 0 WHEN 'configure_approval' THEN 1 WHEN 'review' THEN 2 WHEN 'activate' THEN 3
+        WHEN 'schedule' THEN 4 WHEN 'placement' THEN 5 WHEN 'resume' THEN 6 ELSE 7 END, updated_at, id LIMIT 5`)
       .bind(...params)
       .all<BadgeIssuanceRuleVersionRow & { workflowAction: unknown; current: boolean }>(),
   ]);

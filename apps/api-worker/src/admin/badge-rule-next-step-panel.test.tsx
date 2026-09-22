@@ -111,3 +111,31 @@ describe("BadgeRuleNextStepPanel", () => {
     expect(html).toContain("Schedule end-of-term batch");
   });
 });
+
+it("makes revision the primary action for a returned draft", async () => {
+  const version = buildBadgeRuleVersionRecord({ status: "draft", ruleId: "brl_next_step" });
+  const html = (
+    await BadgeRuleNextStepPanel({
+      tenantId: "tenant_123",
+      userId: "usr_admin",
+      rule: rule(null),
+      selectedVersion: version,
+      latestVersion: version,
+      definition: definition("immediate"),
+      activePlacementCount: 0,
+      canReviewPendingVersion: false,
+      approval: {
+        kind: "changes_requested",
+        label: "Changes requested",
+        detail: "Require a final assessment.",
+        submissionNotice: "Revise and resubmit.",
+        canReview: false,
+      },
+    })
+  ).toString();
+  expect(html).toContain("Changes requested: revise this rule");
+  expect(html).toContain("Require a final assessment.");
+  expect(html).toContain('data-rule-next-step="edit_rule"');
+  expect(html).toContain("Revise rule");
+  expect(html).not.toContain("Submit for approval");
+});

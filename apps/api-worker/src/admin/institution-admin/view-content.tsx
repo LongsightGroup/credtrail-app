@@ -148,6 +148,7 @@ export const viewDataNeeds = (
 
 export const INSTITUTION_ADMIN_VIEW_REGISTRY = {
   home: {
+    extraAssets: ["institutionAdminHomeJs"],
     titlePrefix: "Institution Admin",
     controller: "shell",
     dataNeeds: viewDataNeeds({}),

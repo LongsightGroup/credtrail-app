@@ -237,7 +237,11 @@ const renderResolvedRuleRow = (
         </AdminStatusPill>
         {latestResponsibility === undefined ? null : (
           <>
-            <AdminMeta>Approval: {latestResponsibility.approval.label}</AdminMeta>
+            {latestResponsibility.approval.kind === "changes_requested" ? (
+              <AdminStatusPill tone="warning">Changes requested</AdminStatusPill>
+            ) : (
+              <AdminMeta>Approval: {latestResponsibility.approval.label}</AdminMeta>
+            )}
             {activeVersion !== null &&
             latestResponsibility.badgeOwner !== currentResponsibility?.badgeOwner ? (
               <AdminMeta>Badge owner: {latestResponsibility.badgeOwner}</AdminMeta>
@@ -250,13 +254,15 @@ const renderResolvedRuleRow = (
               <AdminMeta>When active: {latestResponsibility.awarding}</AdminMeta>
             )}
             <a href={buildBadgeRuleVersionDetailPath(input.tenantId, rule.id, latestVersion.id)}>
-              {latestResponsibility.approval.kind === "blocked"
-                ? "Check approval setup"
-                : latestResponsibility.approval.canReview
-                  ? "Review submission"
-                  : latestVersion.status === "approved"
-                    ? "Review and activate"
-                    : "View next step"}
+              {latestResponsibility.approval.kind === "changes_requested"
+                ? "Review feedback and revise"
+                : latestResponsibility.approval.kind === "blocked"
+                  ? "Check approval setup"
+                  : latestResponsibility.approval.canReview
+                    ? "Review submission"
+                    : latestVersion.status === "approved"
+                      ? "Review and activate"
+                      : "View next step"}
             </a>
           </>
         )}

@@ -15,6 +15,7 @@ import type { InstitutionAdminViewContentInput } from "./view-content";
 import type { buildInstitutionAdminViewPaths } from "./view-paths";
 
 const taskLabels: Record<BadgeWorkflowTask["action"], string> = {
+  revise: "Review feedback and revise",
   configure_approval: "Set up an eligible reviewer",
   review: "Review submission",
   activate: "Review and activate",
@@ -91,8 +92,22 @@ export const buildInstitutionAdminHomeViewResources = (input: {
             </p>
           </AdminWorkspaceCard>
         </section>
-        <aside class="ct-admin__home-actions ct-stack" aria-labelledby="home-actions-heading">
+        <aside
+          id="home-action-items"
+          class="ct-admin__home-actions ct-stack"
+          aria-labelledby="home-actions-heading"
+        >
           <h2 id="home-actions-heading">Action items</h2>
+          <AdminMeta>
+            <span data-home-refresh-status="true">Refresh to see the latest actions.</span>
+          </AdminMeta>
+          <AdminButtonLink
+            href={`/tenants/${encodeURIComponent(page.tenant.id)}/admin`}
+            variant="quiet"
+            dataAttributes={{ "data-refresh-home-actions": "true" }}
+          >
+            Refresh actions
+          </AdminButtonLink>
           {page.operationsAttention &&
           (page.operationsAttention.pendingReviews > 0 ||
             page.operationsAttention.failedEmails > 0) ? (
@@ -163,26 +178,46 @@ export const buildInstitutionAdminHomeViewResources = (input: {
                   return (
                     <li>
                       <div>
+                        {task.action === "revise" ? (
+                          <p>
+                            <AdminStatusPill tone="warning">Changes requested</AdminStatusPill>
+                          </p>
+                        ) : null}
                         <strong>{version.snapshot.name}</strong>
                         <AdminMeta>
                           {version.snapshot.badgeTemplateTitle} · Version {version.versionNumber}
                         </AdminMeta>
                         {responsibility === undefined ? null : (
                           <>
-                            <p>Approval: {responsibility.approval.label}</p>
-                            <AdminMeta>
-                              Badge owner: {responsibility.badgeOwner} · {responsibility.awarding}
-                            </AdminMeta>
+                            {task.action === "revise" ? (
+                              <>
+                                <p>
+                                  Review the feedback, revise this rule, and resubmit it for
+                                  approval.
+                                </p>
+                                <p>{responsibility.approval.detail}</p>
+                                <AdminMeta>Rule author: {responsibility.ruleAuthor}</AdminMeta>
+                              </>
+                            ) : (
+                              <p>Approval: {responsibility.approval.label}</p>
+                            )}
+                            {task.action === "revise" ? null : (
+                              <AdminMeta>
+                                Badge owner: {responsibility.badgeOwner} · {responsibility.awarding}
+                              </AdminMeta>
+                            )}
                           </>
                         )}
                         <AdminMeta>
-                          {task.action === "review"
-                            ? "You can review this submission."
-                            : "An institution administrator can take the next step."}
+                          {task.action === "revise"
+                            ? "An administrator with access to this rule can revise and resubmit it."
+                            : task.action === "review"
+                              ? "You can review this submission."
+                              : "An institution administrator can take the next step."}
                         </AdminMeta>
                       </div>
                       <AdminButtonLink variant="secondary" href={href}>
-                        {responsibility?.approval.kind === "blocked"
+                        {task.action !== "revise" && responsibility?.approval.kind === "blocked"
                           ? taskLabels.configure_approval
                           : taskLabels[task.action]}
                       </AdminButtonLink>

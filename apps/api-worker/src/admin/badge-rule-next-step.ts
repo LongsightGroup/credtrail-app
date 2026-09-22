@@ -50,6 +50,16 @@ export const buildBadgeRuleNextStepModel = (input: {
     };
   }
 
+  if (input.latestVersion.status === "draft" && input.approval?.kind === "changes_requested") {
+    return {
+      title: "Changes requested: revise this rule",
+      description: input.approval.detail,
+      owner: "Rule author or administrator",
+      outcome: "Review the feedback, revise this rule, and resubmit it for approval.",
+      action: { _tag: "edit_rule" },
+    };
+  }
+
   if (
     input.approval?.kind === "blocked" &&
     ["draft", "rejected", "pending_approval"].includes(input.latestVersion.status)

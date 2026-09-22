@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { decideBadgeIssuanceRuleVersion } from "./badge-issuance-rule-approvals";
 import {
   createBadgeIssuanceRule,
   createBadgeIssuanceRuleVersion,
@@ -121,6 +122,46 @@ describeDbIntegration("workflow Home with Postgres", () => {
         action: "review",
         version: { id: created.version.id },
       });
+      const decision = await decideBadgeIssuanceRuleVersion(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        actorUserId: reviewer,
+        actorRole: "approver",
+        decision: "changes_requested",
+        comment: "Require the final assessment before awarding.",
+      });
+      expect(decision.status).toBe("decided");
+      await createRule(fixture, "Ordinary unfinished draft");
+      const returned = await loadBadgeWorkflowHomeSummary(fixture.db, author);
+      expect(returned.waitingCount).toBe(0);
+      expect(returned.tasks[0]).toMatchObject({
+        action: "revise",
+        version: { id: created.version.id, status: "draft" },
+      });
+      await fixture.db
+        .prepare("UPDATE memberships SET role = 'admin' WHERE tenant_id = ? AND user_id = ?")
+        .bind(fixture.tenantId, reviewer)
+        .run();
+      expect(
+        (await loadBadgeWorkflowHomeSummary(fixture.db, { ...author, actorUserId: reviewer }))
+          .tasks[0]?.action,
+      ).toBe("revise");
+      expect(
+        (await loadBadgeWorkflowHomeSummary(fixture.db, { ...author, actorRole: "viewer" })).tasks,
+      ).toEqual([]);
+      await submitBadgeIssuanceRuleVersionForApproval(fixture.db, {
+        tenantId: fixture.tenantId,
+        ruleId: created.rule.id,
+        versionId: created.version.id,
+        actorUserId: fixture.userId,
+        actorRole: "admin",
+      });
+      expect(
+        (await loadBadgeWorkflowHomeSummary(fixture.db, author)).tasks.some(
+          (task) => task.action === "revise",
+        ),
+      ).toBe(false);
       await fixture.db
         .prepare("DELETE FROM memberships WHERE tenant_id = ? AND user_id = ?")
         .bind(fixture.tenantId, reviewer)

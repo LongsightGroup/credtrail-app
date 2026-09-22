@@ -31,7 +31,7 @@ export interface BadgeTemplateWorkflow {
 
 /** Approval truth for a draft policy or a submitted version's recorded decisions. */
 export interface BadgeWorkflowApproval {
-  readonly kind: "automatic" | "review" | "blocked" | "recorded";
+  readonly kind: "automatic" | "review" | "blocked" | "recorded" | "changes_requested";
   readonly label: string;
   readonly detail: string;
   readonly submissionNotice: string;
@@ -143,6 +143,22 @@ export const describeBadgeWorkflowApproval = (input: {
   readonly actorUserId: string;
 }): BadgeWorkflowApproval => {
   const { version, steps, directory, actorUserId } = input;
+  const returnedStep = steps.find((step) => step.status === "changes_requested");
+  if (version.status === "draft" && returnedStep !== undefined) {
+    const reviewer = directory.members.find(
+      (member) => member.userId === returnedStep.decidedByUserId,
+    )?.email;
+    const instruction = "Review the feedback, revise this rule, and resubmit it for approval.";
+    return {
+      kind: "changes_requested",
+      label: "Changes requested",
+      detail: returnedStep.decisionComment?.trim()
+        ? `${reviewer ?? "Reviewer"}: ${returnedStep.decisionComment}`
+        : "The reviewer did not leave a comment. Ask them what needs to change before resubmitting.",
+      submissionNotice: instruction,
+      canReview: false,
+    };
+  }
   if (version.status === "draft" || version.status === "rejected") {
     return describeBadgeWorkflowPolicy(input.policy, directory, [
       version.createdByUserId,
