@@ -147,7 +147,8 @@ const sampleBadgeIssuanceRuleVersion = (
 ): BadgeIssuanceRuleVersionRecord => {
   return buildBadgeRuleVersionRecord({
     status: "approved",
-    ruleJson: "{}",
+    ruleJson:
+      '{"conditions":{"type":"course_completion","courseId":"course_101","minCompletionPercent":100}}',
     changeSummary: null,
     createdByUserId: null,
     submittedAt: "2026-02-10T22:00:00.000Z",

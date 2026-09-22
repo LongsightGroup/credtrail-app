@@ -3,8 +3,8 @@ import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import type { ResolvedGradebookProvider } from "../lms/gradebook-provider-resolution";
 import type { GradebookRequestOptions } from "../lms/gradebook-types";
 import {
-  authorizeLmsUserCourses,
-  type LmsCourseAuthorizationResult,
+  authorizeLmsUserCoursesWithRecords,
+  type LmsCourseAuthorizationWithRecordsResult,
 } from "../lms/user-course-access";
 import { extractBadgeIssuanceRuleRequirements } from "./engine";
 
@@ -17,14 +17,14 @@ export const authorizeBadgeRuleCourses = async (
     readonly definition: BadgeIssuanceRuleDefinition;
   },
   options: GradebookRequestOptions = {},
-): Promise<LmsCourseAuthorizationResult> => {
+): Promise<LmsCourseAuthorizationWithRecordsResult> => {
   const requirements = extractBadgeIssuanceRuleRequirements(input.definition);
 
   if (requirements.courseIds.length === 0) {
-    return { status: "authorized" };
+    return { status: "authorized", courses: [] };
   }
 
-  return authorizeLmsUserCourses(
+  return authorizeLmsUserCoursesWithRecords(
     {
       db: input.db,
       resolvedProvider: input.resolvedProvider,

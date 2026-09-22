@@ -204,6 +204,33 @@ const syncRuleBuilderStepCompletion = () => {
   updateStepNavigationState();
 };
 
+const syncRuleBuilderDescription = () => {
+  const titleElement = document.getElementById("rule-builder-summary-rule-name");
+  if (!(titleElement instanceof HTMLElement)) return;
+  const ruleName = getTextFieldValue("name");
+  let requirementDescription = "Add awarding requirements";
+  try {
+    const definition = ruleBuilderDefinitionAuthority === "visual"
+      ? readDefinitionFromBuilder(false)
+      : JSON.parse(ruleBuilderDefinitionJson.value);
+    const assignments = getConditionCards().flatMap((card) => {
+      const courseId = readFieldFromCard(card, "courseId");
+      const assignmentId = readFieldFromCard(card, "assignmentId");
+      const title = lmsGradebookItemTitleByIdentity.get(lmsGradebookItemIdentity(gradebookItemsPath(courseId), assignmentId));
+      return typeof title === "string" ? [{ courseId, assignmentId, title }] : [];
+    });
+    requirementDescription = describeBadgeRuleCondition(definition.conditions, { courses: [], assignments });
+  } catch {
+    requirementDescription = "Complete the awarding requirements";
+  }
+  setSummaryText(titleElement, ruleName.length > 0 ? ruleName : requirementDescription);
+  const descriptionElement = document.getElementById("rule-builder-requirement-description");
+  if (descriptionElement instanceof HTMLElement) {
+    descriptionElement.hidden = ruleName.length === 0;
+    descriptionElement.textContent = requirementDescription;
+  }
+};
+
 const syncRuleBuilderSummary = (statusOverride) => {
   renderRuleFlowPreview();
   renderSourceReadiness();
@@ -230,7 +257,6 @@ const syncRuleBuilderSummary = (statusOverride) => {
   setWorkflowText("builder-rule-awarding-detail", awarding?.awardingDetail ?? "Complete or repair the requirements to confirm how this badge will be awarded.");
   ruleBuilderExampleTestController.sync(readConditionsForPreview());
 
-  const ruleName = getTextFieldValue("name");
   const cardCount = getConditionCards().length;
   const rootLogicLabel =
     getRuleBuilderRootLogic() === "any"
@@ -298,7 +324,7 @@ const syncRuleBuilderSummary = (statusOverride) => {
     lastTestTone = "error";
   }
 
-  setSummaryText(ruleBuilderSummaryRuleName, ruleName.length > 0 ? ruleName : "(unnamed draft)");
+  syncRuleBuilderDescription();
   setSummaryText(ruleBuilderSummaryConditionCount, String(cardCount));
   setSummaryText(ruleBuilderSummaryRootLogic, rootLogicLabel);
   setSummaryText(ruleBuilderSummaryValidity, definitionStatus);

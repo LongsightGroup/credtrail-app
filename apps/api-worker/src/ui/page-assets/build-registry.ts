@@ -2,6 +2,7 @@ import type { StylePageAssetSource } from "./assemble-style-asset";
 import { renderBadgeTemplateUploadPreviewScript } from "./badge-template-upload-preview";
 import {
   ADMIN_STATUS_PILL_CLASS_SCRIPT_SOURCE,
+  BADGE_RULE_DESCRIPTION_SCRIPT_SOURCE,
   type ScriptPageAssetSource,
 } from "./script-asset-fragments";
 
@@ -215,6 +216,7 @@ export const PAGE_ASSET_BUILD_SOURCES = {
       "admin-browser-primitives.js",
       "institution-admin-rule-builder-authoring.js",
       "institution-admin-rule-builder-bootstrap.js",
+      BADGE_RULE_DESCRIPTION_SCRIPT_SOURCE,
       ADMIN_STATUS_PILL_CLASS_SCRIPT_SOURCE,
       "institution-admin-rule-builder-setup.js",
       "institution-admin-rule-builder-template-picker.js",

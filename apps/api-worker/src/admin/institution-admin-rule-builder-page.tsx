@@ -1,3 +1,4 @@
+import { badgeRuleVersionDisplayFields } from "../badges/badge-rule-presentation";
 import {
   describeBadgeWorkflowAwardingTiming,
   type BadgeTemplateWorkflow,
@@ -408,7 +409,10 @@ export const institutionAdminRuleBuilderPage = (input: {
         <section class="ct-admin__builder-shell ct-stack">
           <section class="ct-admin__panel ct-admin__builder-workbench-panel ct-stack">
             <header class="ct-admin__builder-workflow-head">
-              <h2 class="ct-admin__builder-steps-title">Build this rule</h2>
+              <h2 id="rule-builder-summary-rule-name" class="ct-admin__builder-steps-title">
+                Awarding requirements
+              </h2>
+              <p id="rule-builder-requirement-description" class="ct-admin__hint" hidden></p>
               <p
                 id="rule-builder-step-progress"
                 class="ct-admin__meta ct-admin__builder-progress"
@@ -434,11 +438,14 @@ export const institutionAdminRuleBuilderPage = (input: {
                   createTemplateForRulePath={createTemplateForRulePath}
                   accessLmsConnectionsPath={accessLmsConnectionsPath}
                   editRule={editRule === null ? null : { latestVersion: editRule.latestVersion }}
-                  initialName={editRule?.latestVersion.snapshot.name ?? copySource?.name ?? ""}
+                  initialName={
+                    editRule === null
+                      ? (copySource?.name ?? "")
+                      : (badgeRuleVersionDisplayFields(editRule.latestVersion).customLabel ?? "")
+                  }
                   initialDescription={
                     editRule?.latestVersion.snapshot.description ?? copySource?.description ?? ""
                   }
-                  preserveName={isEditMode || copySource !== null}
                 />
                 <RuleBuilderConditionsStep rulesListPath={rulesListPath} />
                 <RuleBuilderTestStep />

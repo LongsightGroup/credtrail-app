@@ -67,7 +67,7 @@ describe("validateBadgeRuleAssignmentReferences", () => {
         provider,
         definition: threeCoursePathwayDefinition(),
       }),
-    ).resolves.toEqual({ status: "valid" });
+    ).resolves.toEqual({ status: "valid", assignments: [] });
   });
 
   it("loads each course gradebook once and reuses its assignments", async () => {
@@ -82,7 +82,13 @@ describe("validateBadgeRuleAssignmentReferences", () => {
         provider,
         definition: definitionWithAssignments(["draft", "final"]),
       }),
-    ).resolves.toEqual({ status: "valid" });
+    ).resolves.toEqual({
+      status: "valid",
+      assignments: [
+        { courseId: "course-101", assignmentId: "draft", title: "draft" },
+        { courseId: "course-101", assignmentId: "final", title: "final" },
+      ],
+    });
     expect(requestedCourseIds).toEqual(["course-101"]);
   });
 

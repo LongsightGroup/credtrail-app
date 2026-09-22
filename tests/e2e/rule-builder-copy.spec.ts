@@ -109,6 +109,7 @@ const createCopySource = async (input: {
     lmsProviderKind: "sakai",
     lmsConnectionId: input.lmsConnectionId,
     ruleJson: JSON.stringify({
+      customLabel: input.sourceRuleName,
       conditions: {
         all: [
           {
@@ -133,7 +134,6 @@ const createCopySource = async (input: {
 };
 
 const cleanupCopiedRule = async (input: {
-  readonly copiedRuleName: string;
   readonly lmsConnectionId: string;
   readonly sourceRuleId: string | undefined;
 }): Promise<void> => {
@@ -145,13 +145,13 @@ const cleanupCopiedRule = async (input: {
 
   await db
     .prepare(
-      "DELETE FROM badge_issuance_rule_builder_drafts WHERE tenant_id = ? AND draft_json::jsonb ->> 'name' = ?",
+      "DELETE FROM badge_issuance_rule_builder_drafts WHERE tenant_id = ? AND draft_json::jsonb ->> 'lmsConnectionId' = ?",
     )
-    .bind(tenantId, input.copiedRuleName)
+    .bind(tenantId, input.lmsConnectionId)
     .run();
   await db
-    .prepare("DELETE FROM badge_issuance_rules WHERE tenant_id = ? AND name = ?")
-    .bind(tenantId, input.copiedRuleName)
+    .prepare("DELETE FROM badge_issuance_rules WHERE tenant_id = ? AND lms_connection_id = ?")
+    .bind(tenantId, input.lmsConnectionId)
     .run();
   if (input.sourceRuleId !== undefined) {
     await db
@@ -165,118 +165,131 @@ const cleanupCopiedRule = async (input: {
     .run();
 };
 
-test("a copied rule keeps its settings and starts a separate lifecycle", async ({ page }) => {
-  await page.route("**/v1/tenants/**/badge-rules/preview-evaluate", fulfillRulePreview);
-  const fixtureSuffix = crypto.randomUUID().replaceAll("-", "");
-  const sourceRuleName = `Copy source ${fixtureSuffix.slice(0, 8)}`;
-  const copiedRuleName = `Copied analytics ${crypto.randomUUID().slice(0, 8)}`;
-  const lmsConnectionId = `lms_rule_copy_${fixtureSuffix}`;
-  const mockSakai = await startMockSakai();
-  let sourceRuleId: string | undefined;
+for (const useCustomLabel of [false, true]) {
+  test(`a copied rule saves ${useCustomLabel ? "with an optional custom label" : "without naming it"} and keeps its settings`, async ({
+    page,
+  }) => {
+    await page.route("**/v1/tenants/**/badge-rules/preview-evaluate", fulfillRulePreview);
+    const fixtureSuffix = crypto.randomUUID().replaceAll("-", "");
+    const sourceRuleName = `Copy source ${fixtureSuffix.slice(0, 8)}`;
+    const customLabel = useCustomLabel ? `Copied analytics ${crypto.randomUUID().slice(0, 8)}` : "";
+    const copiedRuleName =
+      customLabel || "Complete all gradebook items; Final course score at least 88%";
+    const lmsConnectionId = `lms_rule_copy_${fixtureSuffix}`;
+    const mockSakai = await startMockSakai();
+    let sourceRuleId: string | undefined;
 
-  try {
-    sourceRuleId = await createCopySource({
-      apiBaseUrl: mockSakai.apiBaseUrl,
-      lmsConnectionId,
-      sourceRuleName,
-    });
-    await page.goto(demoRoutes.rules);
-    const sourceRow = page.locator("tbody tr").filter({ hasText: sourceRuleName });
-    const sourceDetailHref = await sourceRow
-      .getByRole("link", { name: sourceRuleName, exact: true })
-      .getAttribute("href");
+    try {
+      sourceRuleId = await createCopySource({
+        apiBaseUrl: mockSakai.apiBaseUrl,
+        lmsConnectionId,
+        sourceRuleName,
+      });
+      await page.goto(demoRoutes.rules);
+      const sourceRow = page.locator("tbody tr").filter({ hasText: sourceRuleName });
+      const sourceDetailHref = await sourceRow
+        .getByRole("link", { name: sourceRuleName, exact: true })
+        .getAttribute("href");
 
-    await sourceRow.getByRole("link", { name: `Copy ${sourceRuleName}`, exact: true }).click();
-    await expect(page).toHaveURL(/\/admin\/rules\/new\?copyRuleId=/);
-    await expect(page.getByRole("heading", { name: "Copy Badge Awarding Rule" })).toBeVisible();
-    await expect(page.locator("#rule-builder-name")).toHaveValue(`Copy of ${sourceRuleName}`);
-    await expect(page.getByLabel("Description (optional)")).toHaveValue(sourceDescription);
-    await expect(page.getByRole("combobox", { name: "Badge template" })).toHaveValue(
-      "Applied Analytics TrustEd Credential",
-    );
-    await expect(page.getByLabel("LMS connection")).toHaveValue(lmsConnectionId);
-
-    await page.getByRole("textbox", { name: "Rule name", exact: true }).fill(copiedRuleName);
-    const reuseConfirmation = page.getByLabel(
-      "I confirm this rule is another valid way to earn the same badge.",
-    );
-    if (await reuseConfirmation.isVisible()) {
-      await reuseConfirmation.check();
-    }
-
-    await page.getByRole("button", { name: "Continue to Requirements" }).click();
-    const conditionCards = page.locator(".ct-admin__condition-card");
-    await expect(conditionCards).toHaveCount(2);
-    const scoreField = conditionCards.nth(1).locator('[data-field="minScore"]');
-    await expect(scoreField).toHaveValue("85");
-    await scoreField.fill("88");
-
-    const unfinishedSave = page.waitForResponse((response) => {
-      return (
-        response.request().method() === "PUT" &&
-        new URL(response.url()).pathname.includes("/badge-rule-builder-drafts/")
+      await sourceRow.getByRole("link", { name: `Copy ${sourceRuleName}`, exact: true }).click();
+      await expect(page).toHaveURL(/\/admin\/rules\/new\?copyRuleId=/);
+      await expect(page.getByRole("heading", { name: "Copy Badge Awarding Rule" })).toBeVisible();
+      await expect(page.locator("#rule-builder-name")).toHaveValue("");
+      await expect(page.getByLabel("Description (optional)")).toHaveValue(sourceDescription);
+      await expect(page.getByRole("combobox", { name: "Badge template" })).toHaveValue(
+        "Applied Analytics TrustEd Credential",
       );
-    });
-    await page.getByRole("button", { name: "Save unfinished work" }).click();
-    await unfinishedSave;
-    await expect(page).toHaveURL(/\/admin\/rules\/drafts\/.+\/edit$/);
+      await expect(page.getByLabel("LMS connection")).toHaveValue(lmsConnectionId);
 
-    await page.reload();
-    await expect(page.locator("#rule-builder-name")).toHaveValue(copiedRuleName);
-    await expect(page.locator(".ct-admin__condition-card")).toHaveCount(2);
-    await expect(
-      page.locator(".ct-admin__condition-card").nth(1).locator('[data-field="minScore"]'),
-    ).toHaveValue("88");
-
-    await page.getByRole("button", { name: /Awarding pattern/ }).click();
-    await page.locator("#rule-builder-template-preset").selectOption("custom");
-    await expect(page.getByRole("textbox", { name: "Rule name", exact: true })).toHaveValue(
-      copiedRuleName,
-    );
-    const restoredReuseConfirmation = page.getByLabel(
-      "I confirm this rule is another valid way to earn the same badge.",
-    );
-    if (
-      (await restoredReuseConfirmation.isVisible()) &&
-      !(await restoredReuseConfirmation.isChecked())
-    ) {
-      await restoredReuseConfirmation.check();
-    }
-    await page.getByRole("button", { name: "Continue to Requirements" }).click();
-    await page.getByRole("button", { name: "Continue to Test and submit" }).click();
-    await page.getByLabel("Generated example data").check();
-    await page.getByRole("button", { name: "Test example data" }).click();
-    await expect(page.locator("#rule-builder-test-result")).toContainText("qualifies");
-    const submitButton = page.getByRole("button", { name: "Create and submit for approval" });
-    await expect(submitButton).toBeEnabled();
-    const createResponse = page.waitForResponse((response) => {
-      return (
-        response.request().method() === "POST" &&
-        new URL(response.url()).pathname === `/v1/tenants/${tenantId}/badge-rules`
+      if (useCustomLabel) {
+        await page.getByText("Add a custom label", { exact: true }).click();
+        await page
+          .getByRole("textbox", { name: "Custom label (optional)", exact: true })
+          .fill(customLabel);
+      }
+      const reuseConfirmation = page.getByLabel(
+        "I confirm this rule is another valid way to earn the same badge.",
       );
-    });
-    await submitButton.click();
-    await expect((await createResponse).ok()).toBe(true);
-    await expect(page).toHaveURL(/\/admin\/rules\/[^/]+\/versions\/[^/]+$/);
-    await expect(page.getByRole("heading", { name: copiedRuleName, exact: true })).toBeVisible();
-    const copiedDetailHref = new URL(page.url()).pathname;
-    expect(copiedDetailHref).not.toBe(sourceDetailHref);
+      if (await reuseConfirmation.isVisible()) {
+        await reuseConfirmation.check();
+      }
 
-    await page.goto(demoRoutes.rules);
+      await page.getByRole("button", { name: "Continue to Requirements" }).click();
+      const conditionCards = page.locator(".ct-admin__condition-card");
+      await expect(conditionCards).toHaveCount(2);
+      const scoreField = conditionCards.nth(1).locator('[data-field="minScore"]');
+      await expect(scoreField).toHaveValue("85");
+      await scoreField.fill("88");
 
-    const copiedRow = page.locator("tbody tr").filter({ hasText: copiedRuleName });
-    await expect(copiedRow).toBeVisible();
-    await expect(copiedRow.getByText(/Draft|Awaiting approval|Approved/)).toBeVisible();
-    await expect(
-      copiedRow.getByRole("link", { name: copiedRuleName, exact: true }),
-    ).toHaveAttribute("href", copiedDetailHref);
+      const unfinishedSave = page.waitForResponse((response) => {
+        return (
+          response.request().method() === "PUT" &&
+          new URL(response.url()).pathname.includes("/badge-rule-builder-drafts/")
+        );
+      });
+      await page.getByRole("button", { name: "Save unfinished work" }).click();
+      await unfinishedSave;
+      await expect(page).toHaveURL(/\/admin\/rules\/drafts\/.+\/edit$/);
 
-    const unchangedSourceRow = page.locator("tbody tr").filter({ hasText: sourceRuleName });
-    await expect(
-      unchangedSourceRow.getByRole("link", { name: sourceRuleName, exact: true }),
-    ).toHaveAttribute("href", sourceDetailHref ?? "");
-  } finally {
-    await cleanupCopiedRule({ copiedRuleName, lmsConnectionId, sourceRuleId });
-    await mockSakai.close();
-  }
-});
+      await page.reload();
+      await expect(page.locator("#rule-builder-name")).toHaveValue(customLabel);
+      await expect(page.locator(".ct-admin__condition-card")).toHaveCount(2);
+      await expect(
+        page.locator(".ct-admin__condition-card").nth(1).locator('[data-field="minScore"]'),
+      ).toHaveValue("88");
+
+      await page.getByRole("button", { name: /Awarding pattern/ }).click();
+      await page.locator("#rule-builder-template-preset").selectOption("custom");
+      await expect(page.locator("#rule-builder-name")).toHaveValue(customLabel);
+      const restoredReuseConfirmation = page.getByLabel(
+        "I confirm this rule is another valid way to earn the same badge.",
+      );
+      if (
+        (await restoredReuseConfirmation.isVisible()) &&
+        !(await restoredReuseConfirmation.isChecked())
+      ) {
+        await restoredReuseConfirmation.check();
+      }
+      await page.getByRole("button", { name: "Continue to Requirements" }).click();
+      await page.getByRole("button", { name: "Continue to Test and submit" }).click();
+      await page.getByLabel("Generated example data").check();
+      await page.getByRole("button", { name: "Test example data" }).click();
+      await expect(page.locator("#rule-builder-test-result")).toContainText("qualifies");
+      const submitButton = page.getByRole("button", { name: "Create and submit for approval" });
+      await expect(submitButton).toBeEnabled();
+      const createResponse = page.waitForResponse((response) => {
+        return (
+          response.request().method() === "POST" &&
+          new URL(response.url()).pathname === `/v1/tenants/${tenantId}/badge-rules`
+        );
+      });
+      await submitButton.click();
+      await expect((await createResponse).ok()).toBe(true);
+      await expect(page).toHaveURL(/\/admin\/rules\/[^/]+\/versions\/[^/]+$/);
+      await expect(page.getByRole("heading", { name: copiedRuleName, exact: true })).toBeVisible();
+      await expect(
+        page.getByText("Rule Copy Source Course", { exact: true }).first(),
+      ).toBeVisible();
+      const copiedDetailHref = new URL(page.url()).pathname;
+      expect(copiedDetailHref).not.toBe(sourceDetailHref);
+
+      await page.goto(demoRoutes.rules);
+
+      const copiedRow = page.locator("tbody tr").filter({ hasText: copiedRuleName });
+      await expect(copiedRow).toBeVisible();
+      await expect(copiedRow.getByText("Rule Copy Source Course", { exact: true })).toBeVisible();
+      await expect(copiedRow.getByText(/Draft|Awaiting approval|Approved/)).toBeVisible();
+      await expect(
+        copiedRow.getByRole("link", { name: copiedRuleName, exact: true }),
+      ).toHaveAttribute("href", copiedDetailHref);
+
+      const unchangedSourceRow = page.locator("tbody tr").filter({ hasText: sourceRuleName });
+      await expect(
+        unchangedSourceRow.getByRole("link", { name: sourceRuleName, exact: true }),
+      ).toHaveAttribute("href", sourceDetailHref ?? "");
+    } finally {
+      await cleanupCopiedRule({ lmsConnectionId, sourceRuleId });
+      await mockSakai.close();
+    }
+  });
+}

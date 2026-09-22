@@ -315,13 +315,13 @@ ruleCreateForm.addEventListener("submit", async (event) => {
   const lmsConnectionId = getTextFieldValue("lmsConnectionId");
   const changeSummaryInput = getTextFieldValue("changeSummary");
 
-  if (name.length === 0 || badgeTemplateId.length === 0 || lmsConnectionId.length === 0) {
+  if (badgeTemplateId.length === 0 || lmsConnectionId.length === 0) {
     setStatus(
       ruleCreateStatus,
-      "Rule name, badge template, and LMS connection are required.",
+      "Badge template and LMS connection are required.",
       true,
     );
-    syncRuleBuilderSummary("Rule name, badge template, and LMS connection are required.");
+    syncRuleBuilderSummary("Badge template and LMS connection are required.");
     return;
   }
 
@@ -456,7 +456,6 @@ const badgeTemplateField = getRuleCreateField("badgeTemplateId");
 
 if (badgeTemplateField instanceof HTMLSelectElement) {
   badgeTemplateField.addEventListener("change", () => {
-    syncSuggestedRuleName();
     syncRuleBuilderSummary();
 
     if (ruleBuilderTemplatePreset instanceof HTMLSelectElement) {
@@ -482,7 +481,6 @@ if (ruleBuilderLmsConnectionSelect instanceof HTMLSelectElement) {
 if (ruleBuilderTemplatePreset instanceof HTMLSelectElement) {
   ruleBuilderTemplatePreset.addEventListener("change", () => {
     applyTemplatePreset();
-    syncSuggestedRuleName();
     syncRuleBuilderSummary();
   });
 }
@@ -540,7 +538,6 @@ if (isRuleBuilderEditMode) {
   );
   syncRuleBuilderSummary("Copied settings are ready to review.");
 } else {
-  syncSuggestedRuleName();
   applyTemplatePreset();
 }
 

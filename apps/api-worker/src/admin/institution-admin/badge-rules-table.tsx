@@ -16,6 +16,7 @@ import {
   badgeRuleVersionStatusLabel,
 } from "../../badges/badge-rule-presentation";
 import { badgeRuleLmsProviderLabel } from "../../badges/badge-rule-lms-provider-label";
+import { createRuleDefinitionSummaryMarkup } from "../../badges/badge-rule-definition-summary";
 import { formatIsoTimestamp } from "../../utils/display-format";
 import {
   buildBadgeRuleCopyPath,
@@ -204,6 +205,16 @@ const renderResolvedRuleRow = (
         <a class="ct-admin__rule-name-link" href={detailPath}>
           <strong>{displayFields.displayName}</strong>
         </a>
+        {displayFields.customLabel === null ? null : (
+          <AdminMeta>{displayFields.requirementSummary}</AdminMeta>
+        )}
+        {displayFields.courseLabels.length === 0 ? null : (
+          <AdminMeta>{displayFields.courseLabels.join(" · ")}</AdminMeta>
+        )}
+        <details>
+          <summary>View requirements</summary>
+          {createRuleDefinitionSummaryMarkup(formatIsoTimestamp)(defaultVersion.ruleJson)}
+        </details>
         {responsibility === undefined ? null : (
           <AdminMeta>Rule author: {responsibility.ruleAuthor}</AdminMeta>
         )}

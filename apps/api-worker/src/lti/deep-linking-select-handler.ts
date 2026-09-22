@@ -1,3 +1,4 @@
+import { badgeRuleVersionDisplayFields } from "../badges/badge-rule-presentation";
 import {
   findActiveBadgeIssuanceRuleVersion,
   findActiveLtiLaunchSessionByOpaqueId,
@@ -219,7 +220,7 @@ export const handleLtiDeepLinkingSelect = async (
       badgeRuleDeepLinkContentItem({
         badgeTemplateId: badgeTemplate.id,
         ruleId: rule.id,
-        title: version.snapshot.name,
+        title: badgeRuleVersionDisplayFields(version).displayName,
         description: version.snapshot.description,
         launchUrl: launchUrl.toString(),
       }),

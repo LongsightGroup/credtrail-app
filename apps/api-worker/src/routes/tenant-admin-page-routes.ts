@@ -1,3 +1,4 @@
+import { badgeRuleVersionDisplayFields } from "../badges/badge-rule-presentation";
 import { loadBadgeTemplateWorkflows } from "./badge-workflow-data";
 import type { SqlDatabase, TenantMembershipRole } from "@credtrail/db";
 import {
@@ -595,11 +596,11 @@ export const registerTenantAdminPageRoutes = (input: RegisterTenantAdminPageRout
         } else {
           try {
             const definition = parseBadgeIssuanceRuleDefinitionJson(sourceVersion.ruleJson);
-            const sourceDisplayName = sourceVersion.snapshot.name;
+            const sourceDisplayName = badgeRuleVersionDisplayFields(sourceVersion).displayName;
 
             copySource = {
               displayName: sourceDisplayName,
-              name: `Copy of ${sourceDisplayName}`.slice(0, 200),
+              name: "",
               description: sourceVersion.snapshot.description ?? "",
               badgeTemplateId: sourceVersion.snapshot.badgeTemplateId,
               lmsConnectionId: sourceConnection.id,

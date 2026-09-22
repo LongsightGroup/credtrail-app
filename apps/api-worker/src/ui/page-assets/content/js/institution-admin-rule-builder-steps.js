@@ -76,7 +76,6 @@ const focusActiveBuilderPanelHeading = (panel) => {
 
 const isMetadataStepComplete = () => {
   return (
-    getTextFieldValue("name").length > 0 &&
     getTextFieldValue("badgeTemplateId").length > 0 &&
     getTextFieldValue("lmsConnectionId").length > 0 &&
     ruleBuilderBadgeTemplatePicker.isComplete()
@@ -161,10 +160,6 @@ const getStepGateMessage = (stepName) => {
       }
 
       return "Choose a " + missingLabels[0] + " and an " + missingLabels[1] + " before continuing.";
-    }
-
-    if (getTextFieldValue("name").length === 0) {
-      return "Enter a rule name before continuing.";
     }
 
     if (!ruleBuilderBadgeTemplatePicker.isComplete()) {

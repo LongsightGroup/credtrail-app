@@ -19,6 +19,7 @@ const readRuleBuilderDraftPayload = () => {
   const definitionJson =
     ruleBuilderDefinitionJson instanceof HTMLTextAreaElement ? ruleBuilderDefinitionJson.value : "";
   const builderState = {
+    labelMode: getTextFieldValue("name").length > 0 ? "custom" : "automatic",
     rootLogic: getTextFieldValue("rootLogic"),
     issuanceTiming: getTextFieldValue("issuanceTiming"),
     changeSummary: getTextFieldValue("changeSummary"),
@@ -138,8 +139,10 @@ const applyRuleBuilderPayload = (payloadContext, sourceLabel) => {
   let definitionAppliedToBuilder = true;
 
   if (typeof payload.name === "string") {
-    setRuleCreateFieldValue("name", payload.name);
-    preserveRuleBuilderName();
+    const customLabel = payload.builderState?.labelMode === "custom" ? payload.name : "";
+    setRuleCreateFieldValue("name", customLabel);
+    const labelPanel = getRuleCreateField("name")?.closest("details");
+    if (labelPanel instanceof HTMLDetailsElement) labelPanel.open = customLabel.trim().length > 0;
   }
 
   if (typeof payload.description === "string") {
@@ -414,7 +417,6 @@ if (
         typeof parsed.name === "string"
       ) {
         setRuleCreateFieldValue("name", parsed.name);
-        preserveRuleBuilderName();
       }
 
       if (

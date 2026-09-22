@@ -1181,12 +1181,19 @@ describe("badge rule routes", () => {
       lmsProviderKind: "canvas",
       lmsConnectionId: "lms_123",
       ruleJson: JSON.stringify({
+        referenceLabels: {
+          courses: [],
+          assignments: [
+            { courseId: "course_101", assignmentId: "assignment_1", title: "Final exam" },
+          ],
+        },
         conditions: {
           type: "assignment_submission",
           courseId: "course_101",
           assignmentId: "assignment_1",
           minScore: 90,
         },
+        customLabel: "CS101 Rule Revised",
       }),
       changeSummary: "Retuned assignment score threshold",
       action: "save_draft",

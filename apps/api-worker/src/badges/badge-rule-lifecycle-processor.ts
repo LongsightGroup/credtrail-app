@@ -1,3 +1,4 @@
+import { badgeRuleVersionDisplayFields } from "./badge-rule-presentation";
 import { logError, logInfo, type ObservabilityContext } from "@credtrail/core-domain";
 import {
   createAuditLog,
@@ -81,7 +82,7 @@ const notifyLifecycleReminder = async (
       fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
       tenantId: input.tenantId,
       tenantDisplayName: tenant?.displayName ?? input.tenantId,
-      ruleName: input.version.snapshot.name,
+      ruleName: badgeRuleVersionDisplayFields(input.version).displayName,
       versionNumber: input.version.versionNumber,
       dueAt: input.dueAt,
       reminderType: input.reminderType,

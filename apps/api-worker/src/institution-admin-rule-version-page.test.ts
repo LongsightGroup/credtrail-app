@@ -471,6 +471,10 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () =>
   it("renders historical metadata only from the selected version snapshot", async () => {
     const historicalVersion = {
       ...sampleDetailVersion("brv_detail_historical", 1, "active"),
+      ruleJson: JSON.stringify({
+        ...JSON.parse(sampleDetailVersion("brv_detail_historical", 1, "active").ruleJson),
+        customLabel: "Original course rule",
+      }),
       snapshot: {
         ...sampleDetailVersion("brv_detail_historical", 1, "active").snapshot,
         name: "Original course rule",

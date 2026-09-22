@@ -1,12 +1,13 @@
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import type { GradebookAssignmentReader, GradebookRequestOptions } from "../lms/gradebook-types";
+import type { BadgeRuleAssignmentReferenceLabel } from "../lms/badge-rule-reference-labels";
 import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
 import { extractBadgeIssuanceRuleRequirements } from "./engine";
 
 const ASSIGNMENT_REFERENCE_VALIDATION_CONCURRENCY = 4;
 
 export type BadgeRuleAssignmentReferenceValidationResult =
-  | { readonly status: "valid" }
+  | { readonly status: "valid"; readonly assignments: readonly BadgeRuleAssignmentReferenceLabel[] }
   | {
       readonly status: "gradebook_unavailable";
       readonly courseId: string;
@@ -23,6 +24,7 @@ type CourseAssignmentValidation =
       readonly status: "available";
       readonly courseId: string;
       readonly assignmentIds: ReadonlySet<string>;
+      readonly assignments: readonly BadgeRuleAssignmentReferenceLabel[];
     }
   | {
       readonly status: "unavailable";
@@ -44,7 +46,7 @@ export const validateBadgeRuleAssignmentReferences = async (
   ];
 
   if (courseIds.length === 0) {
-    return { status: "valid" };
+    return { status: "valid", assignments: [] };
   }
 
   const courseValidations = await mapConcurrentBounded(
@@ -57,6 +59,19 @@ export const validateBadgeRuleAssignmentReferences = async (
           status: "available",
           courseId,
           assignmentIds: new Set(assignments.map((assignment) => assignment.assignmentId)),
+          assignments: assignments
+            .filter((assignment) =>
+              requirements.assignmentRefs.some(
+                (reference) =>
+                  reference.courseId === courseId &&
+                  reference.assignmentId === assignment.assignmentId,
+              ),
+            )
+            .map((assignment) => ({
+              courseId,
+              assignmentId: assignment.assignmentId,
+              title: assignment.title,
+            })),
         };
       } catch (cause: unknown) {
         return {
@@ -95,5 +110,10 @@ export const validateBadgeRuleAssignmentReferences = async (
     }
   }
 
-  return { status: "valid" };
+  return {
+    status: "valid",
+    assignments: courseValidations.flatMap((validation) =>
+      validation.status === "available" ? validation.assignments : [],
+    ),
+  };
 };

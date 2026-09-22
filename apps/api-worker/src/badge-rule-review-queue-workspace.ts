@@ -1,3 +1,4 @@
+import { badgeRuleVersionDisplayFields } from "./badges/badge-rule-presentation";
 import { z } from "zod";
 import {
   findBadgeIssuanceRuleVersionById,
@@ -162,7 +163,10 @@ export const loadBadgeRuleReviewQueueForApi = async (
 
       return {
         ...evaluationRecord,
-        ruleName: version?.snapshot.name ?? null,
+        ruleName:
+          version === null || version === undefined
+            ? null
+            : badgeRuleVersionDisplayFields(version).displayName,
         badgeTitle: version?.snapshot.badgeTemplateTitle ?? null,
         missingInformation: reviewMissingInformation(evaluation),
         badgeTemplateId: version?.snapshot.badgeTemplateId ?? null,

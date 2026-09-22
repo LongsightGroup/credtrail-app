@@ -1,3 +1,4 @@
+import { badgeRuleVersionDisplayFields } from "../badges/badge-rule-presentation";
 import {
   findBadgeIssuanceRuleVersionById,
   findBadgeTemplateById,
@@ -155,7 +156,7 @@ export const renderLtiDeepLinkingLaunchResponse = async (input: {
       const definition = parseBadgeIssuanceRuleDefinitionJson(version.ruleJson);
       options.push({
         ruleId: rule.id,
-        ruleName: version.snapshot.name,
+        ruleName: badgeRuleVersionDisplayFields(version).displayName,
         badgeTitle: version.snapshot.badgeTemplateTitle,
         badgeDescription: version.snapshot.badgeTemplateDescription,
         requirementSummary: requirementSummary(definition.conditions),

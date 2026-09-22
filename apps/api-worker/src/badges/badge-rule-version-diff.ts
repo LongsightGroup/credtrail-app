@@ -139,10 +139,12 @@ export const buildBadgeRuleVersionDefinitionDiff = (input: {
   readonly selectedRuleJson: string;
 }): BadgeRuleVersionDefinitionDiff => {
   const changes: RuleDefinitionDiffChange[] = [];
+  const base = resolveRuleDefinition(input.baseRuleJson);
+  const selected = resolveRuleDefinition(input.selectedRuleJson);
 
   collectRuleDefinitionDiff(
-    resolveRuleDefinition(input.baseRuleJson),
-    resolveRuleDefinition(input.selectedRuleJson),
+    { conditions: base.conditions, options: base.options },
+    { conditions: selected.conditions, options: selected.options },
     "definition",
     changes,
   );

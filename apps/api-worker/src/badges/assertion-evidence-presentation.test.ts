@@ -167,7 +167,8 @@ describe("buildAssertionEvidencePresentation", () => {
           ruleId: "tenant_123:brl_123",
           versionNumber: 2,
           status: "active",
-          ruleJson: "{}",
+          ruleJson:
+            '{"conditions":{"type":"course_completion","courseId":"course_101","minCompletionPercent":100}}',
           changeSummary: "Activated for spring term",
           createdByUserId: "usr_admin",
           submittedByUserId: "usr_admin",
@@ -272,7 +273,8 @@ describe("buildAssertionEvidencePresentation", () => {
           ruleId: "tenant_123:brl_123",
           versionNumber: 1,
           status: "active",
-          ruleJson: "{}",
+          ruleJson:
+            '{"conditions":{"type":"course_completion","courseId":"course_101","minCompletionPercent":100}}',
           changeSummary: null,
           createdByUserId: "usr_admin",
           submittedByUserId: null,

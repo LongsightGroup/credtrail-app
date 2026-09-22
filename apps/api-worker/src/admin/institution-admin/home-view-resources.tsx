@@ -1,3 +1,4 @@
+import { badgeRuleVersionDisplayFields } from "../../badges/badge-rule-presentation";
 import type { BadgeWorkflowTask } from "@credtrail/db";
 import {
   AdminButtonLink,
@@ -183,7 +184,7 @@ export const buildInstitutionAdminHomeViewResources = (input: {
                             <AdminStatusPill tone="warning">Changes requested</AdminStatusPill>
                           </p>
                         ) : null}
-                        <strong>{version.snapshot.name}</strong>
+                        <strong>{badgeRuleVersionDisplayFields(version).displayName}</strong>
                         <AdminMeta>
                           {version.snapshot.badgeTemplateTitle} · Version {version.versionNumber}
                         </AdminMeta>

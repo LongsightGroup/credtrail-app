@@ -32,13 +32,21 @@ export const buildBadgeRuleVersionRecord = (
 ): BadgeIssuanceRuleVersionRecord => {
   const { snapshot, ...recordOverrides } = overrides;
 
+  const ruleJson =
+    recordOverrides.ruleJson ??
+    '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}';
+  const definition: unknown = JSON.parse(ruleJson);
+  const namedRuleJson =
+    snapshot?.name !== undefined && definition !== null && typeof definition === "object"
+      ? JSON.stringify({ ...definition, customLabel: snapshot.name })
+      : ruleJson;
+
   return {
     id: "brv_123",
     tenantId: "tenant_123",
     ruleId: "brl_123",
     versionNumber: 1,
     status: "draft",
-    ruleJson: '{"conditions":{"type":"grade_threshold","courseId":"course_101","minScore":80}}',
     changeSummary: "Initial version",
     createdByUserId: "usr_admin",
     submittedByUserId: null,
@@ -64,5 +72,6 @@ export const buildBadgeRuleVersionRecord = (
     createdAt: "2026-02-18T12:00:00.000Z",
     updatedAt: "2026-02-18T12:00:00.000Z",
     ...recordOverrides,
+    ruleJson: namedRuleJson,
   };
 };

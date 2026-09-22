@@ -1,3 +1,4 @@
+import { badgeRuleVersionDisplayFields } from "../../badges/badge-rule-presentation";
 import type { BadgeIssuanceRuleRecord, BadgeIssuanceRuleVersionRecord } from "@credtrail/db";
 import type { Child } from "hono/jsx";
 import {
@@ -115,7 +116,7 @@ export const buildBadgeRuleLifecycleMenuActions = (input: {
           action={tenantBadgeRuleRecertifyAdminPath(tenantId, rule.id, latestVersion.id)}
           className="ct-admin__inline-form"
           dataAttributes={{
-            "data-confirm-message": `Record recertification for "${latestVersion.snapshot.name}"?`,
+            "data-confirm-message": `Record recertification for "${badgeRuleVersionDisplayFields(latestVersion).displayName}"?`,
           }}
         >
           <button type="submit" class="ct-admin__action-menu-item">
@@ -133,7 +134,7 @@ export const buildBadgeRuleLifecycleMenuActions = (input: {
         action={tenantBadgeRuleResumeAdminPath(tenantId, rule.id, latestVersion.id)}
         className="ct-admin__inline-form"
         dataAttributes={{
-          "data-confirm-message": `Resume issuance for "${latestVersion.snapshot.name}"?`,
+          "data-confirm-message": `Resume issuance for "${badgeRuleVersionDisplayFields(latestVersion).displayName}"?`,
         }}
       >
         <button type="submit" class="ct-admin__action-menu-item">

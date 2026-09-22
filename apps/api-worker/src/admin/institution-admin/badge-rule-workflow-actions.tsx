@@ -1,3 +1,4 @@
+import { badgeRuleVersionDisplayFields } from "../../badges/badge-rule-presentation";
 import type { BadgeWorkflowApproval } from "../badge-workflow-responsibility";
 import type { BadgeIssuanceRuleRecord, BadgeIssuanceRuleVersionRecord } from "@credtrail/db";
 import type { Child } from "hono/jsx";
@@ -29,7 +30,7 @@ export const buildBadgeRuleWorkflowMenuActions = (input: {
         action={tenantBadgeRuleSubmitApprovalAdminPath(tenantId, rule.id, latestVersion.id)}
         className="ct-admin__inline-form"
         dataAttributes={{
-          "data-confirm-message": `Submit draft version for "${latestVersion.snapshot.name}" for approval? ${input.approval?.submissionNotice ?? "You will not be able to approve it yourself."}`,
+          "data-confirm-message": `Submit draft version for "${badgeRuleVersionDisplayFields(latestVersion).displayName}" for approval? ${input.approval?.submissionNotice ?? "You will not be able to approve it yourself."}`,
         }}
       >
         <button type="submit" class="ct-admin__action-menu-item">
@@ -46,7 +47,7 @@ export const buildBadgeRuleWorkflowMenuActions = (input: {
         action={tenantBadgeRuleWithdrawSubmissionAdminPath(tenantId, rule.id, latestVersion.id)}
         className="ct-admin__inline-form"
         dataAttributes={{
-          "data-confirm-message": `Withdraw "${latestVersion.snapshot.name}" from approval and return it to draft?`,
+          "data-confirm-message": `Withdraw "${badgeRuleVersionDisplayFields(latestVersion).displayName}" from approval and return it to draft?`,
         }}
       >
         <button type="submit" class="ct-admin__action-menu-item">
@@ -82,7 +83,7 @@ export const buildBadgeRuleWorkflowMenuActions = (input: {
         action={tenantBadgeRuleDeleteAdminPath(tenantId, rule.id)}
         className="ct-admin__action-menu-form"
         dataAttributes={{
-          "data-confirm-message": `Delete draft rule "${latestVersion.snapshot.name}"? This removes its draft and rejected versions.`,
+          "data-confirm-message": `Delete draft rule "${badgeRuleVersionDisplayFields(latestVersion).displayName}"? This removes its draft and rejected versions.`,
         }}
       >
         <button type="submit" class="ct-admin__action-menu-item ct-admin__action-menu-item--danger">

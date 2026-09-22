@@ -200,7 +200,8 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
         ruleId: "brl_123",
         versionNumber: 2,
         status: "pending_approval",
-        ruleJson: '{"conditions":{"type":"course_membership","courseId":"course_202"}}',
+        ruleJson:
+          '{"conditions":{"type":"course_completion","minCompletionPercent":100,"courseId":"course_202"}}',
         changeSummary: "Pending revision",
         createdByUserId: "usr_author",
         submittedByUserId: "usr_author",
@@ -222,7 +223,8 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
         ruleId: "brl_123",
         versionNumber: 1,
         status: "active",
-        ruleJson: '{"conditions":{"type":"course_membership","courseId":"course_101"}}',
+        ruleJson:
+          '{"conditions":{"type":"course_completion","minCompletionPercent":100,"courseId":"course_101"}}',
         changeSummary: "Published version",
         createdByUserId: "usr_admin",
         submittedByUserId: "usr_admin",
@@ -280,7 +282,8 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
         ruleId: "brl_lifecycle",
         versionNumber: 1,
         status: "active",
-        ruleJson: '{"conditions":{"type":"course_membership","courseId":"course_101"}}',
+        ruleJson:
+          '{"conditions":{"type":"course_completion","minCompletionPercent":100,"courseId":"course_101"}}',
         changeSummary: null,
         createdByUserId: "usr_admin",
         submittedByUserId: "usr_admin",
@@ -323,6 +326,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
         currentStep: "conditions",
         draftJson: JSON.stringify({
           name: "CS pathway draft",
+          builderState: { labelMode: "custom" },
           badgeTemplateId: "badge_template_001",
           lmsConnectionId: "lms_canvas",
         }),
@@ -358,7 +362,7 @@ describe("GET /tenants/:tenantId/admin/rules", () => {
     expect(body).toContain("Your unfinished setups (2)");
     expect(body).toContain("1 shown · 1 matching rule");
     expect(body).toContain("CS pathway draft");
-    expect(body).toContain("Untitled rule");
+    expect(body).toContain("Add awarding requirements");
     expect(body).toContain("Setup incomplete");
     expect(body).toContain('href="/tenants/tenant_123/admin/rules/drafts/brd_alpha/edit"');
     expect(body).toContain('action="/tenants/tenant_123/admin/rules/drafts/brd_beta/delete"');

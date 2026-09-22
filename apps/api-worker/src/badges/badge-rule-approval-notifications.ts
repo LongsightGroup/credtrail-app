@@ -1,3 +1,4 @@
+import { badgeRuleVersionDisplayFields } from "./badge-rule-presentation";
 import {
   findTenantById,
   findUserById,
@@ -93,7 +94,7 @@ export const notifyBadgeRuleApprovalSubmitted = async (
     fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
     tenantId: input.tenantId,
     tenantDisplayName: displayName,
-    ruleName: input.version.snapshot.name,
+    ruleName: badgeRuleVersionDisplayFields(input.version).displayName,
     versionNumber: input.version.versionNumber,
     reviewUrl: input.reviewUrl,
     step: firstPendingStep,
@@ -134,7 +135,7 @@ export const notifyBadgeRuleApprovalDecision = async (
       fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
       tenantId: input.tenantId,
       tenantDisplayName: displayName,
-      ruleName: input.version.snapshot.name,
+      ruleName: badgeRuleVersionDisplayFields(input.version).displayName,
       versionNumber: input.version.versionNumber,
       reviewUrl: input.reviewUrl,
       step: nextStep,
@@ -161,7 +162,7 @@ export const notifyBadgeRuleApprovalDecision = async (
               fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
               tenantId: input.tenantId,
               tenantDisplayName: displayName,
-              ruleName: input.version.snapshot.name,
+              ruleName: badgeRuleVersionDisplayFields(input.version).displayName,
               versionNumber: input.version.versionNumber,
               reviewUrl: input.reviewUrl,
               recipientEmail: user.email,

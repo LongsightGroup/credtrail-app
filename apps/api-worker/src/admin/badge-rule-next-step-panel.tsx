@@ -1,3 +1,4 @@
+import { badgeRuleVersionDisplayFields } from "../badges/badge-rule-presentation";
 import type { BadgeWorkflowApproval } from "./badge-workflow-responsibility";
 import type { BadgeIssuanceRuleRecord, BadgeIssuanceRuleVersionRecord } from "@credtrail/db";
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
@@ -41,7 +42,7 @@ const WithdrawSubmission = ({
 }: {
   readonly panel: BadgeRuleNextStepPanelInput;
 }): HonoElement => {
-  const ruleName = panel.latestVersion.snapshot.name;
+  const ruleName = badgeRuleVersionDisplayFields(panel.latestVersion).displayName;
   return (
     <AdminForm
       method="post"
@@ -67,7 +68,7 @@ const NextStepAction = (input: {
   readonly action: BadgeRuleNextStepAction;
 }): HonoElement => {
   const { panel, action } = input;
-  const ruleName = panel.latestVersion.snapshot.name;
+  const ruleName = badgeRuleVersionDisplayFields(panel.latestVersion).displayName;
 
   switch (action._tag) {
     case "configure_approval":

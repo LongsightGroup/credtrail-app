@@ -3,7 +3,11 @@ import type {
   BadgeTemplateRecord,
   TenantLmsConnectionRecord,
 } from "@credtrail/db";
-import { parseBadgeIssuanceRuleBuilderDraftJson } from "@credtrail/validation";
+import {
+  parseBadgeIssuanceRuleBuilderDraftJson,
+  parseBadgeIssuanceRuleDefinitionJson,
+} from "@credtrail/validation";
+import { describeBadgeRuleCondition } from "../../badges/badge-rule-description";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { formatIsoTimestamp } from "../../utils/display-format";
 import {
@@ -39,7 +43,19 @@ export const renderBadgeRuleBuilderDraftRows = (
 
   return input.drafts.map((draft) => {
     const payload = parseBadgeIssuanceRuleBuilderDraftJson(draft.draftJson);
-    const name = payload?.name?.trim() || "Untitled rule";
+    let requirementSummary = "Add awarding requirements";
+    try {
+      const definition = parseBadgeIssuanceRuleDefinitionJson(payload?.definitionJson ?? "");
+      requirementSummary = describeBadgeRuleCondition(
+        definition.conditions,
+        definition.referenceLabels,
+      );
+    } catch {
+      // An unfinished setup may not have a complete definition yet.
+    }
+    const name =
+      (payload?.builderState?.labelMode === "custom" ? payload.name?.trim() : "") ||
+      requirementSummary;
     const badgeTemplateId = payload?.badgeTemplateId?.trim() ?? "";
     const lmsConnectionId = payload?.lmsConnectionId?.trim() ?? "";
     const templateTitle =

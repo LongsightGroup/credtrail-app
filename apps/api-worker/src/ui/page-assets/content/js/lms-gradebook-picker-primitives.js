@@ -14,6 +14,7 @@ const lmsGradebookItemLabel = (item) => {
 };
 
 const lmsGradebookItemLabelByIdentity = new Map();
+const lmsGradebookItemTitleByIdentity = new Map();
 
 const lmsGradebookItemIdentity = (itemsUrl, assignmentId) => {
   return itemsUrl + "\n" + assignmentId;
@@ -21,6 +22,7 @@ const lmsGradebookItemIdentity = (itemsUrl, assignmentId) => {
 
 const lmsRememberGradebookItemLabels = (itemsUrl, items) => {
   items.forEach((item) => {
+    lmsGradebookItemTitleByIdentity.set(lmsGradebookItemIdentity(itemsUrl, item.assignmentId), item.title);
     lmsGradebookItemLabelByIdentity.set(
       lmsGradebookItemIdentity(itemsUrl, item.assignmentId),
       lmsGradebookItemLabel(item),

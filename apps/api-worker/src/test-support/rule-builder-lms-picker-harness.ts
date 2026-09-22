@@ -167,6 +167,7 @@ export const loadRuleBuilderLmsPickerHarness = (
     URLSearchParams,
     WeakMap,
     document: {
+      getElementById: (): null => null,
       createElement: (tagName: string): FakeElement => {
         if (tagName === "input") {
           return new FakeInput();

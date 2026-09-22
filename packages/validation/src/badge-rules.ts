@@ -222,6 +222,15 @@ export const badgeIssuanceRuleDefinitionOptionsSchema = z.object({
 });
 
 export const badgeIssuanceRuleDefinitionSchema = z.object({
+  customLabel: z.string().trim().min(1).max(200).optional(),
+  referenceLabels: z
+    .object({
+      courses: z.array(z.object({ courseId: z.string(), title: z.string() })).max(200),
+      assignments: z
+        .array(z.object({ courseId: z.string(), assignmentId: z.string(), title: z.string() }))
+        .max(2500),
+    })
+    .optional(),
   conditions: badgeIssuanceRuleConditionSchema,
   options: badgeIssuanceRuleDefinitionOptionsSchema.optional(),
 });
@@ -305,7 +314,7 @@ export const badgeIssuanceRuleAuditLogQuerySchema = z.object({
 
 export const createBadgeIssuanceRuleRequestSchema = z
   .object({
-    name: z.string().trim().min(1).max(200),
+    name: z.string().trim().max(200).default(""),
     description: z.string().trim().min(1).max(2000).optional(),
     badgeTemplateId: resourceIdSchema,
     badgeTemplateReuseAcknowledged: z.boolean(),
@@ -320,7 +329,7 @@ export const createBadgeIssuanceRuleRequestSchema = z
 
 export const updateBadgeIssuanceRuleDraftRequestSchema = z
   .object({
-    name: z.string().trim().min(1).max(200),
+    name: z.string().trim().max(200).default(""),
     description: z.string().trim().max(2000).optional(),
     badgeTemplateId: resourceIdSchema,
     badgeTemplateReuseAcknowledged: z.boolean(),
@@ -352,6 +361,7 @@ export const badgeIssuanceRuleBuilderDraftTargetSchema = z.discriminatedUnion("k
 
 export const badgeIssuanceRuleBuilderDraftBuilderStateSchema = z
   .object({
+    labelMode: z.enum(["automatic", "custom"]).optional(),
     rootLogic: z.enum(["all", "any"]).optional(),
     issuanceTiming: z.enum(["immediate", "manual", "end_of_term"]).optional(),
     changeSummary: z.string().trim().max(1000).optional(),

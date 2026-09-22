@@ -8,6 +8,7 @@ import type {
   TenantRecord,
 } from "@credtrail/db";
 import type { GradebookCourseRecord } from "../lms/gradebook-types";
+import { badgeRuleVersionDisplayFields } from "../badges/badge-rule-presentation";
 import type { AppPage } from "../ui/render-page";
 import { CtInput, CtSelect } from "../ui/forms";
 import {
@@ -514,13 +515,17 @@ const stopOffering = (input: BadgeRulePlacementAvailabilityPageInput) => {
 export const badgeRulePlacementAvailabilityPage = (
   input: BadgeRulePlacementAvailabilityPageInput,
 ): AppPage => {
+  const title =
+    input.activeVersion === null
+      ? "Rule course availability"
+      : badgeRuleVersionDisplayFields(input.activeVersion).displayName;
   return renderInstitutionAdminShellPage({
     tenant: input.tenant,
     userId: input.userId,
     ...(input.userEmail === undefined ? {} : { userEmail: input.userEmail }),
     membershipRole: input.membershipRole,
     view: "rules",
-    title: `${input.rule.name} · Course availability · Institution Admin · ${input.tenant.displayName}`,
+    title: `${title} · Course availability · Institution Admin · ${input.tenant.displayName}`,
     assets: [
       "institutionAdminCss",
       "institutionAdminRuleAvailabilityCss",
@@ -536,7 +541,7 @@ export const badgeRulePlacementAvailabilityPage = (
           <p>
             <a href={buildRulesAdminPath(input.tenant.id)}>← All rules</a>
           </p>
-          <h1>{input.rule.name}</h1>
+          <h1>{title}</h1>
           <p>
             Course availability controls where faculty can add this rule. Eligibility still comes
             from the rule's requirements.

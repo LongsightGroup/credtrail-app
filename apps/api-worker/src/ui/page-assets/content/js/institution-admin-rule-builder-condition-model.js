@@ -229,6 +229,8 @@ const readRuleBuilderDefinitionOptions = () => {
 };
 
 const withRuleBuilderDefinitionOptions = (definition) => {
+  const { customLabel: _previousLabel, ...requirements } = definition;
+  const customLabel = getTextFieldValue("name");
   const existingOptions =
     definition &&
     typeof definition === "object" &&
@@ -239,7 +241,8 @@ const withRuleBuilderDefinitionOptions = (definition) => {
       : {};
 
   return {
-    ...definition,
+    ...requirements,
+    ...(customLabel.length > 0 ? { customLabel } : {}),
     options: {
       ...existingOptions,
       ...readRuleBuilderDefinitionOptions(),

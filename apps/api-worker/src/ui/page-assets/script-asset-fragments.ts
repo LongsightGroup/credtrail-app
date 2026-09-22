@@ -1,4 +1,11 @@
 import { renderAdminStatusPillClassBrowserHelper } from "../../admin/admin-status-pill-class";
+import { describeBadgeRuleCondition } from "../../badges/badge-rule-description";
+
+/** Shares the pure requirement description with the browser builder. */
+export const BADGE_RULE_DESCRIPTION_SCRIPT_SOURCE: ScriptPageAssetSource = {
+  sourceName: "badge-rule-description.js",
+  body: `const describeBadgeRuleCondition = ${describeBadgeRuleCondition.toString()};`,
+};
 
 export type ScriptPageAssetSource =
   | string

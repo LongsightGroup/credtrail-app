@@ -167,7 +167,6 @@ export const RuleBuilderMetadataStep = (props: {
   } | null;
   readonly initialName: string;
   readonly initialDescription: string;
-  readonly preserveName: boolean;
 }): HonoElement => {
   const hasSelectedTemplate = props.templateOptions.some((option) => option.isSelected);
   const savedTemplateUnavailable =
@@ -393,26 +392,27 @@ export const RuleBuilderMetadataStep = (props: {
                   <option value="custom">Custom requirements</option>
                 </CtSelect>
               </AdminField>
-              <div class="ct-field ct-admin__field ct-admin__builder-field-span">
-                <label class="ct-field__label" htmlFor="rule-builder-name">
-                  Rule name
-                </label>
-                <CtInput
-                  type="text"
-                  name="name"
-                  id="rule-builder-name"
-                  value={props.initialName}
-                  required
-                  maxlength={200}
-                  describedBy="rule-builder-name-hint"
-                  dataAttributes={{
-                    "data-rule-builder-preserve-name": props.preserveName ? "true" : "false",
-                  }}
-                />
-                <CtFieldHint id="rule-builder-name-hint">
-                  Starts with the badge title. Change it to help you recognize this rule.
-                </CtFieldHint>
-              </div>
+              <details
+                class="ct-admin__builder-field-span ct-stack"
+                open={props.initialName.length > 0}
+              >
+                <summary>Add a custom label</summary>
+                <div class="ct-field ct-admin__field">
+                  <label class="ct-field__label" htmlFor="rule-builder-name">
+                    Custom label (optional)
+                  </label>
+                  <CtInput
+                    name="name"
+                    id="rule-builder-name"
+                    value={props.initialName}
+                    maxlength={200}
+                    describedBy="rule-builder-name-hint"
+                  />
+                  <CtFieldHint id="rule-builder-name-hint">
+                    For example, Honors pathway. Leave blank to use the requirements as the title.
+                  </CtFieldHint>
+                </div>
+              </details>
               <AdminField label="Description (optional)" className="ct-admin__builder-field-span">
                 <CtInput
                   name="description"

@@ -152,7 +152,6 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/edit", () => {
     expect(body).not.toContain("Mutable rule-row description.");
     expect(body).not.toContain("badge_template_mutable");
     expect(body).not.toContain("lms_mutable");
-    expect(body).toContain('data-rule-builder-preserve-name="true"');
     expect(body).toContain('value="Fix the score threshold before review."');
     expect(body).toMatch(
       /<option[^>]*value="badge_template_001"[^>]*selected=""[^>]*>TypeScript Foundations[^<]*<\/option>/,

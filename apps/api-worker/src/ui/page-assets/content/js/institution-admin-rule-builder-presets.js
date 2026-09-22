@@ -15,14 +15,12 @@ const applyTemplatePreset = () => {
     renderSourceReadiness();
     validateConditionCards(true);
     setStatus(ruleCreateStatus, "Blank requirements started.", false, "success");
-    syncSuggestedRuleName();
     syncRuleBuilderSummary("Blank requirements started.");
     return;
   }
 
   if (presetKey === "custom") {
     setStatus(ruleCreateStatus, "Current custom requirements kept.", false, "success");
-    syncSuggestedRuleName();
     syncRuleBuilderSummary("Current custom requirements kept.");
     return;
   }
@@ -32,5 +30,4 @@ const applyTemplatePreset = () => {
     buildDefaultTemplateDefinitions(getDefaultCourseId()).course_and_grade;
   ruleBuilderDefinitionJson.value = JSON.stringify(selectedTemplate, null, 2);
   applyDefinitionToBuilder(selectedTemplate, "Template");
-  syncSuggestedRuleName();
 };

@@ -11,9 +11,9 @@ test("an administrator can search and choose a badge template in one combobox", 
   const nativeSelect = page.locator('select[name="badgeTemplateId"]');
   const listbox = page.getByRole("listbox", { name: "Badge templates" });
   const searchStatus = page.locator("#rule-builder-badge-template-search-status");
-  const ruleName = page.getByRole("textbox", { name: "Rule name", exact: true });
+  const ruleName = page.locator("#rule-builder-name");
 
-  await expect(ruleName).toBeVisible();
+  await expect(ruleName).toBeHidden();
   await expect(ruleName).toHaveValue("");
 
   await expect(combobox).toHaveCount(1);
@@ -36,19 +36,22 @@ test("an administrator can search and choose a badge template in one combobox", 
   await combobox.press("Enter");
   await expect(listbox).toBeHidden();
   await expect(combobox).toHaveValue("Applied Analytics TrustEd Credential");
-  await expect(ruleName).toHaveValue("Applied Analytics TrustEd Credential");
+  await expect(ruleName).toHaveValue("");
   await page.locator("#rule-builder-template-preset").selectOption("course_completion");
-  await expect(ruleName).toHaveValue("Applied Analytics TrustEd Credential");
+  await expect(ruleName).toHaveValue("");
+  await page.getByText("Add a custom label", { exact: true }).click();
   await ruleName.fill("Final exam distinction");
   await page.locator("#rule-builder-template-preset").selectOption("course_and_grade");
   await expect(ruleName).toHaveValue("Final exam distinction");
   await ruleName.fill("");
   await page.locator("#rule-builder-template-preset").selectOption("course_completion");
   await expect(ruleName).toHaveValue("");
-  await expect(
-    page.getByText("Enter a rule name before continuing.", { exact: true }),
-  ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Continue to Requirements" })).toBeDisabled();
+  await expect(page.locator("#rule-builder-summary-rule-name")).toHaveText(
+    "Complete all gradebook items",
+  );
+  const reuse = page.getByLabel("I confirm this rule is another valid way to earn the same badge.");
+  if (await reuse.isVisible()) await reuse.check();
+  await expect(page.getByRole("button", { name: "Continue to Requirements" })).toBeEnabled();
   await ruleName.fill("Final exam distinction");
   const committedValue = await nativeSelect.inputValue();
   expect(committedValue).not.toBe("");

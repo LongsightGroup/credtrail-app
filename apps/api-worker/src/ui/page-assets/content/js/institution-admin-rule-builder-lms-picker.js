@@ -392,6 +392,7 @@ const hydrateGradebookItemSelect = async (card, query) => {
     return lmsLookupSuperseded();
   }
 
+  syncRuleBuilderDescription();
   return outcome;
 };
 

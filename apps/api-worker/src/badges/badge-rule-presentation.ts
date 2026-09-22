@@ -4,10 +4,15 @@ import {
   type BadgeIssuanceRuleVersionRecord,
 } from "@credtrail/db";
 import { badgeRuleLmsProviderLabel } from "./badge-rule-lms-provider-label";
+import { parseBadgeIssuanceRuleDefinitionJson } from "@credtrail/validation";
+import { describeBadgeRuleCondition } from "./badge-rule-description";
 
 /** Stable product-facing fields projected from one immutable badge-rule version. */
 export interface BadgeRuleVersionDisplayFields {
   readonly displayName: string;
+  readonly customLabel: string | null;
+  readonly requirementSummary: string;
+  readonly courseLabels: readonly string[];
   readonly badgeTitle: string;
   readonly lmsProviderLabel: string;
   readonly updatedAt: string;
@@ -17,8 +22,29 @@ export interface BadgeRuleVersionDisplayFields {
 export const badgeRuleVersionDisplayFields = (
   version: BadgeIssuanceRuleVersionRecord,
 ): BadgeRuleVersionDisplayFields => {
+  let definition;
+  try {
+    definition = parseBadgeIssuanceRuleDefinitionJson(version.ruleJson);
+  } catch {
+    return {
+      displayName: "Requirements unavailable",
+      customLabel: null,
+      requirementSummary: "Requirements unavailable",
+      courseLabels: [],
+      badgeTitle: version.snapshot.badgeTemplateTitle,
+      lmsProviderLabel: badgeRuleLmsProviderLabel(version.snapshot.lmsProviderKind),
+      updatedAt: version.updatedAt,
+    };
+  }
+  const requirementSummary = describeBadgeRuleCondition(
+    definition.conditions,
+    definition.referenceLabels,
+  );
   return {
-    displayName: version.snapshot.name,
+    displayName: definition.customLabel ?? requirementSummary,
+    customLabel: definition.customLabel ?? null,
+    requirementSummary,
+    courseLabels: definition.referenceLabels?.courses.map((course) => course.title) ?? [],
     badgeTitle: version.snapshot.badgeTemplateTitle,
     lmsProviderLabel: badgeRuleLmsProviderLabel(version.snapshot.lmsProviderKind),
     updatedAt: version.updatedAt,

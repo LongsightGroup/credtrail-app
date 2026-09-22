@@ -80,6 +80,10 @@ export const badgeRuleVersionPage = (input: {
             <a href={buildRulesAdminPath(input.tenant.id)}>← All rules</a>
           </p>
           <h1>{displayFields.displayName}</h1>
+          {displayFields.customLabel === null ? null : <p>{displayFields.requirementSummary}</p>}
+          {displayFields.courseLabels.length === 0 ? null : (
+            <p>{displayFields.courseLabels.join(" · ")}</p>
+          )}
           <p>Immutable rule record · Version {String(input.version.versionNumber)}</p>
         </header>
         <section class="ct-admin ct-stack">

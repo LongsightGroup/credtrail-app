@@ -140,6 +140,7 @@ const prepareBadgeRuleDraft = async (
     };
   }
 
+  let courseLabels: Array<{ courseId: string; title: string }> = [];
   try {
     const authorization = await authorizeBadgeRuleCourses(
       {
@@ -158,6 +159,10 @@ const prepareBadgeRuleDraft = async (
         error: authorization.error,
       };
     }
+    courseLabels = authorization.courses.map((course) => ({
+      courseId: course.courseId,
+      title: course.title,
+    }));
   } catch (error) {
     return {
       status: "error",
@@ -210,7 +215,10 @@ const prepareBadgeRuleDraft = async (
   return {
     status: "prepared",
     resolvedProvider,
-    ruleJson: JSON.stringify(input.request.definition),
+    ruleJson: JSON.stringify({
+      ...input.request.definition,
+      referenceLabels: { courses: courseLabels, assignments: referenceValidation.assignments },
+    }),
   };
 };
 

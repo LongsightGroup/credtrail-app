@@ -35,6 +35,7 @@ export const createRuleDefinitionSummaryMarkup = (
   formatIsoTimestamp: (timestampIso: string) => string,
   displayContext: RuleDefinitionSummaryDisplayContext = {},
 ): ((definition: BadgeIssuanceRuleDefinition | string | null) => HonoElement) => {
+  let referenceLabels: BadgeIssuanceRuleDefinition["referenceLabels"];
   const labelWithRawId = (
     label: string,
     rawId: string,
@@ -52,7 +53,9 @@ export const createRuleDefinitionSummaryMarkup = (
   };
 
   const courseLabel = (courseId: string): HonoElement => {
-    const courseName = displayContext.courseNamesById?.get(courseId);
+    const courseName =
+      displayContext.courseNamesById?.get(courseId) ??
+      referenceLabels?.courses.find((course) => course.courseId === courseId)?.title;
 
     if (displayContext.renderLmsReference === undefined) {
       return courseName === undefined ? (
@@ -69,11 +72,16 @@ export const createRuleDefinitionSummaryMarkup = (
   };
 
   const assignmentLabel = (courseId: string, assignmentId: string): HonoElement => {
+    const title =
+      referenceLabels?.assignments.find(
+        (assignment) =>
+          assignment.courseId === courseId && assignment.assignmentId === assignmentId,
+      )?.title ?? "selected gradebook item";
     if (displayContext.renderLmsReference === undefined) {
-      return labelWithRawId("selected assignment", assignmentId);
+      return labelWithRawId(title, assignmentId);
     }
 
-    return labelWithRawId("Assignment", assignmentId, {
+    return labelWithRawId(title, assignmentId, {
       kind: "assignment",
       courseId,
       assignmentId,
@@ -264,6 +272,7 @@ export const createRuleDefinitionSummaryMarkup = (
         typeof definition === "string"
           ? parseBadgeIssuanceRuleDefinition(JSON.parse(definition))
           : definition;
+      referenceLabels = parsed.referenceLabels;
       return <ul class="ct-rule-summary__conditions">{ruleConditionMarkup(parsed.conditions)}</ul>;
     } catch {
       return <p class="ct-rule-summary__muted">Rule definition could not be parsed.</p>;

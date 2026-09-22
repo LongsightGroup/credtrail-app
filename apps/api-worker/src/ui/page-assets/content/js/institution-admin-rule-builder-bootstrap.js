@@ -106,7 +106,6 @@ const ruleBuilderFlowMode = document.getElementById("rule-builder-flow-mode");
 const ruleBuilderFlowEmpty = document.getElementById("rule-builder-flow-empty");
 const ruleBuilderFlowList = document.getElementById("rule-builder-flow-list");
 const ruleBuilderSummaryMessage = document.getElementById("rule-builder-summary-message");
-const ruleBuilderSummaryRuleName = document.getElementById("rule-builder-summary-rule-name");
 const ruleBuilderSummaryConditionCount = document.getElementById(
   "rule-builder-summary-condition-count",
 );

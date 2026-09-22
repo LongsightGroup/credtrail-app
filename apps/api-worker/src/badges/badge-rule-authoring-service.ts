@@ -16,6 +16,7 @@ import {
   type UpdateBadgeIssuanceRuleDraftRequest,
 } from "@credtrail/validation";
 import { resolveExpectedBadgeTemplateRevision } from "./badge-achievement-snapshot";
+import { describeBadgeRuleCondition } from "./badge-rule-description";
 
 type CompletedBadgeRuleAuthoring = Extract<
   BadgeIssuanceRuleAuthoringResult,
@@ -123,19 +124,31 @@ export const authorPreparedBadgeRule = async (
   }
 
   const expectedBadgeTemplateRevision = expectedBadgeTemplateRevisionResult.revision;
+  const { customLabel: _previousLabel, ...requirements } = parseBadgeIssuanceRuleDefinition(
+    JSON.parse(input.ruleJson),
+  );
+  const customLabel = nonEmptyTrimmed(input.request.name);
+  const definition = {
+    ...requirements,
+    ...(customLabel === undefined ? {} : { customLabel }),
+  };
+  const name =
+    customLabel ??
+    describeBadgeRuleCondition(definition.conditions, definition.referenceLabels).slice(0, 200);
+  const ruleJson = JSON.stringify(definition);
 
   const authored =
     input.kind === "create"
       ? await createBadgeIssuanceRuleWithAction(input.db, {
           tenantId: input.tenantId,
-          name: input.request.name,
+          name,
           description: input.request.description,
           badgeTemplateId: input.request.badgeTemplateId,
           expectedBadgeTemplateRevision,
           badgeTemplateReuseAcknowledged: input.request.badgeTemplateReuseAcknowledged,
           lmsProviderKind: input.lmsConnection.providerKind,
           lmsConnectionId: input.lmsConnection.id,
-          ruleJson: input.ruleJson,
+          ruleJson,
           changeSummary: input.request.changeSummary,
           action: input.request.action,
           actorUserId: input.actorUserId,
@@ -145,14 +158,14 @@ export const authorPreparedBadgeRule = async (
       : await updateBadgeIssuanceRuleWithAction(input.db, {
           tenantId: input.tenantId,
           ruleId: input.ruleId,
-          name: input.request.name,
+          name,
           description: nonEmptyTrimmed(input.request.description),
           badgeTemplateId: input.request.badgeTemplateId,
           expectedBadgeTemplateRevision,
           badgeTemplateReuseAcknowledged: input.request.badgeTemplateReuseAcknowledged,
           lmsProviderKind: input.lmsConnection.providerKind,
           lmsConnectionId: input.lmsConnection.id,
-          ruleJson: input.ruleJson,
+          ruleJson,
           changeSummary: input.request.changeSummary,
           action: input.request.action,
           actorUserId: input.actorUserId,
@@ -169,6 +182,6 @@ export const authorPreparedBadgeRule = async (
     definition:
       input.kind === "create" && authored.writeStatus === "replayed"
         ? parseBadgeIssuanceRuleDefinition(JSON.parse(authored.version.ruleJson))
-        : input.request.definition,
+        : definition,
   };
 };

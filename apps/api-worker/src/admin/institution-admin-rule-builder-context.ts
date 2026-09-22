@@ -1,3 +1,4 @@
+import { badgeRuleVersionDisplayFields } from "../badges/badge-rule-presentation";
 import type {
   BadgeIssuanceRuleBuilderDraftRecord,
   BadgeIssuanceRuleRecord,
@@ -107,7 +108,7 @@ const buildInstitutionAdminRuleBuilderEditContext = (input: {
 }): InstitutionAdminRuleBuilderEditContext => {
   return {
     id: input.ruleId,
-    name: input.latestVersion.snapshot.name,
+    name: badgeRuleVersionDisplayFields(input.latestVersion).customLabel ?? "",
     description: input.latestVersion.snapshot.description,
     badgeTemplateId: input.latestVersion.snapshot.badgeTemplateId,
     lmsConnectionId: input.latestVersion.snapshot.lmsConnectionId,

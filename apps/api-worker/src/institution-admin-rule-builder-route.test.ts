@@ -238,8 +238,10 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
 
     expect(response.status).toBe(200);
     expect(body).toContain("Choose the badge, LMS connection, and how learners earn it");
-    expect(body).toContain("Rule name");
-    expect(body).toMatch(/id="rule-builder-name"[^>]*type="text"[^>]*required[^>]*maxlength="200"/);
+    expect(body).toContain("Custom label (optional)");
+    expect(body).toContain("Add a custom label");
+    expect(body).toMatch(/id="rule-builder-name"[^>]*type="text"[^>]*maxlength="200"/);
+    expect(body).not.toMatch(/id="rule-builder-name"[^>]*required/);
     expect(body).toContain('id="rule-builder-name-hint"');
     expect(body).toContain("Each requirement describes what a learner must do.");
     expect(body).toContain("Exclude learners who match this requirement");
@@ -362,8 +364,7 @@ describe("GET /tenants/:tenantId/admin/rules/new", () => {
     expect(response.status).toBe(200);
     expect(body).toContain("Copy Badge Awarding Rule");
     expect(body).toContain("Creating a new rule from Versioned copy source.");
-    expect(body).toContain('name="name" type="text" value="Copy of Versioned copy source"');
-    expect(body).toContain('data-rule-builder-preserve-name="true"');
+    expect(body).toContain('name="name" type="text" value=""');
     expect(body).toContain('name="description" type="text" value="Immutable version description"');
     expect(body).toMatch(/value="badge_template_001"[^>]*selected/);
     expect(body).toMatch(/value="lms_canvas"[^>]*selected/);
