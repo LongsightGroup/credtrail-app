@@ -71,7 +71,7 @@ export const badgeRuleApprovalReviewPage = (
         </p>
         <AdminPageHeader
           title={displayFields.displayName}
-          description="Compare the changes, check learner impact, and record your decision."
+          description="Review the requirements and changes, then record your decision."
         />
         <section class="ct-admin ct-stack">
           {input.listError === null ? null : (

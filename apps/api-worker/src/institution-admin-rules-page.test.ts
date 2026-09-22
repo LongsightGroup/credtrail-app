@@ -736,8 +736,8 @@ describe("GET /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:version
     expect(body).toContain("Earning requirements");
     expect(body).toContain("Loosens requirements");
     expect(body).toContain("Minimum grade lowered from 90% to 80%.");
-    expect(body).toContain("Learner impact");
-    expect(body).toContain("Check learner impact");
+    expect(body).toContain("Eligible learners");
+    expect(body).toContain("Preview eligible learners");
     expect(body).toContain("This reads current LMS data and may take a moment.");
     expect(body).toContain("Approval makes it eligible for activation; it does not replace");
     expect(body).toContain(
@@ -1011,7 +1011,7 @@ describe("POST /tenants/:tenantId/admin/rules/approvals/:ruleId/versions/:versio
       ruleId: "brl_approval",
     });
     expect(body).toContain("No LMS course placement is linked to this rule yet.");
-    expect(body).toContain("Refresh impact");
+    expect(body).toContain("Refresh preview");
   });
 });
 

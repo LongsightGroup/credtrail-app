@@ -6,7 +6,7 @@ import { AdminActions, AdminButton, AdminForm, AdminMeta, AdminPanel } from "./c
 
 type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 
-/** Renders the on-demand learner impact preview for a reviewed version. */
+/** Renders the optional eligibility preview for a reviewed version. */
 export const BadgeRuleApprovalReviewImpact = (input: {
   readonly tenantId: string;
   readonly ruleId: string;
@@ -22,15 +22,15 @@ export const BadgeRuleApprovalReviewImpact = (input: {
   if (input.preview.status === "not_requested") {
     return (
       <AdminPanel className="ct-admin__review-impact-panel">
-        <h2>Learner impact</h2>
+        <h2>Eligible learners</h2>
         <p>
-          Check how many learners would qualify if this version were activated now. This reads
-          current LMS data and may take a moment.
+          Optional: Check how many learners in the linked course would qualify under this version.
+          This reads current LMS data and may take a moment. No badges are issued.
         </p>
         <AdminForm method="post" action={refreshPath}>
           <AdminActions>
             <AdminButton type="submit" variant="secondary">
-              Check learner impact
+              Preview eligible learners
             </AdminButton>
           </AdminActions>
         </AdminForm>
@@ -43,13 +43,13 @@ export const BadgeRuleApprovalReviewImpact = (input: {
   if (preview.status === "unavailable") {
     return (
       <AdminPanel className="ct-admin__review-impact-panel">
-        <h2>Learner impact</h2>
+        <h2>Eligible learners</h2>
         <p>{preview.reason}</p>
         <AdminMeta>Generated {formatIsoTimestamp(preview.generatedAt)}</AdminMeta>
         <AdminForm method="post" action={refreshPath}>
           <AdminActions>
             <AdminButton type="submit" variant="secondary">
-              Refresh impact
+              Refresh preview
             </AdminButton>
           </AdminActions>
         </AdminForm>
@@ -59,13 +59,14 @@ export const BadgeRuleApprovalReviewImpact = (input: {
 
   return (
     <AdminPanel className="ct-admin__review-impact-panel">
-      <h2>Learner impact</h2>
+      <h2>Eligible learners</h2>
       <p>
-        If activated now, <strong>{String(preview.eligibleNowCount)}</strong> learner
+        Based on current LMS data, <strong>{String(preview.eligibleNowCount)}</strong> learner
         {preview.eligibleNowCount === 1 ? "" : "s"} in{" "}
         <strong>{preview.courseTitle ?? preview.courseContextId ?? "this course"}</strong> would
-        immediately earn this badge.
+        qualify for this badge under this version.
       </p>
+      <p>This preview does not issue badges.</p>
       <AdminMeta>
         Evaluated {String(preview.evaluatedLearnerCount)} learner
         {preview.evaluatedLearnerCount === 1 ? "" : "s"} · Generated{" "}
@@ -74,7 +75,7 @@ export const BadgeRuleApprovalReviewImpact = (input: {
       <AdminForm method="post" action={refreshPath}>
         <AdminActions>
           <AdminButton type="submit" variant="secondary">
-            Refresh impact
+            Refresh preview
           </AdminButton>
         </AdminActions>
       </AdminForm>

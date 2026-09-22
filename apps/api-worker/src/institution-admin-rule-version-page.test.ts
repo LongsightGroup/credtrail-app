@@ -427,7 +427,7 @@ describe("GET /tenants/:tenantId/admin/rules/:ruleId/versions/:versionId", () =>
     expect(body).toContain("What this version requires");
     expect(body).toContain('data-rule-lms-reference="course"');
     expect(body).toContain('data-rule-lms-reference="assignment"');
-    expect(body).toContain('data-rule-lms-label="">Course</span>');
+    expect(body).toContain('<strong data-rule-lms-label="">Course</strong>');
     expect(body).toContain('data-rule-lms-label="">Assignment</span>');
     expect(body).toContain("ID: course_101");
     expect(body).toContain("ID: assignment_7");

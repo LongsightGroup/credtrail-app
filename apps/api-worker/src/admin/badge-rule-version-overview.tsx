@@ -107,7 +107,11 @@ const adminLmsReferenceMarkup = (input: BadgeRuleSummaryLmsReferenceMarkupInput)
   const label = input.reference.kind === "assignment" ? "Assignment" : input.label;
   const content = (
     <>
-      <span data-rule-lms-label="">{label}</span>{" "}
+      {input.reference.kind === "course" ? (
+        <strong data-rule-lms-label="">{label}</strong>
+      ) : (
+        <span data-rule-lms-label="">{label}</span>
+      )}{" "}
       <span class="ct-rule-summary__muted">ID: {input.rawId}</span>
     </>
   );
