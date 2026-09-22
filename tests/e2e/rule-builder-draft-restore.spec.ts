@@ -246,38 +246,6 @@ const waitForBuilderDraftSave = (page: Page): ReturnType<Page["waitForResponse"]
   });
 };
 
-const waitForBuilderDraftDefinitionSave = (
-  page: Page,
-  expectedDefinition: unknown,
-): ReturnType<Page["waitForResponse"]> => {
-  const expectedDefinitionJson = JSON.stringify(expectedDefinition);
-
-  return page.waitForResponse((response) => {
-    const request = response.request();
-    if (
-      request.method() !== "PUT" ||
-      !new URL(request.url()).pathname.includes("/badge-rule-builder-drafts/")
-    ) {
-      return false;
-    }
-
-    try {
-      const payload: unknown = JSON.parse(request.postData() ?? "null");
-      const definitionJson =
-        payload !== null && typeof payload === "object"
-          ? Reflect.get(payload, "definitionJson")
-          : undefined;
-
-      return (
-        typeof definitionJson === "string" &&
-        JSON.stringify(JSON.parse(definitionJson) as unknown) === expectedDefinitionJson
-      );
-    } catch {
-      return false;
-    }
-  });
-};
-
 const cleanupDraftRestoreRecords = async (input: {
   readonly builderDraftId?: string;
   readonly lmsConnectionId: string;
@@ -448,9 +416,18 @@ test("unfinished custom requirements restore without being replaced by a starter
     await page.getByRole("button", { name: "Apply JSON" }).click();
     await expect(page.getByLabel("Awarding pattern")).toHaveValue("custom");
 
-    const saveResponsePromise = waitForBuilderDraftDefinitionSave(page, customDefinition);
+    const saveRequestPromise = page.waitForRequest((request) => {
+      return (
+        request.method() === "PUT" &&
+        new URL(request.url()).pathname.includes("/badge-rule-builder-drafts/")
+      );
+    });
     await page.getByRole("button", { name: "Save unfinished work" }).click();
-    const saveResponse = await saveResponsePromise;
+    const saveResponse = await (await saveRequestPromise).response();
+    if (saveResponse === null) {
+      throw new Error("Draft save request finished without a response");
+    }
+    expect(saveResponse.ok()).toBe(true);
     const savePayload: unknown = await saveResponse.json();
     const draft =
       savePayload !== null && typeof savePayload === "object"
