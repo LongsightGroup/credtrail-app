@@ -2,6 +2,7 @@ import {
   canReopenApprovedBadgeIssuanceRuleVersion,
   findTenantById,
   findUserById,
+  findUsersByIds,
   listBadgeIssuanceRuleVersionApprovalEvents,
   listBadgeIssuanceRuleVersionApprovalSteps,
   listPendingBadgeIssuanceRuleApprovalsForActor,
@@ -150,6 +151,12 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
     },
   ): Promise<Response> => {
     const { data, impactPreview } = input;
+    const approvalActors = await findUsersByIds(
+      data.db,
+      data.approvalEvents.flatMap((event) =>
+        event.actorUserId === null ? [] : [event.actorUserId],
+      ),
+    );
     const flash = await consumeAdminListMessageFlash(c, {
       tenantId: data.tenant.id,
       userId: data.principal.userId,
@@ -181,6 +188,7 @@ export const registerTenantBadgeRuleApprovalWorkspaceAdminRoutes = (
           impactPreview,
           approvalSteps: data.approvalSteps,
           approvalEvents: data.approvalEvents,
+          approvalActors,
           action: buildBadgeRuleReviewAction({
             canDecide: data.canDecide,
             canReopen: data.canReopen,

@@ -1,6 +1,7 @@
 import type {
   BadgeIssuanceRuleApprovalEventRecord,
   BadgeIssuanceRuleApprovalStepRecord,
+  UserRecord,
 } from "@credtrail/db";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { formatIsoTimestamp } from "../utils/display-format";
@@ -13,6 +14,7 @@ type HonoElement = HtmlEscapedString | Promise<HtmlEscapedString>;
 export const BadgeRuleApprovalReviewHistory = (input: {
   readonly steps: readonly BadgeIssuanceRuleApprovalStepRecord[];
   readonly events: readonly BadgeIssuanceRuleApprovalEventRecord[];
+  readonly actors: ReadonlyMap<string, UserRecord>;
 }): HonoElement => {
   return (
     <AdminPanel className="ct-admin__review-approval-progress">
@@ -50,7 +52,11 @@ export const BadgeRuleApprovalReviewHistory = (input: {
               <li>
                 <strong>{event.action.replaceAll("_", " ")}</strong>{" "}
                 <span>· {formatIsoTimestamp(event.occurredAt)}</span>
-                <AdminMeta>{event.actorUserId ?? "System"}</AdminMeta>
+                <AdminMeta>
+                  {event.actorUserId === null
+                    ? "System"
+                    : (input.actors.get(event.actorUserId)?.email ?? event.actorUserId)}
+                </AdminMeta>
                 {event.comment === null ? null : <p>{event.comment}</p>}
               </li>
             ))}

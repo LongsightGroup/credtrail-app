@@ -3,6 +3,7 @@ import type {
   BadgeIssuanceRuleApprovalStepRecord,
   BadgeIssuanceRuleRecord,
   TenantOrgUnitRecord,
+  UserRecord,
 } from "@credtrail/db";
 import type { BadgeIssuanceRuleDefinition } from "@credtrail/validation";
 import { badgeRuleVersionDisplayFields } from "../badges/badge-rule-presentation";
@@ -40,6 +41,7 @@ export const badgeRuleApprovalReviewPage = (
     readonly impactPreview: BadgeRuleImpactPreview;
     readonly approvalSteps: readonly BadgeIssuanceRuleApprovalStepRecord[];
     readonly approvalEvents: readonly BadgeIssuanceRuleApprovalEventRecord[];
+    readonly approvalActors: ReadonlyMap<string, UserRecord>;
     readonly action: BadgeRuleReviewAction;
     readonly listNotice: string | null;
     readonly listError: string | null;
@@ -117,6 +119,7 @@ export const badgeRuleApprovalReviewPage = (
               <BadgeRuleApprovalReviewHistory
                 steps={input.approvalSteps}
                 events={input.approvalEvents}
+                actors={input.approvalActors}
               />
             </div>
           </div>

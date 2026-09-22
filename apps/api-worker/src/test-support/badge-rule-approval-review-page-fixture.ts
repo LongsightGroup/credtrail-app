@@ -103,6 +103,9 @@ export const renderBadgeRuleApprovalReviewPageFixture = (): string => {
         impactPreview: { status: "not_requested" },
         approvalSteps: [approvalStep],
         approvalEvents: [approvalEvent],
+        approvalActors: new Map([
+          ["usr_author", { id: "usr_author", email: "author@example.edu" }],
+        ]),
         action: { kind: "decide" },
         listNotice: null,
         listError: null,
