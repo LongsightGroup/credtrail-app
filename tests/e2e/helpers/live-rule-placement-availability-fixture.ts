@@ -506,6 +506,7 @@ export const createLiveRulePlacementAvailabilityFixture =
     const ruleName = `Course availability ${suffix.slice(0, 8)}`;
     const departmentName = "Applied Data Studies";
     const ruleJson = JSON.stringify({
+      customLabel: ruleName,
       conditions: {
         type: "course_completion",
         courseId: "course-placement-e2e",

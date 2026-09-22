@@ -51,7 +51,7 @@ test("an administrator can search and choose a badge template in one combobox", 
   );
   const reuse = page.getByLabel("I confirm this rule is another valid way to earn the same badge.");
   if (await reuse.isVisible()) await reuse.check();
-  await expect(page.getByRole("button", { name: "Continue to Requirements" })).toBeEnabled();
+  await expect(ruleName).not.toHaveAttribute("required", "");
   await ruleName.fill("Final exam distinction");
   const committedValue = await nativeSelect.inputValue();
   expect(committedValue).not.toBe("");

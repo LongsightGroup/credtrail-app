@@ -147,6 +147,7 @@ export const createLiveBadgeRuleApprovalFixture =
       lmsProviderKind: "canvas",
       lmsConnectionId,
       ruleJson: JSON.stringify({
+        customLabel: ruleName,
         conditions: {
           type: "course_completion",
           courseId: "course_approval_e2e",

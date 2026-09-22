@@ -473,7 +473,10 @@ test("unfinished custom requirements restore without being replaced by a starter
     await expect(
       page.getByLabel("Flag learners for review when required information is missing"),
     ).toBeChecked();
-    await expect(readGeneratedDefinition(page)).resolves.toEqual(customDefinition);
+    await expect(readGeneratedDefinition(page)).resolves.toEqual({
+      ...customDefinition,
+      customLabel: ruleName,
+    });
     await expect(
       page.getByLabel("I confirm this rule is another valid way to earn the same badge."),
     ).toBeChecked();

@@ -85,6 +85,7 @@ export const localDevDemoRule = {
         },
       ],
     },
+    customLabel: "Local Demo: Applied Analytics Completion",
   },
 };
 
