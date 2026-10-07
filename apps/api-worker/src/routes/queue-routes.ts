@@ -77,6 +77,8 @@ const queueIngressResponse = (
       return programmaticApiError(c, 404, "template_not_found", "Badge template not found");
     case "template_archived":
       return programmaticApiError(c, 409, "template_archived", "Badge template is archived");
+    case "invalid_expiry":
+      return programmaticApiError(c, 422, result.failure.code, result.failure.error);
     case "artwork_failure": {
       const failure = badgeArtworkIssuanceHttpFailure(result.failure);
       return programmaticApiError(
@@ -165,6 +167,7 @@ export const registerQueueRoutes = (input: RegisterQueueRoutesInput): void => {
       artworkStore: c.env.BADGE_OBJECTS,
       publicAppOrigin: c.env.PUBLIC_APP_ORIGIN,
       request: parsed.value,
+      nowIso: new Date().toISOString(),
       requestedByUserId: auth.actorUserId,
     });
     return queueIngressResponse(c, result);

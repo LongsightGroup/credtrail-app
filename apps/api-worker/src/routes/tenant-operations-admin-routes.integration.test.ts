@@ -17,6 +17,7 @@ import type { AppEnv } from "../app/types";
 import { registerAppPageRenderer } from "../ui/render-page";
 import { issuanceReceiptPath } from "../admin/issuance-receipt-page";
 import { registerTenantOperationsAdminRoutes } from "./tenant-operations-admin-routes";
+import { manualIssueIdempotencyKey } from "../admin/manual-issue-request";
 
 const tenantIds: string[] = [];
 const userIds: string[] = [];
@@ -75,6 +76,44 @@ const routeApp = (data: BadgeRuleIntegrationFixture, allowAccess = true): Hono<A
 };
 
 describeDbIntegration("persisted issuance receipts", () => {
+  it("returns the saved receipt when a matching form is retried after expiry", async () => {
+    const data = await fixture();
+    const form = {
+      issuanceRequestId: crypto.randomUUID(),
+      badgeTemplateId: data.badgeTemplateId,
+      recipientIdentity: "expired-replay@example.edu",
+      validUntil: "2020-01-01",
+    };
+    const idempotencyKey = await manualIssueIdempotencyKey({
+      tenantId: data.tenantId,
+      userId: data.userId,
+      requestId: form.issuanceRequestId,
+      badgeTemplateId: form.badgeTemplateId,
+      recipientIdentity: form.recipientIdentity,
+      pathwayHandoffId: undefined,
+    });
+    const assertionId = await seedAssertion(data.db, {
+      tenantId: data.tenantId,
+      badgeTemplateId: data.badgeTemplateId,
+      recipientIdentity: form.recipientIdentity,
+      idempotencyKey,
+      issuedAt: "2019-12-31T00:00:00.000Z",
+    });
+    await data.db
+      .prepare("UPDATE assertions SET valid_until = ? WHERE id = ?")
+      .bind("2020-01-01T23:59:59.000Z", assertionId)
+      .run();
+    const response = await routeApp(data).request(
+      `/tenants/${data.tenantId}/admin/operations/issue`,
+      {
+        method: "POST",
+        body: new URLSearchParams(form),
+      },
+    );
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(issuanceReceiptPath(data.tenantId, assertionId));
+  });
+
   it("offers a retry tied to the saved failed notification on the existing receipt", async () => {
     const f = await fixture();
     const assertionId = await seedAssertion(f.db, {

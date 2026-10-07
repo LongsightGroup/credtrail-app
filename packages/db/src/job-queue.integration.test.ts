@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { enqueueOrReplayJobQueueMessage } from "./job-queue";
+import { enqueueOrReplayJobQueueMessage, failJobQueueMessage } from "./job-queue";
 import {
   cleanupTestResources,
   countRows,
@@ -9,6 +9,62 @@ import {
 } from "./postgres-test-support";
 
 describeDbIntegration("queue command idempotency", () => {
+  it.each(["allowed", "never"] as const)("persists the failure retry policy: %s", async (retry) => {
+    const fixture = await createTestTenantFixture();
+    const nowIso = "2099-01-01T00:00:00.000Z";
+    const leaseToken = uniqueTestId("lease");
+    try {
+      const message = await enqueueOrReplayJobQueueMessage(fixture.db, {
+        tenantId: fixture.tenantId,
+        jobType: "issue_badge",
+        idempotencyKey: uniqueTestId("expiry-failure"),
+        payload: {},
+        maxAttempts: 8,
+      });
+      await fixture.db
+        .prepare(
+          "UPDATE job_queue_messages SET status = 'processing', attempt_count = 1, lease_token = ?, leased_until = ? WHERE id = ?",
+        )
+        .bind(leaseToken, nowIso, message.id)
+        .run();
+      // A stale worker cannot finalize a newer lease, even for a permanent failure.
+      expect(
+        await failJobQueueMessage(fixture.db, {
+          id: message.id,
+          leaseToken: "stale-lease",
+          nowIso,
+          error: "Expired before issuance",
+          retryDelaySeconds: 30,
+          retry,
+        }),
+      ).toBeNull();
+      expect(
+        await failJobQueueMessage(fixture.db, {
+          id: message.id,
+          leaseToken,
+          nowIso,
+          error: "Expired before issuance",
+          retryDelaySeconds: 30,
+          retry,
+        }),
+      ).toBe(retry === "never" ? "failed" : "pending");
+      expect(
+        await fixture.db
+          .prepare(
+            "SELECT failed_at AS failedAt, available_at AS availableAt, lease_token AS leaseToken FROM job_queue_messages WHERE id = ?",
+          )
+          .bind(message.id)
+          .first(),
+      ).toEqual({
+        failedAt: retry === "never" ? nowIso : null,
+        availableAt: retry === "never" ? message.availableAt : "2099-01-01T00:00:30.000Z",
+        leaseToken: null,
+      });
+    } finally {
+      await cleanupTestResources(fixture.db, { tenantIds: [fixture.tenantId] });
+    }
+  });
+
   it("returns the original immutable command when an idempotency key is replayed", async () => {
     const fixture = await createTestTenantFixture({ displayName: "Queue Replay University" });
     const idempotencyKey = uniqueTestId("queue-replay");

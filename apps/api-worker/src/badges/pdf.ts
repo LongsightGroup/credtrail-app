@@ -577,9 +577,44 @@ export const renderBadgePdfDocument = async (
   const displayFont = await pdfDocument.embedFont(StandardFonts.TimesRomanBold);
 
   const pageWidth = page.getWidth();
-  const pageHeight = page.getHeight();
   const shellMargin = 24;
   const contentMargin = 34;
+  const lowerPanelGap = 16;
+  const lowerPanelWidth = (pageWidth - contentMargin * 2 - lowerPanelGap) / 2;
+  const recordContentWidth = lowerPanelWidth - 36;
+  const recordFields = [
+    { label: "Credential status", value: input.status, emphasis: true },
+    { label: "Recipient identifier", value: input.recipientIdentifier, emphasis: false },
+    { label: "Assertion ID", value: input.assertionId, emphasis: false },
+    { label: "Credential ID", value: input.credentialId, emphasis: false },
+    ...(input.validUntil === undefined
+      ? []
+      : [{ label: "Valid until", value: input.validUntil, emphasis: false }]),
+    ...(input.revokedAt === undefined
+      ? []
+      : [{ label: "Revoked at", value: input.revokedAt, emphasis: false }]),
+  ].map((field) => ({
+    ...field,
+    valueFont: field.emphasis ? boldFont : regularFont,
+    valueSize: field.emphasis ? 11.4 : 9.6,
+    lineHeight: field.emphasis ? 13 : 11.2,
+    labelGap: field.emphasis ? 12 : 11,
+    gapAfter: field.emphasis ? 8 : 7,
+  }));
+  const recordFieldsHeight = recordFields.reduce(
+    (height, field) =>
+      height +
+      field.labelGap +
+      field.gapAfter +
+      wrapPdfText(field.value, field.valueFont, field.valueSize, recordContentWidth).length *
+        field.lineHeight,
+    0,
+  );
+  const lowerPanelHeight = Math.max(224, 78 + recordFieldsHeight + 18);
+  // Grow the page with the measured record so every identifier and lifecycle date stays visible.
+  const extraHeight = lowerPanelHeight - 224;
+  page.setSize(pageWidth, 792 + extraHeight);
+  const pageHeight = page.getHeight();
 
   const colors = {
     paper: rgb(0.95, 0.97, 0.99),
@@ -638,7 +673,7 @@ export const renderBadgePdfDocument = async (
 
   const headerFrame = {
     x: contentMargin,
-    y: 644,
+    y: 644 + extraHeight,
     width: pageWidth - contentMargin * 2,
     height: 104,
   };
@@ -704,7 +739,7 @@ export const renderBadgePdfDocument = async (
 
   const heroFrame = {
     x: contentMargin,
-    y: 424,
+    y: 424 + extraHeight,
     width: pageWidth - contentMargin * 2,
     height: 196,
   };
@@ -837,9 +872,6 @@ export const renderBadgePdfDocument = async (
   });
 
   const lowerPanelY = 184;
-  const lowerPanelHeight = 224;
-  const lowerPanelGap = 16;
-  const lowerPanelWidth = (heroFrame.width - lowerPanelGap) / 2;
   const verificationFrame = {
     x: contentMargin,
     y: lowerPanelY,
@@ -964,90 +996,18 @@ export const renderBadgePdfDocument = async (
 
   let recordY = recordFrame.y + recordFrame.height - 78;
   const recordContentX = recordFrame.x + 18;
-  const recordContentWidth = recordFrame.width - 36;
-  recordY = drawPdfField(page, "Credential status", input.status, recordContentX, recordY, {
-    labelFont: boldFont,
-    labelSize: 9.2,
-    labelColor: colors.subtle,
-    valueFont: boldFont,
-    valueSize: 11.4,
-    valueColor: colors.ink,
-    lineHeight: 13,
-    maxWidth: recordContentWidth,
-    gapAfter: 8,
-    labelGap: 12,
-  });
-  recordY = drawPdfField(
-    page,
-    "Recipient identifier",
-    input.recipientIdentifier,
-    recordContentX,
-    recordY,
-    {
+  for (const field of recordFields) {
+    recordY = drawPdfField(page, field.label, field.value, recordContentX, recordY, {
       labelFont: boldFont,
       labelSize: 9.2,
       labelColor: colors.subtle,
-      valueFont: regularFont,
-      valueSize: 9.6,
+      valueFont: field.valueFont,
+      valueSize: field.valueSize,
       valueColor: colors.ink,
-      lineHeight: 11.2,
+      lineHeight: field.lineHeight,
       maxWidth: recordContentWidth,
-      gapAfter: 7,
-      labelGap: 11,
-    },
-  );
-  recordY = drawPdfField(page, "Assertion ID", input.assertionId, recordContentX, recordY, {
-    labelFont: boldFont,
-    labelSize: 9.2,
-    labelColor: colors.subtle,
-    valueFont: regularFont,
-    valueSize: 9.6,
-    valueColor: colors.ink,
-    lineHeight: 11.2,
-    maxWidth: recordContentWidth,
-    gapAfter: 7,
-    labelGap: 11,
-  });
-  recordY = drawPdfField(page, "Credential ID", input.credentialId, recordContentX, recordY, {
-    labelFont: boldFont,
-    labelSize: 9.2,
-    labelColor: colors.subtle,
-    valueFont: regularFont,
-    valueSize: 9.6,
-    valueColor: colors.ink,
-    lineHeight: 11.2,
-    maxWidth: recordContentWidth,
-    gapAfter: 7,
-    labelGap: 11,
-  });
-
-  if (input.validUntil !== undefined) {
-    recordY = drawPdfField(page, "Valid until", input.validUntil, recordContentX, recordY, {
-      labelFont: boldFont,
-      labelSize: 9.2,
-      labelColor: colors.subtle,
-      valueFont: regularFont,
-      valueSize: 9.6,
-      valueColor: colors.ink,
-      lineHeight: 11.2,
-      maxWidth: recordContentWidth,
-      gapAfter: 7,
-      labelGap: 11,
-    });
-  }
-
-  if (input.revokedAt !== undefined) {
-    drawPdfField(page, "Revoked at", input.revokedAt, recordContentX, recordY, {
-      labelFont: boldFont,
-      labelSize: 9.2,
-      labelColor: colors.subtle,
-      valueFont: regularFont,
-      valueSize: 9.6,
-      valueColor: colors.ink,
-      lineHeight: 11.2,
-      maxWidth: recordContentWidth,
-      gapAfter: 0,
-      labelGap: 11,
+      gapAfter: field.gapAfter,
+      labelGap: field.labelGap,
     });
   }
 

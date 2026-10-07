@@ -60,6 +60,7 @@ export type ProgrammaticAssertionQuery = z.infer<typeof programmaticAssertionQue
 /** Machine-readable failures callers can handle without matching message text. */
 export const programmaticErrorCodeSchema = z.enum([
   "invalid_request",
+  "invalid_expiry",
   "api_key_required",
   "invalid_api_key",
   "tenant_mismatch",

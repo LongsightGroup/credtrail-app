@@ -1,4 +1,3 @@
-import { linkedinOrganizationIdSchema } from "@credtrail/validation";
 import { createRecordingEmailBinding } from "../test-support/recording-email";
 import { describe, expect, it } from "vitest";
 
@@ -85,50 +84,23 @@ describe("issuance email expiry", () => {
     expect(messages[0]?.text).toContain("Valid until: 2027-02-10T22:00:00.000Z");
   });
 
-  describe("issuance email LinkedIn link", () => {
-    const baseInput = {
+  it("routes LinkedIn sharing through the public credential record", async () => {
+    const { emailBinding, messages } = createRecordingEmailBinding();
+    const publicBadgeUrl = "https://credtrail.org/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22";
+    await sendIssuanceEmailNotification({
+      emailBinding,
       recipientEmail: "learner@example.edu",
       badgeTitle: "TypeScript Foundations",
       tenantDisplayName: "Example University",
       issuedAtIso: "2026-02-10T22:00:00.000Z",
-      publicBadgeUrl: "https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
-      verificationUrl:
-        "https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/verification",
-      credentialDownloadUrl:
-        "https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/download",
-      credentialId: "urn:credtrail:assertion:tenant_123%3Aassertion_456",
-    };
-
-    it("offers Add to LinkedIn with the issuer name, credential and dates", async () => {
-      const { emailBinding, messages } = createRecordingEmailBinding();
-
-      await sendIssuanceEmailNotification({
-        ...baseInput,
-        emailBinding,
-        validUntilIso: "2027-02-10T22:00:00.000Z",
-      });
-
-      const html = messages[0]?.html ?? "";
-      expect(html).toContain("Add to LinkedIn");
-      expect(html).toContain("https://www.linkedin.com/profile/add?");
-      expect(html).toContain("organizationName=Example+University");
-      expect(html).toContain("certId=urn%3Acredtrail%3Aassertion%3Atenant_123%253Aassertion_456");
-      expect(html).toContain("issueYear=2026");
-      expect(html).toContain("expirationYear=2027");
-      expect(messages[0]?.text).toContain("Add to LinkedIn: https://www.linkedin.com/profile/add?");
+      validUntilIso: "2027-02-10T22:00:00.000Z",
+      publicBadgeUrl,
+      verificationUrl: `${publicBadgeUrl}/verification`,
+      credentialDownloadUrl: `${publicBadgeUrl}/download`,
     });
-
-    it("links the certification to the issuer's LinkedIn organization when configured", async () => {
-      const { emailBinding, messages } = createRecordingEmailBinding();
-
-      await sendIssuanceEmailNotification({
-        ...baseInput,
-        emailBinding,
-        linkedInOrganizationId: linkedinOrganizationIdSchema.parse("110806030"),
-      });
-
-      expect(messages[0]?.html).toContain("organizationId=110806030");
-      expect(messages[0]?.html).not.toContain("organizationName=");
-    });
+    expect(messages[0]?.html).toContain(`href="${publicBadgeUrl}/share/linkedin-profile"`);
+    expect(messages[0]?.text).toContain(
+      `Add to LinkedIn: ${publicBadgeUrl}/share/linkedin-profile`,
+    );
   });
 });

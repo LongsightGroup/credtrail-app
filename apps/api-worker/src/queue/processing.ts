@@ -25,6 +25,7 @@ import { applyLearnerRecordImportQueuePayload } from "../learner-record/learner-
 import type { DirectIssueBadgeRequest } from "../badges/recipient-identifiers";
 import { GradebookProviderError } from "../lms/gradebook-provider-error";
 import { processLearnerPathwayAward } from "../learner/pathway-award-processor";
+import { isIssueBadgeHttpError } from "../badges/direct-issue";
 
 const DEFAULT_JOB_PROCESS_LIMIT = 10;
 const DEFAULT_JOB_PROCESS_LEASE_SECONDS = 300;
@@ -341,6 +342,10 @@ export const createProcessQueuedJobs = <TBindings, TContext extends { env: TBind
           nowIso: new Date().toISOString(),
           error: detail,
           retryDelaySeconds: requestInput.retryDelaySeconds,
+          retry:
+            isIssueBadgeHttpError(error) && error.payload.code === "invalid_expiry"
+              ? "never"
+              : "allowed",
         });
 
         if (leasedMessage.jobType === "process_automated_badge_rule") {

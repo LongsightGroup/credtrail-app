@@ -1,3 +1,4 @@
+import { expiryTimestampFromFormDate } from "../admin/manual-issue-expiry";
 import { badgeRecordsReturnHref } from "../admin/learner-record-link";
 import { canonicalAppUrl } from "../http/canonical-app-url";
 import { publicBadgePathForAssertion } from "../badges/public-badge-model";
@@ -62,16 +63,6 @@ export interface RegisterTenantOperationsAdminRoutesInput {
   >;
 }
 
-/** YYYY-MM-DD from the form -> ISO end of that day (UTC); null when it is not a real date or not in the future. */
-export const expiryTimestampFromFormDate = (value: string, now = Date.now()): string | null => {
-  const trimmed = value.trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/u.test(trimmed)) return null;
-  const timestamp = Date.parse(`${trimmed}T23:59:59.000Z`);
-  if (Number.isNaN(timestamp) || !new Date(timestamp).toISOString().startsWith(trimmed))
-    return null;
-  return timestamp > now ? new Date(timestamp).toISOString() : null;
-};
-
 export const registerTenantOperationsAdminRoutes = (
   input: RegisterTenantOperationsAdminRoutesInput,
 ): void => {
@@ -126,7 +117,7 @@ export const registerTenantOperationsAdminRoutes = (
       validUntilField === undefined ? undefined : expiryTimestampFromFormDate(validUntilField);
     if (validUntil === null)
       return correct(
-        "Enter the expiry as a date (YYYY-MM-DD) later than today, or leave it empty for a badge that does not expire.",
+        "Enter a valid expiry date (YYYY-MM-DD), or leave it empty for a badge that does not expire.",
       );
 
     if (!parsedRequestId.success)

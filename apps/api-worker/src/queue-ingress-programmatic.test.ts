@@ -6,6 +6,7 @@ import {
   sampleQueueIngressApiKey,
   sampleQueueIngressBadgeTemplate,
 } from "./test-support/queue-ingress-harness";
+import { parseQueueJob } from "@credtrail/validation";
 
 const { app, store } = createQueueIngressTestHarness();
 
@@ -30,6 +31,108 @@ describe("removed internal queue ingress routes", () => {
 });
 
 describe("POST /v1/programmatic/issue and /v1/programmatic/revoke", () => {
+  it("rejects a past expiry without persisting a command", async () => {
+    store.activeApiKey = sampleQueueIngressApiKey();
+    const response = await app.request(
+      "/v1/programmatic/issue",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-api-key": "ctak_example_secret" },
+        body: JSON.stringify({
+          tenantId: "tenant_123",
+          badgeTemplateId: "badge_template_001",
+          recipientIdentity: "learner@example.edu",
+          recipientIdentityType: "email",
+          idempotencyKey: "expiry_past",
+          validUntil: "2020-01-01T00:00:00.000Z",
+        }),
+      },
+      createQueueIngressTestEnv(),
+    );
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      code: "invalid_expiry",
+      error: "Valid until must be later than the issue date.",
+    });
+    expect(store.enqueuedInputs).toHaveLength(0);
+  });
+
+  it.each([
+    { persistedExpiry: undefined, requestedExpiry: "2099-12-31T23:59:59.000Z" },
+    { persistedExpiry: "2099-12-31T23:59:59.000Z", requestedExpiry: undefined },
+    { persistedExpiry: "2099-12-31T23:59:59.000Z", requestedExpiry: "2099-06-30T23:59:59.000Z" },
+  ])(
+    "rejects reuse of a command key when expiry changes: %j",
+    async ({ persistedExpiry, requestedExpiry }) => {
+      store.activeApiKey = sampleQueueIngressApiKey();
+      const original = sampleQueuedIssueMessage();
+      const job = parseQueueJob({
+        tenantId: original.tenantId,
+        jobType: original.jobType,
+        idempotencyKey: original.idempotencyKey,
+        payload: JSON.parse(original.payloadJson),
+      });
+      store.existingMessage = {
+        ...original,
+        payloadJson: JSON.stringify({ ...job.payload, validUntil: persistedExpiry }),
+      };
+      const response = await app.request(
+        "/v1/programmatic/issue",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-api-key": "ctak_example_secret" },
+          body: JSON.stringify({
+            tenantId: "tenant_123",
+            badgeTemplateId: "badge_template_001",
+            recipientIdentity: "learner@example.edu",
+            recipientIdentityType: "email",
+            idempotencyKey: original.idempotencyKey,
+            validUntil: requestedExpiry,
+          }),
+        },
+        createQueueIngressTestEnv(),
+      );
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ code: "idempotency_conflict" });
+      expect(store.enqueuedInputs).toHaveLength(0);
+    },
+  );
+
+  it("replays a matching command even after its requested expiry has passed", async () => {
+    store.activeApiKey = sampleQueueIngressApiKey();
+    const original = sampleQueuedIssueMessage();
+    const job = parseQueueJob({
+      tenantId: original.tenantId,
+      jobType: original.jobType,
+      idempotencyKey: original.idempotencyKey,
+      payload: JSON.parse(original.payloadJson),
+    });
+    const validUntil = "2020-01-01T00:00:00.000Z";
+    store.existingMessage = {
+      ...original,
+      payloadJson: JSON.stringify({ ...job.payload, validUntil }),
+    };
+    const response = await app.request(
+      "/v1/programmatic/issue",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-api-key": "ctak_example_secret" },
+        body: JSON.stringify({
+          tenantId: "tenant_123",
+          badgeTemplateId: "badge_template_001",
+          recipientIdentity: "learner@example.edu",
+          recipientIdentityType: "email",
+          idempotencyKey: original.idempotencyKey,
+          validUntil,
+        }),
+      },
+      createQueueIngressTestEnv(),
+    );
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({ operationId: original.id });
+    expect(store.enqueuedInputs).toHaveLength(0);
+  });
+
   it("queues issue requests with valid API key scope", async () => {
     store.activeApiKey = sampleQueueIngressApiKey();
     const response = await app.request(

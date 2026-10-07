@@ -3,6 +3,7 @@ export class HttpErrorResponse extends Error {
 
   public readonly payload: {
     error: string;
+    code?: string;
     did?: string | undefined;
   };
 
@@ -10,6 +11,7 @@ export class HttpErrorResponse extends Error {
     statusCode: 400 | 404 | 409 | 422 | 500 | 502 | 503,
     payload: {
       error: string;
+      code?: string;
       did?: string | undefined;
     },
   ) {

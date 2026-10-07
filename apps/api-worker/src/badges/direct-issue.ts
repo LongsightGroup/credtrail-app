@@ -1,4 +1,5 @@
 import { prepareRenewableBadgeIssuance } from "./renewable-badge-issuance";
+import { issuanceExpiryFailure } from "./issuance-expiry";
 import {
   attemptIssuanceEmail,
   recordIssuanceEmailOutcome,
@@ -20,7 +21,6 @@ import {
   findBadgeTemplateById,
   findBadgeIssuanceRuleVersionById,
   findTenantById,
-  findTenantLinkedInSettings,
   listLearnerIdentitiesByProfile,
   reserveAssertionStatusListIndex,
   resolveAssertionLifecycleState,
@@ -88,6 +88,7 @@ const issuerUrlFromTenantDomain = (issuerDomain: string): string | undefined => 
 /** HTTP error payload emitted by direct badge issuance. */
 export interface IssueBadgeHttpErrorPayload {
   readonly error: string;
+  readonly code?: "invalid_expiry";
   readonly did?: string | undefined;
 }
 
@@ -122,7 +123,11 @@ export const isIssueBadgeHttpError = (error: unknown): error is IssueBadgeHttpEr
     return false;
   }
 
-  return "error" in error.payload && typeof error.payload.error === "string";
+  return (
+    "error" in error.payload &&
+    typeof error.payload.error === "string" &&
+    (!("code" in error.payload) || error.payload.code === "invalid_expiry")
+  );
 };
 
 type IssueBadgeHttpErrorClass = new (
@@ -374,11 +379,8 @@ export const createIssueBadgeForTenant = <
     }
     // A caller-supplied expiry (manual form, manual API, programmatic API). A renewable rule keeps its own cycle.
     if (validity.validUntil === undefined && request.validUntil !== undefined) {
-      if (Date.parse(request.validUntil) <= Date.parse(issuedAt)) {
-        throw new input.HttpErrorResponseClass(422, {
-          error: "Valid until must be later than the issue date.",
-        });
-      }
+      const failure = issuanceExpiryFailure(request.validUntil, issuedAt);
+      if (failure !== null) throw new input.HttpErrorResponseClass(422, failure);
       validity = { validUntil: request.validUntil };
     }
 
@@ -631,7 +633,6 @@ export const createIssueBadgeForTenant = <
       configured: context.env.EMAIL !== undefined,
       send: async () => {
         const publicBadgePath = input.publicBadgePathForAssertion(createdAssertion);
-        const linkedInSettings = await findTenantLinkedInSettings(db, tenantId);
         await input.sendIssuanceEmailNotification({
           emailBinding: context.env.EMAIL,
           fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
@@ -647,8 +648,6 @@ export const createIssueBadgeForTenant = <
             credentialBaseUrl,
           ).toString(),
           validUntilIso: validity.validUntil ?? null,
-          credentialId: `urn:credtrail:assertion:${encodeURIComponent(assertionId)}`,
-          linkedInOrganizationId: linkedInSettings?.organizationId ?? null,
         });
       },
     });

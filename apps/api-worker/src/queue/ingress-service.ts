@@ -13,6 +13,7 @@ import {
   type RevokeBadgeQueueEnvelope,
 } from "./ingress-replay";
 import type { QueueIngressCommandStore } from "./ingress-store";
+import { issuanceExpiryFailure, type IssuanceExpiryFailure } from "../badges/issuance-expiry";
 
 export type { IssueBadgeQueueEnvelope, RevokeBadgeQueueEnvelope } from "./ingress-replay";
 
@@ -22,6 +23,7 @@ export type IssueQueueIngressResult =
   | { readonly status: "idempotency_conflict" }
   | { readonly status: "template_not_found" }
   | { readonly status: "template_archived" }
+  | { readonly status: "invalid_expiry"; readonly failure: IssuanceExpiryFailure }
   | { readonly status: "artwork_failure"; readonly failure: IssuableBadgeArtworkFailure };
 
 /** Typed result of accepting a revocation command at the queue boundary. */
@@ -99,6 +101,7 @@ export const issueQueueIngressCommand = async (input: {
   readonly artworkStore: ImmutableCredentialStore;
   readonly publicAppOrigin: string;
   readonly request: IssueBadgeRequest;
+  readonly nowIso: string;
   readonly requestedByUserId?: string | undefined;
 }): Promise<IssueQueueIngressResult> => {
   const existing = await existingIssueResult(input);
@@ -106,6 +109,9 @@ export const issueQueueIngressCommand = async (input: {
   if (existing !== null) {
     return existing;
   }
+
+  const expiryFailure = issuanceExpiryFailure(input.request.validUntil, input.nowIso);
+  if (expiryFailure !== null) return { status: "invalid_expiry", failure: expiryFailure };
 
   const template = await input.store.findBadgeTemplateById(
     input.request.tenantId,

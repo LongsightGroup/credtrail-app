@@ -74,6 +74,7 @@ export interface FailJobQueueMessageInput {
   nowIso: string;
   error: string;
   retryDelaySeconds: number;
+  retry: "allowed" | "never";
 }
 
 export type MigrationBatchSource = "file_upload" | "credly_export" | "parchment_export" | "unknown";
@@ -647,18 +648,28 @@ export const failJobQueueMessage = async (
     .prepare(
       `
       UPDATE job_queue_messages
-      SET status = CASE WHEN attempt_count >= max_attempts THEN 'failed' ELSE 'pending' END,
-          available_at = CASE WHEN attempt_count >= max_attempts THEN available_at ELSE ? END,
+      SET status = CASE WHEN ? = 'never' OR attempt_count >= max_attempts THEN 'failed' ELSE 'pending' END,
+          available_at = CASE WHEN ? = 'never' OR attempt_count >= max_attempts THEN available_at ELSE ? END,
           leased_until = NULL,
           lease_token = NULL,
           last_error = ?,
-          failed_at = CASE WHEN attempt_count >= max_attempts THEN ? ELSE NULL END,
+          failed_at = CASE WHEN ? = 'never' OR attempt_count >= max_attempts THEN ? ELSE NULL END,
           updated_at = ?
       WHERE id = ?
         AND lease_token = ?
     `,
     )
-    .bind(retryAt, input.error, input.nowIso, input.nowIso, input.id, input.leaseToken)
+    .bind(
+      input.retry,
+      input.retry,
+      retryAt,
+      input.error,
+      input.retry,
+      input.nowIso,
+      input.nowIso,
+      input.id,
+      input.leaseToken,
+    )
     .run();
 
   const row = await db

@@ -102,6 +102,9 @@ const write = (operationId: string, scope: ProgrammaticApiScope, schema: string)
       "Idempotency conflict, archived template, or missing usable artwork (idempotency_conflict, template_archived, artwork_required).",
       "Error",
     ),
+    ...(operationId === "issueBadge"
+      ? { "422": response("Expiry must be later than the issue date (invalid_expiry).", "Error") }
+      : {}),
     "503": response("Object storage is temporarily unavailable (storage_unavailable).", "Error"),
   },
 });

@@ -36,7 +36,6 @@ vi.mock("@credtrail/db", async () => {
     findAssertionByIdempotencyKey: vi.fn(),
     findBadgeTemplateById: vi.fn(),
     findTenantById: vi.fn(),
-    findTenantLinkedInSettings: vi.fn(),
     findTenantMembership: vi.fn(),
     findTenantSigningRegistrationByDid: vi.fn(),
     findUserById: vi.fn(),
@@ -95,7 +94,6 @@ import {
   findAssertionByIdempotencyKey,
   findBadgeTemplateById,
   findTenantById,
-  findTenantLinkedInSettings,
   findTenantMembership,
   findTenantSigningRegistrationByDid,
   findUserById,
@@ -138,7 +136,6 @@ interface ManualIssueResponse {
 const mockedFindAssertionByIdempotencyKey = vi.mocked(findAssertionByIdempotencyKey);
 const mockedFindBadgeTemplateById = vi.mocked(findBadgeTemplateById);
 const mockedFindTenantById = vi.mocked(findTenantById);
-const mockedFindTenantLinkedInSettings = vi.mocked(findTenantLinkedInSettings);
 const mockedFindActiveDelegatedIssuingAuthorityGrantForAction = vi.mocked(
   findActiveDelegatedIssuingAuthorityGrantForAction,
 );
@@ -231,8 +228,6 @@ beforeEach(() => {
   mockedFindBadgeTemplateById.mockResolvedValue(sampleBadgeTemplate());
   mockedFindTenantById.mockReset();
   mockedFindTenantById.mockResolvedValue(sampleTenant());
-  mockedFindTenantLinkedInSettings.mockReset();
-  mockedFindTenantLinkedInSettings.mockResolvedValue(null);
   mockedFindAssertionByIdempotencyKey.mockReset();
   mockedResolveLearnerProfileForIdentity.mockReset();
   mockedResolveAssertionLifecycleState.mockReset();

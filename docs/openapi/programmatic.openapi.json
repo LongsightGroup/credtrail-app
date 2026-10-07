@@ -97,6 +97,16 @@
               }
             }
           },
+          "422": {
+            "description": "Expiry must be later than the issue date (invalid_expiry).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Object storage is temporarily unavailable (storage_unavailable).",
             "content": {
@@ -1246,6 +1256,7 @@
             "type": "string",
             "enum": [
               "invalid_request",
+              "invalid_expiry",
               "api_key_required",
               "invalid_api_key",
               "tenant_mismatch",

@@ -65,6 +65,7 @@ export const replayIssueBadgeQueueMessage = (input: {
     recipientIdentifiers: input.request.recipientIdentifiers ?? null,
     recipientDisplayName: input.request.recipientDisplayName ?? null,
     issuerImageUri: input.request.issuerImageUri ?? null,
+    validUntil: input.request.validUntil ?? null,
     requestedByUserId: input.requestedByUserId ?? input.request.requestedByUserId ?? null,
   };
   const persistedIdentity = {
@@ -74,6 +75,7 @@ export const replayIssueBadgeQueueMessage = (input: {
     recipientIdentifiers: job.payload.recipientIdentifiers ?? null,
     recipientDisplayName: job.payload.recipientDisplayName ?? null,
     issuerImageUri: job.payload.issuerImageUri ?? null,
+    validUntil: job.payload.validUntil ?? null,
     requestedByUserId: job.payload.requestedByUserId ?? null,
   };
 
