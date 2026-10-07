@@ -39,11 +39,11 @@ import {
   type BadgeIssuanceRuleVersionRecord,
   type BadgeTemplateOwnershipEventRecord,
   type BadgeTemplateRecord,
-  type SqlDatabase,
   type TenantOrgUnitRecord,
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 import { app } from "./index";
+import { createPublicCollectionTenantDatabase } from "./test-support/public-collection-tenant-database";
 import { readStyleAssetSource } from "./page-asset-test-utils";
 
 const PUBLIC_BADGE_CSS = readStyleAssetSource("publicBadgeCss");
@@ -62,9 +62,7 @@ const mockedListBadgeIssuanceRuleVersionApprovalEventsForVersions = vi.mocked(
 );
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
 
-const fakeDb = {
-  prepare: vi.fn(),
-} as unknown as SqlDatabase;
+const fakeDb = createPublicCollectionTenantDatabase();
 
 const createEnv = (): {
   APP_ENV: string;
@@ -277,7 +275,7 @@ describe("GET /showcase/:tenantId/criteria", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(body).toContain("Badge Criteria Registry · sakai");
+    expect(body).toContain("Badge Criteria Registry · Sakai Community");
     expect(body).toContain("Sakai 1000+ Commits Contributor");
     expect(body).toContain("Sakai Project Institution");
     expect(body).toContain(
@@ -302,12 +300,12 @@ describe("GET /showcase/:tenantId/criteria", () => {
       '<link rel="canonical" href="https://credtrail.test/showcase/sakai/criteria?badgeTemplateId=badge_template_sakai_1000"',
     );
     expect(body).toContain(
-      '<meta property="og:title" content="Badge Criteria Registry · sakai | CredTrail"',
+      '<meta property="og:title" content="Badge Criteria Registry · Sakai Community"',
     );
     expect(body).toContain('<meta property="og:type" content="website"');
     expect(body).toContain('<meta name="twitter:card" content="summary_large_image"');
     expect(body).toContain(
-      '<meta name="description" content="Public criteria and governance metadata for tenant &quot;sakai&quot; badge template &quot;badge_template_sakai_1000&quot;."',
+      '<meta name="description" content="Public criteria and governance metadata for this badge issued by Sakai Community."',
     );
     expect(body).toContain('rel="stylesheet" href="/assets/ui/public-badge.');
     expect(PUBLIC_BADGE_CSS).toContain(".criteria-registry__hero-link:hover");
@@ -402,7 +400,7 @@ describe("GET /showcase/:tenantId/criteria", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("badge template &quot;badge_template_sakai_1000&quot;");
+    expect(body).toContain("badgeTemplateId=badge_template_sakai_1000");
     expect(body).toContain("No public badge templates matched this view.");
   });
 
@@ -434,7 +432,7 @@ describe("GET /showcase/:tenantId/criteria", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Badge Criteria Registry · tenant_123");
+    expect(body).toContain("Badge Criteria Registry · Example University");
     expect(body).toContain("No public badge templates matched this view.");
     expect(body).toContain("/showcase/tenant_123?badgeTemplateId=badge_template_missing");
   });

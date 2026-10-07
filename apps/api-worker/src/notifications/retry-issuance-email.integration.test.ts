@@ -145,6 +145,10 @@ describeDbIntegration("notification retry", () => {
       expect(messages[0]?.to).toBe("retry@example.edu");
       expect(messages[0]?.html).toContain("Badge Rule Test Tenant");
       expect(messages[0]?.text).toContain("https://credtrail.org/badges/");
+      expect(messages[0]?.text).toContain("/download.pdf");
+      expect(messages[0]?.text).toContain("/share/linkedin-profile");
+      expect(messages[0]?.html).toContain("<img");
+      expect(messages[0]?.html).not.toContain("/verification");
       const returnHref = `/tenants/${f.tenantId}/admin/operations/issued-badges?notificationStatus=failed&recipientQuery=retry&limit=100`;
       const response = await submit(f.tenantId, failed.attemptId ?? "missing", returnHref);
       const location = new URL(response.headers.get("location") ?? "", "https://example.edu");

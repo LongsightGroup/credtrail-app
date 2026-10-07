@@ -36,6 +36,9 @@ import {
 import { registerQueueRoutes } from "../routes/queue-routes";
 import { sha256Hex } from "../utils/crypto";
 
+import { createRecordingEmailBinding } from "../test-support/recording-email";
+import { sendIssuanceEmailNotification } from "../notifications/send-issuance-email";
+
 type IssuanceContext = { env: AppBindings; req: { url: string } };
 const tenantIds: string[] = [];
 const userIds: string[] = [];
@@ -54,6 +57,10 @@ describeDbIntegration("durable queued issuance identity", () => {
     const db = fixture.db;
     const objects = new Map<string, string>();
     let writes = 0;
+    await db
+      .prepare("UPDATE badge_templates SET description = ? WHERE id = ?")
+      .bind("Completed the community workshop.", fixture.badgeTemplateId)
+      .run();
     const template = await findBadgeTemplateById(db, fixture.tenantId, fixture.badgeTemplateId);
     const tenant = await findTenantById(db, fixture.tenantId);
     if (template === null || tenant === null) throw new Error("Missing fixture");
@@ -86,6 +93,7 @@ describeDbIntegration("durable queued issuance identity", () => {
       }),
     );
     const material = await generateTenantDidSigningMaterial({ did: tenant.didWeb });
+    const { emailBinding, messages } = createRecordingEmailBinding();
     const env: AppBindings = {
       APP_ENV: "production",
       RUNTIME: "node",
@@ -94,16 +102,15 @@ describeDbIntegration("durable queued issuance identity", () => {
       PUBLIC_APP_ORIGIN: "https://badges.example.edu",
       BADGE_OBJECTS: store,
       JOB_PROCESSOR_TOKEN: "test-processor",
-      ISSUANCE_EMAIL_NOTIFICATIONS_ENABLED: "false",
+      ISSUANCE_EMAIL_NOTIFICATIONS_ENABLED: "true",
+      EMAIL: emailBinding,
     };
     const issue = createIssueBadgeForTenant<IssuanceContext, AppBindings>({
       resolveDatabase: () => db,
       observabilityContext,
       HttpErrorResponseClass: HttpErrorResponse,
       publicBadgePathForAssertion: (assertion: AssertionRecord) => `/badges/${assertion.publicId}`,
-      sendIssuanceEmailNotification: async () => {
-        throw new Error("Email disabled in test");
-      },
+      sendIssuanceEmailNotification,
       signCredentialForDid: async (input) => ({
         status: "ok",
         keyId: material.keyId,
@@ -198,6 +205,10 @@ describeDbIntegration("durable queued issuance identity", () => {
     });
     expect(assertion.vcR2Key).toContain(encodeURIComponent(envelope.assertionId));
     expect(writes).toBe(1);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.html).toContain(assertion.achievementSnapshot.imageUri);
+    expect(messages[0]?.text).toContain(assertion.achievementSnapshot.description);
+    expect(messages[0]?.text).toContain(`/badges/${assertion.publicId}/download.pdf`);
     const replay = await enqueue();
     expect(await replay.json()).toMatchObject(envelope);
     expect(

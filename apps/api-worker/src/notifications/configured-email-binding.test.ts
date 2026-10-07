@@ -58,7 +58,7 @@ it("applies the same reply and copy policy to real notification builders through
     badgeTitle: "Completion",
     issuedAtIso: "2026-10-04T12:00:00Z",
     publicBadgeUrl: "https://badges.example.edu/badge",
-    verificationUrl: "https://badges.example.edu/verification",
+
     credentialDownloadUrl: "https://badges.example.edu/credential",
   });
   expect(commands).toHaveLength(5);

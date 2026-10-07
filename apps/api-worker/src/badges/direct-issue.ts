@@ -642,7 +642,8 @@ export const createIssueBadgeForTenant = <
           tenantDisplayName: options?.issuerName ?? tenant.displayName,
           issuedAtIso: issuedAt,
           publicBadgeUrl: new URL(publicBadgePath, credentialBaseUrl).toString(),
-          verificationUrl: new URL(`${publicBadgePath}/verification`, credentialBaseUrl).toString(),
+          badgeDescription: achievement.description,
+          badgeImageUrl: achievement.imageUri,
           credentialDownloadUrl: new URL(
             `${publicBadgePath}/download`,
             credentialBaseUrl,

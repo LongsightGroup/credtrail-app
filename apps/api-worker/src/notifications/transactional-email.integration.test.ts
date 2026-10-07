@@ -75,9 +75,11 @@ describeDbIntegration("shared transactional email delivery", () => {
     await sendIssuanceEmailNotification({
       ...common,
       badgeTitle: "Graduation",
+      badgeDescription: "Completed the community program.",
+      badgeImageUrl: "https://badges.example.edu/artwork/graduation.png",
       issuedAtIso: "2026-10-05",
       publicBadgeUrl: "https://badges.example.edu/badges/123",
-      verificationUrl: "https://badges.example.edu/badges/123/verification",
+
       credentialDownloadUrl: "https://badges.example.edu/badges/123/download",
     });
     expect(relay.messages).toHaveLength(7);
@@ -97,6 +99,12 @@ describeDbIntegration("shared transactional email delivery", () => {
     }
     expect(relay.messages.at(-1)?.recipients).toContain("records@example.edu");
     expect(relay.messages.at(-1)?.mail.html).not.toContain("disposable-private-token");
+    expect(relay.messages.at(-1)?.mail.html).toContain(
+      'src="https://badges.example.edu/artwork/graduation.png"',
+    );
+    expect(relay.messages.at(-1)?.mail.text).toContain(
+      "https://badges.example.edu/badges/123/download.pdf",
+    );
     expect(relay.messages[0]?.mail.html).toContain(url);
     expect(relay.messages[0]?.mail.text).toContain(url);
   });

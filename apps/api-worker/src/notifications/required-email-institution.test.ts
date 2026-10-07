@@ -24,7 +24,7 @@ it("rejects blank institution names before sending any message", async () => {
         badgeTitle: "Completion",
         issuedAtIso: "2026-10-05",
         publicBadgeUrl: url,
-        verificationUrl: url,
+
         credentialDownloadUrl: url,
       }),
   ];

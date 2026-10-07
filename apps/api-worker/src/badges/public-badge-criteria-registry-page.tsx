@@ -48,8 +48,9 @@ export const createTenantBadgeCriteriaRegistryPage = (
     tenantId: string,
     model: PublicBadgeCriteriaRegistryViewModel,
     filterBadgeTemplateId: string | null,
+    tenantDisplayName: string,
   ): AppPage => {
-    const title = `Badge Criteria Registry · ${tenantId}`;
+    const title = `Badge Criteria Registry · ${tenantDisplayName}`;
     const criteriaRegistryPath =
       filterBadgeTemplateId === null
         ? tenantBadgeCriteriaRegistryHref(tenantId)
@@ -57,8 +58,8 @@ export const createTenantBadgeCriteriaRegistryPage = (
     const canonicalUrl = new URL(criteriaRegistryPath, requestUrl).toString();
     const subtitle =
       filterBadgeTemplateId === null
-        ? `Public criteria and governance metadata for badge templates under tenant "${tenantId}".`
-        : `Public criteria and governance metadata for tenant "${tenantId}" badge template "${filterBadgeTemplateId}".`;
+        ? `Public criteria and governance metadata for badges issued by ${tenantDisplayName}.`
+        : `Public criteria and governance metadata for this badge issued by ${tenantDisplayName}.`;
     const heroLead =
       filterBadgeTemplateId === null
         ? "Use this page to understand what each public badge recognizes, who publishes it, and how qualification rules are reviewed."
@@ -348,7 +349,7 @@ export const createTenantBadgeCriteriaRegistryPage = (
           );
         })
       );
-    const pageTitle = `${title} | CredTrail`;
+    const pageTitle = title;
     const socialImageUrl =
       model.templates
         .map((entry) =>
@@ -366,6 +367,7 @@ export const createTenantBadgeCriteriaRegistryPage = (
         canonicalUrl,
         ogType: "website",
         imageUrl: socialImageUrl,
+        siteName: tenantDisplayName,
       }),
       assets: ["publicBadgeCss"],
       variant: "open",

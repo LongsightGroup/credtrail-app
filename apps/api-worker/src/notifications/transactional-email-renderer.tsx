@@ -71,6 +71,21 @@ export const renderTransactionalEmail = async (
                         <p style={{ margin: "0 0 24px", overflowWrap: "anywhere" }}>
                           {content.institution}
                         </p>
+                        {content.image === undefined ? null : (
+                          <img
+                            src={content.image.url}
+                            alt={content.image.alt}
+                            width="128"
+                            style={{
+                              display: "block",
+                              width: "128px",
+                              maxWidth: "100%",
+                              height: "auto",
+                              margin: "0 0 24px",
+                              border: "0",
+                            }}
+                          />
+                        )}
                         <h1
                           style={{
                             margin: "0 0 20px",

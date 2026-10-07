@@ -10,6 +10,7 @@ export const PublicBadgeShareSection = (input: {
   linkedInFeedSharePath: string;
   walletQrCodePath: string;
   walletDeepLinkUrl: string;
+  learnerCredentialWalletUrl: string;
   ob3JsonPath: string;
 }): HonoElement => {
   return (
@@ -70,6 +71,15 @@ export const PublicBadgeShareSection = (input: {
                   rel="noopener noreferrer"
                 >
                   Open in wallet app
+                </PublicBadgeTextLink>
+              </p>
+              <p class="public-badge__link-row">
+                <PublicBadgeTextLink
+                  href={input.learnerCredentialWalletUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open in Learner Credential Wallet
                 </PublicBadgeTextLink>
               </p>
               <p

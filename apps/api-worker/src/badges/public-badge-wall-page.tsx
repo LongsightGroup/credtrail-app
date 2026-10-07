@@ -24,8 +24,9 @@ export const createTenantBadgeWallPage = (
     tenantId: string,
     entries: readonly PublicBadgeWallEntryViewRecord[],
     filterBadgeTemplateId: string | null,
+    tenantDisplayName: string,
   ): AppPage => {
-    const displayTenantName = tenantId;
+    const displayTenantName = tenantDisplayName;
     const firstBadgeTitle = entries.length > 0 ? (entries[0]?.badgeTitle ?? null) : null;
     const filterLabel = firstBadgeTitle ?? filterBadgeTemplateId;
     const heroEntry = filterBadgeTemplateId === null ? null : (entries[0] ?? null);
@@ -47,7 +48,7 @@ export const createTenantBadgeWallPage = (
       filterBadgeTemplateId === null
         ? tenantBadgeCriteriaRegistryHref(tenantId)
         : badgeTemplateCriteriaRegistryHref(tenantId, filterBadgeTemplateId);
-    const pageTitle = `${title} | CredTrail`;
+    const pageTitle = title;
     const socialImageUrl =
       entries
         .map((entry) =>
@@ -65,6 +66,7 @@ export const createTenantBadgeWallPage = (
         canonicalUrl,
         ogType: "website",
         imageUrl: socialImageUrl,
+        siteName: tenantDisplayName,
       }),
       assets: ["publicBadgeCss", "publicBadgeJs"],
       variant: "open",

@@ -92,7 +92,8 @@ export const registerTenantNotificationRetryAdminRoutes = (
             tenantDisplayName: tenant.displayName,
             issuedAtIso: assertion.issuedAt,
             publicBadgeUrl: canonicalAppUrl(c.env.PUBLIC_APP_ORIGIN, badgePath),
-            verificationUrl: canonicalAppUrl(c.env.PUBLIC_APP_ORIGIN, `${badgePath}/verification`),
+            badgeDescription: assertion.achievementSnapshot.description,
+            badgeImageUrl: assertion.achievementSnapshot.imageUri,
             credentialDownloadUrl: canonicalAppUrl(c.env.PUBLIC_APP_ORIGIN, `${badgePath}/jsonld`),
             validUntilIso: assertion.validUntil,
           });

@@ -67,3 +67,15 @@ it("defaults optional document lists without changing its action", async () => {
   expect(result.html).toContain("View your badge");
   expect(result.html).not.toContain("<dl");
 });
+
+it("rejects unsafe image sources without exposing input values", async () => {
+  for (const url of [
+    "javascript:private-token",
+    "http://localhost/private-token",
+    "https://user:private-token@example.edu/image",
+  ]) {
+    await expect(
+      renderTransactionalEmail({ ...content, image: { url, alt: "Badge artwork" } }),
+    ).rejects.toThrow("Transactional email content is invalid");
+  }
+});

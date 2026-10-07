@@ -1,5 +1,6 @@
 import type { ImmutableCredentialStore, JsonObject } from "@credtrail/core-domain";
 import {
+  findTenantById,
   findTenantLinkedInSettings,
   indexBadgeIssuanceRuleVersionsByRuleId,
   listBadgeIssuanceRuleVersionApprovalEventsForVersions,
@@ -74,12 +75,14 @@ interface RegisterPublicBadgeRoutesInput<PublicBadgeValue extends PublicBadgeRou
     tenantId: string,
     entries: readonly PublicBadgeWallEntryViewRecord[],
     badgeTemplateId: string | null,
+    tenantDisplayName: string,
   ) => AppPage;
   tenantBadgeCriteriaRegistryPage: (
     requestUrl: string,
     tenantId: string,
     model: PublicBadgeCriteriaRegistryViewModel,
     badgeTemplateId: string | null,
+    tenantDisplayName: string,
   ) => AppPage;
   asNonEmptyString: (value: unknown) => string | null;
   SAKAI_SHOWCASE_TENANT_ID: string;
@@ -380,6 +383,12 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
       requestedBadgeTemplateId ??
       (pathParams.tenantId === SAKAI_SHOWCASE_TENANT_ID ? SAKAI_SHOWCASE_TEMPLATE_ID : null);
     const db = resolveDatabase(c.env);
+    const tenant = await findTenantById(db, pathParams.tenantId);
+    c.header("Cache-Control", "no-store");
+    if (tenant === null || tenant.displayName.trim() === "") {
+      c.status(404);
+      return renderAppPage(c, publicBadgeNotFoundPage(publicRequestUrl(c)));
+    }
     const entries = await listPublicBadgeWallEntries(db, {
       tenantId: pathParams.tenantId,
       ...(badgeTemplateId === null ? {} : { badgeTemplateId }),
@@ -413,6 +422,7 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
         pathParams.tenantId,
         entriesWithLifecycle,
         badgeTemplateId,
+        tenant.displayName,
       ),
     );
   });
@@ -424,6 +434,12 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
       requestedBadgeTemplateId ??
       (pathParams.tenantId === SAKAI_SHOWCASE_TENANT_ID ? SAKAI_SHOWCASE_TEMPLATE_ID : null);
     const db = resolveDatabase(c.env);
+    const tenant = await findTenantById(db, pathParams.tenantId);
+    c.header("Cache-Control", "no-store");
+    if (tenant === null || tenant.displayName.trim() === "") {
+      c.status(404);
+      return renderAppPage(c, publicBadgeNotFoundPage(publicRequestUrl(c)));
+    }
     const model = await buildPublicBadgeCriteriaRegistryViewModel(
       db,
       pathParams.tenantId,
@@ -438,6 +454,7 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
         pathParams.tenantId,
         model,
         badgeTemplateId,
+        tenant.displayName,
       ),
     );
   });

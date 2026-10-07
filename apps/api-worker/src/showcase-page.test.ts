@@ -22,20 +22,18 @@ import {
   resolveAssertionLifecycleState,
   type PublicBadgeWallEntryRecord,
   type ResolveAssertionLifecycleStateResult,
-  type SqlDatabase,
 } from "@credtrail/db";
 import { createPostgresDatabase } from "@credtrail/db/postgres";
 
 import { app } from "./index";
+import { createPublicCollectionTenantDatabase } from "./test-support/public-collection-tenant-database";
 import { readStyleAssetSource } from "./page-asset-test-utils";
 
 const PUBLIC_BADGE_CSS = readStyleAssetSource("publicBadgeCss");
 const mockedListPublicBadgeWallEntries = vi.mocked(listPublicBadgeWallEntries);
 const mockedResolveAssertionLifecycleState = vi.mocked(resolveAssertionLifecycleState);
 const mockedCreatePostgresDatabase = vi.mocked(createPostgresDatabase);
-const fakeDb = {
-  prepare: vi.fn(),
-} as unknown as SqlDatabase;
+const fakeDb = createPublicCollectionTenantDatabase();
 
 const createEnv = (): {
   APP_ENV: string;
@@ -114,7 +112,7 @@ describe("GET /showcase/:tenantId", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(body).toContain("Sakai 1000+ Commits Contributor · sakai");
+    expect(body).toContain("Sakai 1000+ Commits Contributor · Sakai Community");
     expect(body).toContain("2 issued badges");
     expect(body).toContain("/badges/a77ab5e5-bd08-40c3-accd-cf29ed1fdbbf");
     expect(body).toContain("/badges/620b51c5-c6f8-4506-8a5c-2daaa2eb6f04");
@@ -123,7 +121,7 @@ describe("GET /showcase/:tenantId", () => {
       '<link rel="canonical" href="https://credtrail.test/showcase/sakai?badgeTemplateId=badge_template_sakai_1000"',
     );
     expect(body).toContain(
-      '<meta property="og:title" content="Sakai 1000+ Commits Contributor · sakai | CredTrail"',
+      '<meta property="og:title" content="Sakai 1000+ Commits Contributor · Sakai Community"',
     );
     expect(body).toContain('<meta property="og:type" content="website"');
     expect(body).toContain('<meta name="twitter:card" content="summary"');
@@ -188,7 +186,7 @@ describe("GET /showcase/:tenantId", () => {
     const body = await response.text();
 
     expect(response.status).toBe(200);
-    expect(body).toContain("Intro to Badging · sakai");
+    expect(body).toContain("Intro to Badging · Sakai Community");
     expect(body).toContain("Publicly verified credentials for Intro to Badging.");
     expect(body).toContain('class="badge-wall__hero-image-frame"');
     expect(body).toContain('class="badge-wall__hero-image"');
