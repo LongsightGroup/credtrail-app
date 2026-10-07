@@ -20,6 +20,7 @@ import {
   findBadgeTemplateById,
   findBadgeIssuanceRuleVersionById,
   findTenantById,
+  findTenantLinkedInSettings,
   listLearnerIdentitiesByProfile,
   reserveAssertionStatusListIndex,
   resolveAssertionLifecycleState,
@@ -630,6 +631,7 @@ export const createIssueBadgeForTenant = <
       configured: context.env.EMAIL !== undefined,
       send: async () => {
         const publicBadgePath = input.publicBadgePathForAssertion(createdAssertion);
+        const linkedInSettings = await findTenantLinkedInSettings(db, tenantId);
         await input.sendIssuanceEmailNotification({
           emailBinding: context.env.EMAIL,
           fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
@@ -645,6 +647,8 @@ export const createIssueBadgeForTenant = <
             credentialBaseUrl,
           ).toString(),
           validUntilIso: validity.validUntil ?? null,
+          credentialId: `urn:credtrail:assertion:${encodeURIComponent(assertionId)}`,
+          linkedInOrganizationId: linkedInSettings?.organizationId ?? null,
         });
       },
     });

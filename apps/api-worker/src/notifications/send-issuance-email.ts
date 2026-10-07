@@ -1,3 +1,5 @@
+import type { LinkedInOrganizationId } from "@credtrail/validation";
+import { linkedInAddToProfileUrl } from "../utils/display-format";
 import { sendTransactionalEmail } from "./transactional-email";
 
 export interface SendIssuanceEmailNotificationInput {
@@ -13,12 +15,25 @@ export interface SendIssuanceEmailNotificationInput {
   credentialDownloadUrl: string;
   /** Expiry of the credential, when it has one. */
   validUntilIso?: string | null | undefined;
+  /** Credential identifier for the LinkedIn certification, the same one the public badge page uses. */
+  credentialId?: string | undefined;
+  /** The issuer's LinkedIn organization, when the tenant configured one. */
+  linkedInOrganizationId?: LinkedInOrganizationId | null | undefined;
 }
 
 export const sendIssuanceEmailNotification = async (
   input: SendIssuanceEmailNotificationInput,
 ): Promise<void> => {
   const subject = `You've earned a new badge: ${input.badgeTitle}`;
+  const linkedInUrl = linkedInAddToProfileUrl({
+    organizationId: input.linkedInOrganizationId ?? null,
+    badgeName: input.badgeTitle,
+    issuerName: input.tenantDisplayName.trim(),
+    issuedAtIso: input.issuedAtIso,
+    validUntilIso: input.validUntilIso ?? null,
+    credentialUrl: input.publicBadgeUrl,
+    credentialId: input.credentialId ?? input.publicBadgeUrl,
+  });
   await sendTransactionalEmail({
     kind: "issuance",
     emailBinding: input.emailBinding,
@@ -38,6 +53,7 @@ export const sendIssuanceEmailNotification = async (
       ],
       action: { label: "View your badge", url: input.publicBadgeUrl },
       secondaryActions: [
+        { label: "Add to LinkedIn", url: linkedInUrl },
         { label: "Verify your badge", url: input.verificationUrl },
         { label: "Download your credential", url: input.credentialDownloadUrl },
       ],
