@@ -132,6 +132,7 @@ const issueBadgeJobPayloadBase = {
   recipientIdentifiers: z.array(recipientIdentifierSchema).max(10).optional(),
   recipientDisplayName: z.string().trim().min(1).max(200).optional(),
   issuerImageUri: z.string().trim().url().max(2048).optional(),
+  validUntil: isoTimestampSchema.optional(),
   requestedAt: isoTimestampSchema,
   requestedByUserId: userIdSchema.optional(),
   lmsLearnerIdentity: z

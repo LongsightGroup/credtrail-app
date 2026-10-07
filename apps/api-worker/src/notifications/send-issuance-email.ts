@@ -11,6 +11,8 @@ export interface SendIssuanceEmailNotificationInput {
   publicBadgeUrl: string;
   verificationUrl: string;
   credentialDownloadUrl: string;
+  /** Expiry of the credential, when it has one. */
+  validUntilIso?: string | null | undefined;
 }
 
 export const sendIssuanceEmailNotification = async (
@@ -28,7 +30,12 @@ export const sendIssuanceEmailNotification = async (
       institution: input.tenantDisplayName.trim(),
       title: `You have earned ${input.badgeTitle}`,
       paragraphs: ["View your badge to see your achievement and share it with others."],
-      details: [{ label: "Issued", value: input.issuedAtIso }],
+      details: [
+        { label: "Issued", value: input.issuedAtIso },
+        ...(input.validUntilIso === undefined || input.validUntilIso === null
+          ? []
+          : [{ label: "Valid until", value: input.validUntilIso }]),
+      ],
       action: { label: "View your badge", url: input.publicBadgeUrl },
       secondaryActions: [
         { label: "Verify your badge", url: input.verificationUrl },

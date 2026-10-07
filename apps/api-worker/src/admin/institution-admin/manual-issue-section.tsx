@@ -149,6 +149,18 @@ export const renderManualIssueSection = (input: RenderManualIssueSectionInput): 
             placeholder="recipient@example.com"
           />
         </AdminField>
+        <AdminField label="Valid until (optional)">
+          <CtInput
+            name="validUntil"
+            type="date"
+            value={input.correction?.validUntil ?? ""}
+            describedBy="manual-issue-valid-until-help"
+          />
+        </AdminField>
+        <p id="manual-issue-valid-until-help">
+          Leave it empty for a badge that does not expire. With a date, the credential expires at
+          the end of that day (UTC) and the public record then shows it as expired.
+        </p>
         <p
           id="manual-issue-consequence"
           data-badge-title={selection.kind === "ready" ? selection.template.title : ""}

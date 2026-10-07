@@ -53,6 +53,7 @@ describe("POST /v1/programmatic/issue and /v1/programmatic/revoke", () => {
           ],
           recipientDisplayName: "Learner Example",
           issuerImageUri: "https://issuer.example.edu/logo.svg",
+          validUntil: "2027-06-30T23:59:59.000Z",
           idempotencyKey: "idem_programmatic_issue_123",
         }),
       },
@@ -77,6 +78,7 @@ describe("POST /v1/programmatic/issue and /v1/programmatic/revoke", () => {
         ],
         recipientDisplayName: "Learner Example",
         issuerImageUri: "https://issuer.example.edu/logo.svg",
+        validUntil: "2027-06-30T23:59:59.000Z",
       },
     });
   });

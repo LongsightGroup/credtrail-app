@@ -8,6 +8,7 @@ export type DirectIssueBadgeRequestBase = Pick<
   | "recipientIdentifiers"
   | "recipientDisplayName"
   | "issuerImageUri"
+  | "validUntil"
   | "idempotencyKey"
   | "learnerPathwayCompletionHandoffId"
 > & {

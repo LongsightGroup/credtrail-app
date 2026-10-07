@@ -46,6 +46,7 @@ export const issueBadgeQueueJobFromRequest = (
         : {
             issuerImageUri: request.issuerImageUri,
           }),
+      ...(request.validUntil === undefined ? {} : { validUntil: request.validUntil }),
       requestedAt: new Date().toISOString(),
       ...(request.requestedByUserId === undefined
         ? {}

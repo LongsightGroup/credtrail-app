@@ -892,6 +892,107 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     );
   });
 
+  it("writes a caller-supplied validUntil into the credential and the assertion", async () => {
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: "did:web:credtrail.test:tenant_123",
+    });
+    const env = {
+      ...createEnv(),
+      BADGE_OBJECTS: createInMemoryBadgeObjects(),
+      TENANT_SIGNING_REGISTRY_JSON: JSON.stringify({
+        "did:web:credtrail.test:tenant_123": {
+          tenantId: "tenant_123",
+          keyId: signingMaterial.keyId,
+          publicJwk: signingMaterial.publicJwk,
+          privateJwk: signingMaterial.privateJwk,
+        },
+      }),
+    };
+
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue(undefined);
+    mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
+    mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
+    mockedReserveAssertionStatusListIndex.mockResolvedValue(0);
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/assertions/manual-issue",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/json",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: JSON.stringify({
+          badgeTemplateId: "badge_template_001",
+          recipientIdentity: "student@umich.edu",
+          recipientIdentityType: "email",
+          idempotencyKey: "idem-valid-until",
+          validUntil: "2099-12-31T23:59:59.000Z",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<ManualIssueResponse>();
+
+    expect(response.status).toBe(201);
+    expect(body.credential.validUntil).toBe("2099-12-31T23:59:59.000Z");
+    expect(mockedFinalizeAssertionIssuance).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        assertion: expect.objectContaining({ validUntil: "2099-12-31T23:59:59.000Z" }),
+      }),
+    );
+  });
+
+  it("rejects a validUntil that is not later than the issue date", async () => {
+    const signingMaterial = await generateTenantDidSigningMaterial({
+      did: "did:web:credtrail.test:tenant_123",
+    });
+    const env = {
+      ...createEnv(),
+      BADGE_OBJECTS: createInMemoryBadgeObjects(),
+      TENANT_SIGNING_REGISTRY_JSON: JSON.stringify({
+        "did:web:credtrail.test:tenant_123": {
+          tenantId: "tenant_123",
+          keyId: signingMaterial.keyId,
+          publicJwk: signingMaterial.publicJwk,
+          privateJwk: signingMaterial.privateJwk,
+        },
+      }),
+    };
+    mockedFindActiveSessionByHash.mockResolvedValue(sampleSession());
+    mockedTouchSession.mockResolvedValue(undefined);
+    mockedFindAssertionByIdempotencyKey.mockResolvedValue(null);
+    mockedResolveLearnerProfileForIdentity.mockResolvedValue(sampleLearnerProfile());
+
+    const response = await app.request(
+      "/v1/tenants/tenant_123/assertions/manual-issue",
+      {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/json",
+          Cookie: "better-auth.session_token=session-token",
+        },
+        body: JSON.stringify({
+          badgeTemplateId: "badge_template_001",
+          recipientIdentity: "student@umich.edu",
+          recipientIdentityType: "email",
+          idempotencyKey: "idem-valid-until-past",
+          validUntil: "2020-01-01T00:00:00.000Z",
+        }),
+      },
+      env,
+    );
+    const body = await response.json<ErrorResponse>();
+
+    expect(response.status).toBe(422);
+    expect(body.error).toBe("Valid until must be later than the issue date.");
+    expect(mockedFinalizeAssertionIssuance).not.toHaveBeenCalled();
+  });
+
   it("includes TrustEd credential metadata in issued OB3 credentials", async () => {
     const signingMaterial = await generateTenantDidSigningMaterial({
       did: "did:web:credtrail.test:tenant_123",

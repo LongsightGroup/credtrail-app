@@ -167,6 +167,7 @@ const processQueuedJob = async <TBindings, TContext extends { env: TBindings }>(
         ...(job.payload.issuerImageUri === undefined
           ? {}
           : { issuerImageUri: job.payload.issuerImageUri }),
+        ...(job.payload.validUntil === undefined ? {} : { validUntil: job.payload.validUntil }),
         idempotencyKey: job.idempotencyKey,
         ...(job.payload.lmsLearnerIdentity === undefined
           ? {}

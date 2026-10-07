@@ -60,3 +60,27 @@ describe("sendIssuanceEmailNotification", () => {
     ).resolves.toBeUndefined();
   });
 });
+
+describe("issuance email expiry", () => {
+  it("shows the expiry when the credential has one", async () => {
+    const { emailBinding, messages } = createRecordingEmailBinding();
+
+    await sendIssuanceEmailNotification({
+      emailBinding,
+      recipientEmail: "learner@example.edu",
+      badgeTitle: "TypeScript Foundations",
+      tenantDisplayName: "Example University",
+      issuedAtIso: "2026-02-10T22:00:00.000Z",
+      publicBadgeUrl: "https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22",
+      verificationUrl:
+        "https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/verification",
+      credentialDownloadUrl:
+        "https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/download",
+      validUntilIso: "2027-02-10T22:00:00.000Z",
+    });
+
+    expect(messages[0]?.html).toContain("Valid until");
+    expect(messages[0]?.html).toContain("2027-02-10T22:00:00.000Z");
+    expect(messages[0]?.text).toContain("Valid until: 2027-02-10T22:00:00.000Z");
+  });
+});

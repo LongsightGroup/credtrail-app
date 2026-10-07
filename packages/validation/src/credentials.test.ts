@@ -217,3 +217,38 @@ describe("assertion lifecycle parsers", () => {
     expect(pathParams.assertionId).toBe("tenant_123:assertion_456");
   });
 });
+
+describe("validUntil on issue requests", () => {
+  it("accepts an ISO timestamp on manual and programmatic requests", () => {
+    const manual = parseManualIssueBadgeRequest({
+      badgeTemplateId: "badge_template_001",
+      recipientIdentity: "learner@example.edu",
+      recipientIdentityType: "email",
+      validUntil: "2027-12-31T23:59:59.000Z",
+    });
+    const programmatic = parseProgrammaticIssueBadgeRequest({
+      tenantId: "tenant_123",
+      badgeTemplateId: "badge_template_001",
+      recipientIdentity: "learner@example.edu",
+      recipientIdentityType: "email",
+      idempotencyKey: "idem_valid_until",
+      validUntil: "2027-12-31T23:59:59.000Z",
+    });
+
+    expect(manual.validUntil).toBe("2027-12-31T23:59:59.000Z");
+    expect(programmatic.validUntil).toBe("2027-12-31T23:59:59.000Z");
+  });
+
+  it("rejects an expiry that is not an ISO timestamp", () => {
+    for (const validUntil of ["2027-12-31", "tomorrow", "", 20271231]) {
+      expect(() => {
+        parseManualIssueBadgeRequest({
+          badgeTemplateId: "badge_template_001",
+          recipientIdentity: "learner@example.edu",
+          recipientIdentityType: "email",
+          validUntil,
+        });
+      }).toThrow(/./);
+    }
+  });
+});

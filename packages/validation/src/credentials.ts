@@ -133,6 +133,8 @@ export const issueBadgeRequestSchema = z.strictObject({
   recipientIdentifiers: z.array(recipientIdentifierSchema).max(10).optional(),
   recipientDisplayName: z.string().trim().min(1).max(200).optional(),
   issuerImageUri: z.string().trim().url().max(2048).optional(),
+  /** Expiry written into the credential as validUntil; omitted = the badge does not expire. Must be later than the issue date. */
+  validUntil: isoTimestampSchema.optional(),
   requestedByUserId: userIdSchema.optional(),
   idempotencyKey: idempotencyKeySchema.optional(),
 });

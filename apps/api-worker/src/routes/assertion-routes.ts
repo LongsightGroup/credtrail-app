@@ -156,6 +156,7 @@ export const registerAssertionRoutes = (input: RegisterAssertionRoutesInput): vo
           ...(request.issuerImageUri === undefined
             ? {}
             : { issuerImageUri: request.issuerImageUri }),
+          ...(request.validUntil === undefined ? {} : { validUntil: request.validUntil }),
           ...(request.idempotencyKey === undefined
             ? {}
             : { idempotencyKey: request.idempotencyKey }),
