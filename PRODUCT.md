@@ -1,8 +1,10 @@
 # Product
 
-## Register
+<!-- impeccable:product-schema 1 -->
 
-product
+## Platform
+
+web
 
 ## Users
 
@@ -24,7 +26,7 @@ CredTrail should feel verified, official, modern, and academic. The voice is cal
 
 CredTrail should not look like a generic SaaS template, playful edtech toy, consumer social product, crypto wallet, hype-driven AI product, neon fintech dashboard, or decorative portfolio site. Avoid over-decorated controls, gamified learner treatment, glassy panels, repeated glow effects, radial decoration, and novelty form controls where standard controls support the task.
 
-## Design Principles
+## Product Principles
 
 1. Trust before excitement.
 2. Keep operational workflows list-first, legible, and direct.
