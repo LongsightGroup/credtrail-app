@@ -20,6 +20,7 @@ interface VerificationAssertion {
   id: string;
   tenantId: string;
   issuedAt: string;
+  validUntil?: string | null;
   revokedAt: string | null;
   statusListIndex: number | null;
 }
@@ -91,6 +92,7 @@ interface BadgePdfDocumentInput {
   recipientIdentifier: string;
   issuerName: string;
   issuedAt: string;
+  validUntil?: string;
   status: "Verified" | "Suspended" | "Revoked" | "Expired";
   assertionId: string;
   credentialId: string;
@@ -529,6 +531,9 @@ export const registerCredentialRoutes = <
         verificationUrl: new URL(verificationPath, publicRequestUrl(c)).toString(),
         ob3JsonUrl: new URL(ob3JsonPath, publicRequestUrl(c)).toString(),
         badgeImageUrl: achievementDetails.imageUri,
+        ...(model.assertion.validUntil === undefined || model.assertion.validUntil === null
+          ? {}
+          : { validUntil: `${formatIsoTimestamp(model.assertion.validUntil)} UTC` }),
         ...(pdfEffectiveLifecycle.revokedAt === null
           ? {}
           : {

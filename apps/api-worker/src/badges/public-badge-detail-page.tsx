@@ -235,6 +235,10 @@ export const createPublicBadgePage = (
       walletOfferBadgeIdentifier,
     )}/share/linkedin-profile`;
     const issuedAt = `${formatIsoTimestamp(model.assertion.issuedAt)} UTC`;
+    const validUntil =
+      model.assertion.validUntil === null
+        ? null
+        : `${formatIsoTimestamp(model.assertion.validUntil)} UTC`;
     const issuerLine =
       issuerUrl === null ? (
         <span>{issuerName}</span>
@@ -369,6 +373,9 @@ export const createPublicBadgePage = (
               <h1 class="public-badge__title">{badgeName}</h1>
               <p class="public-badge__issuer">Issued by {issuerLine}</p>
               <p class="public-badge__issued-at">Issued {issuedAt}</p>
+              {validUntil === null ? null : (
+                <p class="public-badge__issued-at">Valid until {validUntil}</p>
+              )}
               {lifecycleDetails}
             </div>
           </section>

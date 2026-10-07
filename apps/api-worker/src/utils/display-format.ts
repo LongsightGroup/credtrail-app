@@ -5,6 +5,8 @@ interface LinkedInAddToProfileInput {
   badgeName: string;
   issuerName: string;
   issuedAtIso: string;
+  /** Expiry of the credential, when it has one: LinkedIn shows it as the certification's expiration date. */
+  validUntilIso?: string | null | undefined;
   credentialUrl: string;
   credentialId: string;
 }
@@ -67,6 +69,14 @@ export const linkedInAddToProfileUrl = (input: LinkedInAddToProfileInput): strin
   if (issuedDate !== null) {
     linkedInUrl.searchParams.set("issueYear", issuedDate.issueYear);
     linkedInUrl.searchParams.set("issueMonth", issuedDate.issueMonth);
+  }
+  const expirationDate =
+    input.validUntilIso === undefined || input.validUntilIso === null
+      ? null
+      : linkedInIssuedDateFromIso(input.validUntilIso);
+  if (expirationDate !== null) {
+    linkedInUrl.searchParams.set("expirationYear", expirationDate.issueYear);
+    linkedInUrl.searchParams.set("expirationMonth", expirationDate.issueMonth);
   }
 
   return linkedInUrl.toString();

@@ -38,6 +38,7 @@ interface PublicBadgeRouteValue {
     tenantId: string;
     publicId: string;
     issuedAt: string;
+    validUntil?: string | null;
   };
   credential: JsonObject;
 }
@@ -262,6 +263,7 @@ export const registerPublicBadgeRoutes = <PublicBadgeValue extends PublicBadgeRo
         badgeName: badgeNameFromCredential(value.credential),
         issuerName: issuerNameFromCredential(value.credential),
         issuedAtIso: value.assertion.issuedAt,
+        validUntilIso: value.assertion.validUntil ?? null,
         credentialUrl: publicBadgeUrl,
         credentialId: asString(value.credential.id) ?? value.assertion.id,
       });

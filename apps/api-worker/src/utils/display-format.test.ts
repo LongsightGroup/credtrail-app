@@ -27,6 +27,23 @@ describe("LinkedIn profile link", () => {
       issueMonth: "2",
     });
   });
+  it("adds the expiration date when the credential has one, and omits it otherwise", () => {
+    const withExpiry = new URL(
+      linkedInAddToProfileUrl({
+        ...input,
+        organizationId: null,
+        validUntilIso: "2027-12-31T23:59:59.000Z",
+      }),
+    ).searchParams;
+    expect(withExpiry.get("expirationYear")).toBe("2027");
+    expect(withExpiry.get("expirationMonth")).toBe("12");
+    const withoutExpiry = new URL(
+      linkedInAddToProfileUrl({ ...input, organizationId: null, validUntilIso: null }),
+    ).searchParams;
+    expect(withoutExpiry.has("expirationYear")).toBe(false);
+    expect(withoutExpiry.has("expirationMonth")).toBe(false);
+  });
+
   it("uses the issuer name when unconfigured", () => {
     const params = new URL(linkedInAddToProfileUrl({ ...input, organizationId: null }))
       .searchParams;

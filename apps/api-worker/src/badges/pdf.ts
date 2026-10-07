@@ -66,6 +66,8 @@ export interface BadgePdfDocumentInput {
   ob3JsonUrl: string;
   badgeImageUrl: string | null;
   revokedAt?: string;
+  /** Formatted expiry, when the credential has one. */
+  validUntil?: string;
 }
 
 /** Runtime dependencies used while rendering a downloadable badge PDF. */
@@ -1018,6 +1020,21 @@ export const renderBadgePdfDocument = async (
     gapAfter: 7,
     labelGap: 11,
   });
+
+  if (input.validUntil !== undefined) {
+    recordY = drawPdfField(page, "Valid until", input.validUntil, recordContentX, recordY, {
+      labelFont: boldFont,
+      labelSize: 9.2,
+      labelColor: colors.subtle,
+      valueFont: regularFont,
+      valueSize: 9.6,
+      valueColor: colors.ink,
+      lineHeight: 11.2,
+      maxWidth: recordContentWidth,
+      gapAfter: 7,
+      labelGap: 11,
+    });
+  }
 
   if (input.revokedAt !== undefined) {
     drawPdfField(page, "Revoked at", input.revokedAt, recordContentX, recordY, {
