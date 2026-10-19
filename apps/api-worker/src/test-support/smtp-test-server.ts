@@ -21,6 +21,7 @@ export interface SmtpTestOptions {
   readonly rejectAuth?: boolean;
   readonly rejectSender?: boolean;
   readonly rejectRecipients?: readonly string[];
+  readonly rejectionCode?: 451 | 550;
   readonly disconnectAfterData?: boolean;
   readonly stallGreeting?: boolean;
   readonly auth?: "none" | "login";
@@ -67,7 +68,9 @@ export const createSmtpTestServer = async (
   const messages: CapturedSmtpMessage[] = [];
   const sockets = new Set<Socket>();
   const rejection = (): Error & { responseCode: number } =>
-    Object.assign(new Error("Disposable relay rejection"), { responseCode: 550 });
+    Object.assign(new Error("Disposable relay rejection"), {
+      responseCode: options.rejectionCode ?? 550,
+    });
   const server = new SMTPServer({
     secure: options.security === "tls",
     key: readFileSync(keyPath),

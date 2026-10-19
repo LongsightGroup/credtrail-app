@@ -304,6 +304,18 @@ is marked complete only after every intended recipient has provider acceptance. 
 receipts also retain a pending notification event before sending; email failure does not undo or
 reissue the credential. Bounces and final mailbox delivery are not tracked by this workflow.
 
+#### Pace notification batches
+
+Approval and lifecycle-reminder batches allow at most two messages in flight, with at least
+500 ms between send starts. An explicit SMTP temporary rejection or SES throttling response
+pauses the remaining batch for 2 seconds. Repeated temporary rejections increase the pause to
+4, 8, then at most 10 seconds. A successful reply does not cancel a pause already in effect.
+
+This pacing applies within each batch. Separate requests and workers have independent limits;
+individual sign-in and password-reset sends do not wait behind a notification batch. Rejected
+messages keep their recorded failure outcome for the existing retry workflow. Lost replies and
+uncertain acceptance remain pending and are never automatically resent by the batch sender.
+
 #### Check SMTP from the image
 
 Run this command from the app repository to check the connection, certificate, and authentication:

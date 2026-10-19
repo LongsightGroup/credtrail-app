@@ -36,6 +36,7 @@ export type SmtpFailureKind =
   | "connection"
   | "timeout"
   | "rejected"
+  | "temporary_rejection"
   | "invalid_message"
   | "cancelled";
 const summaries: Record<SmtpFailureKind, string> = {
@@ -46,6 +47,8 @@ const summaries: Record<SmtpFailureKind, string> = {
   timeout: "SMTP timed out—relay acceptance may be uncertain; do not resend automatically",
   rejected:
     "SMTP rejected the sender or primary recipient—check the sender authorization and recipient",
+  temporary_rejection:
+    "SMTP temporarily rejected the message—slow down and check the relay limits or availability",
   invalid_message: "SMTP message is invalid—check the sender, recipient, and message headers",
   cancelled: "SMTP operation was cancelled",
 };
@@ -66,10 +69,21 @@ export interface SmtpEmail {
   verify(): Promise<SmtpResult<void>>;
 }
 
-const errorSchema = z.object({ code: z.string().optional(), message: z.string().optional() });
+const errorSchema = z.object({
+  code: z.string().optional(),
+  message: z.string().optional(),
+  responseCode: z.number().int().optional(),
+});
 const classify = (cause: unknown): SmtpFailure => {
   const error = errorSchema.safeParse(cause);
   const code = error.success ? error.data.code : undefined;
+  if (
+    error.success &&
+    error.data.responseCode !== undefined &&
+    error.data.responseCode >= 400 &&
+    error.data.responseCode < 500
+  )
+    return new SmtpFailure("temporary_rejection");
   if (code === "EAUTH") return new SmtpFailure("authentication");
   if (code === "ETIMEDOUT") return new SmtpFailure("timeout");
   if (code === "ABORT_ERR") return new SmtpFailure("cancelled");
@@ -100,6 +114,9 @@ const resultSchema = z.object({
   messageId: z.string(),
   accepted: z.array(z.union([z.string(), z.object({ address: z.string() })])),
   rejected: z.array(z.unknown()),
+  rejectedErrors: z
+    .array(z.object({ recipient: z.string(), responseCode: z.number().int().optional() }))
+    .optional(),
 });
 
 /** Construct a Node-only SMTP binding with required TLS and bounded connection lifetimes. */
@@ -153,7 +170,14 @@ export const createSmtpEmail = (config: SmtpConfig): SmtpEmail => {
           (item) => (typeof item === "string" ? item : item.address) === primary,
         )
       ) {
-        return { status: "error", error: new SmtpFailure("rejected") };
+        const rejection = result.data.rejectedErrors?.find((error) => error.recipient === primary);
+        const code = rejection?.responseCode;
+        return {
+          status: "error",
+          error: new SmtpFailure(
+            code !== undefined && code >= 400 && code < 500 ? "temporary_rejection" : "rejected",
+          ),
+        };
       }
       if (result.data.rejected.length > 0)
         console.warn(

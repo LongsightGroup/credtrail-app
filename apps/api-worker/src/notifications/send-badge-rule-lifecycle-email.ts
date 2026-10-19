@@ -1,4 +1,4 @@
-import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
+import { sendEmailBatch } from "./send-email-batch";
 import type { EmailTracking } from "./email-attempt-store";
 import type { TransactionalEmailResult } from "./transactional-email";
 import {
@@ -6,7 +6,7 @@ import {
   tenantMembershipRoleSatisfiesMinimumRole,
   type SqlDatabase,
 } from "@credtrail/db";
-import { sendTransactionalEmail, EMAIL_PROVIDER_CONCURRENCY } from "./transactional-email";
+import { sendTransactionalEmail } from "./transactional-email";
 
 export type BadgeRuleLifecycleReminderType = "expiry" | "recertification";
 
@@ -64,31 +64,28 @@ export const sendBadgeRuleLifecycleReminderNotifications = async (
     .filter((member) => tenantMembershipRoleSatisfiesMinimumRole(member.role, "admin"))
     .map((member) => member.email);
 
-  return mapConcurrentBounded(
-    recipientEmails,
-    { concurrency: EMAIL_PROVIDER_CONCURRENCY },
-    (recipientEmail) =>
-      sendTransactionalEmail({
-        tracking: input.tracking,
-        kind: "rule_lifecycle",
-        emailBinding: input.emailBinding,
-        fromEmail: input.fromEmail,
-        fromName: input.fromName,
-        recipientEmail,
-        subject: lifecycleReminderSubject(input),
-        content: {
-          institution: input.tenantDisplayName,
-          title: lifecycleReminderSubject(input),
-          paragraphs: [lifecycleReminderIntro(input), lifecycleReminderAction(input.reminderType)],
-          details: [
-            { label: "Rule", value: input.ruleName },
-            { label: "Version", value: String(input.versionNumber) },
-            { label: "Due", value: input.dueAt },
-          ],
-          action: { label: "Review the rule", url: input.adminUrl },
-          footer: "Review this rule to keep your institution’s badge issuance up to date.",
-        },
-        category: "Badge Rule Lifecycle",
-      }),
+  return sendEmailBatch(recipientEmails, (recipientEmail) =>
+    sendTransactionalEmail({
+      tracking: input.tracking,
+      kind: "rule_lifecycle",
+      emailBinding: input.emailBinding,
+      fromEmail: input.fromEmail,
+      fromName: input.fromName,
+      recipientEmail,
+      subject: lifecycleReminderSubject(input),
+      content: {
+        institution: input.tenantDisplayName,
+        title: lifecycleReminderSubject(input),
+        paragraphs: [lifecycleReminderIntro(input), lifecycleReminderAction(input.reminderType)],
+        details: [
+          { label: "Rule", value: input.ruleName },
+          { label: "Version", value: String(input.versionNumber) },
+          { label: "Due", value: input.dueAt },
+        ],
+        action: { label: "Review the rule", url: input.adminUrl },
+        footer: "Review this rule to keep your institution’s badge issuance up to date.",
+      },
+      category: "Badge Rule Lifecycle",
+    }),
   );
 };

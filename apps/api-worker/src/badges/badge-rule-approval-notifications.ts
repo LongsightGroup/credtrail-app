@@ -1,8 +1,5 @@
-import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
-import {
-  EMAIL_PROVIDER_CONCURRENCY,
-  type TransactionalEmailResult,
-} from "../notifications/transactional-email";
+import { sendEmailBatch } from "../notifications/send-email-batch";
+import type { TransactionalEmailResult } from "../notifications/transactional-email";
 import { emailTracking } from "../notifications/email-attempt-store";
 import { badgeRuleVersionDisplayFields } from "./badge-rule-presentation";
 import {
@@ -169,9 +166,8 @@ export const notifyBadgeRuleApprovalDecision = async (
     uniqueRecipientUserIds(input.version).map((userId) => findUserById(db, userId)),
   );
 
-  return mapConcurrentBounded(
+  return sendEmailBatch(
     recipientUsers.filter((user) => user !== null),
-    { concurrency: EMAIL_PROVIDER_CONCURRENCY },
     (user) =>
       sendBadgeRuleApprovalDecisionEmail({
         tracking: emailTracking(

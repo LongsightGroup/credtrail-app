@@ -64,6 +64,40 @@ describe("SMTP wire delivery", () => {
     expect(output.message).not.toContain(" secret ");
     expect(output.message).not.toContain("secret-access-token");
   });
+  it.each([
+    { rejectionCode: 451 as const, copy: false, temporary: true },
+    { rejectionCode: 451 as const, copy: true, temporary: true },
+    { rejectionCode: 550 as const, copy: true, temporary: false },
+  ])(
+    "distinguishes temporary SMTP rejection from uncertain acceptance: %j",
+    async ({ rejectionCode, copy, temporary }) => {
+      const relay = await start({ rejectRecipients: ["learner@example.edu"], rejectionCode });
+      const tracking = createMemoryEmailTracking();
+      const result = await sendTransactionalEmail({
+        tracking,
+        emailBinding: createNodeEmail(relay.env).binding,
+        kind: copy ? "issuance" : "member_invite",
+        recipientEmail: "learner@example.edu",
+        subject: "Your badge",
+        category: "test",
+        content: {
+          institution: "University",
+          title: "Your badge",
+          paragraphs: ["Your badge is ready."],
+          action: { label: "View", url: "https://credtrail.org/badges/test" },
+          footer: "Contact your issuer.",
+        },
+      });
+      expect(result).toMatchObject({ status: "failed", reason: "provider_rejected" });
+      expect(result.status === "failed" && result.providerBusy === true).toBe(temporary);
+      expect(tracking.attempts).toHaveLength(1);
+      expect(tracking.attempts[0]?.outcome.status).toBe("failed");
+      expect(relay.messages).toHaveLength(copy ? 1 : 0);
+      expect(relay.messages.map((message) => message.recipients)).toEqual(
+        copy ? [["records@example.edu"]] : [],
+      );
+    },
+  );
   it("rejects untrusted and mismatched certificates", async () => {
     const relay = await start();
     expect((await checkNodeEmail({ ...relay.env, SMTP_TLS_CA_FILE: undefined }, [])).exitCode).toBe(

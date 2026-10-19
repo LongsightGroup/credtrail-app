@@ -3,9 +3,6 @@ import { renderTransactionalEmail } from "./transactional-email-renderer";
 import { z } from "zod";
 import type { EmailAttemptCompletion, EmailKind, EmailTracking } from "./email-attempt-store";
 
-/** Bound SMTP sockets and leave database-pool capacity for recording results. */
-export const EMAIL_PROVIDER_CONCURRENCY = 4;
-
 const DEFAULT_FROM_EMAIL = "no-reply@credtrail.org";
 const DEFAULT_FROM_NAME = "CredTrail";
 
@@ -13,7 +10,11 @@ const DEFAULT_FROM_NAME = "CredTrail";
 export type TransactionalEmailKind = EmailKind;
 
 export type TransactionalEmailResult =
-  | ({ readonly attemptId: string } & EmailAttemptCompletion)
+  | ({ readonly attemptId: string } & Exclude<EmailAttemptCompletion, { status: "failed" }>)
+  | ({ readonly attemptId: string; readonly providerBusy?: true } & Extract<
+      EmailAttemptCompletion,
+      { status: "failed" }
+    >)
   | { readonly status: "tracking_failed"; readonly attemptId: string | null };
 
 export interface SendTransactionalEmailInput {
@@ -31,8 +32,16 @@ export interface SendTransactionalEmailInput {
 
 const rejectedSmtpError = z.object({
   name: z.literal("SmtpFailure"),
-  kind: z.enum(["authentication", "tls", "rejected", "invalid_message"]),
+  kind: z.enum(["authentication", "tls", "rejected", "invalid_message", "temporary_rejection"]),
 });
+const temporarySmtpError = z.object({
+  name: z.literal("SmtpFailure"),
+  kind: z.literal("temporary_rejection"),
+});
+const throttledSesError = z.union([
+  z.object({ $metadata: z.object({ httpStatusCode: z.literal(429) }) }),
+  z.object({ name: z.enum(["Throttling", "ThrottlingException", "TooManyRequestsException"]) }),
+]);
 const rejectedSesError = z.object({
   $metadata: z.object({ httpStatusCode: z.number().min(400).max(499) }),
 });
@@ -140,10 +149,15 @@ export const sendTransactionalEmail = async (
         : { status: "pending", reason: "provider_uncertain" },
     );
   } catch (cause: unknown) {
-    return complete(
-      rejectedSmtpError.safeParse(cause).success || rejectedSesError.safeParse(cause).success
+    const providerBusy =
+      temporarySmtpError.safeParse(cause).success || throttledSesError.safeParse(cause).success;
+    const result = await complete(
+      providerBusy ||
+        rejectedSmtpError.safeParse(cause).success ||
+        rejectedSesError.safeParse(cause).success
         ? { status: "failed", reason: "provider_rejected" }
         : { status: "pending", reason: "provider_uncertain" },
     );
+    return result.status === "failed" && providerBusy ? { ...result, providerBusy: true } : result;
   }
 };

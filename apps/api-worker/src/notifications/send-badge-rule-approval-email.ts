@@ -1,4 +1,4 @@
-import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
+import { sendEmailBatch } from "./send-email-batch";
 import type { EmailTracking } from "./email-attempt-store";
 import type { TransactionalEmailResult } from "./transactional-email";
 import {
@@ -8,7 +8,7 @@ import {
   type BadgeIssuanceRuleApprovalStepRecord,
   type SqlDatabase,
 } from "@credtrail/db";
-import { sendTransactionalEmail, EMAIL_PROVIDER_CONCURRENCY } from "./transactional-email";
+import { sendTransactionalEmail } from "./transactional-email";
 
 export interface BadgeRuleApprovalEmailContext {
   readonly tracking: EmailTracking;
@@ -168,14 +168,11 @@ export const sendBadgeRuleApprovalSubmittedNotifications = async (
   });
   const stepLabel = input.step.label ?? `Step ${String(input.step.stepNumber)}`;
 
-  return mapConcurrentBounded(
-    recipientEmails,
-    { concurrency: EMAIL_PROVIDER_CONCURRENCY },
-    (recipientEmail) =>
-      sendBadgeRuleApprovalSubmittedEmail({
-        ...input,
-        recipientEmail,
-        stepLabel,
-      }),
+  return sendEmailBatch(recipientEmails, (recipientEmail) =>
+    sendBadgeRuleApprovalSubmittedEmail({
+      ...input,
+      recipientEmail,
+      stepLabel,
+    }),
   );
 };
