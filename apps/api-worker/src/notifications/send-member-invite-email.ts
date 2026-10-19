@@ -1,6 +1,9 @@
+import type { EmailTracking } from "./email-attempt-store";
+import type { TransactionalEmailResult } from "./transactional-email";
 import { sendTransactionalEmail } from "./transactional-email";
 
 export interface SendMemberInviteEmailNotificationInput {
+  readonly tracking: EmailTracking;
   emailBinding?: SendEmail | undefined;
   fromEmail?: string | undefined;
   fromName?: string | undefined;
@@ -12,9 +15,10 @@ export interface SendMemberInviteEmailNotificationInput {
 
 export const sendMemberInviteEmailNotification = async (
   input: SendMemberInviteEmailNotificationInput,
-): Promise<void> => {
+): Promise<TransactionalEmailResult> => {
   const subject = `You have been added to ${input.tenantDisplayName} on CredTrail`;
-  await sendTransactionalEmail({
+  return sendTransactionalEmail({
+    tracking: input.tracking,
     kind: "member_invite",
     emailBinding: input.emailBinding,
     fromEmail: input.fromEmail,

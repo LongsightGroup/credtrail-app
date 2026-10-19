@@ -1,6 +1,10 @@
+import type { EmailTracking } from "./email-attempt-store";
+import type { TransactionalEmailResult } from "./transactional-email";
 import { sendTransactionalEmail } from "./transactional-email";
 
 export interface SendMagicLinkEmailNotificationInput {
+  readonly tracking: EmailTracking;
+  readonly skipReason?: "development" | undefined;
   emailBinding?: SendEmail | undefined;
   fromEmail?: string | undefined;
   fromName?: string | undefined;
@@ -56,7 +60,7 @@ export const formatMagicLinkExpiry = (input: {
 
 export const sendMagicLinkEmailNotification = async (
   input: SendMagicLinkEmailNotificationInput,
-): Promise<void> => {
+): Promise<TransactionalEmailResult> => {
   const institution = input.tenantDisplayName.trim();
   const subject = `Sign in to ${institution}`;
   const formattedExpiresAt = formatMagicLinkExpiry({
@@ -64,7 +68,9 @@ export const sendMagicLinkEmailNotification = async (
     preferredLocale: input.preferredLocale,
     preferredTimeZone: input.preferredTimeZone,
   });
-  await sendTransactionalEmail({
+  return sendTransactionalEmail({
+    tracking: input.tracking,
+    skipReason: input.skipReason,
     kind: "magic_link",
     emailBinding: input.emailBinding,
     fromEmail: input.fromEmail,

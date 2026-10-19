@@ -1,3 +1,4 @@
+import type { TransactionalEmailResult } from "../notifications/transactional-email";
 import {
   findActiveTenantBreakGlassAccountByEmail,
   findTenantById,
@@ -19,6 +20,7 @@ import { normalizeSafeRedirectPath } from "./redirect-paths";
 export const BREAK_GLASS_PENDING_MFA_COOKIE_NAME = "credtrail_break_glass_pending_mfa";
 
 interface BetterAuthRuntime {
+  getPasswordResetEmailResult?: () => TransactionalEmailResult | null;
   auth: {
     handler: (request: Request) => Promise<Response>;
   };
@@ -56,7 +58,7 @@ export interface BreakGlassPolicyAdapter<
       email: string;
       nextPath: string;
     },
-  ) => Promise<"sent" | "unavailable">;
+  ) => Promise<"sent" | "skipped" | "unavailable">;
   signIn: (
     context: ContextType,
     input: {
@@ -135,7 +137,7 @@ export const breakGlassPasswordResetEnrollmentStatus = async <ContextType>(
           tenantId: string;
           email: string;
         },
-      ) => Promise<"sent" | "unavailable">)
+      ) => Promise<"sent" | "skipped" | "unavailable">)
     | undefined,
   context: ContextType,
   input: {
@@ -324,10 +326,12 @@ export const createBreakGlassPolicyAdapter = <
     );
 
     if (allowlistedAccount === null) {
-      return "sent";
+      return "skipped";
     }
 
-    const { auth, runtimeConfig } = input.createBetterAuthRuntime(context);
+    input.rememberRequestedTenant(context, request.tenantId);
+    const runtime = input.createBetterAuthRuntime(context);
+    const { auth, runtimeConfig } = runtime;
     const redirectTo = new URL(
       buildLocalResetPasswordPath({
         tenantId: request.tenantId,
@@ -350,8 +354,8 @@ export const createBreakGlassPolicyAdapter = <
 
     applyBetterAuthResponseHeaders(context, response);
 
-    if (!response.ok) {
-      return "sent";
+    if (!response.ok || runtime.getPasswordResetEmailResult?.()?.status !== "accepted") {
+      return "unavailable";
     }
 
     await markTenantBreakGlassEnrollmentEmailSent(db, {

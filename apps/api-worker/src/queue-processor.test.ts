@@ -325,7 +325,7 @@ describe("POST /v1/jobs/process", () => {
     expect(mockedCompleteJobQueueMessage).toHaveBeenCalledTimes(1);
   });
 
-  it("processes badge rule approval notification jobs", async () => {
+  it("fails approval notification jobs when durable email tracking is unavailable", async () => {
     const messages: Array<{ readonly subject: string; readonly text: string }> = [];
     const env = {
       ...createProcessorEnv(),
@@ -376,15 +376,16 @@ describe("POST /v1/jobs/process", () => {
     const body = await response.json<Record<string, unknown>>();
 
     expect(response.status).toBe(200);
-    expect(body.succeeded).toBe(1);
+    expect(body.succeeded).toBe(0);
+    expect(body.failedToFinalize).toBe(1);
     expect(mockedFindBadgeIssuanceRuleVersionById).toHaveBeenCalledWith(fakeDb, {
       tenantId: "tenant_123",
       ruleId: "brl_123",
       versionId: "brv_123",
     });
-    expect(mockedCompleteJobQueueMessage).toHaveBeenCalledTimes(1);
-    expect(mockedFailJobQueueMessage).not.toHaveBeenCalled();
-    expect(messages).toHaveLength(1);
+    expect(mockedCompleteJobQueueMessage).not.toHaveBeenCalled();
+    expect(mockedFailJobQueueMessage).toHaveBeenCalledTimes(1);
+    expect(messages).toHaveLength(0);
   });
 
   it("requires bearer auth when JOB_PROCESSOR_TOKEN is configured", async () => {

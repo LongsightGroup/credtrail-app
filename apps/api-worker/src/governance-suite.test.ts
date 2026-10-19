@@ -1437,7 +1437,7 @@ describe("tenant member management endpoints", () => {
     });
   });
 
-  it("delivers member invites through SSO sign-in notices for SSO-required tenants", async () => {
+  it("does not report SSO invitations as sent when durable tracking is unavailable", async () => {
     const sentMessages: Array<{ readonly text: string }> = [];
     // SAFETY: this recording binding implements the SendEmail behavior exercised by this route.
     const emailBinding = {
@@ -1500,15 +1500,11 @@ describe("tenant member management endpoints", () => {
 
     expect(response.status).toBe(200);
     expect(body.invite).toEqual({
-      deliveryStatus: "sent",
+      deliveryStatus: "failed",
       inviteKind: "sso_notice",
     });
     expect(betterAuthProvider.requestMagicLink).not.toHaveBeenCalled();
-    expect(sentMessages).toHaveLength(1);
-    expect(sentMessages[0]?.text).toContain(
-      "https://credtrail.test/login?tenantId=tenant_123&next=%2Fauth%2Fresolve&reason=sso_required",
-    );
-    expect(sentMessages[0]?.text).not.toContain("unexpected.example");
+    expect(sentMessages).toHaveLength(0);
   });
 });
 

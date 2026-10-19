@@ -1,3 +1,5 @@
+import { emailTracking } from "../notifications/email-attempt-store";
+import type { TransactionalEmailResult } from "../notifications/transactional-email";
 import { prepareRenewableBadgeIssuance } from "./renewable-badge-issuance";
 import { issuanceExpiryFailure } from "./issuance-expiry";
 import {
@@ -161,7 +163,9 @@ interface CreateIssueBadgeForTenantInput<
   signCredentialForDid: (
     request: SignCredentialForDidInput<ContextType>,
   ) => Promise<SignCredentialForDidResult>;
-  sendIssuanceEmailNotification: (input: SendIssuanceEmailNotificationInput) => Promise<void>;
+  sendIssuanceEmailNotification: (
+    input: SendIssuanceEmailNotificationInput,
+  ) => Promise<TransactionalEmailResult>;
   observabilityContext: (bindings: BindingsType) => ObservabilityContext;
   publicBadgePathForAssertion: (assertion: AssertionRecord) => string;
   HttpErrorResponseClass: IssueBadgeHttpErrorClass;
@@ -626,32 +630,49 @@ export const createIssueBadgeForTenant = <
 
     const createdAssertion = finalizeResult.assertion;
 
-    const emailOutcome = await attemptIssuanceEmail({
-      isEmailRecipient: request.recipientIdentityType === "email",
-      enabled: issuanceEmailNotificationsEnabled(context.env),
-      suppressed: options?.sendEmailNotification === false,
-      configured: context.env.EMAIL !== undefined,
-      send: async () => {
-        const publicBadgePath = input.publicBadgePathForAssertion(createdAssertion);
-        await input.sendIssuanceEmailNotification({
-          emailBinding: context.env.EMAIL,
-          fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
-          fromName: context.env.TRANSACTIONAL_EMAIL_FROM_NAME,
-          recipientEmail: request.recipientIdentity.trim().toLowerCase(),
-          badgeTitle: achievement.title,
-          tenantDisplayName: options?.issuerName ?? tenant.displayName,
-          issuedAtIso: issuedAt,
-          publicBadgeUrl: new URL(publicBadgePath, credentialBaseUrl).toString(),
-          badgeDescription: achievement.description,
-          badgeImageUrl: achievement.imageUri,
-          credentialDownloadUrl: new URL(
-            `${publicBadgePath}/download`,
-            credentialBaseUrl,
-          ).toString(),
-          validUntilIso: validity.validUntil ?? null,
-        });
-      },
-    });
+    let emailOutcome: Awaited<ReturnType<typeof attemptIssuanceEmail>> = "pending";
+    let pendingAt: string | undefined;
+    try {
+      const pending = await recordIssuanceEmailOutcome({
+        db,
+        tenantId,
+        assertionId,
+        status: "pending",
+      });
+      pendingAt = pending.occurredAt;
+      emailOutcome = await attemptIssuanceEmail({
+        isEmailRecipient: request.recipientIdentityType === "email",
+        enabled: issuanceEmailNotificationsEnabled(context.env),
+        suppressed: options?.sendEmailNotification === false,
+        configured: context.env.EMAIL !== undefined,
+        send: async () => {
+          const publicBadgePath = input.publicBadgePathForAssertion(createdAssertion);
+          return input.sendIssuanceEmailNotification({
+            tracking: emailTracking(db, tenantId, assertionId),
+            emailBinding: context.env.EMAIL,
+            fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
+            fromName: context.env.TRANSACTIONAL_EMAIL_FROM_NAME,
+            recipientEmail: request.recipientIdentity.trim().toLowerCase(),
+            badgeTitle: achievement.title,
+            tenantDisplayName: options?.issuerName ?? tenant.displayName,
+            issuedAtIso: issuedAt,
+            publicBadgeUrl: new URL(publicBadgePath, credentialBaseUrl).toString(),
+            badgeDescription: achievement.description,
+            badgeImageUrl: achievement.imageUri,
+            credentialDownloadUrl: new URL(
+              `${publicBadgePath}/download`,
+              credentialBaseUrl,
+            ).toString(),
+            validUntilIso: validity.validUntil ?? null,
+          });
+        },
+      });
+    } catch {
+      logWarn(input.observabilityContext(context.env), "issuance_email_tracking_failed", {
+        assertionId,
+        tenantId,
+      });
+    }
     if (emailOutcome === "failed") {
       logWarn(input.observabilityContext(context.env), "issuance_email_notification_failed", {
         assertionId,
@@ -659,7 +680,16 @@ export const createIssueBadgeForTenant = <
       });
     }
     try {
-      await recordIssuanceEmailOutcome({ db, tenantId, assertionId, status: emailOutcome });
+      await recordIssuanceEmailOutcome({
+        db,
+        tenantId,
+        assertionId,
+        status: emailOutcome,
+        occurredAt:
+          pendingAt === undefined
+            ? undefined
+            : new Date(Math.max(Date.now(), Date.parse(pendingAt) + 1)).toISOString(),
+      });
     } catch {
       // Issuance has committed. A missing notification record must not invite duplicate issuance.
       logWarn(input.observabilityContext(context.env), "issuance_email_outcome_record_failed", {

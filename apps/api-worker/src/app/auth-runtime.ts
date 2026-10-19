@@ -1,3 +1,5 @@
+import { emailTracking } from "../notifications/email-attempt-store";
+import type { TransactionalEmailResult } from "../notifications/transactional-email";
 import {
   findTenantAuthPolicy,
   findTenantById,
@@ -210,11 +212,21 @@ export const createBetterAuthRuntime = (
 ): {
   runtimeConfig: ReturnType<typeof createBetterAuthRuntimeConfig>;
   auth: ReturnType<typeof createCredtrailBetterAuth>;
+  getPasswordResetEmailResult: () => TransactionalEmailResult | null;
 } => {
   const runtimeConfig = createBetterAuthRuntimeConfig(context.env);
+  let passwordResetEmailResult: TransactionalEmailResult | null = null;
+  const authEmailContext = async (): Promise<{ tenantId: string | null; displayName: string }> => {
+    const tenantId = (context.get("requestedTenantContext") ?? requestedTenantFromCookie(context))
+      ?.tenantId;
+    const tenant =
+      tenantId === undefined ? null : await findTenantById(resolveDatabase(context.env), tenantId);
+    return { tenantId: tenant?.id ?? null, displayName: tenant?.displayName ?? "CredTrail" };
+  };
 
   return {
     runtimeConfig,
+    getPasswordResetEmailResult: () => passwordResetEmailResult,
     auth: createCredtrailBetterAuth({
       db: resolveDatabase(context.env),
       runtimeConfig,
@@ -224,13 +236,44 @@ export const createBetterAuthRuntime = (
       socialProviders: options?.socialProviders ?? createConfiguredSocialProviders(context.env),
       sendMagicLink:
         options?.sendMagicLink ??
-        (async () => {
-          return Promise.resolve();
+        (async ({ email, token }) => {
+          const tenant = await authEmailContext();
+          const result = await sendMagicLinkEmailNotification({
+            tracking: emailTracking(resolveDatabase(context.env), tenant.tenantId),
+            skipReason: context.env.APP_ENV === "development" ? "development" : undefined,
+            emailBinding: context.env.EMAIL,
+            fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
+            fromName: context.env.TRANSACTIONAL_EMAIL_FROM_NAME,
+            recipientEmail: email,
+            tenantDisplayName: tenant.displayName,
+            magicLinkUrl: buildHostedMagicLinkUrl({
+              baseURL: runtimeConfig.baseURL,
+              token,
+              nextPath: "/auth/resolve",
+            }),
+            expiresAtIso: addSecondsToIso(new Date().toISOString(), MAGIC_LINK_TTL_SECONDS),
+          });
+          if (
+            result.status !== "accepted" &&
+            !(result.status === "skipped" && result.reason === "development")
+          )
+            throw new Error("Sign-in email was not accepted");
         }),
       sendResetPassword:
         options?.sendResetPassword ??
-        (async () => {
-          return Promise.resolve();
+        (async ({ email, url }) => {
+          const tenant = await authEmailContext();
+          passwordResetEmailResult = await sendPasswordResetEmailNotification({
+            tracking: emailTracking(resolveDatabase(context.env), tenant.tenantId),
+            emailBinding: context.env.EMAIL,
+            fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
+            fromName: context.env.TRANSACTIONAL_EMAIL_FROM_NAME,
+            recipientEmail: email,
+            tenantDisplayName: tenant.displayName,
+            resetUrl: url,
+          });
+          if (passwordResetEmailResult.status !== "accepted")
+            throw new Error("Password-reset email was not accepted");
         }),
     }),
   };
@@ -426,12 +469,10 @@ export const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindin
           nextPath,
         });
 
-        if (context.env.APP_ENV === "development") {
-          return;
-        }
-
         try {
-          await sendMagicLinkEmailNotification({
+          const result = await sendMagicLinkEmailNotification({
+            tracking: emailTracking(resolveDatabase(context.env), input.tenantId ?? null),
+            skipReason: context.env.APP_ENV === "development" ? "development" : undefined,
             emailBinding: context.env.EMAIL,
             fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
             fromName: context.env.TRANSACTIONAL_EMAIL_FROM_NAME,
@@ -442,7 +483,12 @@ export const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindin
             preferredLocale: input.preferredLocale,
             preferredTimeZone: input.preferredTimeZone,
           });
-          deliveryStatus = "sent";
+          deliveryStatus =
+            result.status === "accepted"
+              ? "sent"
+              : result.status === "skipped"
+                ? "skipped"
+                : "failed";
         } catch {
           deliveryStatus = "failed";
         }
@@ -452,7 +498,8 @@ export const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindin
           throw new Error("Password-reset email requires a tenant-scoped authentication request");
         }
 
-        await sendPasswordResetEmailNotification({
+        const result = await sendPasswordResetEmailNotification({
+          tracking: emailTracking(resolveDatabase(context.env), input.tenantId),
           emailBinding: context.env.EMAIL,
           fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
           fromName: context.env.TRANSACTIONAL_EMAIL_FROM_NAME,
@@ -460,6 +507,7 @@ export const betterAuthProvider = createBetterAuthProvider<AppContext, AppBindin
           tenantDisplayName: institution,
           resetUrl: url,
         });
+        if (result.status !== "accepted") throw new Error("Password-reset email was not accepted");
       },
     });
     const response = await auth.handler(
@@ -644,7 +692,8 @@ export const requestTenantMemberInvite = async (
 
   if (tenant.planTier === "enterprise" && policy?.loginMode === "sso_required") {
     try {
-      await sendMemberInviteEmailNotification({
+      const result = await sendMemberInviteEmailNotification({
+        tracking: emailTracking(db, input.tenantId),
         emailBinding: context.env.EMAIL,
         fromEmail: context.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
         fromName: context.env.TRANSACTIONAL_EMAIL_FROM_NAME,
@@ -655,7 +704,12 @@ export const requestTenantMemberInvite = async (
       });
 
       return {
-        deliveryStatus: "sent",
+        deliveryStatus:
+          result.status === "accepted"
+            ? "sent"
+            : result.status === "skipped"
+              ? "skipped"
+              : "failed",
         inviteKind: "sso_notice",
       };
     } catch {

@@ -1,3 +1,6 @@
+import { sendIssuanceEmailNotification } from "../notifications/send-issuance-email";
+import { createRecordingEmailBinding } from "../test-support/recording-email";
+import { loadIssuanceEmailHistory } from "../notifications/issuance-email-outcome";
 import { expect, it } from "vitest";
 import type { ImmutableCredentialStore } from "@credtrail/core-domain";
 import {
@@ -74,6 +77,7 @@ const scenario = async (
   manual = false,
   conditions?: BadgeIssuanceRuleCondition,
   renewable = true,
+  emailDelivery?: { readonly binding: SendEmail; readonly enabled: boolean },
 ) => {
   const fixture = await createBadgeRuleIntegrationFixture();
   const store = memoryStore();
@@ -148,7 +152,7 @@ const scenario = async (
         verificationMethod: "test",
         credential: request.credential,
       }),
-    sendIssuanceEmailNotification: () => Promise.resolve(),
+    sendIssuanceEmailNotification,
     observabilityContext: () => ({ service: "renewal-test", environment: "test" }),
     publicBadgePathForAssertion: (assertion) => `/badges/${assertion.publicId ?? assertion.id}`,
     HttpErrorResponseClass: IssuanceError,
@@ -156,6 +160,12 @@ const scenario = async (
   const context = {
     env: {
       BADGE_OBJECTS: store,
+      ...(emailDelivery === undefined
+        ? {}
+        : {
+            EMAIL: emailDelivery.binding,
+            ISSUANCE_EMAIL_NOTIFICATIONS_ENABLED: String(emailDelivery.enabled),
+          }),
       PLATFORM_DOMAIN: "credtrail.org",
       PUBLIC_APP_ORIGIN: "https://credtrail.org",
     },
@@ -246,6 +256,37 @@ const scenario = async (
 };
 
 describeDbIntegration("rolling badge renewals", () => {
+  it.each([false, true])(
+    "durably tracks initial issuance and honors enabled=%s without duplicate sends",
+    async (enabled) => {
+      const { emailBinding, messages } = createRecordingEmailBinding();
+      const s = await scenario(false, undefined, true, { binding: emailBinding, enabled });
+      try {
+        const at = "2026-02-01T00:00:00.000Z";
+        const request = await s.requestFor("2026-01-01T00:00:00.000Z", at);
+        const issued = await s.issueAt(request, at);
+        expect(issued.status).toBe("issued");
+        const history = await loadIssuanceEmailHistory(s.db, s.tenantId, issued.assertionId);
+        expect(history.events.map((event) => event.outcome)).toEqual([
+          enabled ? "accepted" : "disabled",
+          "pending",
+        ]);
+        const records = await s.db
+          .prepare("SELECT status, target_id FROM email_attempts WHERE tenant_id = ?")
+          .bind(s.tenantId)
+          .all<{ status: string; target_id: string }>();
+        expect(records.results).toEqual(
+          enabled ? [{ status: "accepted", target_id: issued.assertionId }] : [],
+        );
+        expect(messages).toHaveLength(enabled ? 1 : 0);
+        expect((await s.issueAt(request, at)).status).toBe("already_issued");
+        expect(messages).toHaveLength(enabled ? 1 : 0);
+      } finally {
+        await s.dispose();
+      }
+    },
+  );
+
   it.each<{ kind: string; conditions: BadgeIssuanceRuleCondition }>([
     {
       kind: "assignment score",

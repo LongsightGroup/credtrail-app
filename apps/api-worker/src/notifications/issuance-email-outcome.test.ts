@@ -16,13 +16,14 @@ describe("issuance email outcomes", () => {
       suppressed: false,
       send: async () => {
         sent = true;
+        return { status: "accepted", attemptId: "test", messageId: "test" };
       },
     });
     expect(sent).toBe(true);
     expect(outcome).toBe("accepted");
     expect(issuanceEmailOutcomeMessage(outcome)).toContain("not confirmed");
   });
-  it("returns failure without turning an issued credential into an issuance error", async () => {
+  it("preserves uncertainty without turning an issued credential into an issuance error", async () => {
     const outcome = await attemptIssuanceEmail({
       isEmailRecipient: true,
       enabled: true,
@@ -32,8 +33,8 @@ describe("issuance email outcomes", () => {
         throw new Error("provider unavailable");
       },
     });
-    expect(outcome).toBe("failed");
-    expect(issuanceEmailOutcomeMessage(outcome)).toContain("still issued");
+    expect(outcome).toBe("pending");
+    expect(issuanceEmailOutcomeMessage(outcome)).toContain("uncertain");
   });
   it.each([
     {
@@ -71,6 +72,7 @@ describe("issuance email outcomes", () => {
         ...settings,
         send: async () => {
           sent = true;
+          return { status: "accepted", attemptId: "test", messageId: "test" };
         },
       }),
     ).toBe(expected);

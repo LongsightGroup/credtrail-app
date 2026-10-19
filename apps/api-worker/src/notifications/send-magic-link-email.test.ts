@@ -1,3 +1,4 @@
+import { createMemoryEmailTracking } from "../test-support/email-attempts";
 import { createRecordingEmailBinding } from "../test-support/recording-email";
 import { describe, expect, it } from "vitest";
 
@@ -8,6 +9,7 @@ describe("sendMagicLinkEmailNotification", () => {
     const { emailBinding, messages } = createRecordingEmailBinding();
 
     await sendMagicLinkEmailNotification({
+      tracking: createMemoryEmailTracking(),
       emailBinding,
       fromEmail: "no-reply@credtrail.org",
       fromName: "CredTrail",
@@ -69,6 +71,7 @@ describe("sendMagicLinkEmailNotification", () => {
     const { emailBinding, messages } = createRecordingEmailBinding();
 
     await sendMagicLinkEmailNotification({
+      tracking: createMemoryEmailTracking(),
       emailBinding,
       fromEmail: "no-reply@credtrail.org",
       recipientEmail: "learner@example.edu",
@@ -88,12 +91,13 @@ describe("sendMagicLinkEmailNotification", () => {
   it("skips sending when the Cloudflare Email binding is missing", async () => {
     await expect(
       sendMagicLinkEmailNotification({
+        tracking: createMemoryEmailTracking(),
         recipientEmail: "learner@example.edu",
 
         tenantDisplayName: "Example University",
         magicLinkUrl: "https://credtrail.test/auth/magic-link/verify?token=test-token",
         expiresAtIso: "2026-02-18T01:00:00.000Z",
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toMatchObject({ status: "skipped", reason: "not_configured" });
   });
 });

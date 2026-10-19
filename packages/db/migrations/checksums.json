@@ -88,5 +88,6 @@
   "0086_automatic_pathway_badges.sql": "57d43760be0e49342d0b35cb75ec96f078a420bfd59114a91296adf42f2cca28",
   "0087_badge_renewal.sql": "df1b6a9042ba4a8b9dde7f302739ba95a772ad7e483f51b4df77405a71d3ed1e",
   "0088_oid4vci_credential_delivery.sql": "88b5f0b68b8ce9a11d7157492f7e29cd7308ba279a116cbe9eb5e54534e81bc7",
-  "0089_tenant_linkedin_organization.sql": "e16eddab31879fe434be2db65830c6fa8a98fdfa71703738f4d8c0a5e848f68b"
+  "0089_tenant_linkedin_organization.sql": "e16eddab31879fe434be2db65830c6fa8a98fdfa71703738f4d8c0a5e848f68b",
+  "0090_email_attempts.sql": "a98aff2b8c1ee0fefb28f80c152bea4fd164fb6f7878d2fe3c5fcef32956691d"
 }

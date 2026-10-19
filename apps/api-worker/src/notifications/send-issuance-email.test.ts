@@ -1,3 +1,4 @@
+import { createMemoryEmailTracking } from "../test-support/email-attempts";
 import { createRecordingEmailBinding } from "../test-support/recording-email";
 import { describe, expect, it } from "vitest";
 
@@ -8,6 +9,7 @@ describe("sendIssuanceEmailNotification", () => {
     const { emailBinding, messages } = createRecordingEmailBinding();
     const publicBadgeUrl = "https://badges.example.edu/badges/event-123";
     await sendIssuanceEmailNotification({
+      tracking: createMemoryEmailTracking(),
       emailBinding,
       recipientEmail: "learner@example.edu",
       badgeTitle: "Community & <Research>",
@@ -44,6 +46,7 @@ describe("sendIssuanceEmailNotification", () => {
   ])("keeps notifications usable without public artwork (%s)", async (badgeImageUrl) => {
     const { emailBinding, messages } = createRecordingEmailBinding();
     await sendIssuanceEmailNotification({
+      tracking: createMemoryEmailTracking(),
       emailBinding,
       recipientEmail: "learner@example.edu",
       badgeTitle: "Participation",
@@ -63,6 +66,7 @@ describe("sendIssuanceEmailNotification", () => {
     const { emailBinding, messages } = createRecordingEmailBinding();
 
     await sendIssuanceEmailNotification({
+      tracking: createMemoryEmailTracking(),
       emailBinding,
       fromEmail: "no-reply@credtrail.org",
       fromName: "CredTrail",
@@ -100,6 +104,7 @@ describe("sendIssuanceEmailNotification", () => {
   it("skips sending when the Cloudflare Email binding is missing", async () => {
     await expect(
       sendIssuanceEmailNotification({
+        tracking: createMemoryEmailTracking(),
         recipientEmail: "learner@example.edu",
         badgeTitle: "TypeScript Foundations",
 
@@ -110,7 +115,7 @@ describe("sendIssuanceEmailNotification", () => {
         credentialDownloadUrl:
           "https://credtrail.test/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22/download",
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toMatchObject({ status: "skipped", reason: "not_configured" });
   });
 });
 
@@ -119,6 +124,7 @@ describe("issuance email expiry", () => {
     const { emailBinding, messages } = createRecordingEmailBinding();
 
     await sendIssuanceEmailNotification({
+      tracking: createMemoryEmailTracking(),
       emailBinding,
       recipientEmail: "learner@example.edu",
       badgeTitle: "TypeScript Foundations",
@@ -140,6 +146,7 @@ describe("issuance email expiry", () => {
     const { emailBinding, messages } = createRecordingEmailBinding();
     const publicBadgeUrl = "https://credtrail.org/badges/40a6dc92-85ec-4cb0-8a50-afb2ae700e22";
     await sendIssuanceEmailNotification({
+      tracking: createMemoryEmailTracking(),
       emailBinding,
       recipientEmail: "learner@example.edu",
       badgeTitle: "TypeScript Foundations",

@@ -31,7 +31,7 @@ export interface RegisterTenantGovernanceRoutesInput {
       tenantId: string;
       email: string;
     },
-  ) => Promise<"sent" | "unavailable">;
+  ) => Promise<"sent" | "skipped" | "unavailable">;
   generateOpaqueToken: () => string;
   sha256Hex: (value: string) => Promise<string>;
   requireTenantRole: RequireTenantRole;

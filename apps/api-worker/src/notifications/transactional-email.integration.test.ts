@@ -1,3 +1,4 @@
+import { emailTracking } from "./email-attempt-store";
 import { createFixtureRule } from "../../../../packages/db/src/badge-issuance-rule-test-fixtures";
 import { processBadgeRuleLifecycleForTenant } from "../badges/badge-rule-lifecycle-processor";
 import { createRecordingEmailBinding } from "../test-support/recording-email";
@@ -40,6 +41,7 @@ describeDbIntegration("shared transactional email delivery", () => {
     relay = await createSmtpTestServer();
     const emailBinding = createNodeEmail(relay.env).binding;
     const common = {
+      tracking: emailTracking(fixture.db, fixture.tenantId),
       emailBinding,
       tenantDisplayName: "Example University",
       recipientEmail: "learner@example.edu",
@@ -83,6 +85,22 @@ describeDbIntegration("shared transactional email delivery", () => {
       credentialDownloadUrl: "https://badges.example.edu/badges/123/download",
     });
     expect(relay.messages).toHaveLength(7);
+    const recorded = await fixture.db
+      .prepare("SELECT kind, status FROM email_attempts WHERE tenant_id = ?")
+      .bind(fixture.tenantId)
+      .all<{ kind: string; status: string }>();
+    expect(recorded.results).toHaveLength(7);
+    expect(recorded.results.every((attempt) => attempt.status === "accepted")).toBe(true);
+    expect(new Set(recorded.results.map((attempt) => attempt.kind))).toEqual(
+      new Set([
+        "magic_link",
+        "password_reset",
+        "member_invite",
+        "issuance",
+        "rule_approval",
+        "rule_lifecycle",
+      ]),
+    );
     for (const message of relay.messages) {
       expect(message.secure).toBe(true);
       expect(message.mail.text).toContain("Example University");

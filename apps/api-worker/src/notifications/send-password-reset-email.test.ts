@@ -1,3 +1,4 @@
+import { createMemoryEmailTracking } from "../test-support/email-attempts";
 import { createRecordingEmailBinding } from "../test-support/recording-email";
 import { describe, expect, it } from "vitest";
 
@@ -8,6 +9,7 @@ describe("sendPasswordResetEmailNotification", () => {
     const { emailBinding, messages } = createRecordingEmailBinding();
 
     await sendPasswordResetEmailNotification({
+      tracking: createMemoryEmailTracking(),
       emailBinding,
       fromEmail: "no-reply@credtrail.org",
       fromName: "CredTrail",
@@ -40,11 +42,12 @@ describe("sendPasswordResetEmailNotification", () => {
   it("skips sending when the Cloudflare Email binding is missing", async () => {
     await expect(
       sendPasswordResetEmailNotification({
+        tracking: createMemoryEmailTracking(),
         recipientEmail: "admin@example.edu",
 
         tenantDisplayName: "Example University",
         resetUrl: "https://credtrail.test/auth/reset-password?token=test-token",
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toMatchObject({ status: "skipped", reason: "not_configured" });
   });
 });

@@ -217,13 +217,15 @@ export const registerTenantAccessMembersAdminRoutes = (
       invite.deliveryStatus === "failed"
         ? " Invite email could not be sent."
         : invite.deliveryStatus === "sent"
-          ? " Invite email sent."
-          : "";
+          ? " The email service accepted the invitation."
+          : request.sendInvite === false
+            ? ""
+            : " No invitation email was sent. Check the email configuration.";
 
     return redirectToMembers(c, {
       tenantId: pathParams.tenantId,
       userId: principal.userId,
-      tone: "success",
+      tone: request.sendInvite !== false && invite.deliveryStatus !== "sent" ? "error" : "success",
       message: `Saved ${user.email} as ${roleResult.membership.role}.${inviteNote}`,
     });
   });
@@ -388,11 +390,13 @@ export const registerTenantAccessMembersAdminRoutes = (
       },
     );
 
-    const tone = invite.deliveryStatus === "failed" ? "error" : "success";
+    const tone = invite.deliveryStatus === "sent" ? "success" : "error";
     const message =
       invite.deliveryStatus === "failed"
         ? `Invite for ${user.email} could not be sent.`
-        : `Invite processed for ${user.email} (${invite.deliveryStatus}).`;
+        : invite.deliveryStatus === "skipped"
+          ? `No invitation email was sent to ${user.email}. Check the email configuration.`
+          : `The email service accepted the invitation for ${user.email}.`;
 
     return redirectToMembers(c, {
       tenantId: pathParams.tenantId,

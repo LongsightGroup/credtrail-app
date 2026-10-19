@@ -434,7 +434,7 @@ export const registerAuthRoutes = (input: RegisterAuthRoutesInput): void => {
       buildLocalLoginPath({
         tenantId,
         nextPath,
-        reason: status === "sent" ? "reset_sent" : "break_glass_unavailable",
+        reason: status === "unavailable" ? "break_glass_unavailable" : "reset_sent",
       }),
       302,
     );

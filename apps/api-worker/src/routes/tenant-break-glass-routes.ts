@@ -28,7 +28,7 @@ interface RegisterTenantBreakGlassRoutesInput {
           tenantId: string;
           email: string;
         },
-      ) => Promise<"sent" | "unavailable">)
+      ) => Promise<"sent" | "skipped" | "unavailable">)
     | undefined;
   requireEnterpriseTenant: (
     c: AppContext,

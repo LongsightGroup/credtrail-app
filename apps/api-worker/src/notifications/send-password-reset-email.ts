@@ -1,6 +1,9 @@
+import type { EmailTracking } from "./email-attempt-store";
+import type { TransactionalEmailResult } from "./transactional-email";
 import { sendTransactionalEmail } from "./transactional-email";
 
 export interface SendPasswordResetEmailNotificationInput {
+  readonly tracking: EmailTracking;
   emailBinding?: SendEmail | undefined;
   fromEmail?: string | undefined;
   fromName?: string | undefined;
@@ -11,10 +14,11 @@ export interface SendPasswordResetEmailNotificationInput {
 
 export const sendPasswordResetEmailNotification = async (
   input: SendPasswordResetEmailNotificationInput,
-): Promise<void> => {
+): Promise<TransactionalEmailResult> => {
   const institution = input.tenantDisplayName.trim();
   const subject = `Set up local access to ${institution}`;
-  await sendTransactionalEmail({
+  return sendTransactionalEmail({
+    tracking: input.tracking,
     kind: "password_reset",
     emailBinding: input.emailBinding,
     fromEmail: input.fromEmail,

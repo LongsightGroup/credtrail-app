@@ -1,3 +1,6 @@
+import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
+import type { EmailTracking } from "./email-attempt-store";
+import type { TransactionalEmailResult } from "./transactional-email";
 import {
   findUserById,
   listTenantMembers,
@@ -5,9 +8,10 @@ import {
   type BadgeIssuanceRuleApprovalStepRecord,
   type SqlDatabase,
 } from "@credtrail/db";
-import { sendTransactionalEmail } from "./transactional-email";
+import { sendTransactionalEmail, EMAIL_PROVIDER_CONCURRENCY } from "./transactional-email";
 
 export interface BadgeRuleApprovalEmailContext {
+  readonly tracking: EmailTracking;
   readonly emailBinding?: SendEmail | undefined;
   readonly fromEmail?: string | undefined;
   readonly fromName?: string | undefined;
@@ -23,8 +27,9 @@ export const sendBadgeRuleApprovalSubmittedEmail = async (
     readonly recipientEmail: string;
     readonly stepLabel: string;
   },
-): Promise<void> => {
-  await sendTransactionalEmail({
+): Promise<TransactionalEmailResult> => {
+  return sendTransactionalEmail({
+    tracking: input.tracking,
     kind: "rule_approval",
     emailBinding: input.emailBinding,
     fromEmail: input.fromEmail,
@@ -53,8 +58,9 @@ export const sendBadgeRuleApprovalDecisionEmail = async (
     readonly decisionLabel: string;
     readonly comment: string | null;
   },
-): Promise<void> => {
-  await sendTransactionalEmail({
+): Promise<TransactionalEmailResult> => {
+  return sendTransactionalEmail({
+    tracking: input.tracking,
     kind: "rule_approval",
     emailBinding: input.emailBinding,
     fromEmail: input.fromEmail,
@@ -155,20 +161,21 @@ export const sendBadgeRuleApprovalSubmittedNotifications = async (
   input: BadgeRuleApprovalEmailContext & {
     readonly step: BadgeIssuanceRuleApprovalStepRecord;
   },
-): Promise<void> => {
+): Promise<readonly TransactionalEmailResult[]> => {
   const recipientEmails = await resolveBadgeRuleApprovalStepRecipientEmails(db, {
     tenantId: input.tenantId,
     step: input.step,
   });
   const stepLabel = input.step.label ?? `Step ${String(input.step.stepNumber)}`;
 
-  await Promise.allSettled(
-    recipientEmails.map((recipientEmail) =>
+  return mapConcurrentBounded(
+    recipientEmails,
+    { concurrency: EMAIL_PROVIDER_CONCURRENCY },
+    (recipientEmail) =>
       sendBadgeRuleApprovalSubmittedEmail({
         ...input,
         recipientEmail,
         stepLabel,
       }),
-    ),
   );
 };

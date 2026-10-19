@@ -1,3 +1,4 @@
+import { emailTracking } from "../notifications/email-attempt-store";
 import { badgeRecordsReturnHref } from "../admin/learner-record-link";
 import { findAssertionById, findBadgeTemplateById, findTenantById } from "@credtrail/db";
 import { parseTenantPathParams, parseAssertionPathParams } from "@credtrail/validation";
@@ -83,7 +84,8 @@ export const registerTenantNotificationRetryAdminRoutes = (
         send: async () => {
           const tenant = await findTenantById(db, tenantId);
           if (tenant === null) throw new Error("Notification institution is unavailable");
-          await input.send({
+          return input.send({
+            tracking: emailTracking(db, tenantId, assertionId),
             emailBinding: c.env.EMAIL,
             fromEmail: c.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
             fromName: c.env.TRANSACTIONAL_EMAIL_FROM_NAME,
@@ -104,8 +106,12 @@ export const registerTenantNotificationRetryAdminRoutes = (
           ? "The email service accepted the retry. No new credential was created."
           : result === "failed"
             ? "The notification could not be sent. You can retry again or share the badge link."
-            : "This attempt has already been handled. Check the notification result below.",
-        result === "failed" ? "error" : "success",
+            : result === "pending"
+              ? "The retry has no confirmed result. Check the mail service before resending."
+              : result === "not_configured"
+                ? "Email is unavailable. No notification was sent."
+                : "This attempt has already been handled. Check the notification result below.",
+        result === "accepted" ? "success" : "error",
       );
     },
   );

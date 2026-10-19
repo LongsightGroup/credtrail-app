@@ -1,3 +1,4 @@
+import { createMemoryEmailTracking } from "../test-support/email-attempts";
 import { createRecordingEmailBinding } from "../test-support/recording-email";
 import { describe, expect, it } from "vitest";
 import {
@@ -10,6 +11,7 @@ describe("badge rule approval email notifications", () => {
     const { emailBinding, messages } = createRecordingEmailBinding();
 
     await sendBadgeRuleApprovalSubmittedEmail({
+      tracking: createMemoryEmailTracking(),
       emailBinding,
       recipientEmail: "registrar@example.edu",
       tenantId: "tenant_123",
@@ -33,6 +35,7 @@ describe("badge rule approval email notifications", () => {
     const { emailBinding, messages } = createRecordingEmailBinding();
 
     await sendBadgeRuleApprovalDecisionEmail({
+      tracking: createMemoryEmailTracking(),
       emailBinding,
       recipientEmail: "author@example.edu",
       tenantId: "tenant_123",

@@ -810,7 +810,9 @@ export const createCredtrailBetterAuth = (input: {
     emailAndPassword: {
       enabled: true,
       sendResetPassword: async ({ user, url, token }) => {
-        await input.sendResetPassword?.({
+        if (input.sendResetPassword === undefined)
+          throw new Error("Password-reset email is unavailable");
+        await input.sendResetPassword({
           email: user.email,
           url,
           token,

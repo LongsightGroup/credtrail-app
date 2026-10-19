@@ -834,7 +834,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     expect(mockedSendIssuanceEmailNotification).not.toHaveBeenCalled();
   });
 
-  it("only sends issuance emails when the delivery feature flag is explicitly enabled", async () => {
+  it("keeps the issued credential but does not send email without a durable pending record", async () => {
     const signingMaterial = await generateTenantDidSigningMaterial({
       did: "did:web:credtrail.test:tenant_123",
     });
@@ -883,13 +883,7 @@ describe("POST /v1/tenants/:tenantId/assertions/manual-issue", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(mockedSendIssuanceEmailNotification).toHaveBeenCalledTimes(1);
-    expect(mockedSendIssuanceEmailNotification).toHaveBeenCalledWith(
-      expect.objectContaining({
-        recipientEmail: "student@umich.edu",
-        tenantDisplayName: "Tenant 123",
-      }),
-    );
+    expect(mockedSendIssuanceEmailNotification).not.toHaveBeenCalled();
   });
 
   it("writes a caller-supplied validUntil into the credential and the assertion", async () => {

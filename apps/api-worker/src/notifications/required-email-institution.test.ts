@@ -1,3 +1,4 @@
+import { createMemoryEmailTracking } from "../test-support/email-attempts";
 import { expect, it } from "vitest";
 import { createRecordingEmailBinding } from "../test-support/recording-email";
 import { sendMagicLinkEmailNotification } from "./send-magic-link-email";
@@ -12,14 +13,27 @@ it("rejects blank institution names before sending any message", async () => {
   const attempts = [
     () =>
       sendMagicLinkEmailNotification({
+        tracking: createMemoryEmailTracking(),
         ...common,
         magicLinkUrl: url,
         expiresAtIso: "2026-10-05T12:00:00Z",
       }),
-    () => sendPasswordResetEmailNotification({ ...common, resetUrl: url }),
-    () => sendMemberInviteEmailNotification({ ...common, role: "issuer", signInUrl: url }),
+    () =>
+      sendPasswordResetEmailNotification({
+        tracking: createMemoryEmailTracking(),
+        ...common,
+        resetUrl: url,
+      }),
+    () =>
+      sendMemberInviteEmailNotification({
+        tracking: createMemoryEmailTracking(),
+        ...common,
+        role: "issuer",
+        signInUrl: url,
+      }),
     () =>
       sendIssuanceEmailNotification({
+        tracking: createMemoryEmailTracking(),
         ...common,
         badgeTitle: "Completion",
         issuedAtIso: "2026-10-05",
@@ -29,6 +43,6 @@ it("rejects blank institution names before sending any message", async () => {
       }),
   ];
   for (const send of attempts)
-    await expect(send()).rejects.toThrow("Transactional email content is invalid");
+    expect(await send()).toMatchObject({ status: "failed", reason: "render_failed" });
   expect(messages).toHaveLength(0);
 });

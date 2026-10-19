@@ -1,13 +1,17 @@
+import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
+import type { EmailTracking } from "./email-attempt-store";
+import type { TransactionalEmailResult } from "./transactional-email";
 import {
   listTenantMembers,
   tenantMembershipRoleSatisfiesMinimumRole,
   type SqlDatabase,
 } from "@credtrail/db";
-import { sendTransactionalEmail } from "./transactional-email";
+import { sendTransactionalEmail, EMAIL_PROVIDER_CONCURRENCY } from "./transactional-email";
 
 export type BadgeRuleLifecycleReminderType = "expiry" | "recertification";
 
 export interface SendBadgeRuleLifecycleReminderNotificationsInput {
+  readonly tracking: EmailTracking;
   readonly emailBinding?: SendEmail | undefined;
   readonly fromEmail?: string | undefined;
   readonly fromName?: string | undefined;
@@ -54,15 +58,18 @@ const lifecycleReminderAction = (reminderType: BadgeRuleLifecycleReminderType): 
 export const sendBadgeRuleLifecycleReminderNotifications = async (
   db: SqlDatabase,
   input: SendBadgeRuleLifecycleReminderNotificationsInput,
-): Promise<void> => {
+): Promise<readonly TransactionalEmailResult[]> => {
   const tenantMembers = await listTenantMembers(db, input.tenantId);
   const recipientEmails = tenantMembers
     .filter((member) => tenantMembershipRoleSatisfiesMinimumRole(member.role, "admin"))
     .map((member) => member.email);
 
-  await Promise.allSettled(
-    recipientEmails.map((recipientEmail) =>
+  return mapConcurrentBounded(
+    recipientEmails,
+    { concurrency: EMAIL_PROVIDER_CONCURRENCY },
+    (recipientEmail) =>
       sendTransactionalEmail({
+        tracking: input.tracking,
         kind: "rule_lifecycle",
         emailBinding: input.emailBinding,
         fromEmail: input.fromEmail,
@@ -83,6 +90,5 @@ export const sendBadgeRuleLifecycleReminderNotifications = async (
         },
         category: "Badge Rule Lifecycle",
       }),
-    ),
   );
 };

@@ -1,8 +1,11 @@
+import type { EmailTracking } from "./email-attempt-store";
+import type { TransactionalEmailResult } from "./transactional-email";
 import { sendTransactionalEmail } from "./transactional-email";
 import { publicHttpUrl } from "../http/public-http-url";
 import { formatIsoTimestamp } from "../utils/display-format";
 
 export interface SendIssuanceEmailNotificationInput {
+  readonly tracking: EmailTracking;
   emailBinding?: SendEmail | undefined;
   fromEmail?: string | undefined;
   fromName?: string | undefined;
@@ -20,7 +23,7 @@ export interface SendIssuanceEmailNotificationInput {
 
 export const sendIssuanceEmailNotification = async (
   input: SendIssuanceEmailNotificationInput,
-): Promise<void> => {
+): Promise<TransactionalEmailResult> => {
   const subject = `You've earned a new badge: ${input.badgeTitle}`;
   const linkedInUrl = `${input.publicBadgeUrl}/share/linkedin-profile`;
   const description = input.badgeDescription?.trim() ?? "";
@@ -28,7 +31,8 @@ export const sendIssuanceEmailNotification = async (
     input.badgeImageUrl === undefined || input.badgeImageUrl === null
       ? null
       : (publicHttpUrl(input.badgeImageUrl, input.publicBadgeUrl)?.toString() ?? null);
-  await sendTransactionalEmail({
+  return sendTransactionalEmail({
+    tracking: input.tracking,
     kind: "issuance",
     emailBinding: input.emailBinding,
     fromEmail: input.fromEmail,

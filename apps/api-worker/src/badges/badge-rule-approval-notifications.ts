@@ -1,3 +1,9 @@
+import { mapConcurrentBounded } from "../utils/map-concurrent-bounded";
+import {
+  EMAIL_PROVIDER_CONCURRENCY,
+  type TransactionalEmailResult,
+} from "../notifications/transactional-email";
+import { emailTracking } from "../notifications/email-attempt-store";
 import { badgeRuleVersionDisplayFields } from "./badge-rule-presentation";
 import {
   findTenantById,
@@ -74,7 +80,7 @@ export const notifyBadgeRuleApprovalSubmitted = async (
     reviewUrl: string;
     targetStepNumber?: number | null | undefined;
   },
-): Promise<void> => {
+): Promise<readonly TransactionalEmailResult[] | null> => {
   const [rule, displayName, firstPendingStep] = await Promise.all([
     findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId),
     tenantDisplayName(db, input.tenantId),
@@ -86,11 +92,16 @@ export const notifyBadgeRuleApprovalSubmitted = async (
     }),
   ]);
 
-  if (displayName === null || firstPendingStep === null) {
-    return;
-  }
+  if (displayName === null) return null;
+  if (firstPendingStep === null) return [];
 
-  await sendBadgeRuleApprovalSubmittedNotifications(db, {
+  return sendBadgeRuleApprovalSubmittedNotifications(db, {
+    tracking: emailTracking(
+      db,
+      input.tenantId,
+      input.version.id,
+      `approval-step:${firstPendingStep.id}`,
+    ),
     emailBinding: input.env.EMAIL,
     fromEmail: input.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
     fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
@@ -117,7 +128,7 @@ export const notifyBadgeRuleApprovalDecision = async (
     reviewUrl: string;
     nextStepNumber?: number | null | undefined;
   },
-): Promise<void> => {
+): Promise<readonly TransactionalEmailResult[] | null> => {
   const [rule, displayName, nextStep] = await Promise.all([
     findBadgeIssuanceRuleById(db, input.tenantId, input.ruleId),
     tenantDisplayName(db, input.tenantId),
@@ -129,13 +140,14 @@ export const notifyBadgeRuleApprovalDecision = async (
     }),
   ]);
 
-  if (displayName === null) return;
+  if (displayName === null) return null;
 
   const hasNextStepNotificationTarget =
     input.nextStepNumber !== undefined && input.nextStepNumber !== null;
 
   if (input.decision === "approved" && hasNextStepNotificationTarget && nextStep !== null) {
-    await sendBadgeRuleApprovalSubmittedNotifications(db, {
+    return sendBadgeRuleApprovalSubmittedNotifications(db, {
+      tracking: emailTracking(db, input.tenantId, input.version.id, `approval-step:${nextStep.id}`),
       emailBinding: input.env.EMAIL,
       fromEmail: input.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
       fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
@@ -147,37 +159,39 @@ export const notifyBadgeRuleApprovalDecision = async (
       reviewUrl: input.reviewUrl,
       step: nextStep,
     });
-    return;
   }
 
   if (input.decision === "approved" && hasNextStepNotificationTarget) {
-    return;
+    return [];
   }
 
   const recipientUsers = await Promise.all(
     uniqueRecipientUserIds(input.version).map((userId) => findUserById(db, userId)),
   );
 
-  await Promise.allSettled(
-    recipientUsers.flatMap((user) =>
-      user === null
-        ? []
-        : [
-            sendBadgeRuleApprovalDecisionEmail({
-              emailBinding: input.env.EMAIL,
-              fromEmail: input.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
-              fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
-              tenantId: input.tenantId,
-              tenantDisplayName: displayName,
-              ruleName: badgeRuleVersionDisplayFields(input.version, rule ?? { customLabel: null })
-                .displayName,
-              versionNumber: input.version.versionNumber,
-              reviewUrl: input.reviewUrl,
-              recipientEmail: user.email,
-              decisionLabel: decisionLabel(input.decision),
-              comment: input.comment,
-            }),
-          ],
-    ),
+  return mapConcurrentBounded(
+    recipientUsers.filter((user) => user !== null),
+    { concurrency: EMAIL_PROVIDER_CONCURRENCY },
+    (user) =>
+      sendBadgeRuleApprovalDecisionEmail({
+        tracking: emailTracking(
+          db,
+          input.tenantId,
+          input.version.id,
+          `approval-decision:${input.decision}`,
+        ),
+        emailBinding: input.env.EMAIL,
+        fromEmail: input.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
+        fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
+        tenantId: input.tenantId,
+        tenantDisplayName: displayName,
+        ruleName: badgeRuleVersionDisplayFields(input.version, rule ?? { customLabel: null })
+          .displayName,
+        versionNumber: input.version.versionNumber,
+        reviewUrl: input.reviewUrl,
+        recipientEmail: user.email,
+        decisionLabel: decisionLabel(input.decision),
+        comment: input.comment,
+      }),
   );
 };

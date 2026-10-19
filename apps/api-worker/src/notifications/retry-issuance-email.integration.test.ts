@@ -1,3 +1,4 @@
+import type { TransactionalEmailResult } from "./transactional-email";
 import { createRecordingEmailBinding } from "../test-support/recording-email";
 import { sendIssuanceEmailNotification } from "./send-issuance-email";
 import { expect, it } from "vitest";
@@ -39,12 +40,16 @@ describeDbIntegration("notification retry", () => {
         assertionId,
         actorUserId: f.userId,
         failedAttemptId: initial.attemptId ?? "missing",
-        send: async (): Promise<void> => {
+        send: async () => {
           sends += 1;
           expect((await loadIssuanceEmailState(f.db, f.tenantId, assertionId)).outcome).toBe(
             "pending",
           );
-          throw new Error("provider unavailable");
+          return {
+            status: "failed" as const,
+            reason: "provider_rejected" as const,
+            attemptId: "test",
+          };
         },
       };
       const concurrent = await Promise.all([
@@ -63,6 +68,7 @@ describeDbIntegration("notification retry", () => {
           failedAttemptId: failed.attemptId ?? "missing",
           send: async () => {
             sends += 1;
+            return { status: "accepted", messageId: "test", attemptId: "test" };
           },
         }),
       ).toBe("accepted");
@@ -180,4 +186,55 @@ describeDbIntegration("notification retry", () => {
       await cleanupTestResources(f.db, { tenantIds: [f.tenantId], userIds: [f.userId] });
     }
   });
+  it.each<{ result: TransactionalEmailResult; expected: "pending" | "not_configured" }>([
+    {
+      result: { status: "pending", reason: "provider_uncertain", attemptId: "test" },
+      expected: "pending",
+    },
+    { result: { status: "tracking_failed", attemptId: "test" }, expected: "pending" },
+    {
+      result: { status: "skipped", reason: "not_configured", attemptId: "test" },
+      expected: "not_configured",
+    },
+  ])(
+    "never reports $result.status as accepted or retries its stale attempt",
+    async ({ result, expected }) => {
+      const f = await createBadgeRuleIntegrationFixture();
+      try {
+        const assertionId = await seedAssertion(f.db, {
+          tenantId: f.tenantId,
+          badgeTemplateId: f.badgeTemplateId,
+          recipientIdentity: "retry@example.edu",
+          issuedAt: "2026-09-01T00:00:00.000Z",
+        });
+        await recordIssuanceEmailOutcome({
+          db: f.db,
+          tenantId: f.tenantId,
+          assertionId,
+          status: "failed",
+        });
+        const failed = await loadIssuanceEmailState(f.db, f.tenantId, assertionId);
+        let sends = 0;
+        const input = {
+          db: f.db,
+          tenantId: f.tenantId,
+          assertionId,
+          actorUserId: f.userId,
+          failedAttemptId: failed.attemptId ?? "missing",
+          send: async (): Promise<TransactionalEmailResult> => {
+            sends += 1;
+            return result;
+          },
+        };
+        expect(await retryFailedIssuanceEmail(input)).toBe(expected);
+        expect((await loadIssuanceEmailState(f.db, f.tenantId, assertionId)).outcome).toBe(
+          expected,
+        );
+        expect(await retryFailedIssuanceEmail(input)).toBe("already_handled");
+        expect(sends).toBe(1);
+      } finally {
+        await cleanupTestResources(f.db, { tenantIds: [f.tenantId], userIds: [f.userId] });
+      }
+    },
+  );
 });

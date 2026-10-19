@@ -1,3 +1,4 @@
+import { createMemoryEmailTracking } from "../test-support/email-attempts";
 import { afterEach, describe, expect, it } from "vitest";
 import { createNodeEmail } from "../runtime/node-email";
 import { createSmtpTestServer, type SmtpTestServer } from "../test-support/smtp-test-server";
@@ -99,6 +100,7 @@ describe("SMTP wire delivery", () => {
       "issuance",
     ] as const) {
       await sendTransactionalEmail({
+        tracking: createMemoryEmailTracking(),
         kind,
         emailBinding: email.binding,
         recipientEmail: "learner@example.edu",

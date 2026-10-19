@@ -1,3 +1,4 @@
+import { emailTracking } from "../notifications/email-attempt-store";
 import { badgeRuleVersionDisplayFields } from "./badge-rule-presentation";
 import { logError, logInfo, type ObservabilityContext } from "@credtrail/core-domain";
 import {
@@ -84,7 +85,13 @@ const notifyLifecycleReminder = async (
   }
 
   try {
-    await sendBadgeRuleLifecycleReminderNotifications(input.db, {
+    const outcomes = await sendBadgeRuleLifecycleReminderNotifications(input.db, {
+      tracking: emailTracking(
+        input.db,
+        input.tenantId,
+        input.version.id,
+        JSON.stringify([input.reminderType, input.dueAt]),
+      ),
       emailBinding: input.env.EMAIL,
       fromEmail: input.env.TRANSACTIONAL_EMAIL_FROM_ADDRESS,
       fromName: input.env.TRANSACTIONAL_EMAIL_FROM_NAME,
@@ -97,7 +104,12 @@ const notifyLifecycleReminder = async (
       reminderType: input.reminderType,
       adminUrl: input.adminUrlForTenant(input.tenantId),
     });
-    return { status: "sent" };
+    return {
+      status:
+        outcomes.length > 0 && outcomes.every((outcome) => outcome.status === "accepted")
+          ? "sent"
+          : "failed",
+    };
   } catch (error: unknown) {
     logError(input.observability, "badge_rule_lifecycle_reminder_failed", {
       tenantId: input.tenantId,

@@ -196,7 +196,7 @@ describe("break-glass policy adapter", () => {
     expect(rememberRequestedTenant).toHaveBeenCalledWith(expect.anything(), "tenant_123");
   });
 
-  it("requests password-reset enrollment email only for allowlisted accounts", async () => {
+  it("does not mark password-reset enrollment sent without recorded provider acceptance", async () => {
     const authHandler = vi.fn(async () => {
       return new Response(JSON.stringify({ status: true }), {
         status: 200,
@@ -239,12 +239,8 @@ describe("break-glass policy adapter", () => {
       nextPath: "/tenants/tenant_123/admin",
     });
 
-    expect(result).toBe("sent");
-    expect(mockedMarkTenantBreakGlassEnrollmentEmailSent).toHaveBeenCalledWith(fakeDb, {
-      tenantId: "tenant_123",
-      userId: "usr_break_glass",
-      sentAt: expect.any(String),
-    });
+    expect(result).toBe("unavailable");
+    expect(mockedMarkTenantBreakGlassEnrollmentEmailSent).not.toHaveBeenCalled();
   });
 
   it("routes signed-in local users without TOTP into setup flow", async () => {

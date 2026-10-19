@@ -1,3 +1,4 @@
+import type { TransactionalEmailResult } from "./transactional-email";
 import {
   createAuditLog,
   listAuditLogs,
@@ -46,17 +47,27 @@ export const attemptIssuanceEmail = async (input: {
   readonly enabled: boolean;
   readonly suppressed: boolean;
   readonly configured: boolean;
-  readonly send: () => Promise<void>;
+  readonly send: () => Promise<TransactionalEmailResult>;
 }): Promise<Exclude<IssuanceEmailOutcome, "unrecorded">> => {
   if (!input.isEmailRecipient) return "not_applicable";
   if (input.suppressed) return "suppressed";
   const availability = issuanceEmailAvailability(input);
   if (availability !== "ready") return availability;
   try {
-    await input.send();
-    return "accepted";
+    const result = await input.send();
+    switch (result.status) {
+      case "accepted":
+        return "accepted";
+      case "failed":
+        return "failed";
+      case "skipped":
+        return result.reason === "not_configured" ? "not_configured" : "suppressed";
+      case "pending":
+      case "tracking_failed":
+        return "pending";
+    }
   } catch {
-    return "failed";
+    return "pending";
   }
 };
 
@@ -65,13 +76,15 @@ export const recordIssuanceEmailOutcome = async (input: {
   readonly tenantId: string;
   readonly assertionId: string;
   readonly status: Exclude<IssuanceEmailOutcome, "unrecorded">;
-}): Promise<void> => {
-  await createAuditLog(input.db, {
+  readonly occurredAt?: string | undefined;
+}): Promise<AuditLogRecord> => {
+  return createAuditLog(input.db, {
     tenantId: input.tenantId,
     action: auditAction,
     targetType: "assertion",
     targetId: input.assertionId,
     metadata: { status: input.status },
+    occurredAt: input.occurredAt,
   });
 };
 
@@ -148,7 +161,7 @@ export const loadIssuanceEmailOutcome = async (
 export const issuanceEmailOutcomeMessage = (outcome: IssuanceEmailOutcome): string => {
   switch (outcome) {
     case "pending":
-      return "A notification retry has started. Its result is not recorded yet. Refresh this page to check the outcome.";
+      return "A notification attempt has no confirmed result. Provider acceptance may be uncertain. Check the mail service before resending.";
     case "accepted":
       return "The email service accepted the notification. Delivery to the recipient is not confirmed.";
     case "failed":

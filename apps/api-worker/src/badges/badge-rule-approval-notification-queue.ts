@@ -29,26 +29,29 @@ export const processBadgeRuleApprovalNotificationJob = async (input: {
     buildBadgeRuleVersionReviewPath(input.tenantId, input.payload.ruleId, input.payload.versionId),
   );
 
-  if (input.payload.notificationType === "approval_submitted") {
-    await notifyBadgeRuleApprovalSubmitted(input.db, {
-      env: input.env,
-      tenantId: input.tenantId,
-      ruleId: input.payload.ruleId,
-      version,
-      reviewUrl,
-      targetStepNumber: input.payload.targetStepNumber,
-    });
-    return;
+  const outcomes =
+    input.payload.notificationType === "approval_submitted"
+      ? await notifyBadgeRuleApprovalSubmitted(input.db, {
+          env: input.env,
+          tenantId: input.tenantId,
+          ruleId: input.payload.ruleId,
+          version,
+          reviewUrl,
+          targetStepNumber: input.payload.targetStepNumber,
+        })
+      : await notifyBadgeRuleApprovalDecision(input.db, {
+          env: input.env,
+          tenantId: input.tenantId,
+          ruleId: input.payload.ruleId,
+          version,
+          decision: input.payload.decision,
+          comment: input.payload.comment,
+          reviewUrl,
+          nextStepNumber: input.payload.nextStepNumber,
+        });
+  if (outcomes === null || outcomes.some((outcome) => outcome.status !== "accepted")) {
+    // Queue boundary: fail the job rather than recording unsuccessful sends as completed.
+    // Stable per-recipient keys prevent resending accepted or uncertain attempts on replay.
+    throw new Error("Approval notification has messages without confirmed provider acceptance");
   }
-
-  await notifyBadgeRuleApprovalDecision(input.db, {
-    env: input.env,
-    tenantId: input.tenantId,
-    ruleId: input.payload.ruleId,
-    version,
-    decision: input.payload.decision,
-    comment: input.payload.comment,
-    reviewUrl,
-    nextStepNumber: input.payload.nextStepNumber,
-  });
 };

@@ -1,3 +1,4 @@
+import { createMemoryEmailTracking } from "../test-support/email-attempts";
 import { SendEmailCommand } from "@aws-sdk/client-sesv2";
 import { expect, it } from "vitest";
 import { createConfiguredEmailBinding } from "./configured-email-binding";
@@ -34,18 +35,25 @@ it("applies the same reply and copy policy to real notification builders through
   };
   const accessLink = "https://badges.example.edu/access?token=private-disposable-token";
   await sendMagicLinkEmailNotification({
+    tracking: createMemoryEmailTracking(),
     ...common,
     magicLinkUrl: accessLink,
     expiresAtIso: "2026-10-04T12:00:00Z",
   });
-  await sendPasswordResetEmailNotification({ ...common, resetUrl: accessLink });
+  await sendPasswordResetEmailNotification({
+    tracking: createMemoryEmailTracking(),
+    ...common,
+    resetUrl: accessLink,
+  });
   await sendMemberInviteEmailNotification({
+    tracking: createMemoryEmailTracking(),
     ...common,
     tenantDisplayName: "Example",
     role: "issuer",
     signInUrl: accessLink,
   });
   await sendBadgeRuleApprovalSubmittedEmail({
+    tracking: createMemoryEmailTracking(),
     ...common,
     tenantId: "example",
     ruleName: "Completion",
@@ -54,6 +62,7 @@ it("applies the same reply and copy policy to real notification builders through
     stepLabel: "Review",
   });
   await sendIssuanceEmailNotification({
+    tracking: createMemoryEmailTracking(),
     ...common,
     badgeTitle: "Completion",
     issuedAtIso: "2026-10-04T12:00:00Z",

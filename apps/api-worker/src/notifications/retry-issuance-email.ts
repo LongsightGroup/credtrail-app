@@ -1,3 +1,4 @@
+import type { TransactionalEmailResult } from "./transactional-email";
 import { createAuditLog, runSqlTransaction, type SqlDatabase } from "@credtrail/db";
 import { loadIssuanceEmailState } from "./issuance-email-outcome";
 
@@ -11,8 +12,8 @@ export const retryFailedIssuanceEmail = async (input: {
   assertionId: string;
   actorUserId: string;
   failedAttemptId: string;
-  send: () => Promise<void>;
-}): Promise<"accepted" | "failed" | "already_handled"> => {
+  send: () => Promise<TransactionalEmailResult>;
+}): Promise<"accepted" | "failed" | "pending" | "not_configured" | "already_handled"> => {
   const pending = await runSqlTransaction(input.db, async (db) => {
     await db
       .prepare("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")
@@ -36,21 +37,32 @@ export const retryFailedIssuanceEmail = async (input: {
     });
   });
   if (pending === null) return "already_handled";
-  let status: "accepted" | "failed";
+  let status: "accepted" | "failed" | "pending" | "not_configured";
   try {
-    await input.send();
-    status = "accepted";
+    const result = await input.send();
+    status =
+      result.status === "accepted"
+        ? "accepted"
+        : result.status === "failed"
+          ? "failed"
+          : result.status === "skipped"
+            ? "not_configured"
+            : "pending";
   } catch {
-    status = "failed";
+    status = "pending";
   }
-  await createAuditLog(input.db, {
-    tenantId: input.tenantId,
-    actorUserId: input.actorUserId,
-    action: "assertion.issuance_email",
-    targetType: "assertion",
-    targetId: input.assertionId,
-    occurredAt: after(pending.occurredAt),
-    metadata: { status, retriesAttemptId: input.failedAttemptId, pendingAttemptId: pending.id },
-  });
+  try {
+    await createAuditLog(input.db, {
+      tenantId: input.tenantId,
+      actorUserId: input.actorUserId,
+      action: "assertion.issuance_email",
+      targetType: "assertion",
+      targetId: input.assertionId,
+      occurredAt: after(pending.occurredAt),
+      metadata: { status, retriesAttemptId: input.failedAttemptId, pendingAttemptId: pending.id },
+    });
+  } catch {
+    return "pending";
+  }
   return status;
 };

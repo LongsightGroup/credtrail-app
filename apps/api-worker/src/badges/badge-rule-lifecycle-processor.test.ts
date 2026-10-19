@@ -155,7 +155,7 @@ describe("processBadgeRuleLifecycleForTenant", () => {
     expect(dbModule.expireBadgeIssuanceRuleVersion).not.toHaveBeenCalled();
   });
 
-  it("opens recertification reviews, sends reminders, and suspends severely overdue versions", async () => {
+  it("processes lifecycle governance but never counts untracked reminders as sent", async () => {
     const dbModule = await import("@credtrail/db");
     const dueVersion = {
       id: "brv_recert",
@@ -239,12 +239,14 @@ describe("processBadgeRuleLifecycleForTenant", () => {
       dueVersionsProcessed: 0,
       automatedEvaluationJobsEnqueued: 0,
       expiredVersions: 0,
-      expiryRemindersSent: 1,
-      recertificationRemindersSent: 1,
+      expiryRemindersSent: 0,
+      recertificationRemindersSent: 0,
       recertificationReviewsOpened: 1,
       recertificationAutoSuspensions: 1,
     });
-    expect(emailSend).toHaveBeenCalledTimes(2);
+    expect(emailSend).not.toHaveBeenCalled();
+    expect(dbModule.markBadgeIssuanceRuleVersionExpiryReminderSent).not.toHaveBeenCalled();
+    expect(dbModule.markBadgeIssuanceRuleVersionRecertificationReminderSent).not.toHaveBeenCalled();
     expect(dbModule.ensureBadgeRuleRecertificationReview).toHaveBeenCalledWith(input.db, {
       tenantId: "tenant_123",
       ruleId: "brl_123",

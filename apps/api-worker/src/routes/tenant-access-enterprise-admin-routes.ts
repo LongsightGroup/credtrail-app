@@ -41,7 +41,7 @@ interface RegisterTenantAccessEnterpriseAdminRoutesInput {
       tenantId: string;
       email: string;
     },
-  ) => Promise<"sent" | "unavailable">;
+  ) => Promise<"sent" | "skipped" | "unavailable">;
   resolveInstitutionAdminAdminRole: (
     c: AppContext,
     tenantId: string,

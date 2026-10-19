@@ -284,6 +284,26 @@ unscoped sign-in messages use CredTrail. No template settings or additional depe
 required. The layout uses text and inline styles, so its content remains available when images
 are blocked. This design is the same for SMTP, SES, and the Cloudflare email binding.
 
+#### Track notification attempts
+
+Application notifications create an `email_attempts` database record before contacting the mail
+provider. If that record cannot be saved, CredTrail does not send the message. Records identify
+the institution, message kind, recipient, related record, timestamps, and provider message ID;
+they do not contain message bodies, sign-in links, or password-reset tokens.
+
+- `accepted`: the provider accepted the message. This does not confirm inbox delivery.
+- `failed`: rendering failed or the provider explicitly rejected the send.
+- `skipped`: email is not configured, or development mode intentionally suppressed a sign-in email.
+- `pending`: no conclusive result is recorded. The process may still be sending, may have stopped,
+  or may have lost the provider's reply. Check the provider's records before resending.
+
+A failed result write leaves the original attempt pending and emits `email_attempt_tracking_failed`.
+Approval-job and lifecycle-reminder retries skip recipients whose logical notification is already
+accepted or pending, so recovery from partial failures does not resend those messages. A reminder
+is marked complete only after every intended recipient has provider acceptance. Badge issuance
+receipts also retain a pending notification event before sending; email failure does not undo or
+reissue the credential. Bounces and final mailbox delivery are not tracked by this workflow.
+
 #### Check SMTP from the image
 
 Run this command from the app repository to check the connection, certificate, and authentication:
