@@ -9,13 +9,10 @@ const MAX_PDF_BYTES = 8 * 1024 * 1024;
 const MAX_STORED_BYTES = Math.ceil(MAX_PDF_BYTES / 3) * 4 + 1_024;
 const storedPdfSchema = z.object({
   version: z.literal(1),
-  fingerprint: z.string().regex(/^[a-f0-9]{64}$/u),
+  fingerprint: z.string(),
   expiresAt: z.number().int().nonnegative(),
   byteSize: z.number().int().positive().max(MAX_PDF_BYTES),
-  base64Data: z
-    .string()
-    .max(MAX_STORED_BYTES)
-    .regex(/^[A-Za-z0-9+/]*={0,2}$/u),
+  base64Data: z.string().max(MAX_STORED_BYTES),
 });
 
 interface LoadOrRenderBadgePdfInput {
