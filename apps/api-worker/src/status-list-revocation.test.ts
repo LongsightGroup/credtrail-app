@@ -207,7 +207,7 @@ describe("GET /credentials/v1/status-lists/:tenantId/revocation", () => {
     const encodedList = asString(credentialSubject?.encodedList);
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("cache-control")).toBe("public, max-age=600");
     expect(response.headers.get("content-type")).toContain("application/vc+ld+json");
     expect(asString(credential.id)).toBe(
       "https://credtrail.test/credentials/v1/status-lists/tenant_123/revocation",

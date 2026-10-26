@@ -14,6 +14,7 @@ import type { ResolveDatabase } from "../app/route-deps";
 import type { PublicBadgeViewModel, VerificationViewModel } from "../badges/public-badge-model";
 import { VC_DATA_MODEL_CONTEXT_URL } from "../credentials/verification-checks";
 import { canonicalAppRequestUrl } from "../http/canonical-app-url";
+import { PUBLIC_DOCUMENT_CACHE_CONTROL } from "../http/response-cache-policy";
 
 const PRE_AUTHORIZED_CODE_GRANT = "urn:ietf:params:oauth:grant-type:pre-authorized_code";
 const OID4VCI_TOKEN_ENDPOINT_PATH = "/credentials/v1/token";
@@ -460,7 +461,7 @@ export const registerOid4vciRoutes = (input: RegisterOid4vciRoutesInput): void =
   };
 
   app.get("/.well-known/openid-credential-issuer", (c) => {
-    c.header("Cache-Control", "no-store");
+    c.header("Cache-Control", PUBLIC_DOCUMENT_CACHE_CONTROL);
     return c.json(buildIssuerMetadata(publicRequestUrl(c)));
   });
 

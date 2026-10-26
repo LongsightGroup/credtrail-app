@@ -374,6 +374,39 @@ Validation checks:
   - logical backup: `pg_dump --format=custom --file=credtrail.dump "$DATABASE_URL"`
   - restore: `pg_restore --clean --if-exists --dbname "$DATABASE_URL" credtrail.dump`
 
+## Cache public verification documents
+
+CredTrail sends these cache policies on successful public document responses:
+
+| Document | Routes | `Cache-Control` |
+| --- | --- | --- |
+| DID documents and public keys | `/.well-known/did.json`, `/.well-known/jwks.json`, `/:tenantSlug/did.json`, `/:tenantSlug/jwks.json` | `public, max-age=1800` |
+| Credential issuer metadata | `/.well-known/openid-credential-issuer` | `public, max-age=1800` |
+| Credential JSON-LD | `/badges/:badgeIdentifier/jsonld`, `/credentials/v1/:credentialId/jsonld` | `public, max-age=1800` |
+| Revocation status lists | `/credentials/v1/status-lists/:tenantId/revocation` | `public, max-age=600` |
+
+Status lists also contain `credentialSubject.ttl: 600000`, in milliseconds, to align
+verifier refresh guidance with the ten-minute HTTP freshness period. This policy does
+not guarantee that every verifier observes a revocation within ten minutes. Verifiers
+can keep their own caches or check status less often. Lifecycle headers on cached
+credential JSON-LD can also lag; use the status list to check revocation.
+
+In Cloudflare, create Cache Rules that make only these public document routes eligible
+for caching and respect the origin `Cache-Control` header. Cloudflare does not cache
+JSON or extensionless document routes by default. Match only `GET` and `HEAD` requests
+for the listed paths. Do not override `no-store` or cache responses that set cookies.
+Verification responses, credential downloads, wallet exchanges, authentication, and
+administrator routes retain their existing cache policies. See
+[Cloudflare's default cache behavior](https://developers.cloudflare.com/cache/concepts/default-cache-behavior/).
+
+Plan key rotation around the thirty-minute DID/JWKS freshness period. A verifier with
+an older cached key document can reject credentials signed with a newly activated
+key. CredTrail currently publishes only the active key in DID documents; it does not
+provide a separate step to publish the next DID key before signing with it. Account
+for this possible verification gap when scheduling a rotation. Keep historical public
+keys available in JWKS for existing credentials. Emergency key removal also cannot
+recall copies already held by caches or verifiers.
+
 ## TLS Termination
 
 Terminate TLS at your edge/load balancer (ALB, NGINX, Traefik, ingress controller).

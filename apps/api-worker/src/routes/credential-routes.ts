@@ -11,10 +11,12 @@ import {
 import { parseCredentialPathParams, parseTenantPathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app/types";
+import { REVOCATION_STATUS_LIST_TTL_MS } from "../badges/revocation-status";
 import type { BadgePdfDocumentInput, BadgePdfDocumentResult } from "../badges/pdf";
 import { loadOrRenderBadgePdf } from "../badges/pdf-cache";
 import type { ResolveDatabase } from "../app/route-deps";
 import { canonicalAppRequestUrl } from "../http/canonical-app-url";
+import { PUBLIC_DOCUMENT_CACHE_CONTROL } from "../http/response-cache-policy";
 import type { PublicResourceNetwork } from "../http/public-resource-network";
 import { VC_JSON_LD_CONTENT_TYPE } from "../http/vc-media-types";
 
@@ -455,7 +457,7 @@ export const registerCredentialRoutes = <
     model: VerificationViewModel<AssertionValue, CredentialValue>,
     download: boolean,
   ): Response => {
-    c.header("Cache-Control", "no-store");
+    c.header("Cache-Control", download ? "no-store" : PUBLIC_DOCUMENT_CACHE_CONTROL);
     c.header("Content-Type", VC_JSON_LD_CONTENT_TYPE);
     const checkedAt = new Date().toISOString();
     const baseLifecycle = summarizeCredentialLifecycleVerification(
@@ -637,7 +639,7 @@ export const registerCredentialRoutes = <
       );
     }
 
-    c.header("Cache-Control", "no-store");
+    c.header("Cache-Control", `public, max-age=${REVOCATION_STATUS_LIST_TTL_MS / 1_000}`);
     c.header("Content-Type", VC_JSON_LD_CONTENT_TYPE);
     return c.body(JSON.stringify(signedStatusListCredential.credential, null, 2));
   });

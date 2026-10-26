@@ -2,6 +2,8 @@ import type { JsonObject } from "@credtrail/core-domain";
 import { bytesToBase64Url } from "../utils/crypto";
 
 const BITSTRING_STATUS_LIST_CONTEXT = "https://www.w3.org/ns/credentials/status/v1";
+/** Status-list refresh interval, in milliseconds as required by the credential format. */
+export const REVOCATION_STATUS_LIST_TTL_MS = 600_000;
 const MINIMUM_STATUS_LIST_ENTRIES = 131_072;
 const MINIMUM_STATUS_LIST_BYTES = MINIMUM_STATUS_LIST_ENTRIES / 8;
 
@@ -157,6 +159,7 @@ export const buildRevocationStatusListCredential = async (
         id: `${statusListCredentialUrl}#list`,
         type: "BitstringStatusList",
         statusPurpose: "revocation",
+        ttl: REVOCATION_STATUS_LIST_TTL_MS,
         encodedList,
       },
     },

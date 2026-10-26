@@ -1,3 +1,6 @@
+/** Public issuer and credential documents may be reused for 30 minutes. */
+export const PUBLIC_DOCUMENT_CACHE_CONTROL = "public, max-age=1800";
+
 const hasExplicitPublicCachePolicy = (responseHeaders: Headers): boolean => {
   const cacheControl = responseHeaders.get("cache-control");
 
