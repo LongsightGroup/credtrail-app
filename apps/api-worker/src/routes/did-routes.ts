@@ -2,6 +2,7 @@ import type { JsonObject } from "@credtrail/core-domain";
 import type { Hono } from "hono";
 import type { TenantSigningRegistryEntry } from "@credtrail/validation";
 import type { AppContext, AppEnv } from "../app/types";
+import { PUBLIC_DOCUMENT_CACHE_CONTROL } from "../http/response-cache-policy";
 
 interface SigningKeyLike {
   keyId: string;
@@ -67,6 +68,7 @@ export const registerDidRoutes = (input: RegisterDidRoutesInput): void => {
       );
     }
 
+    c.header("Cache-Control", PUBLIC_DOCUMENT_CACHE_CONTROL);
     return c.json(didDocument);
   });
 
@@ -100,6 +102,7 @@ export const registerDidRoutes = (input: RegisterDidRoutesInput): void => {
       );
     }
 
+    c.header("Cache-Control", PUBLIC_DOCUMENT_CACHE_CONTROL);
     return c.json(didDocument);
   });
 
@@ -117,6 +120,7 @@ export const registerDidRoutes = (input: RegisterDidRoutesInput): void => {
       );
     }
 
+    c.header("Cache-Control", PUBLIC_DOCUMENT_CACHE_CONTROL);
     return c.json(
       jwksDocumentForSigningEntry({
         signingEntry,
@@ -140,6 +144,7 @@ export const registerDidRoutes = (input: RegisterDidRoutesInput): void => {
       );
     }
 
+    c.header("Cache-Control", PUBLIC_DOCUMENT_CACHE_CONTROL);
     return c.json(
       jwksDocumentForSigningEntry({
         signingEntry,
