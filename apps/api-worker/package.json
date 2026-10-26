@@ -31,8 +31,8 @@
     "pdf-lib": "^1.17.1",
     "pg": "^8.23.0",
     "qrcode-generator": "2.0.4",
-    "undici": "7.30.0",
-    "zod": "4.6.5"
+    "undici": "7.30.1",
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@types/d3-scale": "^4.0.9",

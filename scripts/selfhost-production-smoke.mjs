@@ -313,6 +313,10 @@ try {
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ ignoreHTTPSErrors: true });
   const page = await context.newPage();
+  page.on("pageerror", (error) => console.error("Login browser error:", error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") console.error("Login browser console:", message.text());
+  });
   await page.goto(`${origin}/login`);
   await page
     .locator('#magic-link-login-form input[name="email"]')
