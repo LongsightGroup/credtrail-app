@@ -42,7 +42,7 @@ describe("renderBadgePdfDocument badge images", () => {
         },
         { publicResourceNetwork: network },
       );
-      const document = await PDFDocument.load(bytes);
+      const document = await PDFDocument.load(bytes.bytes);
       const page = document.getPage(0);
       const contents = document.context.lookup(page.node.Contents());
       if (!(contents instanceof PDFArray)) throw new Error("Expected page drawing streams");
@@ -126,7 +126,7 @@ describe("renderBadgePdfDocument badge images", () => {
     });
 
     expect(requestedUrls).toEqual([]);
-    expect(new TextDecoder().decode(pdf.slice(0, 5))).toBe("%PDF-");
+    expect(new TextDecoder().decode(pdf.bytes.slice(0, 5))).toBe("%PDF-");
   });
 
   it("loads a public image through the bounded public-resource network", async () => {
@@ -145,7 +145,7 @@ describe("renderBadgePdfDocument badge images", () => {
     });
 
     expect(requestedUrls).toEqual(["https://images.example.edu/badge"]);
-    expect(new TextDecoder().decode(pdf.slice(0, 5))).toBe("%PDF-");
+    expect(new TextDecoder().decode(pdf.bytes.slice(0, 5))).toBe("%PDF-");
   });
 
   it("rejects image bytes that do not match a supported image signature", async () => {
@@ -157,7 +157,7 @@ describe("renderBadgePdfDocument badge images", () => {
       publicResourceNetwork: network,
     });
 
-    expect(new TextDecoder().decode(pdf.slice(0, 5))).toBe("%PDF-");
+    expect(new TextDecoder().decode(pdf.bytes.slice(0, 5))).toBe("%PDF-");
   });
 
   it("propagates caller cancellation to the image request", async () => {
@@ -179,6 +179,6 @@ describe("renderBadgePdfDocument badge images", () => {
 
     expect(requestSignals).toHaveLength(1);
     expect(requestSignals[0]?.aborted).toBe(true);
-    expect(new TextDecoder().decode(pdf.slice(0, 5))).toBe("%PDF-");
+    expect(new TextDecoder().decode(pdf.bytes.slice(0, 5))).toBe("%PDF-");
   });
 });

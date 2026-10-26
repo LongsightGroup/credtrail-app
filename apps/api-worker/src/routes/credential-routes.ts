@@ -11,6 +11,8 @@ import {
 import { parseCredentialPathParams, parseTenantPathParams } from "@credtrail/validation";
 import type { Hono } from "hono";
 import type { AppBindings, AppContext, AppEnv } from "../app/types";
+import type { BadgePdfDocumentInput, BadgePdfDocumentResult } from "../badges/pdf";
+import { loadOrRenderBadgePdf } from "../badges/pdf-cache";
 import type { ResolveDatabase } from "../app/route-deps";
 import { canonicalAppRequestUrl } from "../http/canonical-app-url";
 import type { PublicResourceNetwork } from "../http/public-resource-network";
@@ -84,23 +86,6 @@ interface CredentialLifecycleVerificationSummary {
 
 interface AchievementDetails {
   imageUri: string | null;
-}
-
-interface BadgePdfDocumentInput {
-  badgeName: string;
-  recipientName: string;
-  recipientIdentifier: string;
-  issuerName: string;
-  issuedAt: string;
-  validUntil?: string;
-  status: "Verified" | "Suspended" | "Revoked" | "Expired";
-  assertionId: string;
-  credentialId: string;
-  publicBadgeUrl: string;
-  verificationUrl: string;
-  ob3JsonUrl: string;
-  badgeImageUrl: string | null;
-  revokedAt?: string;
 }
 
 const publicRequestUrl = (c: AppContext): string => {
@@ -191,7 +176,7 @@ interface RegisterCredentialRoutesInput<
       readonly publicResourceNetwork: PublicResourceNetwork;
       readonly signal?: AbortSignal;
     },
-  ) => Promise<Uint8Array>;
+  ) => Promise<BadgePdfDocumentResult>;
   resolvePublicResourceNetwork: (bindings: AppBindings) => PublicResourceNetwork;
   credentialPdfDownloadFilename: (assertionId: string) => string;
   resolveSigningEntryForDid: (context: AppContext, did: string) => Promise<SigningEntry | null>;
@@ -517,34 +502,39 @@ export const registerCredentialRoutes = <
       model.recipientDisplayName ??
       recipientDisplayNameFromAssertion(model.assertion) ??
       "Badge recipient";
-    const pdfDocument = await renderBadgePdfDocument(
-      {
-        badgeName: badgeNameFromCredential(model.credential),
-        recipientName,
-        recipientIdentifier: recipientFromCredential(model.credential),
-        issuerName: issuerNameFromCredential(model.credential),
-        issuedAt: `${formatIsoTimestamp(model.assertion.issuedAt)} UTC`,
-        status: credentialLifecycleLabel(pdfEffectiveLifecycle.state),
-        assertionId: model.assertion.id,
-        credentialId,
-        publicBadgeUrl: new URL(publicBadgePath, publicRequestUrl(c)).toString(),
-        verificationUrl: new URL(verificationPath, publicRequestUrl(c)).toString(),
-        ob3JsonUrl: new URL(ob3JsonPath, publicRequestUrl(c)).toString(),
-        badgeImageUrl: achievementDetails.imageUri,
-        ...(model.assertion.validUntil === undefined || model.assertion.validUntil === null
-          ? {}
-          : { validUntil: `${formatIsoTimestamp(model.assertion.validUntil)} UTC` }),
-        ...(pdfEffectiveLifecycle.revokedAt === null
-          ? {}
-          : {
-              revokedAt: `${formatIsoTimestamp(pdfEffectiveLifecycle.revokedAt)} UTC`,
-            }),
-      },
-      {
-        publicResourceNetwork: resolvePublicResourceNetwork(c.env),
-        signal: c.req.raw.signal,
-      },
-    );
+    const pdfInput: BadgePdfDocumentInput = {
+      badgeName: badgeNameFromCredential(model.credential),
+      recipientName,
+      recipientIdentifier: recipientFromCredential(model.credential),
+      issuerName: issuerNameFromCredential(model.credential),
+      issuedAt: `${formatIsoTimestamp(model.assertion.issuedAt)} UTC`,
+      status: credentialLifecycleLabel(pdfEffectiveLifecycle.state),
+      assertionId: model.assertion.id,
+      credentialId,
+      publicBadgeUrl: new URL(publicBadgePath, publicRequestUrl(c)).toString(),
+      verificationUrl: new URL(verificationPath, publicRequestUrl(c)).toString(),
+      ob3JsonUrl: new URL(ob3JsonPath, publicRequestUrl(c)).toString(),
+      badgeImageUrl: achievementDetails.imageUri,
+      ...(model.assertion.validUntil === undefined || model.assertion.validUntil === null
+        ? {}
+        : { validUntil: `${formatIsoTimestamp(model.assertion.validUntil)} UTC` }),
+      ...(pdfEffectiveLifecycle.revokedAt === null
+        ? {}
+        : {
+            revokedAt: `${formatIsoTimestamp(pdfEffectiveLifecycle.revokedAt)} UTC`,
+          }),
+    };
+    const pdfDocument = await loadOrRenderBadgePdf({
+      store: c.env.BADGE_OBJECTS,
+      tenantId: model.assertion.tenantId,
+      input: pdfInput,
+      now: Date.now(),
+      render: () =>
+        renderBadgePdfDocument(pdfInput, {
+          publicResourceNetwork: resolvePublicResourceNetwork(c.env),
+          signal: c.req.raw.signal,
+        }),
+    });
     const pdfBody = Uint8Array.from(pdfDocument).buffer;
 
     return new Response(pdfBody, {

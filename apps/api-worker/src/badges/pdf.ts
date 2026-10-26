@@ -70,6 +70,12 @@ export interface BadgePdfDocumentInput {
   validUntil?: string;
 }
 
+/** Rendered bytes and whether the requested artwork could be included. */
+export interface BadgePdfDocumentResult {
+  readonly bytes: Uint8Array;
+  readonly artwork: "embedded" | "absent" | "unavailable";
+}
+
 /** Runtime dependencies used while rendering a downloadable badge PDF. */
 export interface BadgePdfDocumentOptions {
   readonly publicResourceNetwork: PublicResourceNetwork;
@@ -569,7 +575,7 @@ const drawPdfQrCode = (
 export const renderBadgePdfDocument = async (
   input: BadgePdfDocumentInput,
   options: BadgePdfDocumentOptions,
-): Promise<Uint8Array> => {
+): Promise<BadgePdfDocumentResult> => {
   const pdfDocument = await PDFDocument.create();
   const page = pdfDocument.addPage([612, 792]);
   const regularFont = await pdfDocument.embedFont(StandardFonts.Helvetica);
@@ -1093,5 +1099,13 @@ export const renderBadgePdfDocument = async (
   });
 
   const pdfBytes = await pdfDocument.save();
-  return Uint8Array.from(pdfBytes);
+  return {
+    bytes: Uint8Array.from(pdfBytes),
+    artwork:
+      input.badgeImageUrl === null
+        ? "absent"
+        : embeddedBadgeImage === null
+          ? "unavailable"
+          : "embedded",
+  };
 };
